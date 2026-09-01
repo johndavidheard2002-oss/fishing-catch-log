@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #efe6d2;
+  --paper-deep: #e4d8bd;
+  --ink: #1d1812;
+  --ink-muted: #6b6154;
+  --teal: #134e4c;
+  --teal-deep: #0c3534;
+  --copper: #c45c26;
+  --copper-dark: #9a451c;
+  --moss: #3f5c34;
+  --card: #fffaf1;
+  --line: #d4c8ae;
+  --good: #2f6b4f;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-teal: var(--teal);
+  --color-teal-deep: var(--teal-deep);
+  --color-copper: var(--copper);
+  --color-copper-dark: var(--copper-dark);
+  --color-moss: var(--moss);
+  --color-card: var(--card);
+  --color-line: var(--line);
+  --color-good: var(--good);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, #f6ecd4 0%, transparent 50%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      rgb(28 24 18 / 0.035) 28px
+    ),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.journal-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 0 rgb(29 24 18 / 0.04), 0 8px 24px rgb(29 24 18 / 0.05);
+}
+
+.bottom-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}

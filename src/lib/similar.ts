@@ -1,0 +1,279 @@
+import { adjacentTimes } from "./time";
+import type {
+  CatchRecord,
+  Season,
+  SimilarMatch,
+  TimeOfDay,
+  WeatherCondition,
+} from "./types";
+
+const CONDITION_FAMILIES: Record<string, WeatherCondition[]> = {
+  bright: ["clear", "partly-cloudy"],
+  gray: ["cloudy", "overcast", "fog"],
+  wet: ["drizzle", "rain", "storm", "snow"],
+};
+
+const TIDE_ORDER = ["low", "incoming", "high", "outgoing", "slack"];
+
+function familyOf(condition: WeatherCondition | null | undefined): string | null {
+  if (!condition) return null;
+  for (const [name, members] of Object.entries(CONDITION_FAMILIES)) {
+    if (members.includes(condition)) return name;
+  }
+  return null;
+}
+
+export function haversineKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
+function normalizeSpecies(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function normalizePlace(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function miles(km: number): string {
+  const mi = km * 0.621371;
+  if (mi < 0.1) return "same spot";
+  if (mi < 10) return `${mi.toFixed(1)} mi away`;
+  return `${Math.round(mi)} mi away`;
+}
+
+export type ConditionSlice = {
+  timeOfDay?: TimeOfDay | null;
+  season?: Season | null;
+  weatherCondition?: WeatherCondition | null;
+  temperatureF?: number | null;
+  windSpeedMph?: number | null;
+  precipitationIn?: number | null;
+  tide?: string | null;
+};
+
+/** Weather / time / season / tide overlap — used for similar catches and Plan. */
+export function scoreConditionOverlap(
+  a: ConditionSlice,
+  b: ConditionSlice,
+): { score: number; reasons: string[] } {
+  let score = 0;
+  const reasons: string[] = [];
+
+  if (a.season && b.season && a.season === b.season) {
+    score += 15;
+    reasons.push(capitalize(a.season));
+  }
+
+  if (a.timeOfDay && b.timeOfDay) {
+    if (a.timeOfDay === b.timeOfDay) {
+      score += 12;
+      reasons.push(capitalize(a.timeOfDay));
+    } else if (adjacentTimes(a.timeOfDay as TimeOfDay).includes(b.timeOfDay)) {
+      score += 5;
+      reasons.push(`Near ${a.timeOfDay}`);
+    }
+  }
+
+  if (a.weatherCondition && b.weatherCondition) {
+    if (a.weatherCondition === b.weatherCondition) {
+      score += 12;
+      reasons.push(conditionLabel(a.weatherCondition));
+    } else if (familyOf(a.weatherCondition) === familyOf(b.weatherCondition)) {
+      score += 7;
+      reasons.push("Similar sky");
+    }
+  }
+
+  if (a.temperatureF != null && b.temperatureF != null) {
+    const delta = Math.abs(a.temperatureF - b.temperatureF);
+    if (delta <= 5) {
+      score += 12;
+      reasons.push(`Within ${Math.round(delta)}°F`);
+    } else if (delta <= 10) {
+      score += 8;
+      reasons.push(`Within ${Math.round(delta)}°F`);
+    } else if (delta <= 15) {
+      score += 4;
+      reasons.push(`${Math.round(delta)}°F apart`);
+    }
+  }
+
+  if (a.windSpeedMph != null && b.windSpeedMph != null) {
+    const delta = Math.abs(a.windSpeedMph - b.windSpeedMph);
+    if (delta <= 3) {
+      score += 6;
+      reasons.push("Similar wind");
+    } else if (delta <= 8) {
+      score += 3;
+    }
+  }
+
+  const aWet = isWet(a.weatherCondition ?? null, a.precipitationIn ?? null);
+  const bWet = isWet(b.weatherCondition ?? null, b.precipitationIn ?? null);
+  if (aWet && bWet) {
+    score += 4;
+    if (!reasons.some((r) => r.toLowerCase().includes("rain") || r === "Drizzle")) {
+      reasons.push("Wet weather");
+    }
+  }
+
+  const tideScore = scoreTide(a.tide, b.tide);
+  if (tideScore.score) {
+    score += tideScore.score;
+    reasons.push(...tideScore.reasons);
+  }
+
+  return { score, reasons };
+}
+
+function scoreTide(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): { score: number; reasons: string[] } {
+  const left = normalizeTide(a);
+  const right = normalizeTide(b);
+  if (!left || !right) return { score: 0, reasons: [] };
+  if (left === right) {
+    return { score: 10, reasons: [`${capitalize(left)} tide`] };
+  }
+  const i = TIDE_ORDER.indexOf(left);
+  const j = TIDE_ORDER.indexOf(right);
+  if (i >= 0 && j >= 0 && Math.abs(i - j) === 1) {
+    return { score: 5, reasons: ["Nearby tide stage"] };
+  }
+  return { score: 0, reasons: [] };
+}
+
+function normalizeTide(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  const v = value.trim().toLowerCase();
+  if (v.includes("flood") || v === "incoming" || v === "rising") return "incoming";
+  if (v.includes("ebb") || v === "outgoing" || v === "falling") return "outgoing";
+  if (v === "high" || v === "high tide") return "high";
+  if (v === "low" || v === "low tide") return "low";
+  if (v === "slack") return "slack";
+  return v;
+}
+
+export function scoreSimilarity(
+  target: CatchRecord,
+  other: CatchRecord,
+): SimilarMatch {
+  const overlap = scoreConditionOverlap(target, other);
+  let score = overlap.score;
+  const reasons = [...overlap.reasons];
+
+  if (
+    target.species &&
+    other.species &&
+    normalizeSpecies(target.species) === normalizeSpecies(other.species)
+  ) {
+    score += 25;
+    reasons.unshift("Same species");
+  }
+
+  if (target.placeName && other.placeName) {
+    const a = normalizePlace(target.placeName);
+    const b = normalizePlace(other.placeName);
+    if (a === b) {
+      score += 20;
+      reasons.unshift("Same spot");
+    } else if (a.includes(b) || b.includes(a)) {
+      score += 12;
+      reasons.push("Nearby named water");
+    }
+  }
+
+  if (
+    target.latitude != null &&
+    target.longitude != null &&
+    other.latitude != null &&
+    other.longitude != null
+  ) {
+    const km = haversineKm(
+      target.latitude,
+      target.longitude,
+      other.latitude,
+      other.longitude,
+    );
+    if (km <= 1.5) {
+      if (!reasons.includes("Same spot")) {
+        score += 18;
+        reasons.unshift("Same spot");
+      }
+    } else if (km <= 8) {
+      score += 10;
+      reasons.push(miles(km));
+    } else if (km <= 40) {
+      score += 4;
+      reasons.push(miles(km));
+    }
+  }
+
+  return { catch: other, score, reasons };
+}
+
+function isWet(
+  condition: WeatherCondition | null,
+  precip: number | null,
+): boolean {
+  if (precip != null && precip > 0) return true;
+  return condition === "drizzle" || condition === "rain" || condition === "storm" || condition === "snow";
+}
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function conditionLabel(condition: WeatherCondition): string {
+  switch (condition) {
+    case "partly-cloudy":
+      return "Partly cloudy";
+    case "clear":
+      return "Clear";
+    case "cloudy":
+      return "Cloudy";
+    case "overcast":
+      return "Overcast";
+    case "fog":
+      return "Fog";
+    case "drizzle":
+      return "Drizzle";
+    case "rain":
+      return "Rain";
+    case "snow":
+      return "Snow";
+    case "storm":
+      return "Storm";
+    default:
+      return condition;
+  }
+}
+
+export function findSimilar(
+  target: CatchRecord,
+  all: CatchRecord[],
+  options?: { limit?: number; minScore?: number },
+): SimilarMatch[] {
+  const limit = options?.limit ?? 8;
+  const minScore = options?.minScore ?? 18;
+  return all
+    .filter((c) => c.id !== target.id)
+    .map((c) => scoreSimilarity(target, c))
+    .filter((m) => m.score >= minScore)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
