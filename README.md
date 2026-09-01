@@ -12,7 +12,7 @@ cp .env.example .env.local   # optional — demo mode works with empty keys
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/cast-log.sqlite` and seeds ten example catches (Lake Travis, Frying Pan, Mosquito Lagoon, a farm pond, Lake Erie, Chesapeake).
+Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/cast-log.sqlite` and seeds example catches across Lake Travis, Frying Pan, Mosquito Lagoon, a farm pond, Lake Erie, and Chesapeake — different weather, seasons, and times of day so filters work immediately.
 
 ```bash
 npm test          # similarity / filter / time-of-day unit tests

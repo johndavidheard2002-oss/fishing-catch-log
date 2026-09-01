@@ -52,11 +52,11 @@ export function dataDir(): string {
 }
 
 export function uploadsDir(): string {
-  return path.join(dataDir(), "uploads");
+  return path.join(process.cwd(), "data", "uploads");
 }
 
 function dbPath(): string {
-  return process.env.DATABASE_PATH?.trim() || path.join(dataDir(), "cast-log.sqlite");
+  return process.env.DATABASE_PATH?.trim() || path.join(process.cwd(), "data", "cast-log.sqlite");
 }
 
 export function getDb() {

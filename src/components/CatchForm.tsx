@@ -13,7 +13,6 @@ import type {
   Season,
   SpeciesSuggestion,
   TimeOfDay,
-  WeatherCondition,
 } from "@/lib/types";
 
 type FormState = {

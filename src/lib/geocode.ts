@@ -1,4 +1,4 @@
-import type { PlaceSnapshot } from "../types";
+import type { PlaceSnapshot } from "./types";
 
 export async function reverseGeocode(
   lat: number,

@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
-import { uploadsDir } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +19,7 @@ export async function GET(
 ) {
   const { filename } = await ctx.params;
   const safe = path.basename(filename);
-  const filePath = path.join(uploadsDir(), safe);
+  const filePath = path.join(process.cwd(), "data", "uploads", safe);
   if (!fs.existsSync(filePath)) {
     return new Response("Not found", { status: 404 });
   }
