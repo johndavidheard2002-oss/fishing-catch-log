@@ -7,6 +7,7 @@ import type { ProviderStatus } from "@/lib/types";
 
 const NAV = [
   { href: "/", label: "Home", icon: HomeIcon },
+  { href: "/plan", label: "Plan", icon: PlanIcon },
   { href: "/log", label: "Log", icon: PlusIcon, primary: true },
   { href: "/history", label: "History", icon: GridIcon },
   { href: "/spots", label: "Spots", icon: MapIcon },
@@ -29,7 +30,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const demo = status && (status.weather === "demo" || status.vision === "demo");
+  const demo =
+    status &&
+    (status.weather === "demo" ||
+      status.vision === "demo" ||
+      status.forecast === "demo" ||
+      status.tides === "demo");
 
   return (
     <div className="mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4">
@@ -45,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="flex-1">{children}</main>
       <nav className="bottom-nav journal-card fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl">
-        <ul className="grid grid-cols-4 px-2 pt-2">
+        <ul className="grid grid-cols-5 px-1 pt-2">
           {NAV.map((item) => {
             const active =
               item.href === "/"
@@ -86,6 +92,16 @@ function HomeIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function PlanIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 3v4M16 3v4M4 10h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 14h.01M12 14h.01M15 14h.01M9 17h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

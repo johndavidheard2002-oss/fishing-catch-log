@@ -1,6 +1,8 @@
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open("cast-log-v1").then((cache) => cache.addAll(["/", "/log", "/history", "/spots"])),
+    caches.open("cast-log-v2").then((cache) =>
+      cache.addAll(["/", "/log", "/history", "/spots", "/plan"]),
+    ),
   );
   self.skipWaiting();
 });

@@ -1,6 +1,7 @@
 import { adjacentTimes } from "./time";
 import type {
   CatchRecord,
+  Season,
   SimilarMatch,
   TimeOfDay,
   WeatherCondition,
@@ -12,7 +13,9 @@ const CONDITION_FAMILIES: Record<string, WeatherCondition[]> = {
   wet: ["drizzle", "rain", "storm", "snow"],
 };
 
-function familyOf(condition: WeatherCondition | null): string | null {
+const TIDE_ORDER = ["low", "incoming", "high", "outgoing", "slack"];
+
+function familyOf(condition: WeatherCondition | null | undefined): string | null {
   if (!condition) return null;
   for (const [name, members] of Object.entries(CONDITION_FAMILIES)) {
     if (members.includes(condition)) return name;
@@ -51,12 +54,127 @@ function miles(km: number): string {
   return `${Math.round(mi)} mi away`;
 }
 
+export type ConditionSlice = {
+  timeOfDay?: TimeOfDay | null;
+  season?: Season | null;
+  weatherCondition?: WeatherCondition | null;
+  temperatureF?: number | null;
+  windSpeedMph?: number | null;
+  precipitationIn?: number | null;
+  tide?: string | null;
+};
+
+/** Weather / time / season / tide overlap — used for similar catches and Plan. */
+export function scoreConditionOverlap(
+  a: ConditionSlice,
+  b: ConditionSlice,
+): { score: number; reasons: string[] } {
+  let score = 0;
+  const reasons: string[] = [];
+
+  if (a.season && b.season && a.season === b.season) {
+    score += 15;
+    reasons.push(capitalize(a.season));
+  }
+
+  if (a.timeOfDay && b.timeOfDay) {
+    if (a.timeOfDay === b.timeOfDay) {
+      score += 12;
+      reasons.push(capitalize(a.timeOfDay));
+    } else if (adjacentTimes(a.timeOfDay as TimeOfDay).includes(b.timeOfDay)) {
+      score += 5;
+      reasons.push(`Near ${a.timeOfDay}`);
+    }
+  }
+
+  if (a.weatherCondition && b.weatherCondition) {
+    if (a.weatherCondition === b.weatherCondition) {
+      score += 12;
+      reasons.push(conditionLabel(a.weatherCondition));
+    } else if (familyOf(a.weatherCondition) === familyOf(b.weatherCondition)) {
+      score += 7;
+      reasons.push("Similar sky");
+    }
+  }
+
+  if (a.temperatureF != null && b.temperatureF != null) {
+    const delta = Math.abs(a.temperatureF - b.temperatureF);
+    if (delta <= 5) {
+      score += 12;
+      reasons.push(`Within ${Math.round(delta)}°F`);
+    } else if (delta <= 10) {
+      score += 8;
+      reasons.push(`Within ${Math.round(delta)}°F`);
+    } else if (delta <= 15) {
+      score += 4;
+      reasons.push(`${Math.round(delta)}°F apart`);
+    }
+  }
+
+  if (a.windSpeedMph != null && b.windSpeedMph != null) {
+    const delta = Math.abs(a.windSpeedMph - b.windSpeedMph);
+    if (delta <= 3) {
+      score += 6;
+      reasons.push("Similar wind");
+    } else if (delta <= 8) {
+      score += 3;
+    }
+  }
+
+  const aWet = isWet(a.weatherCondition ?? null, a.precipitationIn ?? null);
+  const bWet = isWet(b.weatherCondition ?? null, b.precipitationIn ?? null);
+  if (aWet && bWet) {
+    score += 4;
+    if (!reasons.some((r) => r.toLowerCase().includes("rain") || r === "Drizzle")) {
+      reasons.push("Wet weather");
+    }
+  }
+
+  const tideScore = scoreTide(a.tide, b.tide);
+  if (tideScore.score) {
+    score += tideScore.score;
+    reasons.push(...tideScore.reasons);
+  }
+
+  return { score, reasons };
+}
+
+function scoreTide(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): { score: number; reasons: string[] } {
+  const left = normalizeTide(a);
+  const right = normalizeTide(b);
+  if (!left || !right) return { score: 0, reasons: [] };
+  if (left === right) {
+    return { score: 10, reasons: [`${capitalize(left)} tide`] };
+  }
+  const i = TIDE_ORDER.indexOf(left);
+  const j = TIDE_ORDER.indexOf(right);
+  if (i >= 0 && j >= 0 && Math.abs(i - j) === 1) {
+    return { score: 5, reasons: ["Nearby tide stage"] };
+  }
+  return { score: 0, reasons: [] };
+}
+
+function normalizeTide(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  const v = value.trim().toLowerCase();
+  if (v.includes("flood") || v === "incoming" || v === "rising") return "incoming";
+  if (v.includes("ebb") || v === "outgoing" || v === "falling") return "outgoing";
+  if (v === "high" || v === "high tide") return "high";
+  if (v === "low" || v === "low tide") return "low";
+  if (v === "slack") return "slack";
+  return v;
+}
+
 export function scoreSimilarity(
   target: CatchRecord,
   other: CatchRecord,
 ): SimilarMatch {
-  let score = 0;
-  const reasons: string[] = [];
+  const overlap = scoreConditionOverlap(target, other);
+  let score = overlap.score;
+  const reasons = [...overlap.reasons];
 
   if (
     target.species &&
@@ -64,7 +182,7 @@ export function scoreSimilarity(
     normalizeSpecies(target.species) === normalizeSpecies(other.species)
   ) {
     score += 25;
-    reasons.push("Same species");
+    reasons.unshift("Same species");
   }
 
   if (target.placeName && other.placeName) {
@@ -72,7 +190,7 @@ export function scoreSimilarity(
     const b = normalizePlace(other.placeName);
     if (a === b) {
       score += 20;
-      reasons.push("Same spot");
+      reasons.unshift("Same spot");
     } else if (a.includes(b) || b.includes(a)) {
       score += 12;
       reasons.push("Nearby named water");
@@ -94,7 +212,7 @@ export function scoreSimilarity(
     if (km <= 1.5) {
       if (!reasons.includes("Same spot")) {
         score += 18;
-        reasons.push("Same spot");
+        reasons.unshift("Same spot");
       }
     } else if (km <= 8) {
       score += 10;
@@ -102,64 +220,6 @@ export function scoreSimilarity(
     } else if (km <= 40) {
       score += 4;
       reasons.push(miles(km));
-    }
-  }
-
-  if (target.season && other.season && target.season === other.season) {
-    score += 15;
-    reasons.push(capitalize(target.season));
-  }
-
-  if (target.timeOfDay && other.timeOfDay) {
-    if (target.timeOfDay === other.timeOfDay) {
-      score += 12;
-      reasons.push(capitalize(target.timeOfDay));
-    } else if (adjacentTimes(target.timeOfDay as TimeOfDay).includes(other.timeOfDay)) {
-      score += 5;
-      reasons.push(`Near ${target.timeOfDay}`);
-    }
-  }
-
-  if (target.weatherCondition && other.weatherCondition) {
-    if (target.weatherCondition === other.weatherCondition) {
-      score += 12;
-      reasons.push(conditionLabel(target.weatherCondition));
-    } else if (familyOf(target.weatherCondition) === familyOf(other.weatherCondition)) {
-      score += 7;
-      reasons.push("Similar sky");
-    }
-  }
-
-  if (target.temperatureF != null && other.temperatureF != null) {
-    const delta = Math.abs(target.temperatureF - other.temperatureF);
-    if (delta <= 5) {
-      score += 12;
-      reasons.push(`Within ${Math.round(delta)}°F`);
-    } else if (delta <= 10) {
-      score += 8;
-      reasons.push(`Within ${Math.round(delta)}°F`);
-    } else if (delta <= 15) {
-      score += 4;
-      reasons.push(`${Math.round(delta)}°F apart`);
-    }
-  }
-
-  if (target.windSpeedMph != null && other.windSpeedMph != null) {
-    const delta = Math.abs(target.windSpeedMph - other.windSpeedMph);
-    if (delta <= 3) {
-      score += 6;
-      reasons.push("Similar wind");
-    } else if (delta <= 8) {
-      score += 3;
-    }
-  }
-
-  const targetWet = isWet(target.weatherCondition, target.precipitationIn);
-  const otherWet = isWet(other.weatherCondition, other.precipitationIn);
-  if (targetWet && otherWet) {
-    score += 4;
-    if (!reasons.some((r) => r.toLowerCase().includes("rain") || r === "Drizzle")) {
-      reasons.push("Wet weather");
     }
   }
 

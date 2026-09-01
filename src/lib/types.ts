@@ -155,4 +155,53 @@ export type ProviderStatus = {
   weather: "openweather" | "demo";
   vision: "openai" | "demo";
   geocode: "nominatim";
+  forecast: "openweather" | "demo";
+  tides: "worldtides" | "demo";
+};
+
+export type ForecastWindow = {
+  at: string;
+  date: string;
+  timeOfDay: TimeOfDay;
+  season: Season;
+  latitude: number;
+  longitude: number;
+  temperatureF: number | null;
+  weatherCondition: WeatherCondition | null;
+  windSpeedMph: number | null;
+  precipitationIn: number | null;
+  humidity: number | null;
+  tide: Tide | null;
+  tideHeightFt: number | null;
+  weatherSource: "openweather" | "demo";
+  tideSource: "worldtides" | "demo" | "none";
+};
+
+export type PlanMatch = {
+  catch: CatchRecord;
+  score: number;
+  reasons: string[];
+};
+
+export type PlanSuggestion = {
+  id: string;
+  spotKey: string;
+  placeName: string;
+  latitude: number | null;
+  longitude: number | null;
+  window: ForecastWindow;
+  score: number;
+  strength: "strong" | "good" | "lean";
+  headline: string;
+  reasons: string[];
+  matches: PlanMatch[];
+};
+
+export type PlanResult = {
+  days: number;
+  generatedAt: string;
+  weatherSource: "openweather" | "demo";
+  tideSource: "worldtides" | "demo";
+  note: string;
+  suggestions: PlanSuggestion[];
 };

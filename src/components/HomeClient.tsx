@@ -38,6 +38,12 @@ export function HomeClient() {
       >
         Log a catch
       </Link>
+      <Link
+        href="/plan"
+        className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold text-teal"
+      >
+        Plan the next few days
+      </Link>
 
       <dl className="grid grid-cols-3 gap-2">
         <Stat label="Catches" value={catches.length} />
@@ -53,12 +59,14 @@ export function HomeClient() {
             {latest.placeName || "Unnamed spot"} · {formatDateOnly(latest.caughtAt)}
           </p>
           <p className="text-sm text-ink-muted">{weatherLine(latest)}</p>
-          <Link
-            href={`/catch/${latest.id}#similar`}
-            className="mt-3 inline-block font-semibold text-teal"
-          >
-            Find similar conditions →
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+            <Link href={`/catch/${latest.id}#similar`} className="font-semibold text-teal">
+              Find similar conditions →
+            </Link>
+            <Link href="/plan" className="font-semibold text-teal">
+              Plan ahead →
+            </Link>
+          </div>
         </section>
       ) : null}
 
