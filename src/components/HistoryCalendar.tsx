@@ -94,17 +94,18 @@ export function HistoryCalendar({
                 }`}
               >
                 {cell.day}
-                <span className="mt-0.5 flex h-2 items-center justify-center gap-0.5">
-                  {count > 0
-                    ? Array.from({ length: Math.min(count, 3) }).map((_, i) => (
-                        <span
-                          key={i}
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            isSelected ? "bg-white" : "bg-copper"
-                          }`}
-                        />
-                      ))
-                    : null}
+                <span className="mt-0.5 flex h-3 items-center justify-center">
+                  {count > 0 ? (
+                    <span
+                      className={`min-w-3 rounded-full px-1 text-[10px] leading-4 font-bold ${
+                        isSelected ? "bg-white text-teal" : "bg-copper text-white"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  ) : (
+                    <span className="h-3" />
+                  )}
                 </span>
               </button>
             );
