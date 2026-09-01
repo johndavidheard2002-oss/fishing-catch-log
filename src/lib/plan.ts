@@ -97,11 +97,19 @@ export function suggestFromWindows(args: {
     }
   }
 
-  return suggestions.sort((a, b) => {
+  const ranked = suggestions.sort((a, b) => {
     const day = a.window.date.localeCompare(b.window.date);
     if (day) return day;
     return b.score - a.score;
   });
+
+  const byDate = new Map<string, PlanSuggestion[]>();
+  for (const s of ranked) {
+    const list = byDate.get(s.window.date) ?? [];
+    list.push(s);
+    byDate.set(s.window.date, list);
+  }
+  return [...byDate.entries()].flatMap(([, list]) => list.slice(0, 4));
 }
 
 export async function buildPlan(
