@@ -2,10 +2,14 @@
 
 import { CatchCard, CatchGridCard } from "@/components/CatchCard";
 import { FilterPanel } from "@/components/FilterPanel";
+import { HistoryCalendar } from "@/components/HistoryCalendar";
+import { localDateKey, parseYearMonth } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import type { CatchFilters, CatchRecord } from "@/lib/types";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+
+type HistoryView = "grid" | "list" | "calendar";
 
 export function HistoryClient() {
   const searchParams = useSearchParams();
@@ -13,9 +17,20 @@ export function HistoryClient() {
   const [filters, setFilters] = useState<CatchFilters>(() => ({
     species: searchParams.get("species") || undefined,
   }));
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<HistoryView>(
+    searchParams.get("view") === "calendar"
+      ? "calendar"
+      : searchParams.get("view") === "list"
+        ? "list"
+        : "grid",
+  );
   const [showFilters, setShowFilters] = useState(Boolean(searchParams.get("species")));
   const [loading, setLoading] = useState(true);
+  const queryDay = searchParams.get("day");
+  const [monthOverride, setMonthOverride] = useState<{ year: number; month: number } | null>(
+    queryDay ? parseYearMonth(queryDay) : null,
+  );
+  const [selectedDay, setSelectedDay] = useState<string | null>(queryDay);
 
   useEffect(() => {
     fetch("/api/catches")
@@ -29,6 +44,13 @@ export function HistoryClient() {
     [catches, filters],
   );
   const active = hasActiveFilters(filters);
+  const latestDay = filtered[0] ? localDateKey(filtered[0].caughtAt) : null;
+  const displayDay = selectedDay ?? (view === "calendar" ? latestDay : null);
+  const monthCursor =
+    monthOverride ??
+    (displayDay
+      ? parseYearMonth(displayDay)
+      : { year: new Date().getFullYear(), month: new Date().getMonth() });
 
   return (
     <div className="space-y-4">
@@ -39,24 +61,30 @@ export function HistoryClient() {
             {filtered.length} of {catches.length} catches
           </p>
         </div>
-        <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+            active || showFilters ? "bg-teal text-white" : "border border-line bg-card"
+          }`}
+        >
+          Filters
+        </button>
+      </div>
+
+      <div className="journal-card grid grid-cols-3 overflow-hidden rounded-2xl p-1">
+        {(["grid", "list", "calendar"] as const).map((id) => (
           <button
+            key={id}
             type="button"
-            onClick={() => setView(view === "grid" ? "list" : "grid")}
-            className="rounded-full border border-line bg-card px-3 py-1.5 text-xs font-semibold"
-          >
-            {view === "grid" ? "List" : "Grid"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowFilters((v) => !v)}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              active || showFilters ? "bg-teal text-white" : "border border-line bg-card"
+            onClick={() => setView(id)}
+            className={`rounded-xl py-2 text-xs font-semibold capitalize ${
+              view === id ? "bg-teal text-white" : "text-ink-muted"
             }`}
           >
-            Filters
+            {id}
           </button>
-        </div>
+        ))}
       </div>
 
       {showFilters ? (
@@ -106,6 +134,18 @@ export function HistoryClient() {
 
       {loading ? (
         <p className="text-sm text-ink-muted">Loading the journal…</p>
+      ) : view === "calendar" ? (
+        <HistoryCalendar
+          catches={filtered}
+          year={monthCursor.year}
+          month={monthCursor.month}
+          selectedDay={displayDay}
+          onMonthChange={setMonthOverride}
+          onSelectDay={(day) => {
+            setSelectedDay(day);
+            setMonthOverride(parseYearMonth(day));
+          }}
+        />
       ) : filtered.length === 0 ? (
         <p className="text-sm text-ink-muted">
           Nothing matches those conditions. Clear filters or log another catch.

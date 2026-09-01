@@ -15,7 +15,7 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/cast-log.sqlite` and seeds example catches across Lake Travis, Frying Pan, Mosquito Lagoon, a farm pond, Lake Erie, and Chesapeake — different weather, seasons, and times of day so filters work immediately.
 
 ```bash
-npm test          # similarity / filter / time-of-day / plan unit tests
+npm test          # similarity / filter / time-of-day / plan / calendar unit tests
 npm run build && npm start
 ```
 
@@ -40,7 +40,7 @@ The header shows **Demo APIs** when weather or vision is not live.
 ## What you can do
 
 - **Log** — big camera/upload, fast save. On save we capture photo, species assist, lat/long + place, weather, timestamp, dawn/morning/afternoon/dusk/night, season, plus optional bait / tide / water / notes.
-- **History** — grid or list, filters for species, place, date range, season, time of day, sky, temp band, wind band. Presets like “Cloudy 70–80°F”. CSV export.
+- **History** — grid, list, or **calendar** month view. Days with catches show markers; tap a day to open that day’s trips. Filters still apply (only matching catches mark the calendar). Presets like “Cloudy 70–80°F”. CSV export.
 - **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, and wind, and says why.
 - **Plan** — forward-looking twin of similar: upcoming 3/5/7-day windows vs days you actually caught fish. Ranked spot suggestions with “why”, matching past trips, and a strength label. Honest that this is a pattern match, not a guarantee.
 - **Spots** — map + grouped list so you can revisit water that produced under similar conditions.
