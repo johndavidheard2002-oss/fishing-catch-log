@@ -1,4 +1,5 @@
 export const HELP_OPEN_EVENT = "cast-log-open-help";
+export const HELP_TIP_EVENT = "cast-log-help-tip-change";
 export const HELP_TIP_KEY = "cast-log-help-tip-seen";
 
 export type HelpSection = {
@@ -74,4 +75,14 @@ export function helpTipSeen(): boolean {
 
 export function markHelpTipSeen() {
   localStorage.setItem(HELP_TIP_KEY, "1");
+  window.dispatchEvent(new Event(HELP_TIP_EVENT));
+}
+
+export function subscribeHelpTip(onChange: () => void) {
+  window.addEventListener(HELP_TIP_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(HELP_TIP_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
 }

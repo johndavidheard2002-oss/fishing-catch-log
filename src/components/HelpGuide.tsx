@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { HELP_OPEN_EVENT, HELP_SECTIONS, helpTipSeen, markHelpTipSeen } from "@/lib/help";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  HELP_OPEN_EVENT,
+  HELP_SECTIONS,
+  helpTipSeen,
+  markHelpTipSeen,
+  subscribeHelpTip,
+} from "@/lib/help";
 
 export function HelpButton() {
   return (
@@ -87,17 +93,8 @@ export function HelpGuide() {
 }
 
 export function FirstHelpTip() {
-  const [show, setShow] = useState(false);
-
-  useEffect(() => {
-    try {
-      setShow(!helpTipSeen());
-    } catch {
-      setShow(false);
-    }
-  }, []);
-
-  if (!show) return null;
+  const unseen = useSyncExternalStore(subscribeHelpTip, () => !helpTipSeen(), () => false);
+  if (!unseen) return null;
 
   return (
     <div className="journal-card flex items-center justify-between gap-2 rounded-2xl px-3 py-2" data-testid="help-first-tip">
@@ -108,7 +105,6 @@ export function FirstHelpTip() {
           className="rounded-full bg-teal px-3 py-1 text-xs font-semibold text-white"
           onClick={() => {
             markHelpTipSeen();
-            setShow(false);
             window.dispatchEvent(new Event(HELP_OPEN_EVENT));
           }}
         >
@@ -117,10 +113,7 @@ export function FirstHelpTip() {
         <button
           type="button"
           className="text-xs font-semibold text-ink-muted"
-          onClick={() => {
-            markHelpTipSeen();
-            setShow(false);
-          }}
+          onClick={() => markHelpTipSeen()}
         >
           Got it
         </button>
