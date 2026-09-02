@@ -40,8 +40,8 @@ export function BaitSpotDetail({ id }: { id: string }) {
   if (error) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-copper">{error}</p>
-        <Link href="/spots?kind=bait" className="text-sm font-semibold text-teal">
+        <p className="on-wash-chip text-sm text-copper">{error}</p>
+        <Link href="/spots?kind=bait" className="on-wash-chip w-fit text-sm font-semibold text-teal">
           Back to bait
         </Link>
       </div>
@@ -49,13 +49,13 @@ export function BaitSpotDetail({ id }: { id: string }) {
   }
 
   if (!record) {
-    return <p className="text-sm text-ink-muted">Opening bait spot…</p>;
+    return <p className="on-wash-chip text-sm">Opening bait spot…</p>;
   }
 
   if (editing) {
     return (
       <div className="space-y-4">
-        <button type="button" className="text-sm font-semibold text-teal" onClick={() => setEditing(false)}>
+        <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={() => setEditing(false)}>
           Cancel
         </button>
         <BaitSpotForm mode="edit" initial={record} />
@@ -66,7 +66,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
   const src = photoSrc(record.photoPath);
   return (
     <div className="space-y-4">
-      <Link href="/spots?kind=bait" className="text-sm font-semibold text-teal">
+      <Link href="/spots?kind=bait" className="on-wash-chip w-fit text-sm font-semibold text-teal">
         ← Bait
       </Link>
       {src ? (
@@ -90,7 +90,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
           : ""}
       </p>
       {record.notes ? <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm">{record.notes}</p> : null}
-      <p className="text-xs text-ink-muted">{PRIVACY_LINE}</p>
+      <p className="on-wash-chip text-xs">{PRIVACY_LINE}</p>
       <div className="flex gap-2">
         <button
           type="button"

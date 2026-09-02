@@ -125,6 +125,68 @@ textarea {
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.9);
 }
 
+/* Type sitting on the trout wash (not on opaque cards). Cream halo + darker muted. */
+main {
+  --wash-text-shadow:
+    0 1px 0 rgb(255 252 245 / 0.95),
+    0 0 8px rgb(255 252 245 / 0.85),
+    0 1px 14px rgb(247 252 255 / 0.55);
+  text-shadow: var(--wash-text-shadow);
+}
+
+main .text-ink-muted {
+  color: #041525;
+}
+
+/* Opaque cards, filled CTAs, maps, and fields keep crisp type — no wash halo. */
+.journal-card,
+.page-intro,
+.bottom-nav,
+.bg-card,
+.bg-teal,
+.bg-copper,
+.bg-good,
+.bg-paper,
+.bg-paper-deep,
+.leaflet-container,
+input,
+textarea,
+select,
+.on-wash-chip {
+  text-shadow: none;
+}
+
+.journal-card .text-ink-muted,
+.page-intro .text-ink-muted,
+.bg-card .text-ink-muted,
+.bg-paper .text-ink-muted,
+.bg-paper-deep .text-ink-muted,
+.bottom-nav .text-ink-muted,
+.on-wash-chip .text-ink-muted {
+  color: var(--ink-muted);
+}
+
+/* Do not halo white-on-teal/copper CTAs (Log a catch / Log bait). */
+a.bg-teal,
+a.bg-copper,
+a.bg-good,
+button.bg-teal,
+button.bg-copper,
+button.bg-good {
+  text-shadow: none;
+}
+
+.on-wash-chip {
+  display: block;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0.75rem;
+  background: rgb(247 252 255 / 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.72);
+  color: var(--ink);
+}
+
 .bottom-nav {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   background: rgb(247 252 255 / 0.96);

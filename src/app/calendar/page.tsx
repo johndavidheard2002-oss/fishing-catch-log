@@ -21,7 +21,7 @@ export default async function CalendarLogPage() {
   const initialNotes = listCalendarNotes(viewerId);
 
   return (
-    <Suspense fallback={<p className="text-sm text-ink-muted">Opening Calendar Log…</p>}>
+    <Suspense fallback={<p className="on-wash-chip text-sm">Opening Calendar Log…</p>}>
       <HistoryClient
         initialCatches={initialCatches}
         initialBaitSpots={initialBaitSpots}

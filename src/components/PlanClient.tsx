@@ -127,18 +127,20 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
       ) : null}
 
       {!selectedDay ? (
-        <p className="text-sm text-ink-muted">Tap a day to plan it.</p>
+        <p className="on-wash-chip text-sm">Tap a day to plan it.</p>
       ) : !plan && !error ? (
-        <p className="text-sm text-ink-muted">Matching that day to your journal…</p>
+        <p className="on-wash-chip text-sm">Matching that day to your journal…</p>
       ) : error ? (
-        <p className="text-sm text-copper">{error}</p>
+        <p className="on-wash-chip text-sm text-copper">{error}</p>
       ) : (
         <section
           ref={resultsRef}
           className="space-y-2"
           data-testid="plan-day-results"
         >
-          <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
+          <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
+            {formatWeekdayDate(selectedDay)}
+          </h2>
           {suggestions.length || baitSuggestions.length ? (
             <>
               {suggestions.map((s) => (
@@ -151,7 +153,10 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
               ))}
               {baitSuggestions.length ? (
                 <>
-                  <h3 className="pt-1 text-sm font-semibold text-copper" data-testid="bait-plan-heading">
+                  <h3
+                    className="on-wash-chip w-fit pt-1 text-sm font-semibold text-copper"
+                    data-testid="bait-plan-heading"
+                  >
                     Bait under similar conditions
                   </h3>
                   {baitSuggestions.map((s) => (
@@ -166,7 +171,7 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
               ) : null}
             </>
           ) : (
-            <p className="text-sm text-ink-muted">
+            <p className="on-wash-chip text-sm">
               No close matches for this day. Log more catches or bait spots, or pick another date.
             </p>
           )}

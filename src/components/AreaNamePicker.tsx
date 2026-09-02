@@ -71,8 +71,8 @@ export function AreaNamePicker({
 
   return (
     <div className="space-y-2" data-testid="named-area-picker">
-      <p className="text-sm font-semibold">Area</p>
-      <p className="text-xs text-ink-muted">
+      <p className="on-wash-chip text-sm font-semibold">Area</p>
+      <p className="on-wash-chip text-xs">
         Pick a named area, or name this one so it shows up next time.
       </p>
       {chips.length ? (
@@ -95,7 +95,7 @@ export function AreaNamePicker({
           })}
         </div>
       ) : (
-        <p className="text-xs text-ink-muted">No saved areas yet.</p>
+        <p className="on-wash-chip text-xs">No saved areas yet.</p>
       )}
       {naming ? (
         <div className="space-y-2 rounded-2xl border border-line bg-paper px-3 py-3">

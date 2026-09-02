@@ -235,19 +235,19 @@ export function HistoryClient({
         />
       </div>
 
-      {loadError ? <p className="text-sm text-copper">{loadError}</p> : null}
+      {loadError ? <p className="on-wash-chip text-sm text-copper">{loadError}</p> : null}
 
       {loading && catches.length === 0 ? (
-        <p className="text-sm text-ink-muted">Loading the journal…</p>
+        <p className="on-wash-chip text-sm">Loading the journal…</p>
       ) : view === "calendar" ? (
         <div className="space-y-3">
           {catches.length === 0 && baitSpots.length === 0 ? (
-            <p className="text-sm text-ink-muted">
+            <p className="on-wash-chip text-sm">
               Nothing logged yet. Tap a day to plan a trip with a note — no photo needed. Log a
               catch or bait later from Log or Log bait.
             </p>
           ) : filtered.length === 0 && baitSpots.length === 0 ? (
-            <p className="text-sm text-ink-muted">
+            <p className="on-wash-chip text-sm">
               Nothing matches those conditions. Clear filters or log another catch.
             </p>
           ) : null}
@@ -302,12 +302,12 @@ export function HistoryClient({
           />
         </div>
       ) : catches.length === 0 ? (
-        <p className="text-sm text-ink-muted">
+        <p className="on-wash-chip text-sm">
           Nothing logged yet. Log a catch or backfill a photo — one picture becomes one trip at
           one pin. Sample trips are off unless you load them from Home → More.
         </p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-ink-muted">
+        <p className="on-wash-chip text-sm">
           Nothing matches those conditions. Clear filters or log another catch.
         </p>
       ) : view === "grid" ? (
@@ -326,7 +326,7 @@ export function HistoryClient({
 
       <a
         href="/api/export"
-        className="block pt-2 text-center text-sm font-semibold text-ink-muted"
+        className="on-wash-chip mx-auto mt-2 block w-fit text-center text-sm font-semibold"
       >
         Export CSV
       </a>

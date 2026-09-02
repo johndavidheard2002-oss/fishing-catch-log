@@ -138,14 +138,14 @@ export function SpotsClient() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-ink-muted">Loading spots…</p>
+        <p className="on-wash-chip text-sm">Loading spots…</p>
       ) : kind === "bait" && baitGroups.length === 0 ? (
-        <p className="text-sm text-ink-muted">
+        <p className="on-wash-chip text-sm">
           No bait yet. Tap Log bait, pin the hole, and tag shrimp, mullet, or crabs so Plan can
           match similar tides and weather.
         </p>
       ) : kind === "catch" && spots.length === 0 ? (
-        <p className="text-sm text-ink-muted">
+        <p className="on-wash-chip text-sm">
           No spots yet. Log a catch to drop your first pin. Sample trips stay off until you load
           them from Home → More.
         </p>

@@ -213,7 +213,7 @@ export function MapPicker({
         <div ref={ref} className="h-64 w-full overflow-hidden rounded-2xl border border-line" />
         <BasemapToggle value={basemap} onChange={setBasemap} />
       </div>
-      <p className="text-xs text-ink-muted">
+      <p className="on-wash-chip text-xs">
         {hasPin
           ? "Satellite by default — drag the pin or tap a new spot. It stays editable."
           : "No pin yet — tap the satellite map to place this catch."}

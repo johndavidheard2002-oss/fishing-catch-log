@@ -229,10 +229,10 @@ export function ScanLibraryClient() {
         }}
       />
 
-      {error ? <p className="text-sm text-copper">{error}</p> : null}
+      {error ? <p className="on-wash-chip text-sm text-copper">{error}</p> : null}
 
       {!busy && !current && (skipped > 0 || candidates.length === 0) ? (
-        <p className="text-sm text-ink-muted">
+        <p className="on-wash-chip text-sm">
           {skipped
             ? `Skipped ${skipped} file${skipped === 1 ? "" : "s"} we could not open.`
             : "Pick a handful of trip photos. We only look at what you select."}
@@ -300,12 +300,12 @@ export function ScanLibraryClient() {
         </article>
       ) : null}
 
-      <p className="text-xs text-ink-muted">
+      <p className="on-wash-chip text-xs">
         Privacy: this is your journal on this phone. Only the pictures you pick are checked. They
         stay in your Catch Compass log. Nothing is added until you tap Yes. We do not look at the
         rest of your camera roll.
       </p>
-      <Link href="/backfill" className="inline-block text-sm font-semibold text-teal">
+      <Link href="/backfill" className="on-wash-chip inline-block text-sm font-semibold text-teal">
         Backfill one photo instead
       </Link>
     </div>

@@ -252,7 +252,7 @@ export function HistoryCalendar({
       {selectedDay ? (
         <section id="day-detail" className="space-y-3">
           <div className="flex items-start justify-between gap-2">
-            <h2 className="font-display text-xl text-teal">
+            <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
               {hasOtherYears && !thisYearOnly
                 ? monthDayLabel(selectedDay)
                 : formatWeekdayDate(selectedDay)}
@@ -260,7 +260,7 @@ export function HistoryCalendar({
           </div>
           {selected.length === 0 && selectedBait.length === 0 ? null : mappedSpots.length || mappedBait.length ? (
             <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+              <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">
                 Locations
               </p>
               <SpotMap
@@ -270,11 +270,11 @@ export function HistoryCalendar({
                 className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
               />
               {mappedSpots.length && mappedBait.length ? (
-                <p className="text-[11px] text-ink-muted">
+                <p className="on-wash-chip w-fit text-[11px]">
                   Teal pins are catches. Copper pins are bait holes.
                 </p>
               ) : mappedBait.length && !mappedSpots.length ? (
-                <p className="text-[11px] text-ink-muted">Copper pins are bait holes.</p>
+                <p className="on-wash-chip w-fit text-[11px]">Copper pins are bait holes.</p>
               ) : null}
               <PinSummary spots={mappedSpots} baitSpots={mappedBait} />
             </div>
@@ -285,7 +285,7 @@ export function HistoryCalendar({
           )}
           {hasOtherYears ? (
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs text-ink-muted">
+              <p className="on-wash-chip w-fit text-xs">
                 {thisYearOnly
                   ? yearFromDateKey(selectedDay)
                   : `Same date · ${allYearsLabel}`}
@@ -331,7 +331,7 @@ export function HistoryCalendar({
             />
           ) : null}
           {selected.length === 0 && selectedBait.length === 0 ? (
-            <p className="text-sm text-ink-muted">
+            <p className="on-wash-chip text-sm">
               {thisYearOnly && (acrossYears.length || acrossYearsBait.length)
                 ? `Nothing in ${yearFromDateKey(selectedDay)}. Other years have trips on this date — switch to All years.`
                 : selectedDay > today
@@ -342,11 +342,13 @@ export function HistoryCalendar({
             <>
               {selectedBait.length ? (
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-copper">Bait</h3>
+                  <h3 className="on-wash-chip w-fit text-sm font-semibold text-copper">Bait</h3>
                   {baitYearGroups.map((group) => (
                     <div key={`bait-${group.year}`} className="space-y-2">
                       {showYearLabels && yearGroups.length + baitYearGroups.length > 1 ? (
-                        <h4 className="pt-1 font-display text-lg text-teal">{group.year}</h4>
+                        <h4 className="on-wash-chip w-fit pt-1 font-display text-lg text-teal">
+                          {group.year}
+                        </h4>
                       ) : null}
                       {group.spots.map((spot) => (
                         <BaitSpotCard
@@ -365,7 +367,9 @@ export function HistoryCalendar({
               {yearGroups.map((group) => (
                 <div key={group.year} className="space-y-2">
                   {showYearLabels ? (
-                    <h3 className="pt-1 font-display text-lg text-teal">{group.year}</h3>
+                    <h3 className="on-wash-chip w-fit pt-1 font-display text-lg text-teal">
+                      {group.year}
+                    </h3>
                   ) : null}
                   {group.catches.map((record) => (
                     <CatchCard
@@ -383,7 +387,7 @@ export function HistoryCalendar({
           )}
         </section>
       ) : (
-        <p className="text-sm text-ink-muted">
+        <p className="on-wash-chip text-sm">
           Tap a day for its map, logged catches, bait spots, or to add a planned-trip note. No photo
           needed for future days.
         </p>
@@ -462,7 +466,7 @@ function PinSummary({ spots, baitSpots = [] }: { spots: SpotGroup[]; baitSpots?:
     .map((spot) => `Bait · ${baitTypesLabel(spot.baitTypes)} · ${baitSpotLabel(spot)}`)
     .join(" · ");
   const line = [catchLine, baitLine].filter(Boolean).join(" · ");
-  return <p className="text-xs text-ink-muted">{line}</p>;
+  return <p className="on-wash-chip w-fit text-xs">{line}</p>;
 }
 
 function DayThumbs({

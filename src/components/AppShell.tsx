@@ -15,7 +15,6 @@ const NAV: {
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/plan", label: "Plan", icon: PlanIcon },
   { href: "/log", label: "Log", icon: PlusIcon, primary: true },
-  { href: "/backfill", label: "Backfill", icon: PastIcon },
   {
     href: "/calendar",
     label: (
@@ -27,6 +26,7 @@ const NAV: {
     ariaLabel: "Calendar Log",
     icon: CalendarIcon,
   },
+  { href: "/backfill", label: "Backfill", icon: PastIcon },
   { href: "/spots", label: (
       <>
         Spots

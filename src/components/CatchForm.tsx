@@ -575,10 +575,10 @@ export function CatchForm({
       {pastMode ? (
         <>
           <div>
-            <p className="mb-1 text-sm font-semibold">When you caught it</p>
+            <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">When you caught it</p>
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
-                <span className="mb-1 block text-xs text-ink-muted">Date</span>
+                <span className="on-wash-chip mb-1 inline-block text-xs">Date</span>
                 <input
                   type="date"
                   value={form.caughtAt.slice(0, 10)}
@@ -595,7 +595,7 @@ export function CatchForm({
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs text-ink-muted">Time</span>
+                <span className="on-wash-chip mb-1 inline-block text-xs">Time</span>
                 <input
                   type="time"
                   value={form.caughtAt.slice(11, 16)}
@@ -614,7 +614,7 @@ export function CatchForm({
                 />
               </label>
             </div>
-            <p className="mt-1 text-xs text-ink-muted">
+            <p className="on-wash-chip mt-1 text-xs">
               Any past date. The photo&apos;s EXIF time is used when it&apos;s there.
             </p>
           </div>
@@ -727,7 +727,7 @@ export function CatchForm({
 
       {form.speciesList.length > 1 ? (
         <div className="space-y-2">
-          <p className="text-sm font-semibold">How many of each</p>
+          <p className="on-wash-chip w-fit text-sm font-semibold">How many of each</p>
           {form.speciesList.map((name) => (
             <label key={name} className="flex items-center gap-3">
               <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
@@ -757,7 +757,7 @@ export function CatchForm({
               />
             </label>
           ))}
-          <p className="text-xs text-ink-muted">
+          <p className="on-wash-chip text-xs">
             {fishCountLabel(
               totalFishCount(
                 countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount),
@@ -768,7 +768,7 @@ export function CatchForm({
         </div>
       ) : (
         <label className="block">
-          <span className="mb-1 block text-sm font-semibold">How many fish</span>
+          <span className="on-wash-chip mb-1 inline-block text-sm font-semibold">How many fish</span>
           <input
             type="text"
             inputMode="numeric"
@@ -783,7 +783,7 @@ export function CatchForm({
             }
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
-          <span className="mt-1 block text-xs text-ink-muted">
+          <span className="on-wash-chip mt-1 inline-block text-xs">
             Tag a second species to count each kind.
           </span>
         </label>
@@ -1026,7 +1026,7 @@ export function CatchForm({
       </button>
 
       <details className="app-more">
-        <summary className="cursor-pointer text-sm font-semibold text-teal">
+        <summary className="on-wash-chip w-fit cursor-pointer text-sm font-semibold text-teal">
           Bait, water, notes
         </summary>
         <div className="mt-3 grid gap-3">
@@ -1246,8 +1246,8 @@ function CatchLocationFields({
   return (
     <section id="catch-location" className="space-y-3">
       <div>
-        <p className="text-sm font-semibold">Catch location</p>
-        <p className="text-xs text-ink-muted">
+        <p className="on-wash-chip w-fit text-sm font-semibold">Catch location</p>
+        <p className="on-wash-chip text-xs">
           Pick or name the area, then drop one pin for this catch. Drag if the photo GPS is the
           truck, not the water.
         </p>

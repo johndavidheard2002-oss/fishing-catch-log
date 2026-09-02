@@ -7,7 +7,7 @@ import { SampleJournalControls } from "@/components/SampleJournalControls";
 export function HomeClient() {
   return (
     <div className="space-y-6">
-      <section className="page-intro">
+      <section className="page-intro mx-auto w-fit text-center">
         <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-teal">
           Catch Compass
         </h1>

@@ -17,7 +17,7 @@ export function LogClient() {
   }, [shouldBackfill, params, router]);
 
   if (shouldBackfill) {
-    return <p className="text-sm text-ink-muted">Opening Backfill…</p>;
+    return <p className="on-wash-chip text-sm">Opening Backfill…</p>;
   }
 
   return (

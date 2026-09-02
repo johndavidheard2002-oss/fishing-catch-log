@@ -63,7 +63,7 @@ export function SpeciesPicker({
   return (
     <div className="space-y-3">
       <div>
-        <p className="mb-1.5 text-sm font-semibold">Water</p>
+        <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Water</p>
         <div className="grid grid-cols-2 gap-2">
           {SALT_OPTIONS.map((id) => (
             <button
@@ -79,15 +79,15 @@ export function SpeciesPicker({
           ))}
         </div>
         {habitat === "freshwater" ? (
-          <p className="mt-1.5 text-xs text-ink-muted">
+          <p className="on-wash-chip mt-1.5 text-xs">
             This older trip is not inshore or offshore yet. Pick one to recategorize, or leave it.
           </p>
         ) : null}
       </div>
 
       <div>
-        <p className="mb-1 block text-sm font-semibold">Species in this photo</p>
-        <p className="mb-2 text-xs text-ink-muted">
+        <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">Species in this photo</p>
+        <p className="on-wash-chip mb-2 text-xs">
           Tag every fish you can see. Tap chips to add or remove — more than one is fine.
         </p>
         {selected.length ? (
@@ -104,7 +104,7 @@ export function SpeciesPicker({
             ))}
           </div>
         ) : (
-          <p className="mb-2 text-xs text-copper">Add at least one species before you save.</p>
+          <p className="on-wash-chip mb-2 text-xs text-copper">Add at least one species before you save.</p>
         )}
         <div className="flex gap-2">
           <input
@@ -153,7 +153,7 @@ export function SpeciesPicker({
           })
         )}
       </div>
-      <p className="text-xs text-ink-muted">
+      <p className="on-wash-chip text-xs">
         Inshore or offshore first so the list stays short. One picture can hold more than one
         species.
       </p>

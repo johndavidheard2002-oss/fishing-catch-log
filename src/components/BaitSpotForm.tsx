@@ -304,7 +304,7 @@ export function BaitSpotForm({
       />
 
       <div>
-        <p className="mb-1.5 text-sm font-semibold">Bait type</p>
+        <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Bait type</p>
         <div className="flex flex-wrap gap-1.5">
           {BAIT_CATALOG.map((name) => {
             const selected = form.baitTypes.some((b) => b.toLowerCase() === name.toLowerCase());
@@ -344,7 +344,7 @@ export function BaitSpotForm({
       </div>
 
       <div>
-        <p className="mb-1.5 text-sm font-semibold">Water</p>
+        <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Water</p>
         <div className="grid grid-cols-2 gap-2">
           {SALT_OPTIONS.map((id) => (
             <button
@@ -362,7 +362,7 @@ export function BaitSpotForm({
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-semibold">When</span>
+        <span className="on-wash-chip mb-1 inline-block text-sm font-semibold">When</span>
         <input
           type="datetime-local"
           value={form.loggedAt}
@@ -381,7 +381,7 @@ export function BaitSpotForm({
       </label>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-semibold">Notes</span>
+        <span className="on-wash-chip mb-1 inline-block text-sm font-semibold">Notes</span>
         <textarea
           value={form.notes}
           onChange={(e) => patch({ notes: e.target.value })}

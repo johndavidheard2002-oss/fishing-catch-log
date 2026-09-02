@@ -48,15 +48,15 @@ export function CatchDetail({ id }: { id: string }) {
     router.push("/calendar");
   }
 
-  if (error) return <p className="text-ink-muted">{error}</p>;
-  if (!record) return <p className="text-ink-muted">Opening the page…</p>;
+  if (error) return <p className="on-wash-chip text-ink">{error}</p>;
+  if (!record) return <p className="on-wash-chip">Opening the page…</p>;
 
   const src = photoSrc(record.photoPath);
 
   if (editing) {
     return (
       <div className="space-y-4">
-        <button type="button" className="text-sm text-teal" onClick={() => setEditing(false)}>
+        <button type="button" className="on-wash-chip w-fit text-sm text-teal" onClick={() => setEditing(false)}>
           ← Cancel
         </button>
         <CatchForm mode="edit" initial={record} focusLocation={focusSpot} />
@@ -206,7 +206,7 @@ export function CatchDetail({ id }: { id: string }) {
               photoPath: record.photoPath,
             })}
           />
-          <p className="mt-1.5 text-xs text-ink-muted">
+          <p className="on-wash-chip mt-1.5 text-xs">
             Save this catch photo to this phone whenever you want. Catch Compass never adds it to
             Photos by itself.
           </p>
@@ -241,14 +241,14 @@ export function CatchDetail({ id }: { id: string }) {
       </div>
 
       <section id="similar" className="space-y-3">
-        <h2 className="font-display text-2xl text-teal">Similar to this catch</h2>
-        <p className="text-sm text-ink-muted">
+        <h2 className="on-wash-chip w-fit font-display text-2xl text-teal">Similar to this catch</h2>
+        <p className="on-wash-chip text-sm">
           Past logs that match tide, clock time, weather, species, or spot.
         </p>
         <SimilarList matches={matches} />
         <Link
           href={`/calendar?view=list&species=${encodeURIComponent(record.species)}`}
-          className="inline-block text-sm font-semibold text-teal"
+          className="on-wash-chip inline-block text-sm font-semibold text-teal"
         >
           Browse all {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
         </Link>

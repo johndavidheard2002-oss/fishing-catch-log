@@ -8,7 +8,7 @@ import type { SimilarMatch } from "@/lib/types";
 export function SimilarList({ matches }: { matches: SimilarMatch[] }) {
   if (!matches.length) {
     return (
-      <p className="text-sm text-ink-muted">
+      <p className="on-wash-chip text-sm">
         No close matches yet. Log more trips and this gets sharper.
       </p>
     );
@@ -20,9 +20,9 @@ export function SimilarList({ matches }: { matches: SimilarMatch[] }) {
         <li key={match.catch.id} className="space-y-1.5">
           <CatchCard record={match.catch} compact />
           {match.strength === "very-strong" ? (
-            <p className="px-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+            <p className="on-wash-chip w-fit px-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
           ) : null}
-          <p className="px-1 text-xs text-ink-muted">
+          <p className="on-wash-chip px-1 text-xs">
             Why: {match.reasons.slice(0, 4).join(" · ") || weatherLine(match.catch)} ·{" "}
             {formatDateOnly(match.catch.caughtAt)}
           </p>

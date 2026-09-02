@@ -3,7 +3,7 @@ import { SpotsClient } from "@/components/SpotsClient";
 
 export default function SpotsPage() {
   return (
-    <Suspense fallback={<p className="text-sm text-ink-muted">Opening spots…</p>}>
+    <Suspense fallback={<p className="on-wash-chip text-sm">Opening spots…</p>}>
       <SpotsClient />
     </Suspense>
   );
