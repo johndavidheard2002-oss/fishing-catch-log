@@ -62,7 +62,6 @@ export function SpotsClient() {
           Grouped so you can go back under similar conditions.
         </p>
       </div>
-      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
 
       {loading ? (
         <p className="text-sm text-ink-muted">Loading spots…</p>
@@ -120,6 +119,7 @@ export function SpotsClient() {
           ) : null}
         </>
       )}
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
     </div>
   );
 }

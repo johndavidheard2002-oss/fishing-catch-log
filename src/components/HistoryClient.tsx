@@ -128,8 +128,6 @@ export function HistoryClient() {
         ))}
       </div>
 
-      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
-
       <LibraryScanBanner />
 
       {showFilters ? (
@@ -233,6 +231,7 @@ export function HistoryClient() {
       >
         Export CSV
       </a>
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
     </div>
   );
 }

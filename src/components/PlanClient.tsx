@@ -60,8 +60,6 @@ export function PlanClient() {
         </p>
       </div>
 
-      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
-
       <div className="flex gap-2">
         {([3, 5, 7] as const).map((n) => (
           <button
@@ -110,6 +108,7 @@ export function PlanClient() {
           </section>
         ))
       )}
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
     </div>
   );
 }
