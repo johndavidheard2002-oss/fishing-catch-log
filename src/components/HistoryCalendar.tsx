@@ -10,8 +10,9 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/calendar";
 import { photoSrc } from "@/lib/photo";
-import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
+import { formatTimeOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import type { CatchRecord } from "@/lib/types";
+import Link from "next/link";
 
 export function HistoryCalendar({
   catches,
@@ -81,13 +82,9 @@ export function HistoryCalendar({
             const isSelected = selectedDay === cell.date;
             const isToday = cell.date === today;
             return (
-              <button
+              <div
                 key={cell.date}
-                type="button"
-                onClick={() => onSelectDay(cell.date)}
-                aria-label={`${cell.date}${count ? `, ${count} catches` : ""}`}
-                aria-pressed={isSelected}
-                className={`flex min-h-[4.25rem] flex-col items-center rounded-xl px-0.5 py-1 text-xs ${
+                className={`flex min-h-[4.5rem] flex-col items-center rounded-xl px-0.5 py-1 text-xs ${
                   isSelected
                     ? "bg-teal font-semibold text-white"
                     : isToday
@@ -97,9 +94,21 @@ export function HistoryCalendar({
                   !isSelected && count > 0 ? "bg-paper-deep" : ""
                 }`}
               >
-                <span className="leading-none">{cell.day}</span>
-                <DayThumbs records={dayCatches} selected={isSelected} />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => onSelectDay(cell.date)}
+                  aria-label={`${cell.date}${count ? `, ${count} catches` : ""}`}
+                  aria-pressed={isSelected}
+                  className="w-full leading-none"
+                >
+                  {cell.day}
+                </button>
+                <DayThumbs
+                  records={dayCatches}
+                  selected={isSelected}
+                  onOpenDay={() => onSelectDay(cell.date)}
+                />
+              </div>
             );
           })}
         </div>
@@ -108,45 +117,64 @@ export function HistoryCalendar({
       {selectedDay ? (
         <section className="space-y-2">
           <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
-          <p className="text-xs text-ink-muted">In the order you caught them.</p>
+          <p className="text-xs text-ink-muted">Earliest catch first, with the time you logged.</p>
           {selected.length === 0 ? (
             <p className="text-sm text-ink-muted">No matching catches on this day.</p>
           ) : (
-            selected.map((record) => (
-              <CatchCard
-                key={record.id}
-                record={record}
-                compact
-                showTime
-                viewerId={viewerId}
-              />
-            ))
+            selected.map((record, index) => {
+              const prev = selected[index - 1];
+              const showBucket = !prev || prev.timeOfDay !== record.timeOfDay;
+              return (
+                <div key={record.id} className="space-y-1.5">
+                  {showBucket ? (
+                    <p className="text-xs font-semibold text-ink-muted">
+                      {TIME_OF_DAY_LABELS[record.timeOfDay]}
+                    </p>
+                  ) : null}
+                  <CatchCard record={record} compact showTime viewerId={viewerId} />
+                </div>
+              );
+            })
           )}
         </section>
       ) : (
-        <p className="text-sm text-ink-muted">Tap a day or a photo to see that trip.</p>
+        <p className="text-sm text-ink-muted">
+          Tap a photo to open that catch, or tap the day number for the full list.
+        </p>
       )}
     </div>
   );
 }
 
-function DayThumbs({ records, selected }: { records: CatchRecord[]; selected: boolean }) {
-  if (!records.length) return <span className="mt-1 h-6" />;
-  const shown = records.slice(0, 3);
+function DayThumbs({
+  records,
+  selected,
+  onOpenDay,
+}: {
+  records: CatchRecord[];
+  selected: boolean;
+  onOpenDay: () => void;
+}) {
+  if (!records.length) return <span className="mt-1 h-7" />;
+  const shown = records.slice(0, 2);
   const extra = records.length - shown.length;
+  const large = records.length === 1;
   return (
-    <span className="relative mt-1 flex h-6 w-full items-center justify-center">
+    <span className="relative mt-1 flex h-7 w-full items-center justify-center">
       <span className="flex items-center">
         {shown.map((record, i) => {
           const src = photoSrc(record.photoPath);
+          const size = large ? "h-7 w-7" : "h-6 w-6";
           return (
-            <span
+            <Link
               key={record.id}
+              href={`/catch/${record.id}`}
               title={`${formatTimeOnly(record.caughtAt)} · ${record.species}`}
-              className={`relative h-6 w-6 overflow-hidden rounded-md border ${
+              aria-label={`${record.species} at ${formatTimeOnly(record.caughtAt)}`}
+              className={`relative ${size} overflow-hidden rounded-md border ${
                 selected ? "border-white/70" : "border-white"
               } bg-paper`}
-              style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i }}
+              style={{ marginLeft: i === 0 ? 0 : -7, zIndex: shown.length - i }}
             >
               {src ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -154,20 +182,22 @@ function DayThumbs({ records, selected }: { records: CatchRecord[]; selected: bo
               ) : (
                 <span className="block h-full w-full bg-copper/40" />
               )}
-            </span>
+            </Link>
           );
         })}
         {extra > 0 ? (
-          <span
+          <button
+            type="button"
+            onClick={onOpenDay}
             className={`relative -ml-1 rounded-full px-1 text-[9px] font-bold ${
               selected ? "bg-white text-teal" : "bg-copper text-white"
             }`}
+            aria-label={`${extra} more catches this day`}
           >
             +{extra}
-          </span>
+          </button>
         ) : null}
       </span>
     </span>
   );
 }
-
