@@ -3,35 +3,28 @@ type BrandWordmarkProps = {
   size: "header" | "home";
 };
 
-/** Catch Compass + Saltwater Logbook on one row, beside the logo in the header. */
+/** Catch Compass on top, Saltwater Logbook on one nowrap line underneath. */
 export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
   const home = size === "home";
   return (
     <Tag
       data-testid={home ? "home-brand" : "header-brand"}
-      className={
-        home
-          ? "flex items-baseline gap-2 whitespace-nowrap"
-          : "flex min-w-0 items-baseline gap-1.5 whitespace-nowrap"
-      }
+      className={home ? "block text-center" : "block min-w-0"}
     >
       <span
         className={
           home
-            ? "font-display text-[1.7rem] leading-none tracking-tight text-teal sm:text-4xl"
-            : "font-display text-[clamp(0.88rem,4.2vw,1.25rem)] leading-none tracking-tight"
+            ? "block font-display text-5xl leading-[1.05] tracking-tight text-teal"
+            : "block font-display text-2xl leading-tight tracking-tight"
         }
       >
         Catch Compass
       </span>
-      <span aria-hidden="true" className={home ? "text-teal" : "text-ink-muted"}>
-        ·
-      </span>
       <span
         className={
           home
-            ? "font-display text-[0.95rem] leading-none tracking-tight text-teal sm:text-lg"
-            : "font-body text-[clamp(0.5625rem,2.3vw,0.6875rem)] font-normal uppercase tracking-wide text-ink-muted"
+            ? "mt-1 block whitespace-nowrap font-display text-xl leading-snug tracking-tight text-teal sm:text-2xl"
+            : "block whitespace-nowrap font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase"
         }
       >
         Saltwater Logbook

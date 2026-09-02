@@ -9,7 +9,7 @@ import { SampleJournalControls } from "@/components/SampleJournalControls";
 export function HomeClient() {
   return (
     <div className="space-y-6">
-      <section className="page-intro home-lockup mx-auto w-fit">
+      <section className="page-intro home-lockup mx-auto w-fit text-center">
         <BrandWordmark as="h1" size="home" />
       </section>
 
