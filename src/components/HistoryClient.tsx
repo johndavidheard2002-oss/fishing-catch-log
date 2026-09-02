@@ -12,7 +12,18 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-type HistoryView = "grid" | "list" | "calendar";
+type LogView = "calendar" | "list" | "grid";
+
+const VIEW_TABS: { id: LogView; label: string }[] = [
+  { id: "calendar", label: "Calendar" },
+  { id: "list", label: "List" },
+  { id: "grid", label: "Grid" },
+];
+
+function logPath(params: URLSearchParams): string {
+  const qs = params.toString();
+  return qs ? `/calendar?${qs}` : "/calendar";
+}
 
 export function HistoryClient() {
   const router = useRouter();
@@ -22,13 +33,8 @@ export function HistoryClient() {
   const [filters, setFilters] = useState<CatchFilters>(() => ({
     species: searchParams.get("species") || undefined,
   }));
-  const [view, setView] = useState<HistoryView>(
-    searchParams.get("view") === "calendar"
-      ? "calendar"
-      : searchParams.get("view") === "list"
-        ? "list"
-        : "grid",
-  );
+  const viewParam = searchParams.get("view");
+  const view: LogView = viewParam === "list" || viewParam === "grid" ? viewParam : "calendar";
   const [showFilters, setShowFilters] = useState(Boolean(searchParams.get("species")));
   const [loading, setLoading] = useState(true);
   const [includeShared, setIncludeShared] = useIncludeShared();
@@ -74,10 +80,16 @@ export function HistoryClient() {
     const next = new URLSearchParams();
     const view = searchParams.get("view");
     const day = searchParams.get("day");
-    if (view) next.set("view", view);
+    if (view === "list" || view === "grid") next.set("view", view);
     if (day) next.set("day", day);
-    const qs = next.toString();
-    router.replace(qs ? `/history?${qs}` : "/history");
+    router.replace(logPath(next));
+  }
+
+  function changeView(id: LogView) {
+    const next = new URLSearchParams(searchParams.toString());
+    if (id === "calendar") next.delete("view");
+    else next.set("view", id);
+    router.replace(logPath(next));
   }
 
   const filtered = useMemo(
@@ -97,7 +109,7 @@ export function HistoryClient() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="font-display text-3xl text-teal">History</h1>
+          <h1 className="font-display text-3xl text-teal">Calendar Log</h1>
           <p className="text-sm text-ink-muted">
             {filtered.length} of {catches.length} catches
           </p>
@@ -114,16 +126,16 @@ export function HistoryClient() {
       </div>
 
       <div className="journal-card grid grid-cols-3 overflow-hidden rounded-2xl p-1">
-        {(["grid", "list", "calendar"] as const).map((id) => (
+        {VIEW_TABS.map((tab) => (
           <button
-            key={id}
+            key={tab.id}
             type="button"
-            onClick={() => setView(id)}
-            className={`rounded-xl py-2 text-xs font-semibold capitalize ${
-              view === id ? "bg-teal text-white" : "text-ink-muted"
+            onClick={() => changeView(tab.id)}
+            className={`rounded-xl py-2 text-xs font-semibold ${
+              view === tab.id ? "bg-teal text-white" : "text-ink-muted"
             }`}
           >
-            {id}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -188,18 +200,29 @@ export function HistoryClient() {
       {loading ? (
         <p className="text-sm text-ink-muted">Loading the journal…</p>
       ) : view === "calendar" ? (
-        <HistoryCalendar
-          catches={filtered}
-          year={monthCursor.year}
-          month={monthCursor.month}
-          selectedDay={displayDay}
-          onMonthChange={setMonthOverride}
-          onSelectDay={(day) => {
-            setSelectedDay(day);
-            setMonthOverride(parseYearMonth(day));
-          }}
-          viewerId={viewerId}
-        />
+        <div className="space-y-3">
+          {catches.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              Empty until you log or backfill a catch. One picture becomes one trip at one pin.
+            </p>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              Nothing matches those conditions. Clear filters or log another catch.
+            </p>
+          ) : null}
+          <HistoryCalendar
+            catches={filtered}
+            year={monthCursor.year}
+            month={monthCursor.month}
+            selectedDay={displayDay}
+            onMonthChange={setMonthOverride}
+            onSelectDay={(day) => {
+              setSelectedDay(day);
+              setMonthOverride(parseYearMonth(day));
+            }}
+            viewerId={viewerId}
+          />
+        </div>
       ) : catches.length === 0 ? (
         <p className="text-sm text-ink-muted">
           Your journal is empty. Log a catch or backfill a photo — one picture becomes one trip at

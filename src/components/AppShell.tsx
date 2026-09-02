@@ -2,15 +2,31 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ProviderStatus } from "@/lib/types";
 
-const NAV = [
+const NAV: {
+  href: string;
+  label: ReactNode;
+  ariaLabel?: string;
+  icon: () => ReactNode;
+  primary?: boolean;
+}[] = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/plan", label: "Plan", icon: PlanIcon },
   { href: "/log", label: "Log", icon: PlusIcon, primary: true },
   { href: "/backfill", label: "Backfill", icon: PastIcon },
-  { href: "/history", label: "History", icon: GridIcon },
+  {
+    href: "/calendar",
+    label: (
+      <>
+        Calendar
+        <span className="block">Log</span>
+      </>
+    ),
+    ariaLabel: "Calendar Log",
+    icon: CalendarIcon,
+  },
   { href: "/spots", label: "Spots", icon: MapIcon },
 ];
 
@@ -20,10 +36,13 @@ function navIsActive(href: string, pathname: string) {
   if (href === "/backfill") {
     return pathname === "/backfill" || pathname.startsWith("/log/scan");
   }
+  if (href === "/calendar") {
+    return pathname === "/calendar" || pathname === "/history" || pathname.startsWith("/calendar/");
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [status, setStatus] = useState<ProviderStatus | null>(null);
 
@@ -71,6 +90,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  aria-label={item.ariaLabel ?? (typeof item.label === "string" ? item.label : undefined)}
                   className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] leading-tight ${
                     item.primary
                       ? "text-copper"
@@ -132,13 +152,12 @@ function PastIcon() {
   );
 }
 
-function GridIcon() {
+function CalendarIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="4" y="4" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="13" y="4" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="4" y="13" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="13" y="13" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.8" />
+      <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8 3v4M16 3v4M4 10h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <rect x="8" y="13" width="4" height="4" rx="0.8" fill="currentColor" />
     </svg>
   );
 }

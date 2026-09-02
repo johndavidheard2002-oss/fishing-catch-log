@@ -1,9 +1,9 @@
-const CACHE = "catch-compass-v4";
+const CACHE = "catch-compass-v5";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) =>
-      cache.addAll(["/", "/log", "/backfill", "/history", "/spots", "/plan"]),
+      cache.addAll(["/", "/log", "/backfill", "/calendar", "/spots", "/plan"]),
     ),
   );
   self.skipWaiting();

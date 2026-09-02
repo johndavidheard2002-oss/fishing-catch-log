@@ -45,7 +45,7 @@ export function CatchDetail({ id }: { id: string }) {
   async function onDelete() {
     if (!confirm("Delete this catch from your journal?")) return;
     await fetch(`/api/catches/${id}`, { method: "DELETE" });
-    router.push("/history");
+    router.push("/calendar");
   }
 
   if (error) return <p className="text-ink-muted">{error}</p>;
@@ -247,7 +247,7 @@ export function CatchDetail({ id }: { id: string }) {
         </p>
         <SimilarList matches={matches} />
         <Link
-          href={`/history?species=${encodeURIComponent(record.species)}`}
+          href={`/calendar?view=list&species=${encodeURIComponent(record.species)}`}
           className="inline-block text-sm font-semibold text-teal"
         >
           Browse all {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}

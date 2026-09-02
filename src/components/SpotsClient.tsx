@@ -125,7 +125,7 @@ export function SpotsClient() {
               {current.catches.map((record) => (
                 <CatchCard key={record.id} record={record} compact viewerId={viewerId} />
               ))}
-              <Link href="/history" className="inline-block text-sm font-semibold text-teal">
+              <Link href="/calendar" className="inline-block text-sm font-semibold text-teal">
                 Filter the full journal
               </Link>
             </section>

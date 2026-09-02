@@ -63,10 +63,10 @@ export function HomeClient() {
       </Link>
       <div className="grid grid-cols-2 gap-2">
         <Link
-          href="/history?view=calendar"
+          href="/calendar"
           className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
         >
-          Calendar
+          Calendar Log
         </Link>
         <Link
           href="/spots"
@@ -79,8 +79,8 @@ export function HomeClient() {
       <section className="space-y-2">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-semibold text-ink-muted">Your journal</h2>
-          <Link href="/history" className="text-sm font-semibold text-teal">
-            Open History
+          <Link href="/calendar" className="text-sm font-semibold text-teal">
+            Open Calendar Log
           </Link>
         </div>
         <dl className="grid grid-cols-3 gap-2">

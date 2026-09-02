@@ -294,7 +294,7 @@ export function ScanLibraryClient() {
             <p className="text-xs text-ink-muted">
               Yes opens the past-catch form with this photo, timestamp, and this photo’s GPS when it
               has one. You can still move the pin. Remaining photos keep their own locations. After
-              save, History opens on that day.
+              save, Calendar Log opens on that day.
             </p>
           </div>
         </article>

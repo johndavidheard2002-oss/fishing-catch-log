@@ -543,7 +543,7 @@ export function CatchForm({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
       if (afterSave === "calendar") {
-        router.push(`/history?view=calendar&day=${localDateKey(data.catch.caughtAt)}`);
+        router.push(`/calendar?day=${localDateKey(data.catch.caughtAt)}`);
       } else {
         router.push(`/catch/${data.catch.id}`);
       }
@@ -987,7 +987,7 @@ export function CatchForm({
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
         <span className="mt-1 block text-xs text-ink-muted">
-          History shows this clock. A photo stamp fills it in.
+          Calendar Log shows this clock. A photo stamp fills it in.
         </span>
       </label>
       )}
