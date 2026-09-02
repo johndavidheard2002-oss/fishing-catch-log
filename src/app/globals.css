@@ -36,61 +36,54 @@
 
 html {
   height: 100%;
-  background: #7ecdee;
+  background: #b7d4d4;
 }
 
 body {
   min-height: 100%;
   color: var(--ink);
-  background-color: #7ecdee;
+  background-color: #b7d4d4;
   isolation: isolate;
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
 
-/* Quiet water wash under the brand art. */
+/* Quiet silver-teal wash under the trout pattern (matches the logo, not a cartoon water fill). */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -2;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.5;
   background:
-    radial-gradient(88% 52% at 12% -12%, rgb(255 255 255 / 0.8) 0%, transparent 46%),
-    radial-gradient(58% 34% at 90% 4%, rgb(110 214 250 / 0.55) 0%, transparent 56%),
+    radial-gradient(88% 52% at 12% -12%, rgb(255 255 255 / 0.55) 0%, transparent 46%),
+    radial-gradient(58% 34% at 90% 4%, rgb(150 210 214 / 0.35) 0%, transparent 56%),
     linear-gradient(
       180deg,
-      #d4f1fc 0%,
-      #9fdff8 28%,
-      #5ec8ee 62%,
-      #2b9edc 100%
+      #d7ecec 0%,
+      #b3d4d2 34%,
+      #87b8b8 68%,
+      #5e9498 100%
     );
 }
 
 body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.18;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='88' viewBox='0 0 320 88' fill='none'%3E%3Cpath d='M0 46c32-16 48-16 80 0s48 16 80 0 48-16 80 0 48 16 80 0' stroke='%230a6cad' stroke-width='1.25' stroke-opacity='.42'/%3E%3Cpath d='M0 62c32-14 48-14 80 0s48 14 80 0 48-14 80 0 48 14 80 0' stroke='%230c4f88' stroke-width='1' stroke-opacity='.32'/%3E%3Cpath d='M0 30c40-12 56-12 80 0s40 12 80 0 56-12 80 0 40 12 80 0' stroke='%23ffffff' stroke-width='1.15' stroke-opacity='.55'/%3E%3C/svg%3E");
-  background-size: 320px 88px;
+  content: none;
 }
 
-/* Trout spots fill the viewport. Compass stays on the header mark only. */
+/* Logo trout field: silver-teal scale wash + black round speckles. Compass stays on the header mark. */
 .brand-watermark {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(180deg, rgb(232 247 253 / 0.28) 0%, rgb(210 240 250 / 0.16) 46%, rgb(180 228 246 / 0.3) 100%),
-    url("/brand/trout-spots.svg");
-  background-repeat: repeat;
-  background-position: center top;
-  background-size: 220px 256px;
-  opacity: 0.42;
+    linear-gradient(180deg, rgb(214 236 238 / 0.16) 0%, rgb(186 220 222 / 0.06) 48%, rgb(168 208 212 / 0.18) 100%),
+    url("/brand/catch-compass-watermark.jpg");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 0.52;
 }
 
 .brand-mark {
