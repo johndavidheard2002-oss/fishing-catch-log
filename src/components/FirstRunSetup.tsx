@@ -82,12 +82,13 @@ export function FirstRunSetup() {
             type="button"
             data-testid="setup-skip"
             onClick={finish}
-            className="w-full py-2 text-sm font-semibold text-ink-muted"
+            className="w-full rounded-2xl border-2 border-line bg-card px-4 py-3 font-semibold text-ink"
           >
             Skip / Do later
           </button>
           <p className="text-center text-xs text-ink-muted">
-            Skipping leaves an empty journal. You can come back from Help anytime.
+            No photos required. Skipping leaves an empty journal and will not ask again. Open Help
+            anytime to import later.
           </p>
         </div>
       </div>
