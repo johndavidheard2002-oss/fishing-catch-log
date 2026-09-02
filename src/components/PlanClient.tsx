@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
@@ -35,25 +34,31 @@ type PlanMapTarget = {
 
 export function PlanClient({ initialDate }: { initialDate: string | null }) {
   const now = new Date();
-  const searchParams = useSearchParams();
-  const rawDate = searchParams.get("date") ?? initialDate;
-  const selectedDay = parsePlanDate(rawDate) ? rawDate : null;
+  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
+    parsePlanDate(initialDate) ? initialDate : null,
+  );
   const [year, setYear] = useState(() => {
-    const parsed = parsePlanDate(rawDate);
+    const parsed = parsePlanDate(selectedDay);
     return parsed ? parsed.getFullYear() : now.getFullYear();
   });
   const [month, setMonth] = useState(() => {
-    const parsed = parsePlanDate(rawDate);
+    const parsed = parsePlanDate(selectedDay);
     return parsed ? parsed.getMonth() : now.getMonth();
   });
   const [plan, setPlan] = useState<PlanResult | null>(null);
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [mapTarget, setMapTarget] = useState<PlanMapTarget | null>(null);
   const resultsRef = useRef<HTMLElement | null>(null);
-  const requestKey = selectedDay ? `${selectedDay}|${includeShared ? "1" : "0"}` : null;
-  const waiting = Boolean(requestKey) && loadedKey !== requestKey;
+
+  useEffect(() => {
+    function onPop() {
+      const date = new URLSearchParams(window.location.search).get("date");
+      setSelectedDay(parsePlanDate(date) ? date : null);
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   useEffect(() => {
     if (!selectedDay) return;
@@ -67,19 +72,17 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
       .then((data: PlanResult) => {
         setPlan(data);
         setError(null);
-        setLoadedKey(`${day}|${shared ? "1" : "0"}`);
       })
       .catch(() => {
         setError("Could not build a plan.");
         setPlan(null);
-        setLoadedKey(`${day}|${shared ? "1" : "0"}`);
       });
   }, [selectedDay, includeShared]);
 
   useEffect(() => {
-    if (!selectedDay || waiting || !resultsRef.current) return;
+    if (!selectedDay || !plan || !resultsRef.current) return;
     resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [selectedDay, waiting, loadedKey]);
+  }, [selectedDay, plan]);
 
   const suggestions = plan?.suggestions ?? [];
   const baitSuggestions = plan?.baitSuggestions ?? [];
@@ -105,9 +108,13 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
           setYear(next.year);
           setMonth(next.month);
         }}
+        onSelectDay={(date) => {
+          setSelectedDay(date);
+          window.history.pushState(null, "", `/plan?date=${date}`);
+        }}
       />
 
-      {plan && selectedDay && !waiting ? (
+      {plan && selectedDay ? (
         <p className="rounded-2xl border border-line bg-card px-3 py-2 text-xs text-ink-muted">
           {plan.weatherSource === "demo" || plan.tideSource === "demo"
             ? "Demo forecast/tides until you add API keys. "
@@ -121,7 +128,7 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
 
       {!selectedDay ? (
         <p className="text-sm text-ink-muted">Tap a day to plan it.</p>
-      ) : waiting ? (
+      ) : !plan && !error ? (
         <p className="text-sm text-ink-muted">Matching that day to your journal…</p>
       ) : error ? (
         <p className="text-sm text-copper">{error}</p>
@@ -176,11 +183,13 @@ function PlanDayCalendar({
   month,
   selectedDay,
   onMonthChange,
+  onSelectDay,
 }: {
   year: number;
   month: number;
   selectedDay: string | null;
   onMonthChange: (next: { year: number; month: number }) => void;
+  onSelectDay: (date: string) => void;
 }) {
   const cells = monthGrid(year, month);
   const today = todayKey();
@@ -219,6 +228,10 @@ function PlanDayCalendar({
               key={cell.date}
               href={`/plan?date=${cell.date}`}
               scroll={false}
+              onClick={(event) => {
+                event.preventDefault();
+                onSelectDay(cell.date);
+              }}
               aria-label={cell.date}
               aria-current={isSelected ? "date" : undefined}
               data-testid={`plan-day-${cell.date}`}
