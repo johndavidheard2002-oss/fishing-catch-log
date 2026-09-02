@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
@@ -34,13 +35,15 @@ type PlanMapTarget = {
 
 export function PlanClient({ initialDate }: { initialDate: string | null }) {
   const now = new Date();
-  const selectedDay = parsePlanDate(initialDate) ? initialDate : null;
+  const searchParams = useSearchParams();
+  const rawDate = searchParams.get("date") ?? initialDate;
+  const selectedDay = parsePlanDate(rawDate) ? rawDate : null;
   const [year, setYear] = useState(() => {
-    const parsed = parsePlanDate(initialDate);
+    const parsed = parsePlanDate(rawDate);
     return parsed ? parsed.getFullYear() : now.getFullYear();
   });
   const [month, setMonth] = useState(() => {
-    const parsed = parsePlanDate(initialDate);
+    const parsed = parsePlanDate(rawDate);
     return parsed ? parsed.getMonth() : now.getMonth();
   });
   const [plan, setPlan] = useState<PlanResult | null>(null);
