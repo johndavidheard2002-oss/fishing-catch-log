@@ -53,6 +53,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "Add a past catch from a photo you already have.",
       "Pin the water and save it like a live log.",
+      "Help → Setup again walks through importing a batch onto dates.",
     ],
   },
   {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { FirstRunSetup } from "@/components/FirstRunSetup";
 import { HelpButton, HelpGuide } from "@/components/HelpGuide";
 import type { ProviderStatus } from "@/lib/types";
 
@@ -275,6 +276,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </nav>
     </div>
     <HelpGuide />
+    <FirstRunSetup />
     </>
   );
 }

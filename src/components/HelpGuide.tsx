@@ -8,6 +8,7 @@ import {
   markHelpTipSeen,
   subscribeHelpTip,
 } from "@/lib/help";
+import { openSetup, setupSeen, subscribeSetup } from "@/lib/setup";
 
 export function HelpButton() {
   return (
@@ -86,6 +87,23 @@ export function HelpGuide() {
               </ol>
             </section>
           ))}
+          <div className="rounded-2xl border border-line bg-card px-3 py-3">
+            <p className="font-semibold text-ink">Import old photos</p>
+            <p className="mt-0.5 text-sm text-ink-muted">
+              Run setup again — pick past trips and put them on dates.
+            </p>
+            <button
+              type="button"
+              data-testid="help-open-setup"
+              onClick={() => {
+                setOpen(false);
+                openSetup();
+              }}
+              className="mt-2 w-full rounded-2xl bg-copper px-4 py-2.5 font-semibold text-white"
+            >
+              Setup again
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -93,8 +111,9 @@ export function HelpGuide() {
 }
 
 export function FirstHelpTip() {
+  const setupDone = useSyncExternalStore(subscribeSetup, setupSeen, () => true);
   const unseen = useSyncExternalStore(subscribeHelpTip, () => !helpTipSeen(), () => false);
-  if (!unseen) return null;
+  if (!setupDone || !unseen) return null;
 
   return (
     <div className="journal-card flex items-center justify-between gap-2 rounded-2xl px-3 py-2" data-testid="help-first-tip">
