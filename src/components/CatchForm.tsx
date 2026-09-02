@@ -150,6 +150,7 @@ export function CatchForm({
   importedPhotoLat = null,
   importedPhotoLon = null,
   afterSave = "detail",
+  focusLocation = false,
 }: {
   mode: "create" | "edit";
   initial?: CatchRecord;
@@ -159,6 +160,7 @@ export function CatchForm({
   importedPhotoLat?: number | null;
   importedPhotoLon?: number | null;
   afterSave?: "detail" | "calendar";
+  focusLocation?: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => {
@@ -188,6 +190,11 @@ export function CatchForm({
   const [catchLocationLocked, setCatchLocationLocked] = useState(
     Boolean(initial?.latitude && initial?.longitude),
   );
+
+  useEffect(() => {
+    if (!focusLocation) return;
+    document.getElementById("catch-location")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusLocation]);
 
   useEffect(() => {
     fetch("/api/buddies")

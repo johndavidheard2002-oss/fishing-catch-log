@@ -20,6 +20,7 @@ export function CatchDetail({ id }: { id: string }) {
   const [record, setRecord] = useState<CatchRecord | null>(null);
   const [matches, setMatches] = useState<SimilarMatch[]>([]);
   const [editing, setEditing] = useState(false);
+  const [focusSpot, setFocusSpot] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export function CatchDetail({ id }: { id: string }) {
         <button type="button" className="text-sm text-teal" onClick={() => setEditing(false)}>
           ← Cancel
         </button>
-        <CatchForm mode="edit" initial={record} />
+        <CatchForm mode="edit" initial={record} focusLocation={focusSpot} />
       </div>
     );
   }
@@ -210,7 +211,10 @@ export function CatchDetail({ id }: { id: string }) {
         </button>
         <button
           type="button"
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setFocusSpot(true);
+            setEditing(true);
+          }}
           className="rounded-xl border border-line px-4 py-3 font-semibold"
         >
           Edit spot
