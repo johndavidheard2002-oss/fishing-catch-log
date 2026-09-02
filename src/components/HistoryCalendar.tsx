@@ -389,7 +389,7 @@ function DayMapPopup({
         className="journal-card w-full max-w-lg overflow-hidden rounded-2xl shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-2 px-3 py-2">
+        <div className="relative z-20 flex items-center justify-between gap-2 px-3 py-2">
           <div>
             <p className="font-display text-lg text-teal">{title}</p>
             <p className="text-[11px] text-ink-muted">
@@ -398,8 +398,11 @@ function DayMapPopup({
           </div>
           <button
             type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-paper text-lg leading-none"
+            onClick={(event) => {
+              event.stopPropagation();
+              onClose();
+            }}
+            className="relative z-20 flex h-10 w-10 items-center justify-center rounded-full border border-line bg-paper text-lg leading-none"
             aria-label="Close map"
           >
             ×
@@ -408,7 +411,7 @@ function DayMapPopup({
         <SpotMap
           spots={spots}
           selectedKey={null}
-          className="h-[min(65dvh,28rem)] w-full overflow-hidden"
+          className="h-72 w-full overflow-hidden bg-paper-deep"
         />
       </div>
     </div>

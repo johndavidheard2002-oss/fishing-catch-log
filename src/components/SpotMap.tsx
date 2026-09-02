@@ -79,6 +79,33 @@ export function SpotMap({
       if (cancelled || !el) return;
       LRef.current = L;
 
+      const leafletEl = el as HTMLElement & { _leaflet_id?: number };
+      if (leafletEl._leaflet_id) {
+        leafletEl._leaflet_id = undefined;
+        leafletEl.replaceChildren();
+      }
+
+      if (el.clientWidth === 0 || el.clientHeight === 0) {
+        await new Promise<void>((resolve) => {
+          let done = false;
+          const finish = () => {
+            if (done) return;
+            done = true;
+            roSize.disconnect();
+            resolve();
+          };
+          const roSize = new ResizeObserver(() => {
+            if (el.clientWidth > 0 && el.clientHeight > 0) finish();
+          });
+          roSize.observe(el);
+          requestAnimationFrame(() => {
+            if (el.clientWidth > 0 && el.clientHeight > 0) finish();
+          });
+          window.setTimeout(finish, 300);
+        });
+      }
+      if (cancelled || !el) return;
+
       const center = withCoords[0]
         ? ([withCoords[0].latitude!, withCoords[0].longitude!] as [number, number])
         : ([39.5, -98] as [number, number]);
@@ -113,6 +140,9 @@ export function SpotMap({
       instance.whenReady(() => {
         if (!cancelled) zoomToSpots(instance, L);
       });
+      window.setTimeout(() => {
+        if (!cancelled) zoomToSpots(instance, L);
+      }, 200);
       mapRef.current = instance;
     })();
 
