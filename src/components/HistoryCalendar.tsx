@@ -24,7 +24,7 @@ import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { CatchRecord } from "@/lib/types";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
   ssr: false,
@@ -54,10 +54,8 @@ export function HistoryCalendar({
   onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
   viewerId?: string;
 }) {
-  const [thisYearOnly, setThisYearOnly] = useState(false);
-  useEffect(() => {
-    setThisYearOnly(false);
-  }, [selectedDay]);
+  const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
+  const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
   const cells = monthGrid(year, month);
   const today = todayKey();
@@ -186,7 +184,7 @@ export function HistoryCalendar({
               <div className="ml-auto grid grid-cols-2 overflow-hidden rounded-full border border-line bg-card p-0.5 text-[11px] font-semibold">
                 <button
                   type="button"
-                  onClick={() => setThisYearOnly(false)}
+                  onClick={() => setThisYearOnlyDay(null)}
                   className={`rounded-full px-2.5 py-1 ${
                     !thisYearOnly ? "bg-teal text-white" : "text-ink-muted"
                   }`}
@@ -195,7 +193,7 @@ export function HistoryCalendar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setThisYearOnly(true)}
+                  onClick={() => setThisYearOnlyDay(selectedDay)}
                   className={`rounded-full px-2.5 py-1 ${
                     thisYearOnly ? "bg-teal text-white" : "text-ink-muted"
                   }`}
