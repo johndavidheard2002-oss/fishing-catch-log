@@ -1,7 +1,7 @@
 import { groupBaitSpots, baitTypesLabel } from "./bait";
 import { groupSpots, spotKey } from "./filters";
 import { speciesLabel } from "./species";
-import { formatDateOnly } from "./time";
+import { formatDateOnly, TIME_OF_DAY_LABELS } from "./time";
 import { conditionLabel, scoreConditionOverlap, suggestionStrength } from "./similar";
 import { getTideSeries, hasWorldTidesKey } from "./tides";
 import type {
@@ -10,6 +10,7 @@ import type {
   BaitSpotGroup,
   CatchRecord,
   ForecastWindow,
+  MatchStrength,
   PlanMatch,
   PlanResult,
   PlanSuggestion,
@@ -40,6 +41,57 @@ export function planHeadline(window: ForecastWindow, match: CatchRecord): string
   if (window.tide) bits.push(`${window.tide} tide`);
   const place = match.placeName || "this water";
   return `${bits.join(" + ")} like your ${speciesLabel(match.speciesList?.length ? match.speciesList : match.species)} at ${place} on ${formatDateOnly(match.caughtAt)}`;
+}
+
+/** 1–3 short why chips for Strong / Very strong Plan cards. */
+export function planWhyChips(args: {
+  reasons: string[];
+  strength: MatchStrength;
+  placeName?: string | null;
+  species?: string | null;
+  timeOfDay?: TimeOfDay | null;
+}): string[] {
+  if (args.strength !== "strong" && args.strength !== "very-strong") {
+    return args.reasons.filter(Boolean).slice(0, 3);
+  }
+  const raw = args.reasons.filter(Boolean);
+  const chips: string[] = [];
+  const take = (test: (reason: string) => boolean) => raw.find(test);
+
+  const tide = take((reason) => /tide/i.test(reason));
+  if (tide) chips.push(prettyPlanWhy(tide, args.timeOfDay));
+
+  const tideAlreadyHasTime = Boolean(tide && /AM|PM|dawn|dusk|morning|afternoon|night/i.test(tide));
+  const time = take((reason) => /time of day/i.test(reason) || /^~/i.test(reason));
+  if (time && !tideAlreadyHasTime) chips.push(prettyPlanWhy(time, args.timeOfDay));
+
+  const weather = take((reason) =>
+    /sky|clear|cloud|overcast|fog|drizzle|rain|storm|snow|wet weather/i.test(reason),
+  );
+  if (weather) chips.push(prettyPlanWhy(weather, args.timeOfDay));
+
+  if (chips.length < 3 && args.placeName) {
+    const place = shortPlace(args.placeName);
+    chips.push(args.species ? `${args.species} at ${place}` : place);
+  }
+
+  return [...new Set(chips)].slice(0, 3);
+}
+
+function prettyPlanWhy(reason: string, timeOfDay?: TimeOfDay | null): string {
+  if (reason === "Same time of day" && timeOfDay) {
+    return `Same ${TIME_OF_DAY_LABELS[timeOfDay].toLowerCase()}`;
+  }
+  if (reason === "Similar sky") return "Similar skies";
+  if (/^(Clear|Cloudy|Partly cloudy|Overcast)$/i.test(reason)) {
+    return `${reason} skies`;
+  }
+  return reason.charAt(0).toUpperCase() + reason.slice(1);
+}
+
+function shortPlace(place: string): string {
+  const cut = place.split(",")[0]?.trim();
+  return cut || place;
 }
 
 export function scoreWindowAgainstCatch(

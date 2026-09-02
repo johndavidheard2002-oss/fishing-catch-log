@@ -5,6 +5,7 @@ import {
   isPositiveCatch,
   parsePlanDate,
   planHeadline,
+  planWhyChips,
   scoreWindowAgainstBait,
   scoreWindowAgainstCatch,
   suggestionStrength,
@@ -284,6 +285,36 @@ describe("bait plan matches", () => {
     expect(suggestions[0]?.placeName).toBe("Haulover Canal");
     expect(suggestions[0]?.baitTypes).toEqual(["Shrimp"]);
     expect(suggestions[0]?.strength).toBe("very-strong");
+  });
+});
+
+describe("planWhyChips", () => {
+  it("keeps 1–3 scannable chips for a very-strong tide match", () => {
+    expect(
+      planWhyChips({
+        reasons: ["same rising tide ~1.2 ft, ~6:42 AM", "Partly cloudy", "Within 2°F"],
+        strength: "very-strong",
+        placeName: "Galveston Bay, TX",
+        species: "Redfish",
+        timeOfDay: "dawn",
+      }),
+    ).toEqual([
+      "Same rising tide ~1.2 ft, ~6:42 AM",
+      "Partly cloudy skies",
+      "Redfish at Galveston Bay",
+    ]);
+  });
+
+  it("names the matching time of day when tides are not in the reasons", () => {
+    expect(
+      planWhyChips({
+        reasons: ["Same time of day", "Cloudy", "Within 3°F"],
+        strength: "strong",
+        placeName: "Matagorda Bay, TX",
+        species: "Speckled Trout",
+        timeOfDay: "afternoon",
+      }),
+    ).toEqual(["Same afternoon", "Cloudy skies", "Speckled Trout at Matagorda Bay"]);
   });
 });
 

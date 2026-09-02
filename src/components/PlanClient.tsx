@@ -9,7 +9,7 @@ import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
-import { parsePlanDate } from "@/lib/plan";
+import { parsePlanDate, planWhyChips } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel, VERY_STRONG_MATCH_CHIP, VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
 import type { BaitPlanSuggestion, BaitSpot, PlanResult, PlanSuggestion, SpotGroup } from "@/lib/types";
@@ -338,7 +338,17 @@ function SuggestionCard({
       {suggestion.strength === "very-strong" ? (
         <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
       ) : null}
-      <MatchWhy reasons={suggestion.reasons} strength={suggestion.strength} />
+      <MatchWhy
+        reasons={suggestion.reasons}
+        strength={suggestion.strength}
+        placeName={suggestion.placeName}
+        species={speciesLabel(
+          suggestion.matches[0]?.catch.speciesList?.length
+            ? suggestion.matches[0].catch.speciesList
+            : suggestion.matches[0]?.catch.species,
+        )}
+        timeOfDay={w.timeOfDay}
+      />
       <p className="px-3 pt-2 text-[11px] text-ink-muted">
         Photos are from the matching trips you logged — never stock or placeholder fish.
       </p>
@@ -438,7 +448,13 @@ function BaitSuggestionCard({
       {suggestion.strength === "very-strong" ? (
         <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
       ) : null}
-      <MatchWhy reasons={suggestion.reasons} strength={suggestion.strength} />
+      <MatchWhy
+        reasons={suggestion.reasons}
+        strength={suggestion.strength}
+        placeName={suggestion.placeName}
+        species={baitTypesLabel(suggestion.baitTypes)}
+        timeOfDay={w.timeOfDay}
+      />
       <ul className="space-y-2 px-3 py-3">
         {suggestion.matches.map((m) => (
           <li key={m.baitSpot.id}>
@@ -459,11 +475,17 @@ function BaitSuggestionCard({
 function MatchWhy({
   reasons,
   strength,
+  placeName,
+  species,
+  timeOfDay,
 }: {
   reasons: string[];
   strength: PlanSuggestion["strength"];
+  placeName?: string | null;
+  species?: string | null;
+  timeOfDay?: PlanSuggestion["window"]["timeOfDay"] | null;
 }) {
-  const bits = reasons.filter(Boolean).slice(0, 3);
+  const bits = planWhyChips({ reasons, strength, placeName, species, timeOfDay });
   if ((strength === "strong" || strength === "very-strong") && bits.length) {
     return (
       <ul className="flex flex-wrap gap-1 px-3" data-testid="plan-match-why">
