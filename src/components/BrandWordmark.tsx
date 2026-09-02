@@ -19,7 +19,7 @@ export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
         className={
           home
             ? "font-display text-[1.7rem] leading-none tracking-tight text-teal sm:text-4xl"
-            : "font-display text-[clamp(0.95rem,4.5vw,1.35rem)] leading-none tracking-tight"
+            : "font-display text-[clamp(0.88rem,4.2vw,1.25rem)] leading-none tracking-tight"
         }
       >
         Catch Compass

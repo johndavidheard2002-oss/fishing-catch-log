@@ -17,7 +17,7 @@ export function HelpButton() {
       data-testid="help-open"
       aria-label="Help"
       onClick={() => window.dispatchEvent(new Event(HELP_OPEN_EVENT))}
-      className="shrink-0 rounded-full border border-line bg-card px-2.5 py-1 text-xs font-semibold text-ink"
+      className="shrink-0 rounded-full border border-line bg-card px-2 py-0.5 text-xs font-semibold text-ink"
     >
       Help
     </button>

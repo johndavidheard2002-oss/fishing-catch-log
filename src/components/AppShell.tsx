@@ -225,7 +225,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     >
       <div ref={paneRef} className="tab-swipe-pane flex min-h-0 flex-1 flex-col">
         <header className="journal-card mb-4 flex items-center justify-between gap-2 rounded-2xl px-3 py-2">
-          <Link href="/" className="flex min-w-0 items-center gap-2 text-teal" data-testid="header-lockup">
+          <Link href="/" className="flex min-w-0 items-center gap-2 overflow-hidden text-teal" data-testid="header-lockup">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icon-192.png"
@@ -236,10 +236,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
             <BrandWordmark size="header" />
           </Link>
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 flex-col items-end gap-1">
             <HelpButton />
             {demo ? (
-              <span className="rounded-full border border-line bg-card px-2.5 py-1 text-xs text-ink-muted">
+              <span className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink-muted">
                 Demo APIs
               </span>
             ) : null}
