@@ -35,10 +35,21 @@ export async function GET(
   }
   const buf = fs.readFileSync(filePath);
   const ext = path.extname(safe).toLowerCase();
+  const download = request.nextUrl.searchParams.get("download");
+  const downloadName = sanitizeDownloadName(download, safe);
   return new Response(buf, {
     headers: {
       "Content-Type": TYPES[ext] ?? "application/octet-stream",
       "Cache-Control": "private, max-age=31536000, immutable",
+      ...(download
+        ? { "Content-Disposition": `attachment; filename="${downloadName}"` }
+        : {}),
     },
   });
+}
+
+function sanitizeDownloadName(requested: string | null, fallback: string): string {
+  const raw = (requested && requested !== "1" ? requested : fallback).trim();
+  const base = path.basename(raw).replace(/["\\\r\n]/g, "");
+  return base || fallback;
 }

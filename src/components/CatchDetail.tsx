@@ -9,7 +9,8 @@ import { habitatLabel } from "@/lib/habitat";
 import { speciesLabel } from "@/lib/species";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
-import { photoSrc, weatherLine } from "@/lib/photo";
+import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { catchPhotoFilename, photoSrc, weatherLine } from "@/lib/photo";
 import { formatCaughtAt } from "@/lib/time";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
 
@@ -57,10 +58,21 @@ export function CatchDetail({ id }: { id: string }) {
   return (
     <article className="space-y-5">
       <div className="journal-card overflow-hidden rounded-3xl">
-        <div className="aspect-[4/3] bg-paper-deep">
+        <div className="relative aspect-[4/3] bg-paper-deep">
           {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={record.species} className="h-full w-full object-cover" />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={record.species} className="h-full w-full object-cover" />
+              <SaveToPhotosButton
+                src={src}
+                filename={catchPhotoFilename({
+                  species: record.speciesList?.length ? record.speciesList : record.species,
+                  caughtAt: record.caughtAt,
+                  photoPath: record.photoPath,
+                })}
+                variant="overlay"
+              />
+            </>
           ) : (
             <div className="flex h-full items-center justify-center text-ink-muted">No photo</div>
           )}
@@ -155,6 +167,17 @@ export function CatchDetail({ id }: { id: string }) {
 
       {record.notes ? (
         <p className="journal-card rounded-2xl p-4 text-sm">{record.notes}</p>
+      ) : null}
+
+      {src ? (
+        <SaveToPhotosButton
+          src={src}
+          filename={catchPhotoFilename({
+            species: record.speciesList?.length ? record.speciesList : record.species,
+            caughtAt: record.caughtAt,
+            photoPath: record.photoPath,
+          })}
+        />
       ) : null}
 
       <div className="flex gap-2">

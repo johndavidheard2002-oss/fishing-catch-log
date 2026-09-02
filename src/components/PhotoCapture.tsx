@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 
 export function PhotoCapture({
   previewUrl,
@@ -18,35 +19,44 @@ export function PhotoCapture({
 
   return (
     <div className="journal-card overflow-hidden rounded-3xl">
-      <button
-        type="button"
-        onClick={() => cameraRef.current?.click()}
-        className="relative block aspect-[4/3] w-full bg-paper-deep"
-      >
+      <div className="relative aspect-[4/3] w-full bg-paper-deep">
+        <button
+          type="button"
+          onClick={() => cameraRef.current?.click()}
+          className="block h-full w-full"
+        >
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={previewUrl} alt="Catch photo" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-teal text-white">
+                <CameraIcon />
+              </span>
+              <p className="text-lg font-semibold">
+                {emphasis === "library" ? "Add a photo from your roll" : "Take a photo"}
+              </p>
+              <p className="text-sm text-ink-muted">
+                {emphasis === "library"
+                  ? "Upload an old catch photo, then set the date and pin the spot."
+                  : "Camera first. We\u2019ll try species, weather, and GPS next."}
+              </p>
+            </div>
+          )}
+        </button>
         {previewUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt="Catch photo" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-teal text-white">
-              <CameraIcon />
-            </span>
-            <p className="text-lg font-semibold">
-              {emphasis === "library" ? "Add a photo from your roll" : "Take a photo"}
-            </p>
-            <p className="text-sm text-ink-muted">
-              {emphasis === "library"
-                ? "Upload an old catch photo, then set the date and pin the spot."
-                : "Camera first. We\u2019ll try species, weather, and GPS next."}
-            </p>
-          </div>
-        )}
+          <SaveToPhotosButton
+            src={previewUrl}
+            filename="catch-compass-photo.jpg"
+            variant="overlay"
+          />
+        ) : null}
         {busy ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-ink/40 text-sm font-semibold text-white">
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/40 text-sm font-semibold text-white">
             Reading the catch…
           </div>
         ) : null}
-      </button>
+      </div>
       <div className="grid grid-cols-2 gap-2 p-3">
         <button
           type="button"

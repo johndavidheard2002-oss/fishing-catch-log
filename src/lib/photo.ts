@@ -1,5 +1,7 @@
 import type { CatchRecord } from "./types";
 
+const PHOTO_EXT = /\.(jpe?g|png|webp|gif|svg)(?:\?|#|$)/i;
+
 export function photoSrc(photoPath: string | null): string | null {
   if (!photoPath) return null;
   if (photoPath.startsWith("/seed/") || photoPath.startsWith("http") || photoPath.startsWith("blob:")) {
@@ -21,6 +23,38 @@ export function isPersonalPhoto(photoPath: string | null): boolean {
 
 export function personalPhotoSrc(photoPath: string | null): string | null {
   return isPersonalPhoto(photoPath) ? photoSrc(photoPath) : null;
+}
+
+export function extensionFromPath(photoPath: string | null | undefined): string {
+  if (!photoPath) return "jpg";
+  const match = photoPath.toLowerCase().match(PHOTO_EXT);
+  if (!match) return "jpg";
+  return match[1] === "jpeg" ? "jpg" : match[1];
+}
+
+function slugPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+/** Sensible camera-roll filename: catch-compass-{species}-{YYYY-MM-DD}.jpg */
+export function catchPhotoFilename(args: {
+  species?: string | string[] | null;
+  caughtAt?: string | null;
+  photoPath?: string | null;
+}): string {
+  const names = Array.isArray(args.species)
+    ? args.species.filter(Boolean)
+    : args.species
+      ? [args.species]
+      : [];
+  const speciesSlug = slugPart(names.slice(0, 2).join("-")) || "catch";
+  const date = (args.caughtAt ?? "").slice(0, 10);
+  const dateSlug = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "photo";
+  return `catch-compass-${speciesSlug}-${dateSlug}.${extensionFromPath(args.photoPath)}`;
 }
 
 export function weatherLine(
