@@ -218,8 +218,12 @@ export const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = {
 };
 
 /** Read camera EXIF as the printed clock, not a UTC Date. */
-export const PHOTO_EXIF_OPTIONS = {
+export const PHOTO_EXIF_OPTIONS: {
+  gps: boolean;
+  reviveValues: boolean;
+  pick: string[];
+} = {
   gps: true,
   reviveValues: false,
   pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
-} as const;
+};

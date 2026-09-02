@@ -1,17 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Map as LeafletMap, Marker } from "leaflet";
 import { BasemapToggle } from "./BasemapToggle";
-import { addBasemapToMap, DEFAULT_MAP_STYLE, type MapStyle } from "@/lib/map-tiles";
+import {
+  addBasemapToMap,
+  DEFAULT_MAP_STYLE,
+  loadLeaflet,
+  type LeafletNS,
+  type MapStyle,
+} from "@/lib/map-tiles";
 import "leaflet/dist/leaflet.css";
-
-type LeafletNs = typeof import("leaflet");
 
 const PIN_BOX = 36;
 const PIN_DOT = 22;
 const PIN_HTML = `<div style="width:${PIN_BOX}px;height:${PIN_BOX}px;display:flex;align-items:center;justify-content:center"><div style="width:${PIN_DOT}px;height:${PIN_DOT}px;border-radius:50%;background:#c45c26;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.55)"></div></div>`;
 
-function pinIcon(leaflet: LeafletNs["default"]) {
+function pinIcon(leaflet: LeafletNS) {
   return leaflet.divIcon({
     className: "catch-map-pin",
     html: PIN_HTML,
@@ -19,12 +24,6 @@ function pinIcon(leaflet: LeafletNs["default"]) {
     iconAnchor: [PIN_BOX / 2, PIN_BOX / 2],
   });
 }
-type PinMarker = {
-  setLatLng: (ll: { lat: number; lng: number }) => void;
-  getLatLng: () => { lat: number; lng: number };
-  on: (ev: string, fn: () => void) => void;
-  remove: () => void;
-};
 
 export function MapPicker({
   latitude,
@@ -38,14 +37,9 @@ export function MapPicker({
   const ref = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
   const coordsRef = useRef({ latitude, longitude });
-  const mapRef = useRef<{
-    setView: (ll: [number, number], zoom?: number) => void;
-    getZoom: () => number;
-    remove: () => void;
-    on: (ev: string, fn: (e: { latlng: { lat: number; lng: number } }) => void) => void;
-  } | null>(null);
-  const markerRef = useRef<PinMarker | null>(null);
-  const LRef = useRef<LeafletNs["default"] | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const markerRef = useRef<Marker | null>(null);
+  const LRef = useRef<LeafletNS | null>(null);
   const basemapRef = useRef<{ remove: () => void } | null>(null);
   const [basemap, setBasemap] = useState<MapStyle>(DEFAULT_MAP_STYLE);
   const basemapRefStyle = useRef<MapStyle>(basemap);
@@ -74,7 +68,7 @@ export function MapPicker({
     let cancelled = false;
 
     (async () => {
-      const leaflet = (await import("leaflet")).default;
+      const leaflet = await loadLeaflet();
       if (cancelled || !el) return;
       LRef.current = leaflet;
       const current = coordsRef.current;
@@ -90,7 +84,7 @@ export function MapPicker({
 
       const icon = pinIcon(leaflet);
 
-      const bindMarker = (next: PinMarker) => {
+      const bindMarker = (next: Marker) => {
         markerRef.current = next;
         next.on("dragend", () => {
           const ll = next.getLatLng();

@@ -52,26 +52,25 @@ export function mapBasemapSpec(style: MapStyle = DEFAULT_MAP_STYLE): MapTileSpec
   ];
 }
 
-type TileLayer = {
-  addTo: (map: unknown) => unknown;
-};
+export type LeafletNS = typeof import("leaflet");
 
-type LayerGroup = {
-  addTo: (map: unknown) => unknown;
-  remove: () => void;
-};
+export async function loadLeaflet(): Promise<LeafletNS> {
+  const mod = await import("leaflet");
+  return ((mod as { default?: LeafletNS }).default ?? mod) as LeafletNS;
+}
 
-type LeafletLike = {
-  tileLayer: (url: string, options: Record<string, unknown>) => TileLayer;
-  layerGroup: (layers: TileLayer[]) => LayerGroup;
-};
-
-export function addBasemapToMap(
-  L: LeafletLike,
-  map: unknown,
+export function addBasemapToMap<
+  TMap extends object,
+  TLayer extends { addTo(map: TMap): unknown },
+>(
+  L: {
+    tileLayer(url: string, options: Record<string, unknown>): TLayer;
+    layerGroup(layers: TLayer[]): { addTo(map: TMap): unknown; remove(): void };
+  },
+  map: TMap,
   style: MapStyle,
-  previous?: { remove: () => void } | null,
-): LayerGroup {
+  previous?: { remove(): void } | null,
+): { addTo(map: TMap): unknown; remove(): void } {
   previous?.remove();
   const layers = mapBasemapSpec(style).map((spec) =>
     L.tileLayer(spec.url, {

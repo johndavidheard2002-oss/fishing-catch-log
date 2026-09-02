@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { Map as LeafletMap } from "leaflet";
 import { BasemapToggle } from "./BasemapToggle";
-import { addBasemapToMap, DEFAULT_MAP_STYLE, type MapStyle } from "@/lib/map-tiles";
+import {
+  addBasemapToMap,
+  DEFAULT_MAP_STYLE,
+  loadLeaflet,
+  type LeafletNS,
+  type MapStyle,
+} from "@/lib/map-tiles";
 import type { SpotGroup } from "@/lib/types";
 import "leaflet/dist/leaflet.css";
 
@@ -29,13 +36,8 @@ export function SpotMap({
   const ref = useRef<HTMLDivElement>(null);
   const spotsRef = useRef(spots);
   const onSelectRef = useRef(onSelect);
-  const mapRef = useRef<{ remove: () => void; removeLayer?: (layer: unknown) => void } | null>(
-    null,
-  );
-  const LRef = useRef<{
-    tileLayer: (url: string, options: Record<string, unknown>) => { addTo: (map: unknown) => unknown };
-    layerGroup: (layers: unknown[]) => { addTo: (map: unknown) => unknown; remove: () => void };
-  } | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const LRef = useRef<LeafletNS | null>(null);
   const basemapLayerRef = useRef<{ remove: () => void } | null>(null);
   const [basemap, setBasemap] = useState<MapStyle>(DEFAULT_MAP_STYLE);
   const basemapStyleRef = useRef<MapStyle>(basemap);
@@ -55,7 +57,7 @@ export function SpotMap({
     let cancelled = false;
 
     (async () => {
-      const L = (await import("leaflet")).default;
+      const L = await loadLeaflet();
       if (cancelled || !el) return;
       LRef.current = L;
 

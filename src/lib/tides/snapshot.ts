@@ -95,7 +95,12 @@ export function formatTideClock(iso: string | null | undefined): string {
   return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-export function formatTideDetail(snap: Pick<TideSnapshot, "nextHighAt" | "nextHighFt" | "nextLowAt" | "nextLowFt">): string {
+export function formatTideDetail(snap: {
+  nextHighAt?: string | null;
+  nextHighFt?: number | null;
+  nextLowAt?: string | null;
+  nextLowFt?: number | null;
+}): string {
   const bits: string[] = [];
   if (snap.nextHighAt) {
     bits.push(
