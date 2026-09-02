@@ -21,18 +21,19 @@ export function CatchCard({
   showTime = false,
   showYear = false,
   viewerId,
+  onOpenMap,
 }: {
   record: CatchRecord;
   compact?: boolean;
   showTime?: boolean;
   showYear?: boolean;
   viewerId?: string;
+  onOpenMap?: () => void;
 }) {
   const src = photoSrc(record.photoPath);
   const theirs = viewerId && record.anglerId !== viewerId;
-  return (
-    <div className="journal-card relative flex overflow-hidden rounded-2xl">
-      <Link href={`/catch/${record.id}`} className="flex min-w-0 flex-1">
+  const body = (
+    <>
         <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 bg-paper-deep`}>
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -88,7 +89,24 @@ export function CatchCard({
             ) : null}
           </p>
         </div>
+    </>
+  );
+  return (
+    <div className="journal-card relative flex overflow-hidden rounded-2xl">
+      {onOpenMap ? (
+        <button
+          type="button"
+          onClick={onOpenMap}
+          className="flex min-w-0 flex-1 text-left"
+          data-testid="calendar-catch-open-map"
+        >
+          {body}
+        </button>
+      ) : (
+      <Link href={`/catch/${record.id}`} className="flex min-w-0 flex-1">
+        {body}
       </Link>
+      )}
       {src ? (
         <SaveToPhotosButton src={src} filename={photoFilename(record)} variant="overlay" />
       ) : null}
