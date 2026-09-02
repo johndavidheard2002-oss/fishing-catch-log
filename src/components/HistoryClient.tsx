@@ -6,7 +6,7 @@ import { HistoryCalendar } from "@/components/HistoryCalendar";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { parseYearMonth } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
-import type { CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
+import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
 import { scanQueueCount } from "@/lib/scan-queue";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,16 +27,19 @@ function logPath(params: URLSearchParams): string {
 
 export function HistoryClient({
   initialCatches,
+  initialBaitSpots,
   initialNotes,
   initialViewerId,
 }: {
   initialCatches?: CatchRecord[];
+  initialBaitSpots?: BaitSpot[];
   initialNotes?: CalendarNote[];
   initialViewerId?: string;
 } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [catches, setCatches] = useState<CatchRecord[]>(initialCatches ?? []);
+  const [baitSpots, setBaitSpots] = useState<BaitSpot[]>(initialBaitSpots ?? []);
   const [notes, setNotes] = useState<CalendarNote[]>(initialNotes ?? []);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CatchFilters>(() => ({
@@ -93,6 +96,24 @@ export function HistoryClient({
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+    return () => {
+      cancelled = true;
+    };
+  }, [includeShared, shareEpoch]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const q = sharedQuery(includeShared);
+    fetch(`/api/bait-spots${q ? `?${q}` : ""}`, { cache: "no-store" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error("bad status");
+        return r.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (Array.isArray(data.spots)) setBaitSpots(data.spots);
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -220,18 +241,19 @@ export function HistoryClient({
         <p className="text-sm text-ink-muted">Loading the journal…</p>
       ) : view === "calendar" ? (
         <div className="space-y-3">
-          {catches.length === 0 ? (
+          {catches.length === 0 && baitSpots.length === 0 ? (
             <p className="text-sm text-ink-muted">
-              No logged catches yet. Tap a day to plan a trip with a note — no photo needed. Log
-              the fish later from Log or Backfill.
+              Nothing logged yet. Tap a day to plan a trip with a note — no photo needed. Log a
+              catch or bait later from Log or Log bait.
             </p>
-          ) : filtered.length === 0 ? (
+          ) : filtered.length === 0 && baitSpots.length === 0 ? (
             <p className="text-sm text-ink-muted">
               Nothing matches those conditions. Clear filters or log another catch.
             </p>
           ) : null}
           <HistoryCalendar
             catches={filtered}
+            baitSpots={baitSpots}
             notes={notes}
             year={monthCursor.year}
             month={monthCursor.month}

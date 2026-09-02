@@ -1,11 +1,17 @@
 "use client";
 
+import { BaitSpotCard } from "@/components/BaitSpotCard";
 import { CatchCard } from "@/components/CatchCard";
 import { DayNotes } from "@/components/CalendarNotes";
 import { SpotMap } from "@/components/SpotMap";
 import {
+  baitSpotLabel,
+  baitSpotsOnMonthDay,
+  baitSpotsWithPins,
   catchSpotLabel,
   catchesOnMonthDay,
+  groupBaitSpotsByDate,
+  groupBaitSpotsByYear,
   groupCatchesByDate,
   groupCatchesByYear,
   monthDayLabel,
@@ -16,17 +22,20 @@ import {
   todayKey,
   WEEKDAY_LABELS,
   yearFromDateKey,
+  yearsOnMonthDay,
 } from "@/lib/calendar";
+import { baitTypesLabel } from "@/lib/bait";
 import { groupNotesByDay } from "@/lib/notes";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
-import type { CalendarNote, CalendarNoteInput, CatchRecord, SpotGroup } from "@/lib/types";
+import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchRecord, SpotGroup } from "@/lib/types";
 import { useState } from "react";
 
 export function HistoryCalendar({
   catches,
+  baitSpots = [],
   notes = [],
   year,
   month,
@@ -40,6 +49,7 @@ export function HistoryCalendar({
   viewerId,
 }: {
   catches: CatchRecord[];
+  baitSpots?: BaitSpot[];
   notes?: CalendarNote[];
   year: number;
   month: number;
@@ -55,18 +65,32 @@ export function HistoryCalendar({
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
+  const byBaitDate = groupBaitSpotsByDate(baitSpots);
   const notesByDay = groupNotesByDay(notes);
   const cells = monthGrid(year, month);
   const today = todayKey();
   const thisYearSelected = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
   const acrossYears = selectedDay ? catchesOnMonthDay(catches, selectedDay) : [];
+  const thisYearBait = selectedDay ? (byBaitDate.get(selectedDay) ?? []) : [];
+  const acrossYearsBait = selectedDay ? baitSpotsOnMonthDay(baitSpots, selectedDay) : [];
   const yearGroupsAll = groupCatchesByYear(acrossYears);
-  const hasOtherYears = yearGroupsAll.length > 1 || (thisYearSelected.length === 0 && acrossYears.length > 0);
+  const baitYearGroupsAll = groupBaitSpotsByYear(acrossYearsBait);
+  const hasOtherYears =
+    yearGroupsAll.length > 1 ||
+    baitYearGroupsAll.length > 1 ||
+    (thisYearSelected.length === 0 && acrossYears.length > 0) ||
+    (thisYearBait.length === 0 && acrossYearsBait.length > 0);
   const selected = thisYearOnly ? thisYearSelected : acrossYears;
+  const selectedBait = thisYearOnly ? thisYearBait : acrossYearsBait;
   const yearGroups = groupCatchesByYear(selected);
+  const baitYearGroups = groupBaitSpotsByYear(selectedBait);
   const mappedSpots = spotsWithPins(selected);
+  const mappedBait = baitSpotsWithPins(selectedBait);
   const showYearLabels = !thisYearOnly && hasOtherYears;
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
+  const allYearsLabel = selectedDay
+    ? yearsOnMonthDay(catches, baitSpots, selectedDay).join(" · ")
+    : "";
 
   function openDay(date: string) {
     onSelectDay(date);
@@ -109,12 +133,17 @@ export function HistoryCalendar({
           {cells.map((cell) => {
             const dayCatches = byDate.get(cell.date) ?? [];
             const count = dayCatches.length;
+            const dayBait = byBaitDate.get(cell.date) ?? [];
+            const baitCount = dayBait.length;
             const anniversary = cell.inMonth ? catchesOnMonthDay(catches, cell.date) : [];
-            const otherYears = anniversary.length > count;
+            const baitAnniversary = cell.inMonth ? baitSpotsOnMonthDay(baitSpots, cell.date) : [];
+            const otherYears = anniversary.length > count || baitAnniversary.length > baitCount;
+            const yearCount = cell.inMonth ? yearsOnMonthDay(catches, baitSpots, cell.date).length : 0;
             const dayNotes = cell.inMonth ? (notesByDay.get(cell.date) ?? []) : [];
             const planned = dayNotes.length > 0;
             const isSelected = selectedDay === cell.date;
             const isToday = cell.date === today;
+            const hasActivity = count > 0 || baitCount > 0 || otherYears || planned;
             return (
               <div
                 key={cell.date}
@@ -125,33 +154,65 @@ export function HistoryCalendar({
                       ? "ring-1 ring-copper"
                       : ""
                 } ${cell.inMonth ? "" : "opacity-35"} ${
-                  !isSelected && (count > 0 || otherYears || planned) ? "bg-paper-deep" : ""
-                } ${!isSelected && planned && count === 0 ? "border border-dashed border-copper/70" : ""}`}
+                  !isSelected && hasActivity ? "bg-paper-deep" : ""
+                } ${!isSelected && planned && count === 0 && baitCount === 0 ? "border border-dashed border-copper/70" : ""}`}
               >
                 <button
                   type="button"
                   onClick={() => openDay(cell.date)}
                   aria-label={`${cell.date}${count ? `, ${count} catches` : ""}${
-                    otherYears ? ", other years on this date" : ""
-                  }${planned ? `, ${dayNotes.length} planned trip${dayNotes.length === 1 ? "" : "s"}` : ""}`}
+                    baitCount ? `, ${baitCount} bait spot${baitCount === 1 ? "" : "s"}` : ""
+                  }${otherYears ? ", other years on this date" : ""}${
+                    planned ? `, ${dayNotes.length} planned trip${dayNotes.length === 1 ? "" : "s"}` : ""
+                  }`}
                   aria-pressed={isSelected}
                   className="flex w-full flex-1 flex-col items-center leading-none"
                 >
                   <span>
                     {cell.day}
-                    {otherYears && count ? (
+                    {otherYears && (count || baitCount) ? (
                       <span
                         className={`ml-0.5 text-[8px] font-bold ${
                           isSelected ? "text-white/80" : "text-copper"
                         }`}
                       >
-                        {groupCatchesByYear(anniversary).length}y
+                        {yearCount}y
                       </span>
                     ) : null}
                   </span>
                   {count ? (
                     <span className="relative">
                       <DayThumbs records={dayCatches} selected={isSelected} />
+                      {baitCount ? (
+                        <span
+                          className={`absolute -left-1 -bottom-0.5 rounded-full px-1 text-[8px] font-bold ${
+                            isSelected ? "bg-white text-copper" : "bg-copper text-white"
+                          }`}
+                          data-testid="calendar-bait-badge"
+                        >
+                          B
+                        </span>
+                      ) : null}
+                      {planned ? (
+                        <span
+                          className={`absolute -right-1 -bottom-0.5 rounded-full px-1 text-[8px] font-bold ${
+                            isSelected ? "bg-white text-copper" : "bg-copper text-white"
+                          }`}
+                        >
+                          P
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : baitCount ? (
+                    <span className="relative">
+                      <span
+                        className={`mt-1 rounded-full px-1.5 text-[9px] font-bold ${
+                          isSelected ? "bg-white text-copper" : "bg-copper text-white"
+                        }`}
+                        data-testid="calendar-bait-badge"
+                      >
+                        Bait
+                      </span>
                       {planned ? (
                         <span
                           className={`absolute -right-1 -bottom-0.5 rounded-full px-1 text-[8px] font-bold ${
@@ -168,7 +229,7 @@ export function HistoryCalendar({
                         isSelected ? "bg-white text-teal" : "bg-copper text-white"
                       }`}
                     >
-                      {groupCatchesByYear(anniversary).length}y
+                      {yearCount}y
                     </span>
                   ) : planned ? (
                     <span
@@ -197,17 +258,25 @@ export function HistoryCalendar({
                 : formatWeekdayDate(selectedDay)}
             </h2>
           </div>
-          {selected.length === 0 ? null : mappedSpots.length ? (
+          {selected.length === 0 && selectedBait.length === 0 ? null : mappedSpots.length || mappedBait.length ? (
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
-                Catch locations
+                Locations
               </p>
               <SpotMap
                 spots={mappedSpots}
+                baitSpots={mappedBait}
                 selectedKey={null}
                 className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
               />
-              <PinSummary spots={mappedSpots} />
+              {mappedSpots.length && mappedBait.length ? (
+                <p className="text-[11px] text-ink-muted">
+                  Teal pins are catches. Copper pins are bait holes.
+                </p>
+              ) : mappedBait.length && !mappedSpots.length ? (
+                <p className="text-[11px] text-ink-muted">Copper pins are bait holes.</p>
+              ) : null}
+              <PinSummary spots={mappedSpots} baitSpots={mappedBait} />
             </div>
           ) : (
             <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
@@ -219,7 +288,7 @@ export function HistoryCalendar({
               <p className="text-xs text-ink-muted">
                 {thisYearOnly
                   ? yearFromDateKey(selectedDay)
-                  : `Same date · ${yearGroupsAll.map((g) => g.year).join(" · ")}`}
+                  : `Same date · ${allYearsLabel}`}
               </p>
               <div className="ml-auto grid grid-cols-2 overflow-hidden rounded-full border border-line bg-card p-0.5 text-[11px] font-semibold">
                 <button
@@ -261,38 +330,62 @@ export function HistoryCalendar({
               selectedYearOnly={hasOtherYears}
             />
           ) : null}
-          {selected.length === 0 ? (
+          {selected.length === 0 && selectedBait.length === 0 ? (
             <p className="text-sm text-ink-muted">
-              {thisYearOnly && acrossYears.length
+              {thisYearOnly && (acrossYears.length || acrossYearsBait.length)
                 ? `Nothing in ${yearFromDateKey(selectedDay)}. Other years have trips on this date — switch to All years.`
                 : selectedDay > today
-                  ? "No logged catch yet — add a planned trip above. Log the fish from Log or Backfill after the trip."
-                  : "No matching catches on this day. You can still add a planned-trip note."}
+                  ? "No logged catch or bait yet — add a planned trip above. Log the fish from Log or bait from Log bait after the trip."
+                  : "No matching catches or bait spots on this day. You can still add a planned-trip note."}
             </p>
           ) : (
-            yearGroups.map((group) => (
-              <div key={group.year} className="space-y-2">
-                {showYearLabels ? (
-                  <h3 className="pt-1 font-display text-lg text-teal">{group.year}</h3>
-                ) : null}
-                {group.catches.map((record) => (
-                  <CatchCard
-                    key={record.id}
-                    record={record}
-                    compact
-                    showTime
-                    showYear={showYearLabels}
-                    viewerId={viewerId}
-                  />
-                ))}
-              </div>
-            ))
+            <>
+              {selectedBait.length ? (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-copper">Bait</h3>
+                  {baitYearGroups.map((group) => (
+                    <div key={`bait-${group.year}`} className="space-y-2">
+                      {showYearLabels && yearGroups.length + baitYearGroups.length > 1 ? (
+                        <h4 className="pt-1 font-display text-lg text-teal">{group.year}</h4>
+                      ) : null}
+                      {group.spots.map((spot) => (
+                        <BaitSpotCard
+                          key={spot.id}
+                          spot={spot}
+                          compact
+                          showTime
+                          showYear={showYearLabels}
+                          viewerId={viewerId}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {yearGroups.map((group) => (
+                <div key={group.year} className="space-y-2">
+                  {showYearLabels ? (
+                    <h3 className="pt-1 font-display text-lg text-teal">{group.year}</h3>
+                  ) : null}
+                  {group.catches.map((record) => (
+                    <CatchCard
+                      key={record.id}
+                      record={record}
+                      compact
+                      showTime
+                      showYear={showYearLabels}
+                      viewerId={viewerId}
+                    />
+                  ))}
+                </div>
+              ))}
+            </>
           )}
         </section>
       ) : (
         <p className="text-sm text-ink-muted">
-          Tap a day for its map, logged catches, or to add a planned-trip note. No photo needed for
-          future days.
+          Tap a day for its map, logged catches, bait spots, or to add a planned-trip note. No photo
+          needed for future days.
         </p>
       )}
     </div>
@@ -351,9 +444,9 @@ function DayShareToggle({
   );
 }
 
-function PinSummary({ spots }: { spots: SpotGroup[] }) {
-  if (!spots.length) return null;
-  const line = spots
+function PinSummary({ spots, baitSpots = [] }: { spots: SpotGroup[]; baitSpots?: BaitSpot[] }) {
+  if (!spots.length && !baitSpots.length) return null;
+  const catchLine = spots
     .slice()
     .sort((a, b) => {
       const aFirst =
@@ -364,6 +457,11 @@ function PinSummary({ spots }: { spots: SpotGroup[] }) {
     })
     .map((spot) => `${spot.placeName} · ${fishCountLabel(spot.fishCount)}`)
     .join(" · ");
+  const baitLine = [...baitSpots]
+    .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
+    .map((spot) => `Bait · ${baitTypesLabel(spot.baitTypes)} · ${baitSpotLabel(spot)}`)
+    .join(" · ");
+  const line = [catchLine, baitLine].filter(Boolean).join(" · ");
   return <p className="text-xs text-ink-muted">{line}</p>;
 }
 

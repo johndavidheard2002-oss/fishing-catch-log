@@ -1,6 +1,6 @@
 import { countsForCatch } from "./count";
 import { inferHabitat } from "./habitat";
-import type { CatchRecord } from "./types";
+import type { BaitSpot, CatchRecord } from "./types";
 
 export function catchOf(
   partial: Partial<CatchRecord> & { id: string },
@@ -53,4 +53,39 @@ export function catchOf(
     record.speciesCounts = countsForCatch({ ...record, speciesCounts: [] });
   }
   return record;
+}
+
+export function baitOf(partial: Partial<BaitSpot> & { id: string }): BaitSpot {
+  return {
+    photoPath: null,
+    placeName: "Haulover Canal",
+    baitTypes: ["Shrimp"],
+    latitude: 28.735,
+    longitude: -80.754,
+    temperatureF: 82,
+    weatherCondition: "clear",
+    windSpeedMph: 8,
+    windDirection: "E",
+    precipitationIn: 0,
+    humidity: 70,
+    moonPhase: null,
+    moonIllumination: null,
+    pressureInHg: 30.05,
+    pressureMb: 1018,
+    pressureTrend: "steady",
+    loggedAt: "2026-08-02T14:00:00.000Z",
+    timeOfDay: "afternoon",
+    season: "summer",
+    notes: null,
+    tide: "incoming",
+    tideHeightFt: 1.2,
+    tideDetail: null,
+    habitat: "saltwater-inshore",
+    anglerId: "you",
+    sharedWithLinked: false,
+    ownerName: "You",
+    createdAt: "2026-08-02T14:00:00.000Z",
+    updatedAt: "2026-08-02T14:00:00.000Z",
+    ...partial,
+  };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { catchesOnMonthDay, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels, yearFromDateKey } from "./calendar";
-import { catchOf } from "./testing";
+import { baitSpotsOnMonthDay, baitSpotsWithPins, catchesOnMonthDay, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
+import { baitOf, catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
 function catchOn(local: Date, id: string): CatchRecord {
@@ -176,5 +176,68 @@ describe("shiftMonth", () => {
   it("wraps December to January", () => {
     expect(shiftMonth(2025, 11, 1)).toEqual({ year: 2026, month: 0 });
     expect(shiftMonth(2026, 0, -1)).toEqual({ year: 2025, month: 11 });
+  });
+});
+
+function baitOn(local: Date, id: string) {
+  return baitOf({
+    id,
+    loggedAt: local.toISOString(),
+    createdAt: local.toISOString(),
+    updatedAt: local.toISOString(),
+  });
+}
+
+describe("groupBaitSpotsByDate", () => {
+  it("groups bait holes on the same local day and orders by time", () => {
+    const later = baitOn(new Date(2025, 6, 12, 18, 5), "dusk");
+    const earlier = baitOn(new Date(2025, 6, 12, 6, 10), "dawn");
+    const next = baitOn(new Date(2025, 6, 13, 6, 10), "next");
+    const groups = groupBaitSpotsByDate([later, next, earlier]);
+    expect(groups.get("2025-07-12")?.map((r) => r.id)).toEqual(["dawn", "dusk"]);
+    expect(groups.get("2025-07-13")?.map((r) => r.id)).toEqual(["next"]);
+  });
+});
+
+describe("baitSpotsOnMonthDay", () => {
+  it("combines the same month-day across years and skips neighboring days", () => {
+    const y25 = baitOn(new Date(2025, 8, 2, 7, 10), "25");
+    const y24 = baitOn(new Date(2024, 8, 2, 18, 40), "24");
+    const next = baitOn(new Date(2025, 8, 3, 7, 10), "next");
+    const ids = baitSpotsOnMonthDay([y25, y24, next], "2025-09-02").map((r) => r.id);
+    expect(ids.sort()).toEqual(["24", "25"]);
+    expect(monthDayKey(y24.loggedAt)).toBe("09-02");
+  });
+
+  it("groups combined bait days by year, newest first", () => {
+    const y25a = baitOn(new Date(2025, 8, 2, 18, 0), "25dusk");
+    const y25b = baitOn(new Date(2025, 8, 2, 6, 0), "25dawn");
+    const y24 = baitOn(new Date(2024, 8, 2, 12, 0), "24");
+    const groups = groupBaitSpotsByYear(baitSpotsOnMonthDay([y25a, y24, y25b], "2026-09-02"));
+    expect(groups.map((g) => g.year)).toEqual([2025, 2024]);
+    expect(groups[0].spots.map((s) => s.id)).toEqual(["25dawn", "25dusk"]);
+  });
+
+  it("matches leap-day bait only on Feb 29", () => {
+    const leap = baitOn(new Date(2024, 1, 29, 7, 0), "leap");
+    const eve = baitOn(new Date(2024, 1, 28, 7, 0), "eve");
+    expect(baitSpotsOnMonthDay([leap, eve], "2024-02-29").map((r) => r.id)).toEqual(["leap"]);
+    expect(baitSpotsOnMonthDay([leap, eve], "2023-02-28").map((r) => r.id)).toEqual(["eve"]);
+  });
+});
+
+describe("baitSpotsWithPins", () => {
+  it("keeps pinned bait holes and skips missing coordinates", () => {
+    const pinned = baitOf({ id: "pinned", latitude: 28.735, longitude: -80.754 });
+    const unpinned = baitOf({ id: "unpinned", latitude: null, longitude: null });
+    expect(baitSpotsWithPins([pinned, unpinned]).map((s) => s.id)).toEqual(["pinned"]);
+  });
+});
+
+describe("yearsOnMonthDay", () => {
+  it("counts years from both catches and bait on the same month-day", () => {
+    const catch25 = catchOn(new Date(2025, 8, 2, 7, 0), "c25");
+    const bait24 = baitOn(new Date(2024, 8, 2, 12, 0), "b24");
+    expect(yearsOnMonthDay([catch25], [bait24], "2026-09-02")).toEqual([2025, 2024]);
   });
 });

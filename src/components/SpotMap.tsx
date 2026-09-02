@@ -11,41 +11,54 @@ import {
   type MapStyle,
 } from "@/lib/map-tiles";
 import { yearFromDateKey } from "@/lib/calendar";
-import type { SpotGroup } from "@/lib/types";
+import { baitTypesLabel } from "@/lib/bait";
+import type { BaitSpot, SpotGroup } from "@/lib/types";
 import "leaflet/dist/leaflet.css";
 
-function spotsSignature(spots: SpotGroup[], selectedKey: string | null): string {
-  return spots
+function spotsSignature(
+  spots: SpotGroup[],
+  baitSpots: BaitSpot[],
+  selectedKey: string | null,
+): string {
+  const catchPart = spots
     .map(
       (s) =>
         `${s.key}:${s.latitude}:${s.longitude}:${s.catchCount}:${s.fishCount}:${s.placeName}:${selectedKey === s.key ? 1 : 0}`,
     )
     .join("|");
+  const baitPart = baitSpots
+    .map((s) => `bait:${s.id}:${s.latitude}:${s.longitude}:${s.loggedAt}`)
+    .join("|");
+  return `${catchPart}::${baitPart}`;
 }
 
 export function SpotMap({
   spots,
+  baitSpots = [],
   selectedKey,
   onSelect,
   className = "h-64 w-full overflow-hidden rounded-2xl border border-line",
 }: {
   spots: SpotGroup[];
+  baitSpots?: BaitSpot[];
   selectedKey: string | null;
   onSelect?: (key: string) => void;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const spotsRef = useRef(spots);
+  const baitRef = useRef(baitSpots);
   const onSelectRef = useRef(onSelect);
   const mapRef = useRef<LeafletMap | null>(null);
   const LRef = useRef<LeafletNS | null>(null);
   const basemapLayerRef = useRef<{ remove: () => void } | null>(null);
   const [basemap, setBasemap] = useState<MapStyle>(DEFAULT_MAP_STYLE);
   const basemapStyleRef = useRef<MapStyle>(basemap);
-  const signature = spotsSignature(spots, selectedKey);
+  const signature = spotsSignature(spots, baitSpots, selectedKey);
 
   useEffect(() => {
     spotsRef.current = spots;
+    baitRef.current = baitSpots;
     onSelectRef.current = onSelect;
     basemapStyleRef.current = basemap;
   });
@@ -54,20 +67,22 @@ export function SpotMap({
     const el = ref.current;
     if (!el) return;
     const current = spotsRef.current;
-    const withCoords = current.filter((s) => s.latitude != null && s.longitude != null);
+    const currentBait = baitRef.current;
+    const catchCoords = current.filter((s) => s.latitude != null && s.longitude != null);
+    const baitCoords = currentBait.filter((s) => s.latitude != null && s.longitude != null);
+    const pinLatLngs: [number, number][] = [
+      ...catchCoords.map((s) => [s.latitude!, s.longitude!] as [number, number]),
+      ...baitCoords.map((s) => [s.latitude!, s.longitude!] as [number, number]),
+    ];
     let cancelled = false;
 
     function zoomToSpots(instance: LeafletMap, L: LeafletNS) {
       instance.invalidateSize();
-      const center = withCoords[0]
-        ? ([withCoords[0].latitude!, withCoords[0].longitude!] as [number, number])
-        : ([39.5, -98] as [number, number]);
-      if (withCoords.length > 1) {
-        const bounds = L.latLngBounds(
-          withCoords.map((s) => [s.latitude!, s.longitude!] as [number, number]),
-        );
+      const center = pinLatLngs[0] ?? ([39.5, -98] as [number, number]);
+      if (pinLatLngs.length > 1) {
+        const bounds = L.latLngBounds(pinLatLngs);
         instance.fitBounds(bounds.pad(0.18), { maxZoom: 17, animate: false });
-      } else if (withCoords.length === 1) {
+      } else if (pinLatLngs.length === 1) {
         instance.setView(center, 16, { animate: false });
       } else {
         instance.setView(center, 4, { animate: false });
@@ -106,18 +121,16 @@ export function SpotMap({
       }
       if (cancelled || !el) return;
 
-      const center = withCoords[0]
-        ? ([withCoords[0].latitude!, withCoords[0].longitude!] as [number, number])
-        : ([39.5, -98] as [number, number]);
+      const center = pinLatLngs[0] ?? ([39.5, -98] as [number, number]);
 
       const instance = L.map(el, {
         zoomControl: true,
         attributionControl: true,
         maxZoom: 19,
-      }).setView(center, withCoords.length ? 16 : 4);
+      }).setView(center, pinLatLngs.length ? 16 : 4);
       basemapLayerRef.current = addBasemapToMap(L, instance, basemapStyleRef.current);
 
-      for (const spot of withCoords) {
+      for (const spot of catchCoords) {
         const marker = L.circleMarker([spot.latitude!, spot.longitude!], {
           radius: 8 + Math.min(8, spot.catchCount),
           color: spot.key === selectedKey ? "#c45c26" : "#0a4e6a",
@@ -135,6 +148,18 @@ export function SpotMap({
           }${yearBit}`,
         );
         marker.on("click", () => onSelectRef.current?.(spot.key));
+      }
+      for (const spot of baitCoords) {
+        const marker = L.circleMarker([spot.latitude!, spot.longitude!], {
+          radius: 7,
+          color: "#c45c26",
+          fillColor: "#c45c26",
+          fillOpacity: 0.9,
+          weight: 2,
+        }).addTo(instance);
+        marker.bindTooltip(
+          `Bait · ${baitTypesLabel(spot.baitTypes)} · ${spot.placeName || "hole"}`,
+        );
       }
       zoomToSpots(instance, L);
       instance.whenReady(() => {

@@ -1,5 +1,5 @@
 import { groupSpots } from "./filters";
-import type { CatchRecord, SpotGroup } from "./types";
+import type { BaitSpot, CatchRecord, SpotGroup } from "./types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -163,6 +163,80 @@ export function uniqueSpotLabels(records: CatchRecord[]): string[] {
       return aFirst.localeCompare(bFirst);
     })
     .map((group) => group.placeName);
+}
+
+export function groupBaitSpotsByDate(spots: BaitSpot[]): Map<string, BaitSpot[]> {
+  const groups = new Map<string, BaitSpot[]>();
+  for (const spot of spots) {
+    const key = localDateKey(spot.loggedAt);
+    const list = groups.get(key) ?? [];
+    list.push(spot);
+    groups.set(key, list);
+  }
+  for (const list of groups.values()) {
+    list.sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
+  }
+  return groups;
+}
+
+/** Every bait hole logged on the same month+day, any year. */
+export function baitSpotsOnMonthDay(spots: BaitSpot[], dateKey: string): BaitSpot[] {
+  const md = monthDayKey(dateKey);
+  return spots.filter((spot) => monthDayKey(spot.loggedAt) === md);
+}
+
+export type YearBaitGroup = {
+  year: number;
+  dateKey: string;
+  spots: BaitSpot[];
+};
+
+/** Newest year first; bait visits inside a year stay earliest-first. */
+export function groupBaitSpotsByYear(spots: BaitSpot[]): YearBaitGroup[] {
+  const map = new Map<number, BaitSpot[]>();
+  for (const spot of spots) {
+    const key = localDateKey(spot.loggedAt);
+    const year = yearFromDateKey(key);
+    const list = map.get(year) ?? [];
+    list.push(spot);
+    map.set(year, list);
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([year, list]) => ({
+      year,
+      dateKey: localDateKey(list[0].loggedAt),
+      spots: [...list].sort((a, b) => a.loggedAt.localeCompare(b.loggedAt)),
+    }));
+}
+
+/** Bait visits with saved coordinates. */
+export function baitSpotsWithPins(spots: BaitSpot[]): BaitSpot[] {
+  return spots.filter((s) => s.latitude != null && s.longitude != null);
+}
+
+export function baitSpotLabel(spot: BaitSpot): string {
+  if (spot.placeName?.trim()) return spot.placeName.trim();
+  if (spot.latitude != null && spot.longitude != null) {
+    return `${spot.latitude.toFixed(3)}, ${spot.longitude.toFixed(3)}`;
+  }
+  return "Unnamed hole";
+}
+
+/** Distinct years that have a catch or bait visit on this month-day. */
+export function yearsOnMonthDay(
+  catches: CatchRecord[],
+  baitSpots: BaitSpot[],
+  dateKey: string,
+): number[] {
+  const years = new Set<number>();
+  for (const record of catchesOnMonthDay(catches, dateKey)) {
+    years.add(yearFromDateKey(record.caughtAt));
+  }
+  for (const spot of baitSpotsOnMonthDay(baitSpots, dateKey)) {
+    years.add(yearFromDateKey(spot.loggedAt));
+  }
+  return [...years].sort((a, b) => b - a);
 }
 
 export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
