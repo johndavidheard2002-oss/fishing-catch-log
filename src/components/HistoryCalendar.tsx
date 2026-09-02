@@ -1,7 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { CatchCard } from "@/components/CatchCard";
+import { SpotMap } from "@/components/SpotMap";
 import {
   catchSpotLabel,
   catchesOnMonthDay,
@@ -23,17 +23,7 @@ import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { CatchRecord, SpotGroup } from "@/lib/types";
-import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
-
-const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-56 items-center justify-center rounded-2xl border border-line bg-card text-sm text-ink-muted">
-      Loading map…
-    </div>
-  ),
-});
 
 export function HistoryCalendar({
   catches,
@@ -85,10 +75,6 @@ export function HistoryCalendar({
     onSelectDay(date);
     setMapDay(date);
   }
-
-  useEffect(() => {
-    void import("./SpotMap");
-  }, []);
 
   useEffect(() => {
     if (!popupOpen) return;
@@ -388,18 +374,19 @@ function DayMapPopup({
   thisYearOnly: boolean;
   onClose: () => void;
 }) {
-  if (typeof document === "undefined") return null;
   const title = thisYearOnly ? formatWeekdayDate(day) : monthDayLabel(day);
-  return createPortal(
+  return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/60 p-3"
+      className="fixed inset-0 z-[80] flex items-center justify-center p-3"
       role="dialog"
       aria-modal="true"
       aria-label={`Map for ${title}`}
+      data-testid="day-map-popup"
+      style={{ backgroundColor: "rgba(12, 53, 84, 0.62)" }}
       onClick={onClose}
     >
       <div
-        className="journal-card w-full max-w-lg overflow-hidden rounded-2xl"
+        className="journal-card w-full max-w-lg overflow-hidden rounded-2xl shadow-lg"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2 px-3 py-2">
@@ -424,8 +411,7 @@ function DayMapPopup({
           className="h-[min(65dvh,28rem)] w-full overflow-hidden"
         />
       </div>
-    </div>,
-    document.body,
+    </div>
   );
 }
 
