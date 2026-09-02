@@ -9,7 +9,8 @@ import {
   todayKey,
   WEEKDAY_LABELS,
 } from "@/lib/calendar";
-import { formatWeekdayDate } from "@/lib/time";
+import { photoSrc } from "@/lib/photo";
+import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import type { CatchRecord } from "@/lib/types";
 
 export function HistoryCalendar({
@@ -19,6 +20,7 @@ export function HistoryCalendar({
   selectedDay,
   onMonthChange,
   onSelectDay,
+  viewerId,
 }: {
   catches: CatchRecord[];
   year: number;
@@ -26,6 +28,7 @@ export function HistoryCalendar({
   selectedDay: string | null;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
+  viewerId?: string;
 }) {
   const byDate = groupCatchesByDate(catches);
   const cells = monthGrid(year, month);
@@ -73,7 +76,8 @@ export function HistoryCalendar({
 
         <div className="grid grid-cols-7 gap-1">
           {cells.map((cell) => {
-            const count = byDate.get(cell.date)?.length ?? 0;
+            const dayCatches = byDate.get(cell.date) ?? [];
+            const count = dayCatches.length;
             const isSelected = selectedDay === cell.date;
             const isToday = cell.date === today;
             return (
@@ -83,30 +87,18 @@ export function HistoryCalendar({
                 onClick={() => onSelectDay(cell.date)}
                 aria-label={`${cell.date}${count ? `, ${count} catches` : ""}`}
                 aria-pressed={isSelected}
-                className={`flex min-h-11 flex-col items-center justify-center rounded-xl py-1 text-sm ${
+                className={`flex min-h-[4.25rem] flex-col items-center rounded-xl px-0.5 py-1 text-xs ${
                   isSelected
                     ? "bg-teal font-semibold text-white"
                     : isToday
                       ? "ring-1 ring-copper"
                       : ""
                 } ${cell.inMonth ? "" : "opacity-35"} ${
-                  !isSelected && count > 0 ? "bg-paper-deep font-semibold" : ""
+                  !isSelected && count > 0 ? "bg-paper-deep" : ""
                 }`}
               >
-                {cell.day}
-                <span className="mt-0.5 flex h-3 items-center justify-center">
-                  {count > 0 ? (
-                    <span
-                      className={`min-w-3 rounded-full px-1 text-[10px] leading-4 font-bold ${
-                        isSelected ? "bg-white text-teal" : "bg-copper text-white"
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  ) : (
-                    <span className="h-3" />
-                  )}
-                </span>
+                <span className="leading-none">{cell.day}</span>
+                <DayThumbs records={dayCatches} selected={isSelected} />
               </button>
             );
           })}
@@ -116,15 +108,66 @@ export function HistoryCalendar({
       {selectedDay ? (
         <section className="space-y-2">
           <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
+          <p className="text-xs text-ink-muted">In the order you caught them.</p>
           {selected.length === 0 ? (
             <p className="text-sm text-ink-muted">No matching catches on this day.</p>
           ) : (
-            selected.map((record) => <CatchCard key={record.id} record={record} compact />)
+            selected.map((record) => (
+              <CatchCard
+                key={record.id}
+                record={record}
+                compact
+                showTime
+                viewerId={viewerId}
+              />
+            ))
           )}
         </section>
       ) : (
-        <p className="text-sm text-ink-muted">Tap a day to see what you caught.</p>
+        <p className="text-sm text-ink-muted">Tap a day or a photo to see that trip.</p>
       )}
     </div>
   );
 }
+
+function DayThumbs({ records, selected }: { records: CatchRecord[]; selected: boolean }) {
+  if (!records.length) return <span className="mt-1 h-6" />;
+  const shown = records.slice(0, 3);
+  const extra = records.length - shown.length;
+  return (
+    <span className="relative mt-1 flex h-6 w-full items-center justify-center">
+      <span className="flex items-center">
+        {shown.map((record, i) => {
+          const src = photoSrc(record.photoPath);
+          return (
+            <span
+              key={record.id}
+              title={`${formatTimeOnly(record.caughtAt)} · ${record.species}`}
+              className={`relative h-6 w-6 overflow-hidden rounded-md border ${
+                selected ? "border-white/70" : "border-white"
+              } bg-paper`}
+              style={{ marginLeft: i === 0 ? 0 : -8, zIndex: shown.length - i }}
+            >
+              {src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={src} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="block h-full w-full bg-copper/40" />
+              )}
+            </span>
+          );
+        })}
+        {extra > 0 ? (
+          <span
+            className={`relative -ml-1 rounded-full px-1 text-[9px] font-bold ${
+              selected ? "bg-white text-teal" : "bg-copper text-white"
+            }`}
+          >
+            +{extra}
+          </span>
+        ) : null}
+      </span>
+    </span>
+  );
+}
+

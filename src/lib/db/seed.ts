@@ -3,6 +3,7 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { catches } from "./schema";
 import type * as schema from "./schema";
 import { seasonFromDate, timeOfDayFromDate } from "../time";
+import { inferHabitat } from "../habitat";
 import type { CatchInput } from "../types";
 
 const SEED: CatchInput[] = [
@@ -240,9 +241,30 @@ const SEED: CatchInput[] = [
     waterClarity: "clear",
     notes: "Winter tailwater. Slow and deep, overcast and raw.",
   },
+  {
+    photoPath: "/seed/mahi.svg",
+    species: "Mahi-mahi",
+    speciesSuggested: "Mahi-mahi",
+    speciesConfidence: 0.81,
+    speciesSource: "demo",
+    latitude: 25.76,
+    longitude: -80.02,
+    placeName: "Gulf Stream, FL",
+    temperatureF: 84,
+    weatherCondition: "clear",
+    windSpeedMph: 11,
+    precipitationIn: 0,
+    humidity: 66,
+    caughtAt: "2025-07-28T14:20:00-04:00",
+    timeOfDay: "afternoon",
+    season: "summer",
+    bait: "Ballyhoo trolling",
+    waterClarity: "clear",
+    notes: "Weed line in the blue water. Color lit up on the second teaser.",
+  },
 ];
 
-export function seedIfEmpty(db: BetterSQLite3Database<typeof schema>) {
+export function seedIfEmpty(db: BetterSQLite3Database<typeof schema>, ownerId: string) {
   const row = db.select({ n: count() }).from(catches).get();
   if ((row?.n ?? 0) > 0) return;
 
@@ -272,6 +294,9 @@ export function seedIfEmpty(db: BetterSQLite3Database<typeof schema>) {
         bait: item.bait ?? null,
         tide: item.tide ?? null,
         waterClarity: item.waterClarity ?? null,
+        habitat: item.habitat ?? inferHabitat(item.species),
+        anglerId: ownerId,
+        sharedWithLinked: 0,
         createdAt: stamp,
         updatedAt: stamp,
       })

@@ -1,31 +1,45 @@
 import { NextRequest } from "next/server";
-import { deleteCatch, getCatch, updateCatch } from "@/lib/db/catches";
+import { canViewCatch, deleteCatch, getCatch, updateCatch } from "@/lib/db/catches";
 import { catchInputFromUnknown } from "@/lib/parse";
+import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, ctx: Ctx) {
+export async function GET(request: NextRequest, ctx: Ctx) {
+  const viewerId = viewerIdFromRequest(request);
   const { id } = await ctx.params;
   const record = getCatch(id);
-  if (!record) return Response.json({ error: "Not found" }, { status: 404 });
-  return Response.json({ catch: record });
+  if (!record || !canViewCatch(record, viewerId)) {
+    return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
+  }
+  return jsonWithViewer({ catch: record }, viewerId);
 }
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
+  const viewerId = viewerIdFromRequest(request);
   const { id } = await ctx.params;
+  const existing = getCatch(id);
+  if (!existing || existing.anglerId !== viewerId) {
+    return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
+  }
   const body = (await request.json()) as Record<string, unknown>;
   const input = catchInputFromUnknown(body);
-  const record = updateCatch(id, input);
-  if (!record) return Response.json({ error: "Not found" }, { status: 404 });
-  return Response.json({ catch: record });
+  const record = updateCatch(id, { ...input, anglerId: existing.anglerId });
+  if (!record) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
+  return jsonWithViewer({ catch: record }, viewerId);
 }
 
-export async function DELETE(_request: NextRequest, ctx: Ctx) {
+export async function DELETE(request: NextRequest, ctx: Ctx) {
+  const viewerId = viewerIdFromRequest(request);
   const { id } = await ctx.params;
+  const existing = getCatch(id);
+  if (!existing || existing.anglerId !== viewerId) {
+    return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
+  }
   const ok = deleteCatch(id);
-  if (!ok) return Response.json({ error: "Not found" }, { status: 404 });
-  return Response.json({ ok: true });
+  if (!ok) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
+  return jsonWithViewer({ ok: true }, viewerId);
 }

@@ -1,7 +1,10 @@
+import { isHabitat, matchesHabitatFilters } from "./habitat";
 import { haversineKm } from "./similar";
-import type { CatchFilters, CatchRecord, SpotGroup } from "./types";
+import type { CatchFilters, CatchRecord, Habitat, SpotGroup } from "./types";
 
 export function matchesFilters(record: CatchRecord, filters: CatchFilters): boolean {
+  if (!matchesHabitatFilters(record.habitat, filters.habitats)) return false;
+
   if (filters.species) {
     const q = filters.species.trim().toLowerCase();
     if (!record.species.toLowerCase().includes(q)) return false;
@@ -88,6 +91,7 @@ export function parseFilters(searchParams: URLSearchParams): CatchFilters {
     lat: num("lat"),
     lng: num("lng"),
     radiusKm: num("radiusKm"),
+    habitats: csv("habitat")?.filter(isHabitat) as Habitat[] | undefined,
   };
 }
 
@@ -164,6 +168,7 @@ export function hasActiveFilters(filters: CatchFilters): boolean {
       filters.tempMax != null ||
       filters.windMin != null ||
       filters.windMax != null ||
-      filters.radiusKm != null,
+      filters.radiusKm != null ||
+      filters.habitats?.length,
   );
 }

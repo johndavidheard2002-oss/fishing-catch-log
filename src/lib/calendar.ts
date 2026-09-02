@@ -81,6 +81,9 @@ export function groupCatchesByDate(records: CatchRecord[]): Map<string, CatchRec
     list.push(record);
     groups.set(key, list);
   }
+  for (const list of groups.values()) {
+    list.sort((a, b) => a.caughtAt.localeCompare(b.caughtAt));
+  }
   return groups;
 }
 

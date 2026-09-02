@@ -1,16 +1,22 @@
 import Link from "next/link";
-import { formatDateOnly } from "@/lib/time";
+import { habitatLabel } from "@/lib/habitat";
+import { formatDateOnly, formatTimeOnly } from "@/lib/time";
 import { photoSrc, weatherLine } from "@/lib/photo";
 import type { CatchRecord } from "@/lib/types";
 
 export function CatchCard({
   record,
   compact = false,
+  showTime = false,
+  viewerId,
 }: {
   record: CatchRecord;
   compact?: boolean;
+  showTime?: boolean;
+  viewerId?: string;
 }) {
   const src = photoSrc(record.photoPath);
+  const theirs = viewerId && record.anglerId !== viewerId;
   return (
     <Link
       href={`/catch/${record.id}`}
@@ -30,7 +36,18 @@ export function CatchCard({
         <p className="truncate font-semibold text-ink">{record.species}</p>
         <p className="truncate text-sm text-ink-muted">{record.placeName || "Unnamed spot"}</p>
         <p className="mt-1 truncate text-xs text-ink-muted">
-          {formatDateOnly(record.caughtAt)} · {record.timeOfDay} · {weatherLine(record)}
+          {showTime ? formatTimeOnly(record.caughtAt) : formatDateOnly(record.caughtAt)} ·{" "}
+          {record.timeOfDay} · {weatherLine(record)}
+        </p>
+        <p className="mt-1 flex flex-wrap gap-1">
+          <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
+            {habitatLabel(record.habitat)}
+          </span>
+          {theirs ? (
+            <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
+              {record.ownerName}
+            </span>
+          ) : null}
         </p>
       </div>
     </Link>
@@ -54,6 +71,7 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
       <div className="px-2.5 py-2">
         <p className="truncate text-sm font-semibold">{record.species}</p>
         <p className="truncate text-xs text-ink-muted">{record.placeName || "Unnamed spot"}</p>
+        <p className="mt-0.5 text-[10px] text-ink-muted">{habitatLabel(record.habitat)}</p>
       </div>
     </Link>
   );

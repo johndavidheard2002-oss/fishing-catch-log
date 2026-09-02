@@ -25,6 +25,10 @@ function catchOn(local: Date, id: string): CatchRecord {
     bait: null,
     tide: null,
     waterClarity: null,
+    habitat: "freshwater",
+    anglerId: "you",
+    sharedWithLinked: false,
+    ownerName: "You",
     createdAt: local.toISOString(),
     updatedAt: local.toISOString(),
   };
@@ -45,6 +49,13 @@ describe("groupCatchesByDate", () => {
     const groups = groupCatchesByDate([a, b, c]);
     expect(groups.get("2025-07-12")?.map((r) => r.id)).toEqual(["dawn", "afternoon"]);
     expect(groups.get("2025-07-13")?.map((r) => r.id)).toEqual(["next"]);
+  });
+
+  it("orders a day's catches by time", () => {
+    const later = catchOn(new Date(2025, 6, 12, 18, 5), "dusk");
+    const earlier = catchOn(new Date(2025, 6, 12, 6, 10), "dawn");
+    const groups = groupCatchesByDate([later, earlier]);
+    expect(groups.get("2025-07-12")?.map((r) => r.id)).toEqual(["dawn", "dusk"]);
   });
 });
 

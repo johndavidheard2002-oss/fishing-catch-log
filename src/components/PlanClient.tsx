@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { photoSrc } from "@/lib/photo";
+import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
+import { personalPhotoSrc } from "@/lib/photo";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel } from "@/lib/similar";
 import type { PlanResult, PlanSuggestion } from "@/lib/types";
@@ -12,10 +13,12 @@ export function PlanClient() {
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [includeShared, setIncludeShared] = useIncludeShared();
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/plan?days=${days}`)
+    const extra = sharedQuery(includeShared);
+    fetch(`/api/plan?days=${days}${extra ? `&${extra}` : ""}`)
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) {
@@ -33,7 +36,7 @@ export function PlanClient() {
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, includeShared]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, PlanSuggestion[]>();
@@ -54,6 +57,8 @@ export function PlanClient() {
           match.
         </p>
       </div>
+
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
 
       <div className="flex gap-2">
         {([3, 5, 7] as const).map((n) => (
@@ -109,15 +114,23 @@ export function PlanClient() {
 
 function SuggestionCard({ suggestion }: { suggestion: PlanSuggestion }) {
   const w = suggestion.window;
-  const src = photoSrc(suggestion.matches[0]?.catch.photoPath ?? null);
+  const personal = suggestion.matches
+    .map((m) => ({ id: m.catch.id, src: personalPhotoSrc(m.catch.photoPath) }))
+    .filter((m): m is { id: string; src: string } => Boolean(m.src));
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
       <div className="flex gap-3 p-3">
-        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-paper-deep">
-          {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt="" className="h-full w-full object-cover" />
-          ) : null}
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
+          {personal[0] ? (
+            <Link href={`/catch/${personal[0].id}`} className="h-full w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={personal[0].src} alt="" className="h-full w-full object-cover" />
+            </Link>
+          ) : (
+            <span className="px-1 text-center text-[10px] leading-tight text-ink-muted">
+              No personal photo
+            </span>
+          )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -133,6 +146,20 @@ function SuggestionCard({ suggestion }: { suggestion: PlanSuggestion }) {
           </p>
         </div>
       </div>
+      {personal.length > 1 ? (
+        <div className="flex gap-1.5 px-3 pb-2">
+          {personal.slice(1, 4).map((photo) => (
+            <Link
+              key={photo.id}
+              href={`/catch/${photo.id}`}
+              className="h-12 w-12 overflow-hidden rounded-lg bg-paper-deep"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photo.src} alt="" className="h-full w-full object-cover" />
+            </Link>
+          ))}
+        </div>
+      ) : null}
       <p className="px-3 pb-2 text-sm">{suggestion.headline}</p>
       <p className="px-3 text-xs text-ink-muted">
         Why: {suggestion.reasons.slice(0, 5).join(" · ") || "pattern overlap"}

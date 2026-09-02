@@ -54,6 +54,13 @@ export function formatCaughtAt(iso: string): string {
   }).format(date);
 }
 
+export function formatTimeOnly(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
 export function formatDateOnly(iso: string): string {
   const date = new Date(iso);
   return new Intl.DateTimeFormat("en-US", {

@@ -1,33 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupSpots, matchesFilters } from "./filters";
-import type { CatchRecord } from "./types";
-
-function catchOf(partial: Partial<CatchRecord> & { id: string; species: string }): CatchRecord {
-  return {
-    photoPath: null,
-    speciesSuggested: null,
-    speciesConfidence: null,
-    speciesSource: "manual",
-    latitude: 30.388,
-    longitude: -97.975,
-    placeName: "Lake Travis, TX",
-    temperatureF: 80,
-    weatherCondition: "clear",
-    windSpeedMph: 6,
-    precipitationIn: 0,
-    humidity: 50,
-    caughtAt: "2025-07-12T20:00:00.000Z",
-    timeOfDay: "afternoon",
-    season: "summer",
-    notes: null,
-    bait: null,
-    tide: null,
-    waterClarity: null,
-    createdAt: "2025-07-12T20:00:00.000Z",
-    updatedAt: "2025-07-12T20:00:00.000Z",
-    ...partial,
-  };
-}
+import { catchOf } from "./testing";
 
 describe("matchesFilters", () => {
   const bass = catchOf({ id: "1", species: "Largemouth Bass", temperatureF: 88 });
@@ -49,6 +22,19 @@ describe("matchesFilters", () => {
     expect(matchesFilters(bass, { species: "bass", seasons: ["summer"] })).toBe(true);
     expect(matchesFilters(bass, { species: "trout" })).toBe(false);
     expect(matchesFilters(bass, { seasons: ["spring"] })).toBe(false);
+  });
+
+  it("filters freshwater vs inshore vs offshore", () => {
+    const redfish = catchOf({ id: "r", species: "Redfish", habitat: "saltwater-inshore" });
+    const mahi = catchOf({ id: "m", species: "Mahi-mahi", habitat: "saltwater-offshore" });
+    expect(matchesFilters(bass, { habitats: ["freshwater"] })).toBe(true);
+    expect(matchesFilters(redfish, { habitats: ["freshwater"] })).toBe(false);
+    expect(matchesFilters(redfish, { habitats: ["saltwater-inshore"] })).toBe(true);
+    expect(matchesFilters(mahi, { habitats: ["saltwater-inshore"] })).toBe(false);
+    expect(matchesFilters(mahi, { habitats: ["saltwater-offshore"] })).toBe(true);
+    expect(
+      matchesFilters(redfish, { habitats: ["saltwater-inshore", "saltwater-offshore"] }),
+    ).toBe(true);
   });
 });
 

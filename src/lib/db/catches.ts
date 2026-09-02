@@ -1,25 +1,38 @@
 import { count, desc, eq } from "drizzle-orm";
-import { getDb } from "./index";
-import { catches } from "./schema";
+import { inferHabitat, isHabitat } from "../habitat";
 import { seasonFromDate, timeOfDayFromDate } from "../time";
 import type {
   CatchInput,
   CatchRecord,
+  Habitat,
   Season,
   SpeciesSource,
   TimeOfDay,
   WeatherCondition,
 } from "../types";
+import { getAngler, linkedBuddyIds } from "./anglers";
+import { getDb } from "./index";
+import { catches } from "./schema";
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
-function mapRow(row: typeof catches.$inferSelect): CatchRecord {
+function asHabitat(value: string | null | undefined, species: string): Habitat {
+  if (value && isHabitat(value)) return value;
+  return inferHabitat(species);
+}
+
+function mapRow(
+  row: typeof catches.$inferSelect,
+  ownerNameById: Map<string, string>,
+): CatchRecord {
+  const species = row.species;
+  const anglerId = row.anglerId || "unknown";
   return {
     id: row.id,
     photoPath: row.photoPath,
-    species: row.species,
+    species,
     speciesSuggested: row.speciesSuggested,
     speciesConfidence: row.speciesConfidence,
     speciesSource: row.speciesSource as SpeciesSource,
@@ -38,9 +51,22 @@ function mapRow(row: typeof catches.$inferSelect): CatchRecord {
     bait: row.bait,
     tide: row.tide,
     waterClarity: row.waterClarity,
+    habitat: asHabitat(row.habitat, species),
+    anglerId,
+    sharedWithLinked: Boolean(row.sharedWithLinked),
+    ownerName: ownerNameById.get(anglerId) ?? "Angler",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+function ownerNames(ids: string[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const id of new Set(ids)) {
+    const angler = getAngler(id);
+    if (angler) map.set(id, angler.name);
+  }
+  return map;
 }
 
 function withDerived(input: CatchInput) {
@@ -51,15 +77,38 @@ function withDerived(input: CatchInput) {
   };
 }
 
-export function listCatches(): CatchRecord[] {
+export type ListCatchOptions = {
+  viewerId?: string;
+  includeShared?: boolean;
+};
+
+export function listCatches(opts: ListCatchOptions = {}): CatchRecord[] {
   const db = getDb();
-  return db.select().from(catches).orderBy(desc(catches.caughtAt)).all().map(mapRow);
+  const rows = db.select().from(catches).orderBy(desc(catches.caughtAt)).all();
+  const names = ownerNames(rows.map((r) => r.anglerId || ""));
+  const records = rows.map((row) => mapRow(row, names));
+  if (!opts.viewerId) return records;
+  const buddyIds = opts.includeShared ? linkedBuddyIds(opts.viewerId) : [];
+  return records.filter((record) => {
+    if (record.anglerId === opts.viewerId) return true;
+    return (
+      Boolean(opts.includeShared) &&
+      record.sharedWithLinked &&
+      buddyIds.includes(record.anglerId)
+    );
+  });
 }
 
 export function getCatch(id: string): CatchRecord | null {
   const db = getDb();
   const row = db.select().from(catches).where(eq(catches.id, id)).get();
-  return row ? mapRow(row) : null;
+  if (!row) return null;
+  return mapRow(row, ownerNames([row.anglerId || ""]));
+}
+
+export function canViewCatch(record: CatchRecord, viewerId: string): boolean {
+  if (record.anglerId === viewerId) return true;
+  return record.sharedWithLinked && linkedBuddyIds(viewerId).includes(record.anglerId);
 }
 
 export function createCatch(input: CatchInput): CatchRecord {
@@ -67,11 +116,13 @@ export function createCatch(input: CatchInput): CatchRecord {
   const id = crypto.randomUUID();
   const stamp = nowIso();
   const derived = withDerived(input);
+  const species = input.species.trim() || "Unknown";
+  const habitat = asHabitat(input.habitat, species);
   db.insert(catches)
     .values({
       id,
       photoPath: input.photoPath ?? null,
-      species: input.species.trim() || "Unknown",
+      species,
       speciesSuggested: input.speciesSuggested ?? null,
       speciesConfidence: input.speciesConfidence ?? null,
       speciesSource: input.speciesSource ?? "manual",
@@ -90,6 +141,9 @@ export function createCatch(input: CatchInput): CatchRecord {
       bait: input.bait ?? null,
       tide: input.tide ?? null,
       waterClarity: input.waterClarity ?? null,
+      habitat,
+      anglerId: input.anglerId ?? null,
+      sharedWithLinked: input.sharedWithLinked ? 1 : 0,
       createdAt: stamp,
       updatedAt: stamp,
     })
@@ -102,16 +156,19 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
   if (!existing) return null;
   const db = getDb();
   const caughtAt = input.caughtAt ? new Date(input.caughtAt).toISOString() : existing.caughtAt;
+  const species = input.species?.trim() || existing.species;
   const derived = withDerived({
-    species: input.species ?? existing.species,
+    species,
     caughtAt,
     timeOfDay: input.timeOfDay,
     season: input.season,
   });
+  const habitat =
+    input.habitat === undefined ? existing.habitat : asHabitat(input.habitat, species);
   db.update(catches)
     .set({
       photoPath: input.photoPath === undefined ? existing.photoPath : input.photoPath,
-      species: input.species?.trim() || existing.species,
+      species,
       speciesSuggested:
         input.speciesSuggested === undefined
           ? existing.speciesSuggested
@@ -145,6 +202,16 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
       tide: input.tide === undefined ? existing.tide : input.tide,
       waterClarity:
         input.waterClarity === undefined ? existing.waterClarity : input.waterClarity,
+      habitat,
+      anglerId: input.anglerId === undefined ? existing.anglerId : input.anglerId,
+      sharedWithLinked:
+        input.sharedWithLinked === undefined
+          ? existing.sharedWithLinked
+            ? 1
+            : 0
+          : input.sharedWithLinked
+            ? 1
+            : 0,
       updatedAt: nowIso(),
     })
     .where(eq(catches.id, id))

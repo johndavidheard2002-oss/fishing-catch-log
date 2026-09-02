@@ -1,7 +1,9 @@
+import { inferHabitat, isHabitat } from "./habitat";
 import { normalizeCondition } from "./labels";
 import { seasonFromDate, timeOfDayFromDate } from "./time";
 import type {
   CatchInput,
+  Habitat,
   Season,
   SpeciesSource,
   TimeOfDay,
@@ -42,6 +44,11 @@ function asSource(value: unknown): SpeciesSource | undefined {
   return undefined;
 }
 
+function asHabitat(value: unknown, species: string): Habitat {
+  if (typeof value === "string" && isHabitat(value)) return value;
+  return inferHabitat(species);
+}
+
 function asCondition(value: unknown): WeatherCondition | null {
   if (typeof value !== "string" || !value.trim()) return null;
   if (WEATHER_CONDITIONS.includes(value as WeatherCondition)) {
@@ -54,10 +61,11 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
   const caughtRaw = asString(body.caughtAt) ?? new Date().toISOString();
   const caught = new Date(caughtRaw);
   const caughtAt = Number.isNaN(caught.getTime()) ? new Date() : caught;
+  const species = asString(body.species) ?? "Unknown";
 
   return {
     photoPath: asString(body.photoPath),
-    species: asString(body.species) ?? "Unknown",
+    species,
     speciesSuggested: asString(body.speciesSuggested),
     speciesConfidence: asNumber(body.speciesConfidence),
     speciesSource: asSource(body.speciesSource),
@@ -76,6 +84,8 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
     bait: asString(body.bait),
     tide: asString(body.tide),
     waterClarity: asString(body.waterClarity),
+    habitat: asHabitat(body.habitat, species),
+    sharedWithLinked: body.sharedWithLinked === true || body.sharedWithLinked === 1,
   };
 }
 

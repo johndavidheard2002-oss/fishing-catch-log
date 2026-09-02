@@ -12,7 +12,7 @@ cp .env.example .env.local   # optional — demo mode works with empty keys
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/cast-log.sqlite` and seeds example catches across Lake Travis, Frying Pan, Mosquito Lagoon, a farm pond, Lake Erie, and Chesapeake — different weather, seasons, and times of day so filters work immediately.
+Open [http://localhost:3000](http://localhost:3000). The first launch creates `data/cast-log.sqlite` and seeds example catches across Lake Travis, Frying Pan, Mosquito Lagoon, a farm pond, Lake Erie, Chesapeake, and the Gulf Stream — freshwater, inshore, and offshore, plus different weather, seasons, and times of day so filters work immediately.
 
 ```bash
 npm test          # similarity / filter / time-of-day / plan / calendar unit tests
@@ -39,11 +39,15 @@ The header shows **Demo APIs** when weather or vision is not live.
 
 ## What you can do
 
-- **Log** — big camera/upload, fast save. On save we capture photo, species assist, lat/long + place, weather, timestamp, dawn/morning/afternoon/dusk/night, season, plus optional bait / tide / water / notes.
-- **History** — grid, list, or **calendar** month view. Days with catches show markers; tap a day to open that day’s trips. Filters still apply (only matching catches mark the calendar). Presets like “Cloudy 70–80°F”. CSV export.
+- **Log** — camera or camera-roll upload, fast save. Pick **Freshwater / Saltwater**, then **Inshore / Offshore** for salt, so the species list stays short. Weather, GPS, and place fill in when they can. Optional bait / tide / water / notes. **Share with linked buddies** is off unless you turn it on.
+- **Add a past catch** — backfill from an old photo: set the date/time, drop a map pin, search a place, and we try archive weather for that day.
+- **History** — grid, list, or **calendar** month view. Day cells show stacked catch photos (and +N). Tap a day for that day’s trips in time order. Filter by freshwater / saltwater / inshore / offshore. Presets like “Cloudy 70–80°F”. CSV export.
 - **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, and wind, and says why.
-- **Plan** — forward-looking twin of similar: upcoming 3/5/7-day windows vs days you actually caught fish. Ranked spot suggestions with “why”, matching past trips, and a strength label. Honest that this is a pattern match, not a guarantee.
+- **Plan** — upcoming 3/5/7-day windows vs days you actually caught fish. Photos on Plan cards are **only your logged trip photos** — no seed art or stock. Honest that this is a pattern match, not a guarantee.
 - **Spots** — map + grouped list so you can revisit water that produced under similar conditions.
+- **Linked buddies** — invite code pairing (or a household profile on this journal). Combined History / Plan / Spots can include trips a buddy **explicitly shared**. Sharing is never public: only people you’ve linked. Unlink anytime.
+
+Production accounts (magic link / email) can replace the local profile switcher; invite codes and the per-trip share flag stay the same. This v1 journal is one SQLite file, so linking works for profiles on this journal (household / demo). A shared server database is what makes two phones one pair.
 
 Everything is editable if GPS, weather, or vision fail.
 

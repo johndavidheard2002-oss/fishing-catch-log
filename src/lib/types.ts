@@ -1,3 +1,8 @@
+import type { Habitat, WaterType } from "./habitat";
+
+export type { Habitat, WaterType };
+export { HABITATS, WATER_TYPES } from "./habitat";
+
 export const TIME_OF_DAY = [
   "dawn",
   "morning",
@@ -62,6 +67,10 @@ export type CatchRecord = {
   bait: string | null;
   tide: string | null;
   waterClarity: string | null;
+  habitat: Habitat;
+  anglerId: string;
+  sharedWithLinked: boolean;
+  ownerName: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -87,6 +96,9 @@ export type CatchInput = {
   bait?: string | null;
   tide?: string | null;
   waterClarity?: string | null;
+  habitat?: Habitat | null;
+  anglerId?: string | null;
+  sharedWithLinked?: boolean;
 };
 
 export type CatchFilters = {
@@ -104,6 +116,7 @@ export type CatchFilters = {
   lat?: number;
   lng?: number;
   radiusKm?: number;
+  habitats?: Habitat[];
 };
 
 export type SimilarMatch = {
@@ -133,7 +146,7 @@ export type WeatherSnapshot = {
   windSpeedMph: number | null;
   precipitationIn: number | null;
   humidity: number | null;
-  source: "openweather" | "demo";
+  source: "openweather" | "open-meteo" | "demo";
   note: string;
 };
 

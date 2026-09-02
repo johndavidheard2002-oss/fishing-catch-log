@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
 import { SimilarList } from "@/components/SimilarList";
+import { habitatLabel } from "@/lib/habitat";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { photoSrc, weatherLine } from "@/lib/photo";
 import { formatCaughtAt } from "@/lib/time";
@@ -67,8 +68,17 @@ export function CatchDetail({ id }: { id: string }) {
           <p className="text-ink-muted">{record.placeName || "Unnamed spot"}</p>
           <p className="text-sm">{formatCaughtAt(record.caughtAt)}</p>
           <p className="text-sm capitalize">
-            {record.season} · {record.timeOfDay} · {weatherLine(record)}
+            {habitatLabel(record.habitat)} · {record.season} · {record.timeOfDay} ·{" "}
+            {weatherLine(record)}
           </p>
+          {record.sharedWithLinked ? (
+            <p className="text-xs text-ink-muted">
+              Shared with linked buddies only — not public.
+            </p>
+          ) : (
+            <p className="text-xs text-ink-muted">Private to you. Not shared.</p>
+          )}
+          <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
           {record.speciesSuggested ? (
             <p className="text-xs text-ink-muted">
               Assist suggested {record.speciesSuggested}
@@ -95,6 +105,7 @@ export function CatchDetail({ id }: { id: string }) {
           label="Precip"
           value={record.precipitationIn != null ? `${record.precipitationIn} in` : "—"}
         />
+        <Item label="Habitat" value={habitatLabel(record.habitat)} />
         <Item label="Bait" value={record.bait || "—"} />
         <Item label="Tide" value={record.tide || "—"} />
         <Item label="Water" value={record.waterClarity || "—"} />

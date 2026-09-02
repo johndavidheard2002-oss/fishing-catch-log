@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { BuddyPanel } from "@/components/BuddyPanel";
 import { CatchGridCard } from "@/components/CatchCard";
 import { formatDateOnly } from "@/lib/time";
 import { weatherLine } from "@/lib/photo";
@@ -39,6 +40,12 @@ export function HomeClient() {
         Log a catch
       </Link>
       <Link
+        href="/log?past=1"
+        className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+      >
+        Add a past catch
+      </Link>
+      <Link
         href="/plan"
         className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold text-teal"
       >
@@ -69,6 +76,8 @@ export function HomeClient() {
           </div>
         </section>
       ) : null}
+
+      <BuddyPanel />
 
       <section className="space-y-3">
         <div className="flex items-baseline justify-between">

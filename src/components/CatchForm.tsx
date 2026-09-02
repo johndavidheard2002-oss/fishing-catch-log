@@ -3,13 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import exifr from "exifr";
+import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
-import { COMMON_SPECIES, CONDITION_LABELS } from "@/lib/labels";
+import { SpeciesPicker } from "./SpeciesPicker";
+import { inferHabitat } from "@/lib/habitat";
+import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { datetimeLocalValue, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import type {
   CatchRecord,
+  Habitat,
   Season,
   SpeciesSuggestion,
   TimeOfDay,
@@ -35,6 +39,8 @@ type FormState = {
   bait: string;
   tide: string;
   waterClarity: string;
+  habitat: Habitat;
+  sharedWithLinked: boolean;
 };
 
 const emptyForm = (): FormState => {
@@ -59,6 +65,8 @@ const emptyForm = (): FormState => {
     bait: "",
     tide: "",
     waterClarity: "",
+    habitat: "freshwater",
+    sharedWithLinked: false,
   };
 };
 
@@ -83,15 +91,19 @@ function fromRecord(record: CatchRecord): FormState {
     bait: record.bait ?? "",
     tide: record.tide ?? "",
     waterClarity: record.waterClarity ?? "",
+    habitat: record.habitat,
+    sharedWithLinked: record.sharedWithLinked,
   };
 }
 
 export function CatchForm({
   mode,
   initial,
+  pastMode = false,
 }: {
   mode: "create" | "edit";
   initial?: CatchRecord;
+  pastMode?: boolean;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(initial ? fromRecord(initial) : emptyForm());
@@ -104,6 +116,7 @@ export function CatchForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(Boolean(initial?.notes || initial?.bait));
+  const [showMap, setShowMap] = useState(pastMode || Boolean(initial?.latitude));
 
   useEffect(() => {
     return () => {
@@ -123,6 +136,37 @@ export function CatchForm({
   function patch(partial: Partial<FormState>) {
     setForm((f) => ({ ...f, ...partial }));
   }
+
+  useEffect(() => {
+    if (!pastMode) return;
+    const lat = numOrNull(form.latitude);
+    const lon = numOrNull(form.longitude);
+    const at = new Date(form.caughtAt);
+    if (lat == null || lon == null || Number.isNaN(at.getTime())) return;
+    let cancelled = false;
+    fetch("/api/assist/weather", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude: lat, longitude: lon, at: at.toISOString() }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data.weather) return;
+        const w = data.weather;
+        setForm((f) => ({
+          ...f,
+          temperatureF: w.temperatureF != null ? String(w.temperatureF) : f.temperatureF,
+          weatherCondition: w.weatherCondition ?? f.weatherCondition,
+          windSpeedMph: w.windSpeedMph != null ? String(w.windSpeedMph) : f.windSpeedMph,
+          precipitationIn: w.precipitationIn != null ? String(w.precipitationIn) : f.precipitationIn,
+          humidity: w.humidity != null ? String(w.humidity) : f.humidity,
+        }));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [pastMode, form.caughtAt, form.latitude, form.longitude]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -189,13 +233,17 @@ export function CatchForm({
           const res = await fetch("/api/assist/vision", { method: "POST", body: fd });
           const data = (await res.json()) as { suggestion?: SpeciesSuggestion; error?: string };
           if (data.suggestion) {
-            setForm((f) => ({
-              ...f,
-              species: f.species.trim() ? f.species : data.suggestion!.species,
-              speciesSuggested: data.suggestion!.species,
-              speciesConfidence: data.suggestion!.confidence,
-              speciesSource: data.suggestion!.source === "openai" ? "vision" : "demo",
-            }));
+            setForm((f) => {
+              const nextSpecies = f.species.trim() ? f.species : data.suggestion!.species;
+              return {
+                ...f,
+                species: nextSpecies,
+                speciesSuggested: data.suggestion!.species,
+                speciesConfidence: data.suggestion!.confidence,
+                speciesSource: data.suggestion!.source === "openai" ? "vision" : "demo",
+                habitat: f.species.trim() ? f.habitat : inferHabitat(nextSpecies, f.habitat),
+              };
+            });
             notes.push(data.suggestion.note);
           }
         } catch {
@@ -296,6 +344,8 @@ export function CatchForm({
         bait: form.bait || null,
         tide: form.tide || null,
         waterClarity: form.waterClarity || null,
+        habitat: form.habitat,
+        sharedWithLinked: form.sharedWithLinked,
       };
 
       const url = mode === "edit" && initial ? `/api/catches/${initial.id}` : "/api/catches";
@@ -317,7 +367,12 @@ export function CatchForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <PhotoCapture previewUrl={previewUrl} onFile={handleFile} busy={busy} />
+      <PhotoCapture
+        previewUrl={previewUrl}
+        onFile={handleFile}
+        busy={busy}
+        emphasis={pastMode ? "library" : "camera"}
+      />
 
       {assistNote ? (
         <p className="rounded-2xl border border-line bg-card px-3 py-2 text-sm text-ink-muted">
@@ -325,22 +380,18 @@ export function CatchForm({
         </p>
       ) : null}
 
-      <label className="block">
-        <span className="mb-1 block text-sm font-semibold">Species</span>
-        <input
-          list="species-list"
-          value={form.species}
-          onChange={(e) => patch({ species: e.target.value, speciesSource: form.speciesSuggested ? "edited" : "manual" })}
-          placeholder="Type or accept the assist"
-          className="w-full rounded-xl border border-line bg-card px-3 py-3"
-          required
-        />
-        <datalist id="species-list">
-          {COMMON_SPECIES.map((s) => (
-            <option key={s} value={s} />
-          ))}
-        </datalist>
-      </label>
+      <SpeciesPicker
+        species={form.species}
+        habitat={form.habitat}
+        onHabitat={(habitat) => patch({ habitat })}
+        onSpecies={(species, habitat) =>
+          patch({
+            species,
+            habitat,
+            speciesSource: form.speciesSuggested ? "edited" : "manual",
+          })
+        }
+      />
 
       {suggestion?.species ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -381,6 +432,56 @@ export function CatchForm({
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
       </label>
+
+      <button
+        type="button"
+        className="text-left text-sm font-semibold text-teal"
+        onClick={() => setShowMap((v) => !v)}
+      >
+        {showMap ? "Hide map pin" : "Pin the spot on a map"}
+      </button>
+      {showMap ? (
+        <MapPicker
+          latitude={numOrNull(form.latitude)}
+          longitude={numOrNull(form.longitude)}
+          onChange={async (lat, lng) => {
+            patch({ latitude: lat.toFixed(5), longitude: lng.toFixed(5) });
+            try {
+              const res = await fetch("/api/assist/place", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ latitude: lat, longitude: lng }),
+              });
+              const data = await res.json();
+              if (data.place?.placeName) patch({ placeName: data.place.placeName });
+              const at = new Date(form.caughtAt);
+              const weatherRes = await fetch("/api/assist/weather", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  latitude: lat,
+                  longitude: lng,
+                  at: Number.isNaN(at.getTime()) ? undefined : at.toISOString(),
+                }),
+              });
+              const weatherData = await weatherRes.json();
+              const w = weatherData.weather;
+              if (w) {
+                patch({
+                  temperatureF: w.temperatureF != null ? String(w.temperatureF) : "",
+                  weatherCondition: w.weatherCondition ?? "",
+                  windSpeedMph: w.windSpeedMph != null ? String(w.windSpeedMph) : "",
+                  precipitationIn: w.precipitationIn != null ? String(w.precipitationIn) : "",
+                  humidity: w.humidity != null ? String(w.humidity) : "",
+                });
+                setAssistNote(w.note);
+              }
+            } catch {
+              /* map geocode is optional */
+            }
+          }}
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
@@ -449,7 +550,9 @@ export function CatchForm({
       </div>
 
       <label className="block">
-        <span className="mb-1 block text-sm font-semibold">When</span>
+        <span className="mb-1 block text-sm font-semibold">
+          {pastMode ? "When you caught it" : "When"}
+        </span>
         <input
           type="datetime-local"
           value={form.caughtAt}
@@ -506,6 +609,21 @@ export function CatchForm({
         {showMore ? "Hide bait, tide, notes" : "Bait, tide, water, notes"}
       </button>
 
+      <label className="flex items-start gap-2 rounded-2xl border border-line bg-card px-3 py-3 text-sm">
+        <input
+          type="checkbox"
+          checked={form.sharedWithLinked}
+          onChange={(e) => patch({ sharedWithLinked: e.target.checked })}
+          className="mt-1"
+        />
+        <span>
+          <span className="font-semibold">Share with linked buddies</span>
+          <span className="mt-0.5 block text-xs text-ink-muted">
+            Off by default. Only shared with people you&apos;ve linked — never public.
+          </span>
+        </span>
+      </label>
+
       {showMore ? (
         <div className="grid gap-3">
           <input
@@ -545,7 +663,13 @@ export function CatchForm({
         disabled={saving || busy}
         className="rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
-        {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Save catch"}
+        {saving
+          ? "Saving…"
+          : mode === "edit"
+            ? "Save changes"
+            : pastMode
+              ? "Save past catch"
+              : "Save catch"}
       </button>
     </form>
   );

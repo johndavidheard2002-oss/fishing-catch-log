@@ -1,5 +1,6 @@
 import type { WeatherSnapshot } from "../types";
 import { demoWeather } from "./demo";
+import { fetchArchiveWeather } from "./historical";
 import { fetchOpenWeather, hasOpenWeatherKey } from "./openweather";
 
 export async function getWeather(
@@ -7,7 +8,10 @@ export async function getWeather(
   lon: number,
   at: Date = new Date(),
 ): Promise<WeatherSnapshot> {
-  const recent = Date.now() - at.getTime() < 6 * 60 * 60 * 1000;
+  const ageMs = Date.now() - at.getTime();
+  const recent = ageMs >= 0 && ageMs < 6 * 60 * 60 * 1000;
+  const inPast = ageMs > 6 * 60 * 60 * 1000;
+
   if (hasOpenWeatherKey() && recent) {
     try {
       return await fetchOpenWeather(lat, lon);
@@ -20,11 +24,20 @@ export async function getWeather(
     }
   }
 
+  if (inPast) {
+    try {
+      const archived = await fetchArchiveWeather(lat, lon, at);
+      if (archived) return archived;
+    } catch {
+      /* fall through */
+    }
+  }
+
   if (hasOpenWeatherKey() && !recent) {
     const fallback = demoWeather(lat, lon, at);
     return {
       ...fallback,
-      note: "OpenWeather current-conditions API only covers recent time. Demo weather filled in for this past date — edit if you remember it.",
+      note: "Could not load archive weather for that date. Demo weather filled in — edit if you remember it.",
     };
   }
 

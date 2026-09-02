@@ -6,10 +6,12 @@ export function PhotoCapture({
   previewUrl,
   onFile,
   busy,
+  emphasis = "camera",
 }: {
   previewUrl: string | null;
   onFile: (file: File) => void;
   busy?: boolean;
+  emphasis?: "camera" | "library";
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
@@ -29,9 +31,13 @@ export function PhotoCapture({
             <span className="flex h-16 w-16 items-center justify-center rounded-full bg-teal text-white">
               <CameraIcon />
             </span>
-            <p className="text-lg font-semibold">Take a photo</p>
+            <p className="text-lg font-semibold">
+              {emphasis === "library" ? "Add a photo from your roll" : "Take a photo"}
+            </p>
             <p className="text-sm text-ink-muted">
-              Camera first. We&apos;ll try species, weather, and GPS next.
+              {emphasis === "library"
+                ? "Upload an old catch photo, then set the date and pin the spot."
+                : "Camera first. We\u2019ll try species, weather, and GPS next."}
             </p>
           </div>
         )}
@@ -44,17 +50,21 @@ export function PhotoCapture({
       <div className="grid grid-cols-2 gap-2 p-3">
         <button
           type="button"
-          className="rounded-xl bg-teal px-3 py-3 text-sm font-semibold text-white"
+          className={`rounded-xl px-3 py-3 text-sm font-semibold ${
+            emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
+          }`}
           onClick={() => cameraRef.current?.click()}
         >
           Camera
         </button>
         <button
           type="button"
-          className="rounded-xl border border-line bg-card px-3 py-3 text-sm font-semibold"
+          className={`rounded-xl px-3 py-3 text-sm font-semibold ${
+            emphasis === "library" ? "bg-teal text-white" : "border border-line bg-card"
+          }`}
           onClick={() => libraryRef.current?.click()}
         >
-          Upload
+          Camera roll
         </button>
       </div>
       <input

@@ -22,6 +22,23 @@ export const catches = sqliteTable("catches", {
   bait: text("bait"),
   tide: text("tide"),
   waterClarity: text("water_clarity"),
+  habitat: text("habitat").notNull().default("freshwater"),
+  anglerId: text("angler_id"),
+  sharedWithLinked: integer("shared_with_linked").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+export const anglers = sqliteTable("anglers", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  inviteCode: text("invite_code").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const buddyLinks = sqliteTable("buddy_links", {
+  id: text("id").primaryKey(),
+  anglerId: text("angler_id").notNull(),
+  buddyId: text("buddy_id").notNull(),
+  createdAt: text("created_at").notNull(),
 });

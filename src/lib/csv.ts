@@ -28,6 +28,9 @@ export function catchesToCsv(records: CatchRecord[]): string {
     "bait",
     "tide",
     "water_clarity",
+    "habitat",
+    "shared_with_linked",
+    "owner_name",
     "notes",
   ];
   const rows = records.map((c) =>
@@ -51,6 +54,9 @@ export function catchesToCsv(records: CatchRecord[]): string {
       c.bait,
       c.tide,
       c.waterClarity,
+      c.habitat,
+      c.sharedWithLinked ? "1" : "0",
+      c.ownerName,
       c.notes,
     ]
       .map(csvEscape)

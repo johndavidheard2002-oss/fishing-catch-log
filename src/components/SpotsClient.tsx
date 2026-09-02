@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { SharedToggle, sharedQuery, useIncludeShared } from "./BuddyPanel";
 import { CatchCard } from "./CatchCard";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { formatDateOnly } from "@/lib/time";
@@ -21,17 +22,26 @@ export function SpotsClient() {
   const [spots, setSpots] = useState<SpotGroup[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [includeShared, setIncludeShared] = useIncludeShared();
 
   useEffect(() => {
-    fetch("/api/spots")
+    let cancelled = false;
+    const q = sharedQuery(includeShared);
+    fetch(`/api/spots${q ? `?${q}` : ""}`)
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
         const list = (data.spots ?? []) as SpotGroup[];
         setSpots(list);
         setSelected(list[0]?.key ?? null);
       })
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [includeShared]);
 
   const onSelect = useCallback((key: string) => setSelected(key), []);
   const current = spots.find((s) => s.key === selected) ?? spots[0];
@@ -44,6 +54,7 @@ export function SpotsClient() {
           Grouped so you can go back under similar conditions.
         </p>
       </div>
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
 
       {loading ? (
         <p className="text-sm text-ink-muted">Loading spots…</p>

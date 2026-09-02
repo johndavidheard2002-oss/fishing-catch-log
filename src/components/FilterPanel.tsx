@@ -1,9 +1,10 @@
 "use client";
 
+import { HABITAT_LABELS, WATER_TYPE_LABELS, habitatsForWaterType } from "@/lib/habitat";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { SEASON_LABELS, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
-import type { CatchFilters, Season, TimeOfDay, WeatherCondition } from "@/lib/types";
+import type { CatchFilters, Habitat, Season, TimeOfDay, WeatherCondition } from "@/lib/types";
 
 export function FilterPanel({
   filters,
@@ -30,6 +31,7 @@ export function FilterPanel({
           Clear
         </button>
       </div>
+      <HabitatFilters filters={filters} onChange={onChange} />
       <input
         value={filters.species ?? ""}
         onChange={(e) => onChange({ ...filters, species: e.target.value })}
@@ -137,6 +139,65 @@ function ChipRow({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function HabitatFilters({
+  filters,
+  onChange,
+}: {
+  filters: CatchFilters;
+  onChange: (next: CatchFilters) => void;
+}) {
+  const selected = filters.habitats ?? [];
+  const freshOn = selected.includes("freshwater");
+  const inshoreOn = selected.includes("saltwater-inshore");
+  const offshoreOn = selected.includes("saltwater-offshore");
+  const saltOn = inshoreOn || offshoreOn;
+
+  function setHabitats(next: Habitat[]) {
+    onChange({ ...filters, habitats: next.length ? next : undefined });
+  }
+
+  function toggleFresh() {
+    const rest = selected.filter((h) => h !== "freshwater");
+    setHabitats(freshOn ? rest : [...rest, "freshwater"]);
+  }
+
+  function toggleSalt() {
+    const rest = selected.filter((h) => h === "freshwater");
+    setHabitats(saltOn ? rest : [...rest, ...habitatsForWaterType("saltwater")]);
+  }
+
+  function toggleSaltKind(kind: "saltwater-inshore" | "saltwater-offshore") {
+    const rest = selected.filter((h) => h !== kind);
+    const on = selected.includes(kind);
+    setHabitats(on ? rest : [...rest, kind]);
+  }
+
+  return (
+    <div className="space-y-2">
+      <ChipRow
+        label="Water type"
+        options={[
+          { value: "freshwater", label: WATER_TYPE_LABELS.freshwater },
+          { value: "saltwater", label: WATER_TYPE_LABELS.saltwater },
+        ]}
+        selected={[...(freshOn ? ["freshwater"] : []), ...(saltOn ? ["saltwater"] : [])]}
+        onToggle={(v) => (v === "freshwater" ? toggleFresh() : toggleSalt())}
+      />
+      {saltOn ? (
+        <ChipRow
+          label="Saltwater"
+          options={[
+            { value: "saltwater-inshore", label: HABITAT_LABELS["saltwater-inshore"] },
+            { value: "saltwater-offshore", label: HABITAT_LABELS["saltwater-offshore"] },
+          ]}
+          selected={selected}
+          onToggle={(v) => toggleSaltKind(v as "saltwater-inshore" | "saltwater-offshore")}
+        />
+      ) : null}
     </div>
   );
 }

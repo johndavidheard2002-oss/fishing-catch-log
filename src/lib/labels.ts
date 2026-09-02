@@ -84,30 +84,4 @@ export const CONDITION_LABELS: Record<WeatherCondition, string> = {
   storm: "Storm",
 };
 
-export const COMMON_SPECIES = [
-  "Largemouth Bass",
-  "Smallmouth Bass",
-  "Spotted Bass",
-  "Rainbow Trout",
-  "Brown Trout",
-  "Brook Trout",
-  "Walleye",
-  "Yellow Perch",
-  "Bluegill",
-  "Crappie",
-  "Channel Catfish",
-  "Flathead Catfish",
-  "Northern Pike",
-  "Muskellunge",
-  "Striped Bass",
-  "White Bass",
-  "Redfish",
-  "Speckled Trout",
-  "Flounder",
-  "Snook",
-  "Tarpon",
-  "Salmon",
-  "Steelhead",
-  "Carp",
-  "Unknown",
-];
+export { COMMON_SPECIES } from "./habitat";

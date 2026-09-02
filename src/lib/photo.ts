@@ -8,6 +8,21 @@ export function photoSrc(photoPath: string | null): string | null {
   return `/api/media/${encodeURIComponent(photoPath)}`;
 }
 
+/** Logged camera/roll uploads only — never seed art, stock, or remote placeholders. */
+export function isPersonalPhoto(photoPath: string | null): boolean {
+  if (!photoPath) return false;
+  const path = photoPath.trim();
+  if (!path) return false;
+  if (path.startsWith("/seed/")) return false;
+  if (/unsplash|placeholder|stock|lorem|picsum/i.test(path)) return false;
+  if (path.startsWith("http://") || path.startsWith("https://")) return false;
+  return true;
+}
+
+export function personalPhotoSrc(photoPath: string | null): string | null {
+  return isPersonalPhoto(photoPath) ? photoSrc(photoPath) : null;
+}
+
 export function weatherLine(record: Pick<CatchRecord, "temperatureF" | "weatherCondition" | "windSpeedMph">): string {
   const bits: string[] = [];
   if (record.temperatureF != null) bits.push(`${Math.round(record.temperatureF)}°F`);

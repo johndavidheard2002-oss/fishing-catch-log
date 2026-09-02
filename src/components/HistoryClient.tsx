@@ -3,6 +3,7 @@
 import { CatchCard, CatchGridCard } from "@/components/CatchCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
+import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { localDateKey, parseYearMonth } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import type { CatchFilters, CatchRecord } from "@/lib/types";
@@ -26,6 +27,8 @@ export function HistoryClient() {
   );
   const [showFilters, setShowFilters] = useState(Boolean(searchParams.get("species")));
   const [loading, setLoading] = useState(true);
+  const [includeShared, setIncludeShared] = useIncludeShared();
+  const [viewerId, setViewerId] = useState<string | undefined>();
   const queryDay = searchParams.get("day");
   const [monthOverride, setMonthOverride] = useState<{ year: number; month: number } | null>(
     queryDay ? parseYearMonth(queryDay) : null,
@@ -33,11 +36,26 @@ export function HistoryClient() {
   const [selectedDay, setSelectedDay] = useState<string | null>(queryDay);
 
   useEffect(() => {
-    fetch("/api/catches")
+    fetch("/api/me")
       .then((r) => r.json())
-      .then((data) => setCatches(data.catches ?? []))
-      .finally(() => setLoading(false));
+      .then((data) => setViewerId(data.me?.id));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const q = sharedQuery(includeShared);
+    fetch(`/api/catches${q ? `?${q}` : ""}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setCatches(data.catches ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [includeShared]);
 
   const filtered = useMemo(
     () => catches.filter((c) => matchesFilters(c, filters)),
@@ -87,6 +105,8 @@ export function HistoryClient() {
         ))}
       </div>
 
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
+
       {showFilters ? (
         <FilterPanel
           filters={filters}
@@ -124,6 +144,27 @@ export function HistoryClient() {
             setShowFilters(true);
           }}
         />
+        <Preset
+          label="Freshwater"
+          onClick={() => {
+            setFilters({ habitats: ["freshwater"] });
+            setShowFilters(true);
+          }}
+        />
+        <Preset
+          label="Inshore"
+          onClick={() => {
+            setFilters({ habitats: ["saltwater-inshore"] });
+            setShowFilters(true);
+          }}
+        />
+        <Preset
+          label="Offshore"
+          onClick={() => {
+            setFilters({ habitats: ["saltwater-offshore"] });
+            setShowFilters(true);
+          }}
+        />
         <a
           href="/api/export"
           className="rounded-full border border-line bg-card px-3 py-1.5 text-xs font-semibold"
@@ -145,6 +186,7 @@ export function HistoryClient() {
             setSelectedDay(day);
             setMonthOverride(parseYearMonth(day));
           }}
+          viewerId={viewerId}
         />
       ) : filtered.length === 0 ? (
         <p className="text-sm text-ink-muted">
@@ -159,7 +201,7 @@ export function HistoryClient() {
       ) : (
         <div className="space-y-3">
           {filtered.map((record) => (
-            <CatchCard key={record.id} record={record} />
+            <CatchCard key={record.id} record={record} viewerId={viewerId} />
           ))}
         </div>
       )}
