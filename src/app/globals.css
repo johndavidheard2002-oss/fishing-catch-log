@@ -37,6 +37,7 @@
 html {
   height: 100%;
   background: #140c09;
+  overflow-x: hidden;
 }
 
 body {
@@ -171,6 +172,10 @@ select,
   color: var(--ink-muted);
 }
 
+.bottom-nav .text-ink-muted {
+  color: #021018;
+}
+
 .journal-card .text-teal,
 .page-intro .text-teal,
 .bg-card .text-teal,
@@ -234,15 +239,48 @@ main a.home-plan-cta {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   background-color: #cbb889;
   background-image:
-    linear-gradient(rgb(247 252 255 / 0.46), rgb(247 252 255 / 0.58)),
+    linear-gradient(rgb(247 252 255 / 0.34), rgb(247 252 255 / 0.42)),
     url("/brand/soft-trout-wash-bg.png");
   background-repeat: no-repeat;
   background-position: center 42%;
   background-size: cover;
   border: 1px solid rgb(255 255 255 / 0.72);
   box-shadow: 0 -10px 28px rgb(8 18 22 / 0.3);
-  color: var(--ink);
+  color: #021018;
   text-shadow: none;
+}
+
+.bottom-nav a {
+  color: #021018;
+  font-weight: 700;
+}
+
+.bottom-nav a.nav-idle {
+  color: #021018;
+}
+
+.bottom-nav a.nav-active {
+  color: #021018;
+}
+
+.bottom-nav a.nav-active .nav-icon {
+  background: #f7f1e2;
+  box-shadow: inset 0 0 0 2px #021018;
+}
+
+.bottom-nav a.nav-primary {
+  color: #6b2c10;
+}
+
+.bottom-nav a.nav-primary .nav-icon {
+  background: #8a3a16;
+  color: #fff;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.35) inset;
+}
+
+.tab-swipe-pane {
+  will-change: transform;
+  touch-action: pan-y;
 }
 
 .app-more > summary {

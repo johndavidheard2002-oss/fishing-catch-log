@@ -121,17 +121,15 @@ export function SpotsClient() {
       <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1 text-sm font-semibold">
         <Link
           href="/spots"
-          className={`flex items-center justify-center gap-2 rounded-xl py-2 ${kind === "catch" ? "bg-teal text-white" : "text-ink-muted"}`}
+          className={`rounded-xl py-2 text-center ${kind === "catch" ? "bg-teal text-white" : "text-ink-muted"}`}
         >
-          <OptionThumb src={null} kind="catch" size={40} />
           Catch
         </Link>
         <Link
           href="/spots?kind=bait"
-          className={`flex items-center justify-center gap-2 rounded-xl py-2 ${kind === "bait" ? "bg-teal text-white" : "text-ink-muted"}`}
+          className={`rounded-xl py-2 text-center ${kind === "bait" ? "bg-teal text-white" : "text-ink-muted"}`}
           data-testid="spots-bait-tab"
         >
-          <OptionThumb src={null} kind="bait" size={40} />
           Bait
         </Link>
       </div>
