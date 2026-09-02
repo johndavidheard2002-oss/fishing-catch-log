@@ -14,8 +14,8 @@ export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
       <span
         className={
           home
-            ? "block font-display text-5xl leading-[1.05] tracking-tight text-teal"
-            : "block font-display text-2xl leading-tight tracking-tight"
+            ? "block whitespace-nowrap font-display text-4xl leading-[1.05] tracking-tight text-teal sm:text-5xl"
+            : "block whitespace-nowrap font-display text-2xl leading-tight tracking-tight"
         }
       >
         Catch Compass
