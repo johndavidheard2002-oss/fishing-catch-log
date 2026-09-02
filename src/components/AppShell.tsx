@@ -43,7 +43,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const demo =
     status &&
     (status.weather === "demo" ||
-      status.vision === "demo" ||
       status.forecast === "demo" ||
       status.tides === "demo");
 

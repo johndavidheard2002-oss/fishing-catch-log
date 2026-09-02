@@ -105,15 +105,6 @@ export function CatchDetail({ id }: { id: string }) {
             <p className="text-xs text-ink-muted">Private to you. Not shared with anyone.</p>
           )}
           <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
-          {record.speciesSuggested ? (
-            <p className="text-xs text-ink-muted">
-              Assist suggested {record.speciesSuggested}
-              {record.speciesConfidence != null
-                ? ` (${Math.round(record.speciesConfidence * 100)}%)`
-                : ""}{" "}
-              · {record.speciesSource === "edited" ? "you edited it" : "confirm if you haven't"}
-            </p>
-          ) : null}
         </div>
       </div>
 

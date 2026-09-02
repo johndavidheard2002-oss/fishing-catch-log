@@ -80,55 +80,43 @@ export function ScanLibraryClient() {
     const found: Candidate[] = [];
     let skip = 0;
     for (let i = 0; i < files.length; i++) {
-      setProgress(`Checking ${i + 1} of ${files.length}…`);
+      setProgress(`Opening ${i + 1} of ${files.length}…`);
       const original = files[i];
-      const compressed = await compressImage(original);
-      const file = new File([compressed], original.name.replace(/\.\w+$/, ".jpg"), {
-        type: "image/jpeg",
-      });
-      let caughtAt = new Date();
-      let photoTakenLatitude: number | null = null;
-      let photoTakenLongitude: number | null = null;
       try {
-        const exif = (await exifr.parse(original, {
-          gps: true,
-          pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
-        })) as {
-          DateTimeOriginal?: Date;
-          CreateDate?: Date;
-          latitude?: number;
-          longitude?: number;
-        } | undefined;
-        const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
-        if (stamp) caughtAt = stamp;
-        if (exif?.latitude != null && exif.longitude != null) {
-          photoTakenLatitude = exif.latitude;
-          photoTakenLongitude = exif.longitude;
-        }
-      } catch {
-        /* EXIF optional */
-      }
-      try {
-        const fd = new FormData();
-        fd.set("photo", file);
-        fd.set("fileName", original.name);
-        const res = await fetch("/api/assist/detect-fish", { method: "POST", body: fd });
-        const data = (await res.json()) as {
-          candidate?: boolean;
-          detection?: { note?: string; confidence?: number; source?: string };
-        };
-        if (!data.candidate) {
-          skip += 1;
-          continue;
+        const compressed = await compressImage(original);
+        const file = new File([compressed], original.name.replace(/\.\w+$/, ".jpg"), {
+          type: "image/jpeg",
+        });
+        let caughtAt = new Date();
+        let photoTakenLatitude: number | null = null;
+        let photoTakenLongitude: number | null = null;
+        try {
+          const exif = (await exifr.parse(original, {
+            gps: true,
+            pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
+          })) as {
+            DateTimeOriginal?: Date;
+            CreateDate?: Date;
+            latitude?: number;
+            longitude?: number;
+          } | undefined;
+          const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
+          if (stamp) caughtAt = stamp;
+          if (exif?.latitude != null && exif.longitude != null) {
+            photoTakenLatitude = exif.latitude;
+            photoTakenLongitude = exif.longitude;
+          }
+        } catch {
+          /* EXIF optional */
         }
         found.push({
           id: `${original.name}-${i}`,
           file,
           previewUrl: URL.createObjectURL(file),
           caughtAt,
-          note: data.detection?.note ?? "",
-          confidence: data.detection?.confidence ?? 0,
-          demo: data.detection?.source === "demo",
+          note: "",
+          confidence: 0,
+          demo: false,
           photoTakenLatitude,
           photoTakenLongitude,
         });
@@ -189,8 +177,8 @@ export function ScanLibraryClient() {
       <div>
         <h1 className="font-display text-3xl text-teal">Find fishing photos in your library</h1>
         <p className="text-sm text-ink-muted">
-          Included with every Catch Compass journal. Choose pictures from this phone. We look for
-          fish, then ask before each one goes on your calendar at the photo&apos;s time. Only your
+          Included with every Catch Compass journal. Choose pictures from this phone, then confirm
+          each one onto your calendar at the photo&apos;s time. You pick the species. Only your
           photos — not anyone else&apos;s roll, and never a public share.
         </p>
       </div>
@@ -249,7 +237,7 @@ export function ScanLibraryClient() {
       {!busy && !current && (skipped > 0 || candidates.length === 0) ? (
         <p className="text-sm text-ink-muted">
           {skipped
-            ? `Skipped ${skipped} photo${skipped === 1 ? "" : "s"} that did not look like fish.`
+            ? `Skipped ${skipped} file${skipped === 1 ? "" : "s"} we could not open.`
             : "Pick a handful of trip photos. We only look at what you select."}
         </p>
       ) : null}
@@ -286,10 +274,6 @@ export function ScanLibraryClient() {
               {current.photoTakenLatitude != null && current.photoTakenLongitude != null
                 ? `Location stamp ${formatCoords(current.photoTakenLatitude, current.photoTakenLongitude)}. Yes drops a movable catch pin there — drag it if the picture was not taken on the water.`
                 : "No GPS in this photo — you’ll place the pin on the map. We will not use your current location for a past catch."}
-            </p>
-            <p className="text-xs text-ink-muted">
-              {Math.round(current.confidence * 100)}% · {current.note}
-              {current.demo ? " · demo" : ""}
             </p>
             <p className="text-sm font-semibold">Add this to the log?</p>
             <div className="grid grid-cols-2 gap-2">

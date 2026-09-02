@@ -39,7 +39,7 @@ export function PhotoCapture({
               <p className="text-sm text-ink-muted">
                 {emphasis === "library"
                   ? "Upload an old catch photo. We’ll pin from GPS when the picture has it — you can still move it."
-                  : "Camera first. We’ll try species, weather, and a map pin from the photo’s GPS."}
+                  : "Camera first. We’ll try weather and a map pin from the photo’s GPS."}
               </p>
             </div>
           )}
@@ -53,7 +53,7 @@ export function PhotoCapture({
         ) : null}
         {busy ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/40 text-sm font-semibold text-white">
-            Reading the catch…
+            Reading the photo…
           </div>
         ) : null}
       </div>

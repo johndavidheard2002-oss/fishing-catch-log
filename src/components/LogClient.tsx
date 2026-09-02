@@ -25,8 +25,9 @@ export function LogClient() {
         <h1 className="font-display text-3xl text-teal">Log a catch</h1>
         <p className="text-sm text-ink-muted">
           Photo first. If the picture has a location stamp, we drop a catch pin there — drag it if
-          that isn’t the water. Species and weather fill in when they can. A second fish today can
-          be a different lake; this pin is only for this catch.
+          that isn’t the water. Pick every species from the list (starts on saltwater). Weather
+          fills in when it can. A second fish today can be a different lake; this pin is only for
+          this catch.
         </p>
       </div>
       <CatchForm mode="create" />

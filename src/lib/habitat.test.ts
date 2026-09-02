@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_HABITAT,
   inferHabitat,
   matchesHabitatFilters,
   speciesForHabitat,
   waterTypeOf,
 } from "./habitat";
+
+describe("DEFAULT_HABITAT", () => {
+  it("starts a new catch on saltwater inshore", () => {
+    expect(DEFAULT_HABITAT).toBe("saltwater-inshore");
+    expect(waterTypeOf(DEFAULT_HABITAT)).toBe("saltwater");
+  });
+});
 
 describe("inferHabitat", () => {
   it("uses the catalog for known species", () => {

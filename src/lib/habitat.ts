@@ -9,6 +9,9 @@ export type Habitat = (typeof HABITATS)[number];
 export const WATER_TYPES = ["freshwater", "saltwater"] as const;
 export type WaterType = (typeof WATER_TYPES)[number];
 
+/** New log / backfill / import starts on saltwater (inshore). Freshwater stays a tap away. */
+export const DEFAULT_HABITAT: Habitat = "saltwater-inshore";
+
 export const HABITAT_LABELS: Record<Habitat, string> = {
   freshwater: "Freshwater",
   "saltwater-inshore": "Inshore",

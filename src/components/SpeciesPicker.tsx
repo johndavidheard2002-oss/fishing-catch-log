@@ -64,7 +64,7 @@ export function SpeciesPicker({
       <div>
         <p className="mb-1.5 text-sm font-semibold">Water type</p>
         <div className="grid grid-cols-2 gap-2">
-          {(["freshwater", "saltwater"] as const).map((id) => (
+          {(["saltwater", "freshwater"] as const).map((id) => (
             <button
               key={id}
               type="button"

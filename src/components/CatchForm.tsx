@@ -1,19 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
-import { inferHabitat, isHabitat } from "@/lib/habitat";
+import { DEFAULT_HABITAT } from "@/lib/habitat";
 import { MOON_PHASES, moonForDate } from "@/lib/moon";
 import { inHgToMb, mbToInHg, PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { catchPinFromPhotoGps, classifyCatchPinEdit, coordsLookDifferent, formatCoords, shouldApplyPhotoGpsToCatch } from "@/lib/location";
-import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
+import { primarySpecies } from "@/lib/species";
 import { clampFishCount, draftFishCountForSpecies, sanitizeFishCountDraft } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
 import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, seasonFromCaughtAtInput, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromCaughtAtInput, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
@@ -23,7 +23,6 @@ import type {
   CatchRecord,
   Habitat,
   Season,
-  SpeciesSuggestion,
   TimeOfDay,
 } from "@/lib/types";
 
@@ -96,7 +95,7 @@ const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => 
     bait: "",
     tide: "",
     waterClarity: "",
-    habitat: "freshwater",
+    habitat: DEFAULT_HABITAT,
     fishCount: "1",
     sharedWithLinked: false,
     speciesAlternatives: [],
@@ -256,15 +255,6 @@ export function CatchForm({
     };
   }, [previewUrl]);
 
-  const suggestion = useMemo(() => {
-    if (!form.speciesSuggested) return null;
-    return {
-      species: form.speciesSuggested,
-      confidence: form.speciesConfidence,
-      source: form.speciesSource,
-    };
-  }, [form.speciesSuggested, form.speciesConfidence, form.speciesSource]);
-
   function patch(partial: Partial<FormState>) {
     setForm((f) => ({ ...f, ...partial }));
   }
@@ -403,52 +393,6 @@ export function CatchForm({
     const tasks: Promise<void>[] = [];
     const weatherLat = hintLat;
     const weatherLon = hintLon;
-
-    tasks.push(
-      (async () => {
-        const fd = new FormData();
-        fd.set("photo", nextFile);
-        if (form.habitat) fd.set("habitat", form.habitat);
-        if (hintLat != null) fd.set("latitude", String(hintLat));
-        if (hintLon != null) fd.set("longitude", String(hintLon));
-        if (form.placeName) fd.set("placeName", form.placeName);
-        try {
-          const res = await fetch("/api/assist/vision", { method: "POST", body: fd });
-          const data = (await res.json()) as { suggestion?: SpeciesSuggestion; error?: string };
-          if (data.suggestion) {
-            setForm((f) => {
-              const guess = data.suggestion!;
-              const suggestedList = normalizeSpeciesList(guess.species, guess.speciesList);
-              const autoFill =
-                !f.speciesList.length &&
-                guess.species !== "Unknown" &&
-                guess.confidence >= SPECIES_AUTO_FILL_MIN &&
-                suggestedList.length > 0;
-              const nextList = autoFill ? suggestedList : f.speciesList;
-              const nextHabitat =
-                autoFill && guess.habitat && isHabitat(guess.habitat)
-                  ? guess.habitat
-                  : autoFill
-                    ? inferHabitat(primarySpecies(nextList), f.habitat)
-                    : f.habitat;
-              return {
-                ...f,
-                speciesList: nextList,
-                speciesSuggested: guess.species,
-                speciesConfidence: guess.confidence,
-                speciesSource: guess.source === "openai" ? "vision" : "demo",
-                speciesAlternatives: guess.alternatives ?? [],
-                speciesSuggestedList: suggestedList,
-                habitat: nextHabitat,
-              };
-            });
-            notes.push(data.suggestion.note);
-          }
-        } catch {
-          notes.push("Species assist unavailable. Type the species yourself.");
-        }
-      })(),
-    );
 
     if (weatherLat != null && weatherLon != null) {
       if (at.getTime() > 0) {
@@ -670,7 +614,7 @@ export function CatchForm({
             speciesList,
             habitat,
             fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length || 1),
-            speciesSource: form.speciesSuggested ? "edited" : "manual",
+            speciesSource: "manual",
           })
         }
       />
@@ -695,117 +639,6 @@ export function CatchForm({
           This catch, this spot. Two species in the photo starts at two unless you change it.
         </span>
       </label>
-
-      {suggestion?.species ? (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="rounded-full bg-paper-deep px-3 py-1 text-ink-muted">
-              Assist:{" "}
-              {(form.speciesSuggestedList.length
-                ? form.speciesSuggestedList
-                : [suggestion.species]
-              ).join(" + ")}
-              {suggestion.confidence != null
-                ? ` · ${Math.round(suggestion.confidence * 100)}%`
-                : ""}
-              {form.speciesSource === "demo" ? " · demo" : ""}
-            </span>
-            {form.speciesSuggestedList.length > 1 ? (
-              <button
-                type="button"
-                className="font-semibold text-teal"
-                onClick={() => {
-                  const merged = normalizeSpeciesList(null, [
-                    ...form.speciesList,
-                    ...form.speciesSuggestedList,
-                  ]);
-                  patch({
-                    speciesList: merged,
-                    habitat: inferHabitat(primarySpecies(merged), form.habitat),
-                    fishCount: draftFishCountForSpecies(form.fishCount, merged.length),
-                    speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
-                  });
-                }}
-              >
-                Add all in photo
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="font-semibold text-teal"
-                onClick={() => {
-                  const add = normalizeSpeciesList(suggestion.species, form.speciesSuggestedList);
-                  const merged = normalizeSpeciesList(null, [...form.speciesList, ...add]);
-                  patch({
-                    speciesList: merged,
-                    habitat: inferHabitat(suggestion.species, form.habitat),
-                    fishCount: draftFishCountForSpecies(form.fishCount, merged.length),
-                    speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
-                  });
-                }}
-              >
-                Add suggestion
-              </button>
-            )}
-          </div>
-          {(suggestion.confidence ?? 1) < SPECIES_AUTO_FILL_MIN ? (
-            <p className="text-xs text-copper">
-              Low confidence — add chips or type the species. Everything stays editable.
-            </p>
-          ) : null}
-          <div className="flex flex-wrap gap-1.5">
-            {form.speciesSuggestedList
-              .filter((name) => !form.speciesList.some((s) => s.toLowerCase() === name.toLowerCase()))
-              .map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  className="rounded-full border border-line bg-card px-2.5 py-1 text-xs font-semibold"
-                  onClick={() => {
-                    const speciesList = normalizeSpeciesList(null, [...form.speciesList, name]);
-                    patch({
-                      speciesList,
-                      habitat: inferHabitat(name, form.habitat),
-                      fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length),
-                      speciesSource: "edited",
-                    });
-                  }}
-                >
-                  Add {name}
-                </button>
-              ))}
-            {form.speciesAlternatives.map((alt) => (
-              <button
-                key={alt.species}
-                type="button"
-                className="rounded-full border border-line bg-card px-2.5 py-1 text-xs font-semibold"
-                onClick={() => {
-                    const speciesList = normalizeSpeciesList(null, [
-                      ...form.speciesList,
-                      alt.species,
-                    ]);
-                    patch({
-                      speciesList,
-                      habitat: inferHabitat(alt.species, form.habitat),
-                      fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length),
-                      speciesSource: "edited",
-                    });
-                  }}
-              >
-                Add {alt.species}
-                {alt.confidence != null ? ` ${Math.round(alt.confidence * 100)}%` : ""}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-ink-muted">
-            Species ID is an assist, not a guarantee. Tag every fish in the photo.
-          </p>
-        </div>
-      ) : (
-        <p className="text-xs text-ink-muted">
-          Species ID is an assist, not a guarantee. Tag every fish in the photo.
-        </p>
-      )}
 
       <CatchLocationFields
         form={form}
