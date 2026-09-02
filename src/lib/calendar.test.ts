@@ -129,6 +129,7 @@ describe("catchesOnMonthDay", () => {
     expect(groups.map((g) => g.year)).toEqual([2025, 2024]);
     expect(groups[0].catches.map((c) => c.id)).toEqual(["25dawn", "25dusk"]);
     expect(groups[1].catches.map((c) => c.id)).toEqual(["24"]);
+    expect(fullDateLabel(groups[1].dateKey)).toBe("Sep 2, 2024");
   });
 
   it("matches leap day only on Feb 29, not Feb 28", () => {
