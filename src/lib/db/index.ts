@@ -6,7 +6,6 @@ import { inferHabitat } from "../habitat";
 import { moonForDate } from "../moon";
 import { demoWeather } from "../weather/demo";
 import { ensureDefaultAngler } from "./anglers";
-import { seedIfEmpty } from "./seed";
 import * as schema from "./schema";
 
 const CREATE_SQL = `
@@ -267,6 +266,10 @@ function migrate(sqlite: Database.Database) {
     }
     sqlite.pragma("user_version = 6");
   }
+  if (version < 7) {
+    sqlite.exec(`DELETE FROM catches WHERE photo_path LIKE '/seed/%'`);
+    sqlite.pragma("user_version = 7");
+  }
 }
 
 export function getDb() {
@@ -283,7 +286,6 @@ export function getDb() {
   sqlite
     .prepare("UPDATE catches SET angler_id = ? WHERE angler_id IS NULL OR angler_id = ''")
     .run(owner.id);
-  seedIfEmpty(db, owner.id);
   return db;
 }
 

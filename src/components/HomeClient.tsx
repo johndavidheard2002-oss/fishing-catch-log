@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BuddyPanel } from "@/components/BuddyPanel";
+import { SampleJournalControls } from "@/components/SampleJournalControls";
 import { groupSpots } from "@/lib/filters";
 import type { CatchRecord } from "@/lib/types";
 
 export function HomeClient() {
   const [catches, setCatches] = useState<CatchRecord[]>([]);
 
-  useEffect(() => {
+  function loadJournal() {
     fetch("/api/catches")
       .then(async (r) => {
         if (!r.ok) throw new Error("bad status");
@@ -19,6 +20,10 @@ export function HomeClient() {
         if (Array.isArray(data.catches)) setCatches(data.catches);
       })
       .catch(() => {});
+  }
+
+  useEffect(() => {
+    loadJournal();
   }, []);
 
   const species = new Set(
@@ -83,6 +88,12 @@ export function HomeClient() {
           <Stat label="Species" value={species} />
           <Stat label="Spots" value={spots} />
         </dl>
+        {catches.length === 0 ? (
+          <p className="text-sm text-ink-muted">
+            Empty until you log or backfill a catch. One photo becomes one pin — nothing is
+            pre-filled from sample trips.
+          </p>
+        ) : null}
       </section>
 
       <details className="app-more journal-card rounded-2xl">
@@ -90,10 +101,13 @@ export function HomeClient() {
           <span>
             <span className="block font-semibold">More</span>
             <span className="mt-0.5 block text-sm font-normal text-ink-muted">
-              Link a buddy, your name, invite code
+              Link a buddy, sample catches, invite code
             </span>
           </span>
         </summary>
+        <div className="space-y-3 px-4 pt-1">
+          <SampleJournalControls onChanged={loadJournal} />
+        </div>
         <BuddyPanel embedded />
       </details>
     </div>

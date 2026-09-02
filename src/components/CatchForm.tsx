@@ -14,7 +14,7 @@ import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { catchPinFromPhotoGps, classifyCatchPinEdit, coordsLookDifferent, formatCoords, shouldApplyPhotoGpsToCatch } from "@/lib/location";
 import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
-import { clampFishCount } from "@/lib/count";
+import { clampFishCount, draftFishCountForSpecies, sanitizeFishCountDraft } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
 import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, seasonFromCaughtAtInput, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromCaughtAtInput, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
@@ -56,7 +56,7 @@ type FormState = {
   tide: string;
   waterClarity: string;
   habitat: Habitat;
-  fishCount: number;
+  fishCount: string;
   sharedWithLinked: boolean;
   speciesAlternatives: { species: string; confidence: number }[];
   speciesSuggestedList: string[];
@@ -97,7 +97,7 @@ const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => 
     tide: "",
     waterClarity: "",
     habitat: "freshwater",
-    fishCount: 1,
+    fishCount: "1",
     sharedWithLinked: false,
     speciesAlternatives: [],
     speciesSuggestedList: [],
@@ -163,7 +163,7 @@ function fromRecord(record: CatchRecord): FormState {
     tide: record.tide ?? "",
     waterClarity: record.waterClarity ?? "",
     habitat: record.habitat,
-    fishCount: record.fishCount ?? 1,
+    fishCount: String(record.fishCount ?? 1),
     sharedWithLinked: record.sharedWithLinked,
     speciesAlternatives: [],
     speciesSuggestedList: [],
@@ -218,6 +218,7 @@ export function CatchForm({
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(Boolean(initial?.notes || initial?.bait));
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
@@ -507,9 +508,12 @@ export function CatchForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (savingRef.current) return;
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     if (!form.speciesList.length) {
+      savingRef.current = false;
       setSaving(false);
       setError("Add at least one species. You can tag more than one fish in the same photo.");
       return;
@@ -582,6 +586,7 @@ export function CatchForm({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -664,7 +669,7 @@ export function CatchForm({
           patch({
             speciesList,
             habitat,
-            fishCount: clampFishCount(form.fishCount, speciesList.length || 1),
+            fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length || 1),
             speciesSource: form.speciesSuggested ? "edited" : "manual",
           })
         }
@@ -673,13 +678,16 @@ export function CatchForm({
       <label className="block">
         <span className="mb-1 block text-sm font-semibold">How many fish</span>
         <input
-          type="number"
-          min={Math.max(1, form.speciesList.length || 1)}
-          max={99}
+          type="text"
           inputMode="numeric"
+          pattern="[0-9]*"
+          autoComplete="off"
           value={form.fishCount}
-          onChange={(e) =>
-            patch({ fishCount: clampFishCount(e.target.value, form.speciesList.length || 1) })
+          onChange={(e) => patch({ fishCount: sanitizeFishCountDraft(e.target.value) })}
+          onBlur={() =>
+            patch({
+              fishCount: draftFishCountForSpecies(form.fishCount, form.speciesList.length || 1),
+            })
           }
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
@@ -714,7 +722,7 @@ export function CatchForm({
                   patch({
                     speciesList: merged,
                     habitat: inferHabitat(primarySpecies(merged), form.habitat),
-                    fishCount: clampFishCount(form.fishCount, merged.length),
+                    fishCount: draftFishCountForSpecies(form.fishCount, merged.length),
                     speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
                   });
                 }}
@@ -731,7 +739,7 @@ export function CatchForm({
                   patch({
                     speciesList: merged,
                     habitat: inferHabitat(suggestion.species, form.habitat),
-                    fishCount: clampFishCount(form.fishCount, merged.length),
+                    fishCount: draftFishCountForSpecies(form.fishCount, merged.length),
                     speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
                   });
                 }}
@@ -758,7 +766,7 @@ export function CatchForm({
                     patch({
                       speciesList,
                       habitat: inferHabitat(name, form.habitat),
-                      fishCount: clampFishCount(form.fishCount, speciesList.length),
+                      fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length),
                       speciesSource: "edited",
                     });
                   }}
@@ -779,7 +787,7 @@ export function CatchForm({
                     patch({
                       speciesList,
                       habitat: inferHabitat(alt.species, form.habitat),
-                      fishCount: clampFishCount(form.fishCount, speciesList.length),
+                      fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length),
                       speciesSource: "edited",
                     });
                   }}

@@ -4,6 +4,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { createCatch, getCatch, listCatches, updateCatch } from "./catches";
 import { getDb, resetDbForTests } from "./index";
+import { loadSampleCatches } from "./seed";
+import { ensureDefaultAngler } from "./anglers";
 
 describe("same-day catch locations stay independent", () => {
   const previousPath = process.env.DATABASE_PATH;
@@ -17,12 +19,22 @@ describe("same-day catch locations stay independent", () => {
     tmpDirs.length = 0;
   });
 
-  it("seeded July 12 keeps Pace Bend and the main-lake point as two pins", () => {
+  it("starts empty until sample catches are loaded on purpose", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
     tmpDirs.push(dir);
     process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
     resetDbForTests();
     getDb();
+    expect(listCatches()).toHaveLength(0);
+  });
+
+  it("loaded sample July 12 keeps Pace Bend and the main-lake point as two pins", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    const db = getDb();
+    loadSampleCatches(db, ensureDefaultAngler().id);
 
     const dawn = listCatches().find((c) => c.placeName?.includes("Pace Bend"));
     const afternoon = listCatches().find(

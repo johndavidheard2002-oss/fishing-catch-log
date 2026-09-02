@@ -207,6 +207,11 @@ export function HistoryClient() {
           }}
           viewerId={viewerId}
         />
+      ) : catches.length === 0 ? (
+        <p className="text-sm text-ink-muted">
+          Your journal is empty. Log a catch or backfill a photo — one picture becomes one trip at
+          one pin. Sample trips are off unless you load them from Home → More.
+        </p>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-ink-muted">
           Nothing matches those conditions. Clear filters or log another catch.

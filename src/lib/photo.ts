@@ -10,6 +10,11 @@ export function photoSrc(photoPath: string | null): string | null {
   return `/api/media/${encodeURIComponent(photoPath)}`;
 }
 
+/** Built-in sample art — not a photo the angler logged. */
+export function isSampleCatchPhoto(photoPath: string | null | undefined): boolean {
+  return Boolean(photoPath?.startsWith("/seed/"));
+}
+
 /** Logged camera/roll uploads only — never seed art, stock, or remote placeholders. */
 export function isPersonalPhoto(photoPath: string | null): boolean {
   if (!photoPath) return false;

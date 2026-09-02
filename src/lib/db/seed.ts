@@ -1,10 +1,11 @@
-import { count } from "drizzle-orm";
+import { count, like } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { catches } from "./schema";
 import type * as schema from "./schema";
 import { seasonFromDate, timeOfDayFromDate } from "../time";
 import { inferHabitat } from "../habitat";
 import { moonForDate } from "../moon";
+import { isSampleCatchPhoto } from "../photo";
 import type { CatchInput } from "../types";
 
 const SEED: CatchInput[] = [
@@ -340,9 +341,27 @@ const SEED: CatchInput[] = [
   },
 ];
 
-export function seedIfEmpty(db: BetterSQLite3Database<typeof schema>, ownerId: string) {
-  const row = db.select({ n: count() }).from(catches).get();
-  if ((row?.n ?? 0) > 0) return;
+export function countSampleCatches(db: BetterSQLite3Database<typeof schema>): number {
+  const row = db
+    .select({ n: count() })
+    .from(catches)
+    .where(like(catches.photoPath, "/seed/%"))
+    .get();
+  return row?.n ?? 0;
+}
+
+export function removeSampleCatches(db: BetterSQLite3Database<typeof schema>): number {
+  const result = db.delete(catches).where(like(catches.photoPath, "/seed/%")).run();
+  return Number(result.changes ?? 0);
+}
+
+/** Insert built-in sample trips only when none are loaded. Never runs on first launch. */
+export function loadSampleCatches(
+  db: BetterSQLite3Database<typeof schema>,
+  ownerId: string,
+): { inserted: number; already: number } {
+  const already = countSampleCatches(db);
+  if (already > 0) return { inserted: 0, already };
 
   const stamp = new Date().toISOString();
   for (const item of SEED) {
@@ -390,4 +409,7 @@ export function seedIfEmpty(db: BetterSQLite3Database<typeof schema>, ownerId: s
       })
       .run();
   }
+  return { inserted: SEED.length, already: 0 };
 }
+
+export { isSampleCatchPhoto };

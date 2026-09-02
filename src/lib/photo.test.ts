@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { catchPhotoFilename, isPersonalPhoto, personalPhotoSrc, photoSrc } from "./photo";
+import { catchPhotoFilename, isPersonalPhoto, isSampleCatchPhoto, personalPhotoSrc, photoSrc } from "./photo";
+
+describe("isSampleCatchPhoto", () => {
+  it("recognizes built-in sample art only", () => {
+    expect(isSampleCatchPhoto("/seed/largemouth.svg")).toBe(true);
+    expect(isSampleCatchPhoto("abc123.jpg")).toBe(false);
+    expect(isSampleCatchPhoto(null)).toBe(false);
+  });
+});
 
 describe("isPersonalPhoto", () => {
   it("accepts uploaded journal files only", () => {

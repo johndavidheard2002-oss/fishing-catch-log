@@ -4,7 +4,7 @@ import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel } from "@/lib/calendar";
 import { speciesLabel } from "@/lib/species";
 import { formatDateOnly, formatTimeOnly } from "@/lib/time";
-import { catchPhotoFilename, photoSrc, weatherLine } from "@/lib/photo";
+import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
 import type { CatchRecord } from "@/lib/types";
 
 function photoFilename(record: CatchRecord): string {
@@ -55,6 +55,11 @@ export function CatchCard({
             <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
               {habitatLabel(record.habitat)}
             </span>
+            {isSampleCatchPhoto(record.photoPath) ? (
+              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold text-ink-muted">
+                Sample
+              </span>
+            ) : null}
             {theirs ? (
               <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
                 {record.ownerName}
@@ -91,7 +96,10 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
             {record.fishCount > 1 ? ` · ${record.fishCount}` : ""}
           </p>
           <p className="truncate text-xs text-ink-muted">{catchSpotLabel(record)}</p>
-          <p className="mt-0.5 text-[10px] text-ink-muted">{habitatLabel(record.habitat)}</p>
+          <p className="mt-0.5 text-[10px] text-ink-muted">
+            {habitatLabel(record.habitat)}
+            {isSampleCatchPhoto(record.photoPath) ? " · Sample" : ""}
+          </p>
         </div>
       </Link>
       {src ? (

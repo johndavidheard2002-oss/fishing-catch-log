@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { clampFishCount, fishCountLabel, speciesCountLine, speciesFishCounts } from "./count";
+import {
+  clampFishCount,
+  draftFishCountForSpecies,
+  fishCountLabel,
+  sanitizeFishCountDraft,
+  speciesCountLine,
+  speciesFishCounts,
+} from "./count";
 import { catchOf } from "./testing";
 
 describe("clampFishCount", () => {
@@ -13,6 +20,23 @@ describe("clampFishCount", () => {
     expect(clampFishCount(4, 2)).toBe(4);
     expect(clampFishCount(1, 3)).toBe(3);
     expect(clampFishCount(200)).toBe(99);
+  });
+});
+
+describe("sanitizeFishCountDraft", () => {
+  it("allows a cleared field while typing", () => {
+    expect(sanitizeFishCountDraft("")).toBe("");
+    expect(sanitizeFishCountDraft("1")).toBe("1");
+    expect(sanitizeFishCountDraft("12")).toBe("12");
+    expect(sanitizeFishCountDraft("1a2")).toBe("12");
+  });
+});
+
+describe("draftFishCountForSpecies", () => {
+  it("fills a blank draft on blur/submit, not while typing", () => {
+    expect(draftFishCountForSpecies("", 1)).toBe("1");
+    expect(draftFishCountForSpecies("", 3)).toBe("3");
+    expect(draftFishCountForSpecies("8", 2)).toBe("8");
   });
 });
 

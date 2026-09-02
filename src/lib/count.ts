@@ -13,6 +13,15 @@ export function clampFishCount(
   return Math.min(MAX_FISH_COUNT, Math.max(fallback, Math.round(n)));
 }
 
+/** Digits only while typing — empty string is allowed until blur/submit. */
+export function sanitizeFishCountDraft(raw: string): string {
+  return raw.replace(/[^\d]/g, "").slice(0, 2);
+}
+
+export function draftFishCountForSpecies(draft: string, speciesCount: number): string {
+  return String(clampFishCount(draft.trim() === "" ? null : draft, speciesCount));
+}
+
 export function fishCountLabel(count: number): string {
   return count === 1 ? "1 fish" : `${count} fish`;
 }
