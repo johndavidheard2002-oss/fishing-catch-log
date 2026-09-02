@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Automatic Logbook for catches, weather, and similar conditions.",
     start_url: "/",
     display: "standalone",
-    background_color: "#efe6d2",
+    background_color: "#d7e6ec",
     theme_color: "#134e4c",
     icons: [
       {

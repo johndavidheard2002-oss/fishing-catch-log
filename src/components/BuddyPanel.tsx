@@ -34,7 +34,7 @@ export function sharedQuery(includeShared: boolean): string {
   return includeShared ? "includeShared=1" : "";
 }
 
-export function BuddyPanel() {
+export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
   const [me, setMe] = useState<Angler | null>(null);
   const [profiles, setProfiles] = useState<Angler[]>([]);
   const [buddies, setBuddies] = useState<Buddy[]>([]);
@@ -130,8 +130,12 @@ export function BuddyPanel() {
   }
 
   return (
-    <section className="journal-card space-y-3 rounded-2xl p-4">
-      <h2 className="font-display text-2xl text-teal">Linked buddies</h2>
+    <section className={embedded ? "space-y-3 px-4 pb-4" : "journal-card space-y-3 rounded-2xl p-4"}>
+      {embedded ? (
+        <h2 className="text-sm font-semibold">Linked buddies</h2>
+      ) : (
+        <h2 className="font-display text-2xl text-teal">Linked buddies</h2>
+      )}
       <PrivacyBanner />
 
       <label className="block text-sm">

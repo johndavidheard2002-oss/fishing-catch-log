@@ -3,10 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BuddyPanel } from "@/components/BuddyPanel";
-import { CatchGridCard } from "@/components/CatchCard";
-import { formatDateOnly } from "@/lib/time";
-import { weatherLine } from "@/lib/photo";
-import { speciesLabel } from "@/lib/species";
 import type { CatchRecord } from "@/lib/types";
 
 export function HomeClient() {
@@ -24,7 +20,6 @@ export function HomeClient() {
       .catch(() => {});
   }, []);
 
-  const latest = catches[0];
   const species = new Set(
     catches.flatMap((c) => (c.speciesList?.length ? c.speciesList : [c.species])),
   ).size;
@@ -49,70 +44,51 @@ export function HomeClient() {
         Log a catch
       </Link>
       <Link
-        href="/log?past=1"
-        className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
-      >
-        Backfill a past catch
-      </Link>
-      <Link
-        href="/log/scan"
-        className="journal-card block rounded-2xl px-4 py-4"
-      >
-        <p className="font-semibold">Find fishing photos in your library</p>
-        <p className="mt-1 text-sm text-ink-muted">
-          Bring old trips onto your calendar. You choose pictures from this phone — Catch Compass
-          looks for fish and asks before anything is added. Only your photos. Only your journal.
-        </p>
-      </Link>
-      <Link
         href="/plan"
         className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold text-teal"
       >
         Plan the next few days
       </Link>
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          href="/history?view=calendar"
+          className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+        >
+          Calendar
+        </Link>
+        <Link
+          href="/spots"
+          className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+        >
+          Spots
+        </Link>
+      </div>
 
-      <dl className="grid grid-cols-3 gap-2">
-        <Stat label="Catches" value={catches.length} />
-        <Stat label="Species" value={species} />
-        <Stat label="Spots" value={spots} />
-      </dl>
-
-      {latest ? (
-        <section className="journal-card rounded-2xl p-4">
-          <p className="text-xs tracking-wide text-ink-muted uppercase">Last trip</p>
-          <p className="mt-1 text-lg font-semibold">
-            {speciesLabel(latest.speciesList?.length ? latest.speciesList : latest.species)}
-          </p>
-          <p className="text-sm text-ink-muted">
-            {latest.placeName || "Unnamed spot"} · {formatDateOnly(latest.caughtAt)}
-          </p>
-          <p className="text-sm text-ink-muted">{weatherLine(latest)}</p>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-            <Link href={`/catch/${latest.id}#similar`} className="font-semibold text-teal">
-              Find similar conditions →
-            </Link>
-            <Link href="/plan" className="font-semibold text-teal">
-              Plan ahead →
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
-      <BuddyPanel />
-
-      <section className="space-y-3">
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-display text-2xl text-teal">Recent</h2>
+      <section className="space-y-2">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold text-ink-muted">Your journal</h2>
           <Link href="/history" className="text-sm font-semibold text-teal">
-            All catches
+            Open History
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {catches.slice(0, 6).map((record) => (
-            <CatchGridCard key={record.id} record={record} />
-          ))}
-        </div>
+        <dl className="grid grid-cols-3 gap-2">
+          <Stat label="Catches" value={catches.length} />
+          <Stat label="Species" value={species} />
+          <Stat label="Spots" value={spots} />
+        </dl>
       </section>
+
+      <details className="app-more journal-card rounded-2xl">
+        <summary className="cursor-pointer px-4 py-3">
+          <span>
+            <span className="block font-semibold">More</span>
+            <span className="mt-0.5 block text-sm font-normal text-ink-muted">
+              Link a buddy, your name, invite code
+            </span>
+          </span>
+        </summary>
+        <BuddyPanel embedded />
+      </details>
     </div>
   );
 }

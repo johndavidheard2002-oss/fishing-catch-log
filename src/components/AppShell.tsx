@@ -9,9 +9,19 @@ const NAV = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/plan", label: "Plan", icon: PlanIcon },
   { href: "/log", label: "Log", icon: PlusIcon, primary: true },
+  { href: "/backfill", label: "Backfill", icon: PastIcon },
   { href: "/history", label: "History", icon: GridIcon },
   { href: "/spots", label: "Spots", icon: MapIcon },
 ];
+
+function navIsActive(href: string, pathname: string) {
+  if (href === "/") return pathname === "/";
+  if (href === "/log") return pathname === "/log";
+  if (href === "/backfill") {
+    return pathname === "/backfill" || pathname.startsWith("/log/scan");
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,18 +64,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <main className="flex-1">{children}</main>
       <nav className="bottom-nav journal-card fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl">
-        <ul className="grid grid-cols-5 px-1 pt-2">
+        <ul className="grid grid-cols-6 px-0.5 pt-2">
           {NAV.map((item) => {
-            const active =
-              item.href === "/"
-                ? pathname === "/"
-                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = navIsActive(item.href, pathname);
             const Icon = item.icon;
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-xs ${
+                  className={`flex flex-col items-center gap-0.5 rounded-xl py-1.5 text-[10px] leading-tight ${
                     item.primary
                       ? "text-copper"
                       : active
@@ -74,7 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   }`}
                 >
                   <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                    className={`flex h-8 w-8 items-center justify-center rounded-full ${
                       item.primary ? "bg-copper text-white" : active ? "bg-paper-deep" : ""
                     }`}
                   >
@@ -113,6 +120,15 @@ function PlusIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PastIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="13" r="8" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 9v4l2.5 1.5M9 4h6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }

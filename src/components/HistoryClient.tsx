@@ -190,12 +190,6 @@ export function HistoryClient() {
             setShowFilters(true);
           }}
         />
-        <a
-          href="/api/export"
-          className="rounded-full border border-line bg-card px-3 py-1.5 text-xs font-semibold"
-        >
-          Export CSV
-        </a>
       </div>
 
       {loadError ? <p className="text-sm text-copper">{loadError}</p> : null}
@@ -232,6 +226,13 @@ export function HistoryClient() {
           ))}
         </div>
       )}
+
+      <a
+        href="/api/export"
+        className="block pt-2 text-center text-sm font-semibold text-ink-muted"
+      >
+        Export CSV
+      </a>
     </div>
   );
 }

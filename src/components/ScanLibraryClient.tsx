@@ -175,7 +175,7 @@ export function ScanLibraryClient() {
           ? `&plat=${encodeURIComponent(String(current.photoTakenLatitude))}&plon=${encodeURIComponent(String(current.photoTakenLongitude))}`
           : "";
       router.push(
-        `/log?past=1&photo=${encodeURIComponent(data.photoPath)}&at=${encodeURIComponent(at)}&day=${day}&next=calendar${gps}`,
+        `/backfill?photo=${encodeURIComponent(data.photoPath)}&at=${encodeURIComponent(at)}&day=${day}&next=calendar${gps}`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add that photo");
@@ -193,15 +193,12 @@ export function ScanLibraryClient() {
           photos — not anyone else&apos;s roll, and never a public share.
         </p>
       </div>
-      <div className="journal-card grid grid-cols-3 overflow-hidden rounded-2xl p-1">
-        <Link href="/log" className="rounded-xl py-2 text-center text-xs font-semibold text-ink-muted">
-          Now
-        </Link>
+      <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1">
         <Link
-          href="/log?past=1"
+          href="/backfill"
           className="rounded-xl py-2 text-center text-xs font-semibold text-ink-muted"
         >
-          Backfill
+          One trip
         </Link>
         <span className="rounded-xl bg-teal py-2 text-center text-xs font-semibold text-white">
           Your photos
@@ -321,7 +318,7 @@ export function ScanLibraryClient() {
         stay in your Catch Compass log. Nothing is added until you tap Yes. We do not look at the
         rest of your camera roll.
       </p>
-      <Link href="/log?past=1" className="inline-block text-sm font-semibold text-teal">
+      <Link href="/backfill" className="inline-block text-sm font-semibold text-teal">
         Backfill one photo instead
       </Link>
     </div>
