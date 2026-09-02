@@ -805,11 +805,20 @@ export function CatchForm({
         onPlace={(placeName) => patch({ placeName })}
         onCoords={(lat, lng) => {
           patch({ latitude: lat, longitude: lng });
-          if (numOrNull(lat) != null && numOrNull(lng) != null) {
-            catchPinUserMovedRef.current = true;
-            setCatchPinUserMoved(true);
-            setPinSource("manual");
+          const nextLat = numOrNull(lat);
+          const nextLon = numOrNull(lng);
+          if (nextLat == null || nextLon == null) return;
+          const photoLat = numOrNull(form.photoTakenLatitude);
+          const photoLon = numOrNull(form.photoTakenLongitude);
+          if (photoLat != null && photoLon != null && !coordsLookDifferent(nextLat, nextLon, photoLat, photoLon)) {
+            catchPinUserMovedRef.current = false;
+            setCatchPinUserMoved(false);
+            setPinSource("photo");
+            return;
           }
+          catchPinUserMovedRef.current = true;
+          setCatchPinUserMoved(true);
+          setPinSource("manual");
         }}
         onUsePhotoGps={() => {
           const lat = form.photoTakenLatitude;
@@ -1246,6 +1255,16 @@ function CatchLocationFields({
             The pin is not locked — drag it or tap a new spot if you caught the fish somewhere else.
           </p>
         </div>
+      ) : hasPhotoGps && photoDiffers ? (
+        <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
+          <p>
+            <span className="font-semibold">You moved the catch pin.</span> Re-saving this photo will
+            not overwrite it. This pin is only for this catch.
+          </p>
+          <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
+            Reset catch pin to photo GPS
+          </button>
+        </div>
       ) : pinSource === "device" && catchLat != null ? (
         <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
           <p>
@@ -1264,9 +1283,9 @@ function CatchLocationFields({
             Photo taken at {formatCoords(photoLat, photoLon)}
             {photoDiffers ? " — different from the catch pin." : "."}
           </p>
-          {photoDiffers || catchLat == null ? (
+          {catchLat == null ? (
             <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
-              Reset catch pin to photo GPS
+              Place catch pin at photo GPS
             </button>
           ) : null}
         </div>
