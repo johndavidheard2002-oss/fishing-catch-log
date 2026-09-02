@@ -8,7 +8,7 @@ import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
-import { conditionLabel } from "@/lib/similar";
+import { conditionLabel, VERY_STRONG_MATCH_CHIP, VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
 import type { BaitPlanSuggestion, PlanResult, PlanSuggestion } from "@/lib/types";
 
 export function PlanClient() {
@@ -74,7 +74,7 @@ export function PlanClient() {
         <h1 className="font-display text-3xl text-teal">Plan</h1>
         <p className="text-sm text-ink-muted">
           Upcoming windows matched to days you actually caught fish, plus bait holes that produced
-          under similar weather and tide.
+          under similar tide, time, and weather.
         </p>
       </div>
 
@@ -103,7 +103,7 @@ export function PlanClient() {
             : "Live forecast"}
           {plan.weatherSource === "openweather" ? " Weather: OpenWeather. " : null}
           {plan.tideSource === "worldtides" ? " Tides: WorldTides. " : null}
-          Suggestions compare sky, temp, wind, time of day, and tide (where you logged it)
+          Suggestions compare tide stage and height, clock time, sky, temp, and wind
           against productive trips and bait spots.
         </p>
       ) : null}
@@ -203,6 +203,9 @@ function SuggestionCard({
         </div>
       </div>
       <p className="px-3 pb-2 text-sm">{suggestion.headline}</p>
+      {suggestion.strength === "very-strong" ? (
+        <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+      ) : null}
       <p className="px-3 text-xs text-ink-muted">
         Why: {suggestion.reasons.slice(0, 5).join(" · ") || "pattern overlap"}
       </p>
@@ -282,6 +285,9 @@ function BaitSuggestionCard({
         </div>
       </div>
       <p className="px-3 pb-2 text-sm">{suggestion.headline}</p>
+      {suggestion.strength === "very-strong" ? (
+        <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+      ) : null}
       <p className="px-3 text-xs text-ink-muted">
         Why: {suggestion.reasons.slice(0, 5).join(" · ") || "pattern overlap"}
       </p>
@@ -303,6 +309,13 @@ function BaitSuggestionCard({
 }
 
 function StrengthBadge({ strength }: { strength: PlanSuggestion["strength"] }) {
+  if (strength === "very-strong") {
+    return (
+      <span className="max-w-[9.5rem] rounded-full bg-good px-2 py-0.5 text-right text-[10px] font-semibold leading-snug text-white">
+        {VERY_STRONG_MATCH_CHIP}
+      </span>
+    );
+  }
   const label = strength === "strong" ? "Strong match" : strength === "good" ? "Good match" : "Lean match";
   const cls =
     strength === "strong"

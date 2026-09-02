@@ -243,7 +243,7 @@ export function CatchDetail({ id }: { id: string }) {
       <section id="similar" className="space-y-3">
         <h2 className="font-display text-2xl text-teal">Similar to this catch</h2>
         <p className="text-sm text-ink-muted">
-          Past logs that match weather, clock time, species, or spot.
+          Past logs that match tide, clock time, weather, species, or spot.
         </p>
         <SimilarList matches={matches} />
         <Link

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CatchCard } from "./CatchCard";
 import { weatherLine } from "@/lib/photo";
 import { formatDateOnly } from "@/lib/time";
+import { VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
 import type { SimilarMatch } from "@/lib/types";
 
 export function SimilarList({ matches }: { matches: SimilarMatch[] }) {
@@ -18,6 +19,9 @@ export function SimilarList({ matches }: { matches: SimilarMatch[] }) {
       {matches.map((match) => (
         <li key={match.catch.id} className="space-y-1.5">
           <CatchCard record={match.catch} compact />
+          {match.strength === "very-strong" ? (
+            <p className="px-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+          ) : null}
           <p className="px-1 text-xs text-ink-muted">
             Why: {match.reasons.slice(0, 4).join(" · ") || weatherLine(match.catch)} ·{" "}
             {formatDateOnly(match.catch.caughtAt)}

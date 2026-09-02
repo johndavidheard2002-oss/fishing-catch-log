@@ -107,7 +107,41 @@ describe("scoreWindowAgainstCatch", () => {
       redfish,
     );
     expect(withTide.score).toBeGreaterThan(without.score);
-    expect(withTide.reasons).toContain("Incoming tide");
+    expect(withTide.reasons.some((r) => /same rising tide/i.test(r))).toBe(true);
+  });
+
+  it("marks exact tide + height + time as very-strong, not weather-only", () => {
+    const redfish = catchOf({
+      id: "red",
+      species: "Redfish",
+      placeName: "Mosquito Lagoon, FL",
+      tide: "incoming",
+      tideHeightFt: 2.1,
+      timeOfDay: "dawn",
+      caughtAt: "2025-07-12T10:40:00.000Z",
+      weatherCondition: "partly-cloudy",
+      temperatureF: 82,
+    });
+    const match = scoreWindowAgainstCatch(
+      windowOf({
+        at: "2026-09-03T10:42:00.000Z",
+        timeOfDay: "dawn",
+        weatherCondition: "partly-cloudy",
+        temperatureF: 80,
+        tide: "incoming",
+        tideHeightFt: 2.0,
+      }),
+      redfish,
+    );
+    expect(match.strength).toBe("very-strong");
+    expect(match.reasons[0]).toMatch(/same rising tide ~2\.1 ft/i);
+    expect(match.reasons[0]).toContain("~");
+
+    const weatherOnly = scoreWindowAgainstCatch(
+      windowOf({ temperatureF: 72, weatherCondition: "cloudy", timeOfDay: "afternoon", tide: null }),
+      pondCatch({ id: "bass" }),
+    );
+    expect(weatherOnly.strength).not.toBe("very-strong");
   });
 });
 
@@ -146,6 +180,7 @@ describe("suggestFromWindows", () => {
     expect(suggestions[0].placeName).toBe("Farm Pond, OH");
     expect(suggestions[0].matches[0].catch.id).toBe("bass");
     expect(suggestions[0].headline).toMatch(/cloudy \+ 72°F \+ afternoon like your Largemouth Bass/i);
+    expect(suggestions[0].strength).not.toBe("very-strong");
     expect(suggestionStrength(suggestions[0].score)).not.toBeUndefined();
   });
 });
@@ -203,10 +238,14 @@ describe("bait plan matches", () => {
         weatherCondition: "clear",
         timeOfDay: "afternoon",
         tide: "incoming",
+        tideHeightFt: 1.3,
+        at: "2026-09-03T14:05:00.000Z",
       }),
       shrimp,
     );
     expect(match.score).toBeGreaterThanOrEqual(30);
+    expect(match.strength).toBe("very-strong");
+    expect(match.reasons[0]).toMatch(/same rising tide ~1\.2 ft/i);
     expect(baitPlanHeadline(windowOf({ weatherCondition: "clear", timeOfDay: "afternoon" }), shrimp)).toMatch(
       /shrimp at Haulover Canal/i,
     );
@@ -235,11 +274,14 @@ describe("bait plan matches", () => {
             weatherCondition: "clear",
             timeOfDay: "afternoon",
             tide: "incoming",
+            tideHeightFt: 1.3,
+            at: "2026-09-03T14:05:00.000Z",
           }),
         ],
       },
     });
     expect(suggestions[0]?.placeName).toBe("Haulover Canal");
     expect(suggestions[0]?.baitTypes).toEqual(["Shrimp"]);
+    expect(suggestions[0]?.strength).toBe("very-strong");
   });
 });

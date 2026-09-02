@@ -153,10 +153,13 @@ export type CatchFilters = {
   habitats?: Habitat[];
 };
 
+export type MatchStrength = "very-strong" | "strong" | "good" | "lean";
+
 export type SimilarMatch = {
   catch: CatchRecord;
   score: number;
   reasons: string[];
+  strength: MatchStrength;
 };
 
 export type SpotGroup = {
@@ -243,6 +246,7 @@ export type PlanMatch = {
   catch: CatchRecord;
   score: number;
   reasons: string[];
+  strength: MatchStrength;
 };
 
 export type PlanSuggestion = {
@@ -253,7 +257,7 @@ export type PlanSuggestion = {
   longitude: number | null;
   window: ForecastWindow;
   score: number;
-  strength: "strong" | "good" | "lean";
+  strength: MatchStrength;
   headline: string;
   reasons: string[];
   matches: PlanMatch[];
@@ -386,6 +390,7 @@ export type BaitPlanMatch = {
   baitSpot: BaitSpot;
   score: number;
   reasons: string[];
+  strength: MatchStrength;
 };
 
 export type BaitPlanSuggestion = {
@@ -397,7 +402,7 @@ export type BaitPlanSuggestion = {
   longitude: number | null;
   window: ForecastWindow;
   score: number;
-  strength: "strong" | "good" | "lean";
+  strength: MatchStrength;
   headline: string;
   reasons: string[];
   matches: BaitPlanMatch[];

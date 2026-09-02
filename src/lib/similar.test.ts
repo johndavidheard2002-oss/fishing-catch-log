@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { findSimilar, scoreSimilarity } from "./similar";
+import {
+  findSimilar,
+  scoreConditionOverlap,
+  scoreSimilarity,
+  suggestionStrength,
+  VERY_STRONG_MATCH_CHIP,
+  VERY_STRONG_MATCH_LABEL,
+} from "./similar";
 import { catchOf } from "./testing";
+import { formatTimeOnly } from "./time";
 
 describe("scoreSimilarity", () => {
   it("scores same species, spot, time of day, and weather highly", () => {
@@ -113,5 +121,107 @@ describe("findSimilar", () => {
     });
     const results = findSimilar(target, [target, similar, far], { minScore: 18 });
     expect(results.map((r) => r.catch.id)).toEqual(["similar"]);
+  });
+});
+
+describe("tide and time ranking", () => {
+  it("locks the very-strong copy", () => {
+    expect(VERY_STRONG_MATCH_LABEL).toBe("Very strong matches with matching tides");
+    expect(VERY_STRONG_MATCH_CHIP).toBe("Very strong · matching tides");
+  });
+
+  it("weights exact tide stage, height, and clock above weather-only overlap", () => {
+    const logged = "2026-07-01T10:42:00.000Z";
+    const tideMatch = scoreConditionOverlap(
+      {
+        timeOfDay: "morning",
+        clockAt: "2026-08-02T10:40:00.000Z",
+        tide: "incoming",
+        tideHeightFt: 2.1,
+        weatherCondition: "rain",
+        temperatureF: 68,
+      },
+      {
+        timeOfDay: "morning",
+        clockAt: logged,
+        tide: "rising",
+        tideHeightFt: 2.0,
+        weatherCondition: "clear",
+        temperatureF: 88,
+      },
+    );
+    const weatherOnly = scoreConditionOverlap(
+      {
+        timeOfDay: "afternoon",
+        clockAt: "2026-08-02T19:00:00.000Z",
+        tide: "outgoing",
+        tideHeightFt: 0.4,
+        weatherCondition: "clear",
+        temperatureF: 82,
+      },
+      {
+        timeOfDay: "night",
+        clockAt: "2026-07-01T02:00:00.000Z",
+        tide: "incoming",
+        tideHeightFt: 2.2,
+        weatherCondition: "clear",
+        temperatureF: 80,
+      },
+    );
+    expect(tideMatch.score).toBeGreaterThan(weatherOnly.score);
+    expect(suggestionStrength(tideMatch.score, tideMatch)).toBe("very-strong");
+    expect(suggestionStrength(weatherOnly.score, weatherOnly)).not.toBe("very-strong");
+    expect(tideMatch.reasons[0]).toMatch(/same rising tide ~2\.0 ft/i);
+    expect(tideMatch.reasons[0]).toContain(`~${formatTimeOnly(logged)}`);
+  });
+
+  it("does not call weather-only overlap very-strong", () => {
+    const overlap = scoreConditionOverlap(
+      {
+        timeOfDay: "afternoon",
+        weatherCondition: "clear",
+        temperatureF: 80,
+        windSpeedMph: 6,
+      },
+      {
+        timeOfDay: "afternoon",
+        weatherCondition: "clear",
+        temperatureF: 80,
+        windSpeedMph: 6,
+      },
+    );
+    expect(overlap.tideStage).toBe("unknown");
+    expect(suggestionStrength(overlap.score, overlap)).not.toBe("very-strong");
+  });
+
+  it("does not call a match very-strong when tide heights disagree", () => {
+    const clock = "2026-08-02T10:40:00.000Z";
+    const overlap = scoreConditionOverlap(
+      { timeOfDay: "morning", clockAt: clock, tide: "incoming", tideHeightFt: 2.1 },
+      { timeOfDay: "morning", clockAt: clock, tide: "incoming", tideHeightFt: 3.6 },
+    );
+    expect(overlap.tideStage).toBe("exact");
+    expect(overlap.tideHeight).toBe("none");
+    expect(suggestionStrength(overlap.score, overlap)).not.toBe("very-strong");
+  });
+
+  it("labels similar catches very-strong when tide and time agree", () => {
+    const a = catchOf({
+      id: "a",
+      tide: "incoming",
+      tideHeightFt: 2.1,
+      timeOfDay: "dawn",
+      caughtAt: "2025-07-12T10:40:00.000Z",
+    });
+    const b = catchOf({
+      id: "b",
+      tide: "incoming",
+      tideHeightFt: 2.2,
+      timeOfDay: "dawn",
+      caughtAt: "2025-08-02T10:38:00.000Z",
+    });
+    const match = scoreSimilarity(a, b);
+    expect(match.strength).toBe("very-strong");
+    expect(match.reasons.some((r) => /same rising tide ~2\.2 ft/i.test(r))).toBe(true);
   });
 });

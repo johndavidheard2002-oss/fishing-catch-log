@@ -2,7 +2,7 @@ import { groupBaitSpots, baitTypesLabel } from "./bait";
 import { groupSpots, spotKey } from "./filters";
 import { speciesLabel } from "./species";
 import { formatDateOnly } from "./time";
-import { conditionLabel, scoreConditionOverlap } from "./similar";
+import { conditionLabel, scoreConditionOverlap, suggestionStrength } from "./similar";
 import { getTideSeries, hasWorldTidesKey } from "./tides";
 import type {
   BaitPlanSuggestion,
@@ -30,11 +30,7 @@ export function isPositiveCatch(record: CatchRecord): boolean {
   });
 }
 
-export function suggestionStrength(score: number): PlanSuggestion["strength"] {
-  if (score >= 48) return "strong";
-  if (score >= 34) return "good";
-  return "lean";
-}
+export { suggestionStrength };
 
 export function planHeadline(window: ForecastWindow, match: CatchRecord): string {
   const bits: string[] = [];
@@ -50,8 +46,16 @@ export function scoreWindowAgainstCatch(
   window: ForecastWindow,
   record: CatchRecord,
 ): PlanMatch {
-  const overlap = scoreConditionOverlap(window, record);
-  return { catch: record, score: overlap.score, reasons: overlap.reasons };
+  const overlap = scoreConditionOverlap(
+    { ...window, clockAt: window.at },
+    { ...record, clockAt: record.caughtAt },
+  );
+  return {
+    catch: record,
+    score: overlap.score,
+    reasons: overlap.reasons,
+    strength: suggestionStrength(overlap.score, overlap),
+  };
 }
 
 export function suggestFromWindows(args: {
@@ -86,7 +90,7 @@ export function suggestFromWindows(args: {
         longitude: spot.longitude,
         window,
         score: best.score,
-        strength: suggestionStrength(best.score),
+        strength: best.strength,
         headline: planHeadline(window, best.catch),
         reasons: best.reasons,
         matches,
@@ -132,9 +136,17 @@ export function baitPlanHeadline(window: ForecastWindow, match: BaitSpot): strin
 export function scoreWindowAgainstBait(
   window: ForecastWindow,
   record: BaitSpot,
-): { baitSpot: BaitSpot; score: number; reasons: string[] } {
-  const overlap = scoreConditionOverlap(window, record);
-  return { baitSpot: record, score: overlap.score, reasons: overlap.reasons };
+): { baitSpot: BaitSpot; score: number; reasons: string[]; strength: PlanSuggestion["strength"] } {
+  const overlap = scoreConditionOverlap(
+    { ...window, clockAt: window.at },
+    { ...record, clockAt: record.loggedAt },
+  );
+  return {
+    baitSpot: record,
+    score: overlap.score,
+    reasons: overlap.reasons,
+    strength: suggestionStrength(overlap.score, overlap),
+  };
 }
 
 export function suggestBaitFromWindows(args: {
@@ -170,7 +182,7 @@ export function suggestBaitFromWindows(args: {
         longitude: spot.longitude,
         window,
         score: best.score,
-        strength: suggestionStrength(best.score),
+        strength: best.strength,
         headline: baitPlanHeadline(window, best.baitSpot),
         reasons: best.reasons,
         matches,
