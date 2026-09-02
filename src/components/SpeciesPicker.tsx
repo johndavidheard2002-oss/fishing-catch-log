@@ -20,11 +20,13 @@ export function SpeciesPicker({
   habitat,
   onChange,
   onHabitat,
+  hideHints = false,
 }: {
   speciesList: string[];
   habitat: Habitat;
   onChange: (speciesList: string[], habitat: Habitat) => void;
   onHabitat: (habitat: Habitat) => void;
+  hideHints?: boolean;
 }) {
   const selected = normalizeSpeciesList(null, speciesList);
   const [query, setQuery] = useState("");
@@ -78,18 +80,20 @@ export function SpeciesPicker({
             </button>
           ))}
         </div>
-        {habitat === "freshwater" ? (
+        {hideHints || habitat !== "freshwater" ? null : (
           <p className="on-wash-chip mt-1.5 text-xs">
             This older trip is not inshore or offshore yet. Pick one to recategorize, or leave it.
           </p>
-        ) : null}
+        )}
       </div>
 
       <div>
         <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">Species in this photo</p>
-        <p className="on-wash-chip mb-2 text-xs">
-          Tag every fish you can see. Tap chips to add or remove — more than one is fine.
-        </p>
+        {hideHints ? null : (
+          <p className="on-wash-chip mb-2 text-xs">
+            Tag every fish you can see. Tap chips to add or remove — more than one is fine.
+          </p>
+        )}
         {selected.length ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {selected.map((name) => (
@@ -103,7 +107,7 @@ export function SpeciesPicker({
               </button>
             ))}
           </div>
-        ) : (
+        ) : hideHints ? null : (
           <p className="on-wash-chip mb-2 text-xs text-copper">Add at least one species before you save.</p>
         )}
         <div className="flex gap-2">
@@ -131,10 +135,12 @@ export function SpeciesPicker({
 
       <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-2xl border border-line bg-paper p-2">
         {filtered.length === 0 ? (
-          <p className="px-1 py-2 text-xs text-ink-muted">
-            No catalog match — type the name and tap Add. Habitat stays{" "}
-            {HABITAT_LABELS[listHabitat].toLowerCase()}.
-          </p>
+          hideHints ? null : (
+            <p className="px-1 py-2 text-xs text-ink-muted">
+              No catalog match — type the name and tap Add. Habitat stays{" "}
+              {HABITAT_LABELS[listHabitat].toLowerCase()}.
+            </p>
+          )
         ) : (
           filtered.map((name) => {
             const on = selected.some((s) => s.toLowerCase() === name.toLowerCase());
@@ -153,10 +159,12 @@ export function SpeciesPicker({
           })
         )}
       </div>
-      <p className="on-wash-chip text-xs">
-        Inshore or offshore first so the list stays short. One picture can hold more than one
-        species.
-      </p>
+      {hideHints ? null : (
+        <p className="on-wash-chip text-xs">
+          Inshore or offshore first so the list stays short. One picture can hold more than one
+          species.
+        </p>
+      )}
     </div>
   );
 }

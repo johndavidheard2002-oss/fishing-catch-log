@@ -29,10 +29,12 @@ export function MapPicker({
   latitude,
   longitude,
   onChange,
+  hideHints = false,
 }: {
   latitude: number | null;
   longitude: number | null;
   onChange: (lat: number, lng: number) => void;
+  hideHints?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -156,11 +158,13 @@ export function MapPicker({
         <div ref={ref} className="h-64 w-full overflow-hidden rounded-2xl border border-line" />
         <BasemapToggle value={basemap} onChange={setBasemap} />
       </div>
-      <p className="on-wash-chip text-xs">
-        {hasPin
-          ? "Satellite by default — drag the pin or tap a new spot. It stays editable."
-          : "No pin yet — tap the satellite map to drop one."}
-      </p>
+      {hideHints ? null : (
+        <p className="on-wash-chip text-xs">
+          {hasPin
+            ? "Satellite by default — drag the pin or tap a new spot. It stays editable."
+            : "No pin yet — tap the satellite map to drop one."}
+        </p>
+      )}
     </div>
   );
 }

@@ -20,6 +20,12 @@ export function PhotoCapture({
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
+  const hint =
+    emptyHint === undefined
+      ? emphasis === "library"
+        ? "Upload an old catch photo. We’ll pin from GPS when the picture has it — you can still move it."
+        : "Camera first. We’ll try weather and a map pin from the photo’s GPS."
+      : emptyHint;
 
   return (
     <div className="journal-card overflow-hidden rounded-3xl">
@@ -41,12 +47,7 @@ export function PhotoCapture({
                 {emptyTitle ??
                   (emphasis === "library" ? "Add a photo from your roll" : "Take a photo")}
               </p>
-              <p className="text-sm text-ink-muted">
-                {emptyHint ??
-                  (emphasis === "library"
-                    ? "Upload an old catch photo. We’ll pin from GPS when the picture has it — you can still move it."
-                    : "Camera first. We’ll try weather and a map pin from the photo’s GPS.")}
-              </p>
+              {hint ? <p className="text-sm text-ink-muted">{hint}</p> : null}
             </div>
           )}
         </button>

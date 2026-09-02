@@ -7,7 +7,7 @@ import { SampleJournalControls } from "@/components/SampleJournalControls";
 export function HomeClient() {
   return (
     <div className="space-y-6">
-      <section className="page-intro mx-auto w-fit text-center">
+      <section className="page-intro home-lockup mx-auto w-fit text-center">
         <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-teal">
           Catch Compass
         </h1>
@@ -31,7 +31,7 @@ export function HomeClient() {
       </div>
       <Link
         href="/plan"
-        className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold text-teal"
+        className="home-plan-cta flex items-center justify-center rounded-2xl px-4 py-3 text-lg font-semibold"
       >
         Plan a day
       </Link>

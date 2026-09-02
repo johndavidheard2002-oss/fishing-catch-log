@@ -564,9 +564,11 @@ export function CatchForm({
         onFile={handleFile}
         busy={busy}
         emphasis={pastMode ? "library" : "camera"}
+        emptyTitle={pastMode ? "Photo" : undefined}
+        emptyHint={pastMode ? "" : undefined}
       />
 
-      {assistNote ? (
+      {assistNote && !pastMode ? (
         <p className="rounded-2xl border border-line bg-card px-3 py-2 text-sm text-ink-muted">
           {assistNote}
         </p>
@@ -614,9 +616,6 @@ export function CatchForm({
                 />
               </label>
             </div>
-            <p className="on-wash-chip mt-1 text-xs">
-              Any past date. The photo&apos;s EXIF time is used when it&apos;s there.
-            </p>
           </div>
         </>
       ) : null}
@@ -624,6 +623,7 @@ export function CatchForm({
       <CatchLocationFields
         form={form}
         pinSource={pinSource}
+        hideHints={pastMode}
         onPlace={(placeName) => patch({ placeName })}
         onSelectArea={(area) => {
           patch({ placeName: area.name });
@@ -694,6 +694,7 @@ export function CatchForm({
       <SpeciesPicker
         speciesList={form.speciesList}
         habitat={form.habitat}
+        hideHints={pastMode}
         onHabitat={(habitat) => {
           if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
           patch(habitatPatch(habitat));
@@ -755,8 +756,8 @@ export function CatchForm({
               totalFishCount(
                 countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount),
               ),
-            )}{" "}
-            this catch. Empty boxes become 1.
+            )}
+            {pastMode ? null : " this catch. Empty boxes become 1."}
           </p>
         </div>
       ) : (
@@ -776,9 +777,11 @@ export function CatchForm({
             }
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
-          <span className="on-wash-chip mt-1 inline-block text-xs">
-            Tag a second species to count each kind.
-          </span>
+          {pastMode ? null : (
+            <span className="on-wash-chip mt-1 inline-block text-xs">
+              Tag a second species to count each kind.
+            </span>
+          )}
         </label>
       )}
 
@@ -787,14 +790,16 @@ export function CatchForm({
           <span>
             <span className="block text-sm font-semibold">Weather & time</span>
             <span className="mt-0.5 block text-xs font-normal text-ink-muted">
-              {weatherSummary(form)}
+              {weatherSummary(form, pastMode)}
             </span>
           </span>
         </summary>
         <div className="space-y-3 px-3 pb-3">
+            {pastMode ? null : (
             <p className="text-xs text-ink-muted">
               Fills in from the pin and clock. Open this only to correct it.
             </p>
+            )}
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="mb-1 block text-sm font-semibold">Temp °F</span>
@@ -965,11 +970,15 @@ export function CatchForm({
                 className="w-full rounded-xl border border-line bg-card px-3 py-3"
               />
             </label>
+            {form.tideDetail ? (
+              <p className="col-span-2 text-xs text-ink-muted">{form.tideDetail}</p>
+            ) : pastMode ? null : (
             <p className="col-span-2 text-xs text-ink-muted">
-              {form.tideDetail || "High/low fills in from the pin and clock."}
+              High/low fills in from the pin and clock.
             </p>
+            )}
           </>
-        ) : (
+        ) : pastMode ? null : (
           <p className="col-span-2 text-xs text-ink-muted">
             Tide does not apply to this older freshwater trip.
           </p>
@@ -1158,7 +1167,7 @@ function habitatPatch(habitat: Habitat): Partial<FormState> {
   return { habitat, tide: "", tideHeightFt: "", tideDetail: "" };
 }
 
-function weatherSummary(form: FormState): string {
+function weatherSummary(form: FormState, quiet = false): string {
   const parts: string[] = [];
   if (form.caughtAt.trim()) {
     parts.push(formatTimeOnly(isoFromDatetimeLocal(form.caughtAt)));
@@ -1183,7 +1192,7 @@ function weatherSummary(form: FormState): string {
   }
   if (form.moonPhase) parts.push(form.moonPhase);
   if (form.pressureInHg.trim()) parts.push(`${form.pressureInHg} inHg`);
-  return parts.length ? parts.join(" · ") : "Fills in from the pin and clock";
+  return parts.length ? parts.join(" · ") : quiet ? "" : "Fills in from the pin and clock";
 }
 
 function joinDateTime(date: string, time: string): string {
@@ -1215,6 +1224,7 @@ function getPosition(): Promise<GeolocationPosition | null> {
 function CatchLocationFields({
   form,
   pinSource,
+  hideHints = false,
   onPlace,
   onSelectArea,
   onCoords,
@@ -1223,6 +1233,7 @@ function CatchLocationFields({
 }: {
   form: FormState;
   pinSource: "photo" | "device" | "manual" | null;
+  hideHints?: boolean;
   onPlace: (placeName: string) => void;
   onSelectArea: (area: NamedArea) => void;
   onCoords: (lat: string, lng: string) => void;
@@ -1240,12 +1251,24 @@ function CatchLocationFields({
     <section id="catch-location" className="space-y-3">
       <div>
         <p className="on-wash-chip w-fit text-sm font-semibold">Catch location</p>
-        <p className="on-wash-chip text-xs">
-          Pick or name the area, then drop one pin for this catch. Drag if the photo GPS is the
-          truck, not the water.
-        </p>
+        {hideHints ? null : (
+          <p className="on-wash-chip text-xs">
+            Pick or name the area, then drop one pin for this catch. Drag if the photo GPS is the
+            truck, not the water.
+          </p>
+        )}
       </div>
-      {pinSource === "photo" && catchLat != null ? (
+      {hideHints ? (
+        hasPhotoGps && photoDiffers ? (
+          <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={onUsePhotoGps}>
+            Reset to photo GPS
+          </button>
+        ) : hasPhotoGps && catchLat == null ? (
+          <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={onUsePhotoGps}>
+            Use photo GPS
+          </button>
+        ) : null
+      ) : pinSource === "photo" && catchLat != null ? (
         <div className="rounded-2xl border border-teal/40 bg-paper px-3 py-2 text-xs">
           <p>
             <span className="font-semibold text-teal">From this photo.</span> Drag if you caught it
@@ -1273,7 +1296,7 @@ function CatchLocationFields({
           Tap the map to drop a pin.
         </div>
       ) : null}
-      {hasPhotoGps ? (
+      {hideHints ? null : hasPhotoGps ? (
         <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
           <p>
             Photo GPS {formatCoords(photoLat, photoLon)}
@@ -1290,8 +1313,9 @@ function CatchLocationFields({
         value={form.placeName}
         onChange={onPlace}
         onPickArea={onSelectArea}
+        hideHints={hideHints}
       />
-      <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} />
+      <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} hideHints={hideHints} />
       <details className="app-more">
         <summary className="cursor-pointer text-sm font-semibold text-teal">Coordinates</summary>
         <div className="mt-3 grid grid-cols-2 gap-3">

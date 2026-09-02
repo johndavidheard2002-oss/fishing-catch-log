@@ -8,10 +8,12 @@ export function AreaNamePicker({
   value,
   onChange,
   onPickArea,
+  hideHints = false,
 }: {
   value: string;
   onChange: (placeName: string) => void;
   onPickArea: (area: NamedArea) => void;
+  hideHints?: boolean;
 }) {
   const [areas, setAreas] = useState<NamedArea[] | null>(null);
   const [showPast, setShowPast] = useState(false);
@@ -40,10 +42,12 @@ export function AreaNamePicker({
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
       </label>
-      <p className="on-wash-chip text-xs">
-        Type your own name. The map fills this in when it has a place for the pin — you can still
-        change it.
-      </p>
+      {hideHints ? null : (
+        <p className="on-wash-chip text-xs">
+          Type your own name. The map fills this in when it has a place for the pin — you can still
+          change it.
+        </p>
+      )}
       <details
         className="text-xs"
         onToggle={(e) => {

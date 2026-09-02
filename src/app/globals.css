@@ -174,7 +174,9 @@ select,
 .journal-card .text-teal,
 .page-intro .text-teal,
 .bg-card .text-teal,
-.on-wash-chip.text-teal {
+.on-wash-chip.text-teal,
+main .bg-card.text-teal,
+main a.bg-card.text-teal {
   color: var(--teal);
 }
 
@@ -184,9 +186,37 @@ a.bg-copper,
 a.bg-good,
 button.bg-teal,
 button.bg-copper,
-button.bg-good {
+button.bg-good,
+main a.bg-teal,
+main a.bg-copper,
+main a.bg-good {
   color: #fff;
   text-shadow: none;
+}
+
+/* Home title plaque: solid cream, teal edge — readable on the dark scale field. */
+.home-lockup {
+  background: #f7fcff;
+  border: 1px solid color-mix(in srgb, var(--teal) 32%, #fff);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.95) inset,
+    0 10px 28px rgb(8 18 22 / 0.42);
+}
+
+.home-lockup .text-teal {
+  color: var(--teal-deep);
+}
+
+/* Home “Plan a day”: opaque fill + dark teal type, not a washed cream ghost. */
+a.home-plan-cta,
+main a.home-plan-cta {
+  background: #f7fcff;
+  border: 2px solid var(--teal);
+  color: var(--teal);
+  text-shadow: none;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 8px 22px rgb(8 18 22 / 0.4);
 }
 
 .on-wash-chip {
