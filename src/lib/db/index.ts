@@ -263,3 +263,9 @@ export function getSqlite(): Database.Database {
   getDb();
   return globalThis.__castLogDb!.sqlite;
 }
+
+export function resetDbForTests() {
+  if (!globalThis.__castLogDb) return;
+  globalThis.__castLogDb.sqlite.close();
+  globalThis.__castLogDb = undefined;
+}
