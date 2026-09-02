@@ -145,8 +145,22 @@ export function HistoryCalendar({
                 : ""}
             . Earliest first, each with its own pin.
           </p>
-          {selectedSpots.length > 1 ? (
-            <p className="text-xs text-ink-muted">{selectedSpots.join(" · ")}</p>
+          {selectedSpotGroups.length > 1 ? (
+            <p className="text-xs text-ink-muted">
+              {selectedSpotGroups
+                .slice()
+                .sort((a, b) => {
+                  const aFirst =
+                    [...a.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]
+                      ?.caughtAt ?? "";
+                  const bFirst =
+                    [...b.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]
+                      ?.caughtAt ?? "";
+                  return aFirst.localeCompare(bFirst);
+                })
+                .map((spot) => `${spot.placeName} · ${fishCountLabel(spot.fishCount)}`)
+                .join(" · ")}
+            </p>
           ) : null}
           {mappedSpots.length > 1 ? (
             <SpotMap

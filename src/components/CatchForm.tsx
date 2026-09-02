@@ -643,7 +643,7 @@ export function CatchForm({
         <span className="mb-1 block text-sm font-semibold">How many fish</span>
         <input
           type="number"
-          min={1}
+          min={Math.max(1, form.speciesList.length || 1)}
           max={99}
           inputMode="numeric"
           value={form.fishCount}

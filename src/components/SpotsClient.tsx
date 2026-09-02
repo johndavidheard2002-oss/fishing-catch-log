@@ -103,6 +103,14 @@ export function SpotsClient() {
             <section className="space-y-2">
               <h2 className="font-display text-xl text-teal">{current.placeName}</h2>
               <p className="text-sm text-ink-muted">
+                {fishCountLabel(current.fishCount)} · {current.catchCount}{" "}
+                {current.catchCount === 1 ? "trip" : "trips"}
+                {current.speciesCounts?.length
+                  ? ` · ${current.speciesCounts.map((row) => `${row.species} ${row.count}`).join(" · ")}`
+                  : ""}
+                .
+              </p>
+              <p className="text-sm text-ink-muted">
                 Revisit when the pattern matches: {current.typicalSeason},{" "}
                 {current.typicalTime}
                 {current.typicalCondition

@@ -114,4 +114,27 @@ describe("groupSpots", () => {
     expect(spots).toHaveLength(1);
     expect(spots[0].catchCount).toBe(2);
   });
+
+  it("keeps same-day fish totals on separate spots", () => {
+    const dawn = catchOf({
+      id: "dawn",
+      placeName: "Pace Bend, Lake Travis, TX",
+      latitude: 30.458,
+      longitude: -98.012,
+      fishCount: 2,
+      caughtAt: "2025-07-12T12:15:00.000Z",
+    });
+    const afternoon = catchOf({
+      id: "afternoon",
+      placeName: "Lake Travis, TX",
+      latitude: 30.388,
+      longitude: -97.975,
+      fishCount: 5,
+      caughtAt: "2025-07-12T20:40:00.000Z",
+    });
+    const spots = groupSpots([dawn, afternoon]);
+    expect(spots).toHaveLength(2);
+    expect(spots.find((s) => s.placeName.includes("Pace Bend"))?.fishCount).toBe(2);
+    expect(spots.find((s) => s.placeName === "Lake Travis, TX")?.fishCount).toBe(5);
+  });
 });

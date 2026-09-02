@@ -162,6 +162,7 @@ export type SpotGroup = {
   catchCount: number;
   fishCount: number;
   species: string[];
+  speciesCounts: { species: string; count: number }[];
   lastCaughtAt: string;
   typicalCondition: WeatherCondition | null;
   typicalSeason: Season | null;

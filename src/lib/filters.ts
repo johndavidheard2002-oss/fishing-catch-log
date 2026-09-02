@@ -3,6 +3,7 @@ import { isMoonPhase } from "./moon";
 import { isPressureTrend } from "./pressure";
 import { haversineKm } from "./similar";
 import { speciesListMatchesQuery } from "./species";
+import { speciesFishCounts } from "./count";
 import type { CatchFilters, CatchRecord, Habitat, SpotGroup } from "./types";
 import { windMatchesCardinal } from "./wind";
 
@@ -182,6 +183,7 @@ export function groupSpots(records: CatchRecord[]): SpotGroup[] {
         species: [
           ...new Set(catches.flatMap((c) => (c.speciesList?.length ? c.speciesList : [c.species]))),
         ],
+        speciesCounts: speciesFishCounts(catches),
         lastCaughtAt: [...catches].sort((a, b) => b.caughtAt.localeCompare(a.caughtAt))[0]
           .caughtAt,
         typicalCondition: mostCommon(
