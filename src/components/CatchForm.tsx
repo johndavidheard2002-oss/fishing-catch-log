@@ -1191,7 +1191,7 @@ function CatchLocationFields({
             ? "Pin placed from the photo location. Drag it if you caught the fish somewhere else."
             : pinSource === "device"
               ? "Pin placed from this phone’s location. Drag it if that isn’t the water."
-              : "Pin the water you caught it. Photo GPS is often the cooler, dock, or truck — that is not the catch spot."}
+              : "Pin the water you caught it. This pin is for this catch only — other fish from the same day keep their own spots. Photo GPS is often the cooler, dock, or truck — that is not the catch spot."}
         </p>
       </div>
       {hasPhotoGps ? (

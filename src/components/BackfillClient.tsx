@@ -21,7 +21,7 @@ export function BackfillClient() {
         <p className="text-sm text-ink-muted">
           {importedPhotoPath
             ? "Photo and time came from your library. Pin the water, tag every species, and confirm weather."
-            : "Past photo, date and time, then pin the water. Species and weather stay editable."}
+            : "Past photo, date and time, then pin the water. Each catch gets its own pin — another fish from the same day can be a different lake. Species and weather stay editable."}
         </p>
       </div>
       <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1">

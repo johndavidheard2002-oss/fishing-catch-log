@@ -56,6 +56,27 @@ describe("groupCatchesByDate", () => {
       "Lake Travis, TX",
     ]);
   });
+
+  it("counts two same-day pins even when reverse-geocode names match", () => {
+    const dawn = catchOf({
+      id: "dawn",
+      placeName: "Lake Travis, TX",
+      latitude: 30.458,
+      longitude: -98.012,
+      caughtAt: new Date(2025, 6, 12, 7, 15).toISOString(),
+    });
+    const afternoon = catchOf({
+      id: "afternoon",
+      placeName: "Lake Travis, TX",
+      latitude: 30.388,
+      longitude: -97.975,
+      caughtAt: new Date(2025, 6, 12, 15, 40).toISOString(),
+    });
+    const labels = uniqueSpotLabels([dawn, afternoon]);
+    expect(labels).toHaveLength(2);
+    expect(labels[0]).toContain("30.458");
+    expect(labels[1]).toContain("30.388");
+  });
 });
 
 describe("monthGrid", () => {

@@ -24,7 +24,8 @@ export function LogClient() {
       <div>
         <h1 className="font-display text-3xl text-teal">Log a catch</h1>
         <p className="text-sm text-ink-muted">
-          Photo first. Species, weather, and place fill in when they can — everything stays editable.
+          Photo first. Species, weather, and place fill in when they can — everything stays
+          editable. A second fish today can be a different lake; this pin is only for this catch.
         </p>
       </div>
       <CatchForm mode="create" />

@@ -1,7 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { CatchCard } from "@/components/CatchCard";
 import {
+  catchSpotLabel,
   groupCatchesByDate,
   monthGrid,
   monthLabel,
@@ -10,12 +12,22 @@ import {
   WEEKDAY_LABELS,
   uniqueSpotLabels,
 } from "@/lib/calendar";
+import { groupSpots } from "@/lib/filters";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { CatchRecord } from "@/lib/types";
 import Link from "next/link";
+
+const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-44 items-center justify-center rounded-2xl border border-line bg-card text-sm text-ink-muted">
+      Loading map…
+    </div>
+  ),
+});
 
 export function HistoryCalendar({
   catches,
@@ -39,6 +51,8 @@ export function HistoryCalendar({
   const today = todayKey();
   const selected = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
   const selectedSpots = uniqueSpotLabels(selected);
+  const selectedSpotGroups = groupSpots(selected);
+  const mappedSpots = selectedSpotGroups.filter((s) => s.latitude != null && s.longitude != null);
   const monthCount = cells
     .filter((c) => c.inMonth)
     .reduce((n, c) => n + (byDate.get(c.date)?.length ?? 0), 0);
@@ -131,6 +145,17 @@ export function HistoryCalendar({
                 : ""}
             . Earliest first, each with its own pin.
           </p>
+          {selectedSpots.length > 1 ? (
+            <p className="text-xs text-ink-muted">{selectedSpots.join(" · ")}</p>
+          ) : null}
+          {mappedSpots.length > 1 ? (
+            <SpotMap
+              spots={selectedSpotGroups}
+              selectedKey={null}
+              onSelect={() => {}}
+              className="h-44 w-full overflow-hidden rounded-2xl border border-line"
+            />
+          ) : null}
           {selected.length === 0 ? (
             <p className="text-sm text-ink-muted">No matching catches on this day.</p>
           ) : (
@@ -182,8 +207,8 @@ function DayThumbs({
             <Link
               key={record.id}
               href={`/catch/${record.id}`}
-              title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}`}
-              aria-label={`${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} at ${formatTimeOnly(record.caughtAt)}`}
+              title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} · ${catchSpotLabel(record)}`}
+              aria-label={`${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} at ${formatTimeOnly(record.caughtAt)}, ${catchSpotLabel(record)}`}
               className={`relative ${size} overflow-hidden rounded-md border ${
                 selected ? "border-white/70" : "border-white"
               } bg-paper`}

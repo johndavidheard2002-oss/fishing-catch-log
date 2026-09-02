@@ -59,7 +59,8 @@ export function SpotsClient() {
       <div>
         <h1 className="font-display text-3xl text-teal">Spots</h1>
         <p className="text-sm text-ink-muted">
-          Grouped so you can go back under similar conditions.
+          Grouped so you can go back under similar conditions. Same-day catches at different water
+          stay as separate pins — moving one does not move the others.
         </p>
       </div>
 

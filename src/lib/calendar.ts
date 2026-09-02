@@ -1,3 +1,4 @@
+import { spotKey } from "./filters";
 import type { CatchRecord } from "./types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -95,8 +96,30 @@ export function catchSpotLabel(record: CatchRecord): string {
   return "Unnamed spot";
 }
 
+/** Distinct catch pins in first-seen order — same place name, different coords stay separate. */
 export function uniqueSpotLabels(records: CatchRecord[]): string[] {
-  return [...new Set(records.map(catchSpotLabel))];
+  const seen = new Map<string, CatchRecord>();
+  for (const record of records) {
+    const key = spotKey(record);
+    if (!seen.has(key)) seen.set(key, record);
+  }
+  const first = [...seen.values()];
+  const nameCount = new Map<string, number>();
+  for (const record of first) {
+    const name = catchSpotLabel(record);
+    nameCount.set(name, (nameCount.get(name) ?? 0) + 1);
+  }
+  return first.map((record) => {
+    const name = catchSpotLabel(record);
+    if (
+      (nameCount.get(name) ?? 0) > 1 &&
+      record.latitude != null &&
+      record.longitude != null
+    ) {
+      return `${name} · ${record.latitude.toFixed(3)}, ${record.longitude.toFixed(3)}`;
+    }
+    return name;
+  });
 }
 
 export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;

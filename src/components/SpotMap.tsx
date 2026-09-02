@@ -8,10 +8,12 @@ export function SpotMap({
   spots,
   selectedKey,
   onSelect,
+  className = "h-64 w-full overflow-hidden rounded-2xl border border-line",
 }: {
   spots: SpotGroup[];
   selectedKey: string | null;
   onSelect: (key: string) => void;
+  className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -61,5 +63,5 @@ export function SpotMap({
     };
   }, [spots, selectedKey, onSelect]);
 
-  return <div ref={ref} className="h-64 w-full overflow-hidden rounded-2xl border border-line" />;
+  return <div ref={ref} className={className} />;
 }

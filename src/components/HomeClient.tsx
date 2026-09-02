@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BuddyPanel } from "@/components/BuddyPanel";
+import { spotKey } from "@/lib/filters";
 import type { CatchRecord } from "@/lib/types";
 
 export function HomeClient() {
@@ -23,7 +24,7 @@ export function HomeClient() {
   const species = new Set(
     catches.flatMap((c) => (c.speciesList?.length ? c.speciesList : [c.species])),
   ).size;
-  const spots = new Set(catches.map((c) => c.placeName || "unknown")).size;
+  const spots = new Set(catches.map(spotKey)).size;
 
   return (
     <div className="space-y-6">
