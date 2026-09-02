@@ -1,3 +1,4 @@
+import { countsForCatch } from "./count";
 import { inferHabitat } from "./habitat";
 import type { CatchRecord } from "./types";
 
@@ -6,7 +7,7 @@ export function catchOf(
 ): CatchRecord {
   const species = partial.species ?? "Largemouth Bass";
   const speciesList = partial.speciesList ?? [species];
-  return {
+  const record: CatchRecord = {
     photoPath: null,
     species,
     speciesList,
@@ -40,6 +41,7 @@ export function catchOf(
     waterClarity: null,
     habitat: inferHabitat(species),
     fishCount: 1,
+    speciesCounts: [],
     anglerId: "you",
     sharedWithLinked: false,
     ownerName: "You",
@@ -47,4 +49,8 @@ export function catchOf(
     updatedAt: "2025-07-12T20:00:00.000Z",
     ...partial,
   };
+  if (!partial.speciesCounts) {
+    record.speciesCounts = countsForCatch({ ...record, speciesCounts: [] });
+  }
+  return record;
 }

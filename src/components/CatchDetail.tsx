@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
 import { SimilarList } from "@/components/SimilarList";
 import { habitatLabel } from "@/lib/habitat";
-import { fishCountLabel } from "@/lib/count";
+import { catchFishLabel, catchSpeciesTitle } from "@/lib/count";
 import { speciesLabel } from "@/lib/species";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
@@ -88,10 +88,10 @@ export function CatchDetail({ id }: { id: string }) {
         </div>
         <div className="space-y-2 p-4">
           <h1 className="font-display text-3xl text-teal">
-            {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
+            {catchSpeciesTitle(record)}
           </h1>
           <p className="text-ink-muted">
-            {fishCountLabel(record.fishCount)} · {record.placeName || "Unnamed spot"}
+            {catchFishLabel(record)} · {record.placeName || "Unnamed spot"}
           </p>
           <p className="text-sm">{formatCaughtAt(record.caughtAt)}</p>
           <p className="text-sm">
@@ -109,7 +109,7 @@ export function CatchDetail({ id }: { id: string }) {
       </div>
 
       <dl className="journal-card grid grid-cols-2 gap-3 rounded-2xl p-4 text-sm">
-        <Item label="Fish" value={fishCountLabel(record.fishCount)} />
+        <Item label="Fish" value={catchFishLabel(record)} />
         <Item label="Temp" value={record.temperatureF != null ? `${record.temperatureF}°F` : "—"} />
         <Item
           label="Sky"

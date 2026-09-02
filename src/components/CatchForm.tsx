@@ -15,7 +15,16 @@ import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { catchPinFromPhotoGps, classifyCatchPinEdit, coordsLookDifferent, formatCoords, shouldApplyPhotoGpsToCatch } from "@/lib/location";
 import { primarySpecies } from "@/lib/species";
-import { clampFishCount, draftFishCountForSpecies, sanitizeFishCountDraft } from "@/lib/count";
+import {
+  alignCountDrafts,
+  countsFromDrafts,
+  draftsFromCounts,
+  draftFishCountForSpecies,
+  countsForCatch,
+  fishCountLabel,
+  sanitizeFishCountDraft,
+  totalFishCount,
+} from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
@@ -54,6 +63,7 @@ type FormState = {
   waterClarity: string;
   habitat: Habitat;
   fishCount: string;
+  speciesCountDrafts: Record<string, string>;
   sharedWithLinked: boolean;
   speciesAlternatives: { species: string; confidence: number }[];
   speciesSuggestedList: string[];
@@ -97,6 +107,7 @@ const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => 
     waterClarity: "",
     habitat: DEFAULT_HABITAT,
     fishCount: "1",
+    speciesCountDrafts: {},
     sharedWithLinked: false,
     speciesAlternatives: [],
     speciesSuggestedList: [],
@@ -165,6 +176,7 @@ function fromRecord(record: CatchRecord): FormState {
     waterClarity: record.waterClarity ?? "",
     habitat: record.habitat,
     fishCount: String(record.fishCount ?? 1),
+    speciesCountDrafts: draftsFromCounts(countsForCatch(record)),
     sharedWithLinked: record.sharedWithLinked,
     speciesAlternatives: [],
     speciesSuggestedList: [],
@@ -516,7 +528,10 @@ export function CatchForm({
         tideDetail: form.tideDetail || null,
         waterClarity: form.waterClarity || null,
         habitat: form.habitat,
-        fishCount: clampFishCount(form.fishCount, form.speciesList.length || 1),
+        ...(() => {
+          const rows = countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount);
+          return { fishCount: totalFishCount(rows), speciesCounts: rows };
+        })(),
         sharedWithLinked: form.sharedWithLinked,
       };
 
@@ -615,35 +630,87 @@ export function CatchForm({
         }}
         onChange={(speciesList, habitat) => {
           if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
+          const speciesCountDrafts = alignCountDrafts(
+            speciesList,
+            form.speciesCountDrafts,
+            form.fishCount,
+          );
           patch({
             speciesList,
             ...habitatPatch(habitat),
-            fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length || 1),
+            speciesCountDrafts,
+            fishCount:
+              speciesList.length <= 1
+                ? draftFishCountForSpecies(form.fishCount)
+                : String(totalFishCount(countsFromDrafts(speciesList, speciesCountDrafts, form.fishCount))),
             speciesSource: "manual",
           });
         }}
       />
 
-      <label className="block">
-        <span className="mb-1 block text-sm font-semibold">How many fish</span>
-        <input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          autoComplete="off"
-          value={form.fishCount}
-          onChange={(e) => patch({ fishCount: sanitizeFishCountDraft(e.target.value) })}
-          onBlur={() =>
-            patch({
-              fishCount: draftFishCountForSpecies(form.fishCount, form.speciesList.length || 1),
-            })
-          }
-          className="w-full rounded-xl border border-line bg-card px-3 py-3"
-        />
-        <span className="mt-1 block text-xs text-ink-muted">
-          This catch, this spot. Two species in the photo starts at two unless you change it.
-        </span>
-      </label>
+      {form.speciesList.length > 1 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">How many of each</p>
+          {form.speciesList.map((name) => (
+            <label key={name} className="flex items-center gap-3">
+              <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                value={form.speciesCountDrafts[name] ?? ""}
+                onChange={(e) =>
+                  patch({
+                    speciesCountDrafts: {
+                      ...form.speciesCountDrafts,
+                      [name]: sanitizeFishCountDraft(e.target.value),
+                    },
+                  })
+                }
+                onBlur={() =>
+                  patch({
+                    speciesCountDrafts: {
+                      ...form.speciesCountDrafts,
+                      [name]: draftFishCountForSpecies(form.speciesCountDrafts[name] ?? ""),
+                    },
+                  })
+                }
+                className="w-20 rounded-xl border border-line bg-card px-3 py-2 text-center"
+              />
+            </label>
+          ))}
+          <p className="text-xs text-ink-muted">
+            {fishCountLabel(
+              totalFishCount(
+                countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount),
+              ),
+            )}{" "}
+            this catch. Clear a box while typing — it becomes 1 when you leave it.
+          </p>
+        </div>
+      ) : (
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">How many fish</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            value={form.fishCount}
+            onChange={(e) => patch({ fishCount: sanitizeFishCountDraft(e.target.value) })}
+            onBlur={() =>
+              patch({
+                fishCount: draftFishCountForSpecies(form.fishCount),
+              })
+            }
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          />
+          <span className="mt-1 block text-xs text-ink-muted">
+            This catch, this spot. Tag a second species to count each kind.
+          </span>
+        </label>
+      )}
 
       <CatchLocationFields
         form={form}

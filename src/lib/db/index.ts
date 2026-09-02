@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS catches (
   water_clarity TEXT,
   habitat TEXT NOT NULL DEFAULT 'freshwater',
   fish_count INTEGER NOT NULL DEFAULT 1,
+  species_counts TEXT,
   angler_id TEXT,
   shared_with_linked INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
@@ -125,6 +126,7 @@ function migrate(sqlite: Database.Database) {
     ["fish_count", "INTEGER NOT NULL DEFAULT 1"],
     ["tide_height_ft", "REAL"],
     ["tide_detail", "TEXT"],
+    ["species_counts", "TEXT"],
   ];
   const latestCols = tableColumns(sqlite, "catches");
   for (const [name, type] of extra) {

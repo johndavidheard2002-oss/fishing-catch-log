@@ -90,6 +90,7 @@ describe("migrate older journals", () => {
     expect(records[0].pressureInHg).toEqual(expect.any(Number));
     expect(records[0].speciesList).toEqual(["Redfish"]);
     expect(records[0].fishCount).toBe(1);
+    expect(records[0].speciesCounts).toEqual([{ species: "Redfish", count: 1 }]);
     expect(records[0].tideHeightFt).toBeNull();
     expect(records[0].tideDetail).toBeNull();
   });

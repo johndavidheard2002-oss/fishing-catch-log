@@ -2,8 +2,8 @@ import Link from "next/link";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel } from "@/lib/calendar";
-import { speciesLabel } from "@/lib/species";
 import { formatCatchWhen, formatTimeOnly } from "@/lib/time";
+import { catchSpeciesTitle } from "@/lib/count";
 import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
 import type { CatchRecord } from "@/lib/types";
 
@@ -43,8 +43,12 @@ export function CatchCard({
         </div>
         <div className="min-w-0 flex-1 px-3 py-2">
           <p className="truncate font-semibold text-ink">
-            {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
-            {compact || record.fishCount > 1 ? ` · ${record.fishCount}` : ""}
+            {catchSpeciesTitle(record)}
+            {record.speciesCounts?.length > 1
+              ? ""
+              : compact || record.fishCount > 1
+                ? ` · ${record.fishCount}`
+                : ""}
           </p>
           <p className="truncate text-sm text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-1 truncate text-xs text-ink-muted">
@@ -92,8 +96,10 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
         </div>
         <div className="px-2.5 py-2">
           <p className="truncate text-sm font-semibold">
-            {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
-            {record.fishCount > 1 ? ` · ${record.fishCount}` : ""}
+            {catchSpeciesTitle(record)}
+            {record.speciesCounts?.length > 1 || record.fishCount <= 1
+              ? ""
+              : ` · ${record.fishCount}`}
           </p>
           <p className="truncate text-xs text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-0.5 text-[10px] text-ink-muted">

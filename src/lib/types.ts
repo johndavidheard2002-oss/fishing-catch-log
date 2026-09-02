@@ -86,6 +86,7 @@ export type CatchRecord = {
   waterClarity: string | null;
   habitat: Habitat;
   fishCount: number;
+  speciesCounts: { species: string; count: number }[];
   anglerId: string;
   sharedWithLinked: boolean;
   ownerName: string;
@@ -127,6 +128,7 @@ export type CatchInput = {
   waterClarity?: string | null;
   habitat?: Habitat | null;
   fishCount?: number | null;
+  speciesCounts?: { species: string; count: number }[] | null;
   anglerId?: string | null;
   sharedWithLinked?: boolean;
 };

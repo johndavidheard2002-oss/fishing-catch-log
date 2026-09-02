@@ -138,7 +138,11 @@ const SEED: CatchInput[] = [
     photoPath: "/seed/redfish.svg",
     species: "Redfish",
     speciesList: ["Redfish", "Speckled Trout"],
-    fishCount: 2,
+    fishCount: 3,
+    speciesCounts: [
+      { species: "Redfish", count: 2 },
+      { species: "Speckled Trout", count: 1 },
+    ],
     speciesSuggested: "Redfish",
     speciesConfidence: 0.84,
     speciesSource: "demo",
@@ -410,6 +414,14 @@ export function loadSampleCatches(
         waterClarity: item.waterClarity ?? null,
         habitat: item.habitat ?? inferHabitat(item.species),
         fishCount: item.fishCount ?? (item.speciesList?.length || 1),
+        speciesCounts: item.speciesCounts?.length
+          ? JSON.stringify(item.speciesCounts)
+          : JSON.stringify(
+              (item.speciesList?.length ? item.speciesList : [item.species]).map((name, i, list) => ({
+                species: name,
+                count: list.length === 1 ? (item.fishCount ?? 1) : i === 0 ? Math.max(1, (item.fishCount ?? list.length) - (list.length - 1)) : 1,
+              })),
+            ),
         anglerId: ownerId,
         sharedWithLinked: 0,
         createdAt: stamp,

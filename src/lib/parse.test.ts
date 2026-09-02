@@ -20,3 +20,22 @@ describe("catchInputFromUnknown time of day", () => {
     expect(input.season).toBe("summer");
   });
 });
+
+describe("catchInputFromUnknown species counts", () => {
+  it("keeps a distinct count per tagged species", () => {
+    const input = catchInputFromUnknown({
+      species: "Redfish",
+      speciesList: ["Redfish", "Speckled Trout"],
+      caughtAt: "2025-07-12T11:10:00.000Z",
+      speciesCounts: [
+        { species: "Redfish", count: 2 },
+        { species: "Speckled Trout", count: 3 },
+      ],
+    });
+    expect(input.fishCount).toBe(5);
+    expect(input.speciesCounts).toEqual([
+      { species: "Redfish", count: 2 },
+      { species: "Speckled Trout", count: 3 },
+    ]);
+  });
+});

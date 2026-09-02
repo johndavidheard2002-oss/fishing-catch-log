@@ -1,7 +1,12 @@
 import { count, desc, eq } from "drizzle-orm";
 import { inferHabitat, isHabitat } from "../habitat";
 import { moonForDate } from "../moon";
-import { clampFishCount } from "../count";
+import {
+  clampFishCount,
+  countsForCatch,
+  parseSpeciesCountsJson,
+  resolveCatchCounts,
+} from "../count";
 import { normalizeSpeciesList, parseSpeciesListJson, primarySpecies } from "../species";
 import { seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "../time";
 import type {
@@ -71,7 +76,13 @@ function mapRow(
     tideDetail: row.tideDetail,
     waterClarity: row.waterClarity,
     habitat: asHabitat(row.habitat, species),
-    fishCount: clampFishCount(row.fishCount, speciesList.length || 1),
+    fishCount: clampFishCount(row.fishCount),
+    speciesCounts: countsForCatch({
+      species,
+      speciesList: speciesList.length ? speciesList : [species],
+      fishCount: row.fishCount,
+      speciesCounts: parseSpeciesCountsJson(row.speciesCounts) ?? [],
+    }),
     anglerId,
     sharedWithLinked: Boolean(row.sharedWithLinked),
     ownerName: ownerNameById.get(anglerId) ?? "Angler",
@@ -148,7 +159,13 @@ export function createCatch(input: CatchInput): CatchRecord {
   const speciesList = normalizeSpeciesList(input.species, input.speciesList);
   const species = primarySpecies(speciesList);
   const habitat = asHabitat(input.habitat, species);
-  const fishCount = clampFishCount(input.fishCount, speciesList.length || 1);
+  const resolved = resolveCatchCounts(
+    speciesList.length ? speciesList : [species],
+    input.speciesCounts,
+    input.fishCount,
+  );
+  const speciesCounts = resolved.speciesCounts;
+  const fishCount = resolved.fishCount;
   db.insert(catches)
     .values({
       id,
@@ -185,6 +202,7 @@ export function createCatch(input: CatchInput): CatchRecord {
       waterClarity: input.waterClarity ?? null,
       habitat,
       fishCount,
+      speciesCounts: JSON.stringify(speciesCounts),
       anglerId: input.anglerId ?? null,
       sharedWithLinked: input.sharedWithLinked ? 1 : 0,
       createdAt: stamp,
@@ -220,10 +238,13 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
   });
   const habitat =
     input.habitat === undefined ? existing.habitat : asHabitat(input.habitat, species);
-  const fishCount =
-    input.fishCount === undefined
-      ? clampFishCount(existing.fishCount, speciesList.length || 1)
-      : clampFishCount(input.fishCount, speciesList.length || 1);
+  const resolved = resolveCatchCounts(
+    speciesList.length ? speciesList : [species],
+    input.speciesCounts === undefined ? existing.speciesCounts : input.speciesCounts,
+    input.fishCount === undefined ? existing.fishCount : input.fishCount,
+  );
+  const speciesCounts = resolved.speciesCounts;
+  const fishCount = resolved.fishCount;
   db.update(catches)
     .set({
       photoPath: input.photoPath === undefined ? existing.photoPath : input.photoPath,
@@ -285,6 +306,7 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
         input.waterClarity === undefined ? existing.waterClarity : input.waterClarity,
       habitat,
       fishCount,
+      speciesCounts: JSON.stringify(speciesCounts),
       anglerId: input.anglerId === undefined ? existing.anglerId : input.anglerId,
       sharedWithLinked:
         input.sharedWithLinked === undefined

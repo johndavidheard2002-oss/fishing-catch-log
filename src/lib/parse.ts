@@ -12,7 +12,7 @@ import type {
   WeatherCondition,
 } from "./types";
 import { SEASONS, SPECIES_SOURCES, TIME_OF_DAY, WEATHER_CONDITIONS } from "./types";
-import { clampFishCount } from "./count";
+import { resolveCatchCounts, type SpeciesCount } from "./count";
 import { isWindDirection } from "./wind";
 
 function asString(value: unknown): string | null {
@@ -97,16 +97,37 @@ function asPressureTrend(value: unknown): string | null {
   return isPressureTrend(lower) ? lower : s;
 }
 
+function asSpeciesCounts(value: unknown): SpeciesCount[] | null {
+  if (!Array.isArray(value)) return null;
+  const rows = value
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const rec = row as { species?: unknown; count?: unknown };
+      const species = typeof rec.species === "string" ? rec.species.trim() : "";
+      const count = typeof rec.count === "number" ? rec.count : Number(rec.count);
+      if (!species || !Number.isFinite(count)) return null;
+      return { species, count };
+    })
+    .filter((row): row is SpeciesCount => row != null);
+  return rows.length ? rows : null;
+}
+
 export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput {
   const caughtRaw = asString(body.caughtAt) ?? new Date().toISOString();
   const caught = new Date(caughtRaw);
   const caughtAt = Number.isNaN(caught.getTime()) ? new Date() : caught;
   const species = asString(body.species) ?? "Unknown";
+  const speciesList = asStringArray(body.speciesList);
+  const resolved = resolveCatchCounts(
+    speciesList ?? [species],
+    asSpeciesCounts(body.speciesCounts),
+    asNumber(body.fishCount),
+  );
 
   return {
     photoPath: asString(body.photoPath),
     species,
-    speciesList: asStringArray(body.speciesList),
+    speciesList,
     speciesSuggested: asString(body.speciesSuggested),
     speciesConfidence: asNumber(body.speciesConfidence),
     speciesSource: asSource(body.speciesSource),
@@ -136,7 +157,8 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
     tideDetail: asString(body.tideDetail),
     waterClarity: asString(body.waterClarity),
     habitat: asHabitat(body.habitat, species),
-    fishCount: clampFishCount(asNumber(body.fishCount), (asStringArray(body.speciesList) ?? [species]).length),
+    fishCount: resolved.fishCount,
+    speciesCounts: resolved.speciesCounts,
     sharedWithLinked: body.sharedWithLinked === true || body.sharedWithLinked === 1,
   };
 }
