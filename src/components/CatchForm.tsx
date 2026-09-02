@@ -13,6 +13,7 @@ import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
+import { localDateKey } from "@/lib/calendar";
 import { datetimeLocalValue, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
@@ -55,9 +56,11 @@ type FormState = {
   speciesAlternatives: { species: string; confidence: number }[];
 };
 
-const emptyForm = (pastMode = false): FormState => {
-  const now = new Date();
+const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => {
+  const parsed = caughtAtIso ? new Date(caughtAtIso) : new Date();
+  const now = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
   const moon = moonForDate(now);
+  const hasStamp = Boolean(caughtAtIso && !Number.isNaN(parsed.getTime()));
   return {
     speciesList: [],
     speciesSuggested: "",
@@ -72,12 +75,12 @@ const emptyForm = (pastMode = false): FormState => {
     windDirection: "",
     precipitationIn: "",
     humidity: "",
-    moonPhase: pastMode ? "" : moon.phase,
-    moonIllumination: pastMode ? "" : String(moon.illumination),
+    moonPhase: pastMode && !hasStamp ? "" : moon.phase,
+    moonIllumination: pastMode && !hasStamp ? "" : String(moon.illumination),
     pressureInHg: "",
     pressureMb: "",
     pressureTrend: "",
-    caughtAt: pastMode ? "" : datetimeLocalValue(now.toISOString()),
+    caughtAt: pastMode && !hasStamp ? "" : datetimeLocalValue(now.toISOString()),
     timeOfDay: timeOfDayFromDate(now),
     season: seasonFromDate(now),
     notes: "",
@@ -131,18 +134,28 @@ export function CatchForm({
   mode,
   initial,
   pastMode = false,
+  importedPhotoPath = null,
+  importedCaughtAt = null,
+  afterSave = "detail",
 }: {
   mode: "create" | "edit";
   initial?: CatchRecord;
   pastMode?: boolean;
+  importedPhotoPath?: string | null;
+  importedCaughtAt?: string | null;
+  afterSave?: "detail" | "calendar";
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(
-    initial ? fromRecord(initial) : emptyForm(pastMode),
+    initial ? fromRecord(initial) : emptyForm(pastMode, importedCaughtAt),
   );
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    initial ? photoSrc(initial.photoPath) : null,
+    initial
+      ? photoSrc(initial.photoPath)
+      : importedPhotoPath
+        ? photoSrc(importedPhotoPath)
+        : null,
   );
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -376,7 +389,7 @@ export function CatchForm({
       return;
     }
     try {
-      let photoPath = initial?.photoPath ?? null;
+      let photoPath = initial?.photoPath ?? importedPhotoPath ?? null;
       if (photoFile) {
         const fd = new FormData();
         fd.set("photo", photoFile);
@@ -431,7 +444,11 @@ export function CatchForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
-      router.push(`/catch/${data.catch.id}`);
+      if (afterSave === "calendar") {
+        router.push(`/history?view=calendar&day=${localDateKey(data.catch.caughtAt)}`);
+      } else {
+        router.push(`/catch/${data.catch.id}`);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");

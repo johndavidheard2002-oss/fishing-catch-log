@@ -49,6 +49,12 @@ export function HomeClient() {
         Backfill a past catch
       </Link>
       <Link
+        href="/log/scan"
+        className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+      >
+        Find fish in Photos
+      </Link>
+      <Link
         href="/plan"
         className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold text-teal"
       >

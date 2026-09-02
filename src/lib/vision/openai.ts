@@ -142,6 +142,61 @@ ${catalogBlock(hinted)}
   };
 }
 
+export async function detectFishWithOpenAI(
+  image: Buffer,
+  mimeType: string,
+): Promise<{ isFish: boolean; confidence: number; note: string; source: "openai" }> {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) throw new Error("OPENAI_API_KEY is not set");
+
+  const model = process.env.OPENAI_VISION_MODEL?.trim() || "gpt-4o";
+  const dataUrl = `data:${mimeType};base64,${image.toString("base64")}`;
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            'You decide whether an angler photo contains a real fish (in hand, on a boat, on ice, or clearly in the frame). Return JSON {"isFish":boolean,"confidence":0-1}. Drawings, empty landscapes, people-only selfies, and food menus are isFish false. A cooked fish plate can be true if a fish is visible.',
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Is there a fish in this photo?" },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`OpenAI vision error ${res.status}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  let parsed: { isFish?: boolean; confidence?: number } = {};
+  try {
+    parsed = JSON.parse(data.choices?.[0]?.message?.content ?? "{}") as typeof parsed;
+  } catch {
+    parsed = {};
+  }
+  const isFish = Boolean(parsed.isFish);
+  return {
+    isFish,
+    confidence: clamp01(parsed.confidence ?? (isFish ? 0.6 : 0.5)),
+    source: "openai",
+    note: isFish
+      ? "Looks like a fish — confirm before it goes in the log."
+      : "Does not look like a fish catch photo.",
+  };
+}
+
 function clamp01(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(1, n));

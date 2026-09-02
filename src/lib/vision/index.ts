@@ -1,6 +1,7 @@
 import type { SpeciesSuggestion } from "../types";
+import { demoDetectFish, FISH_DETECT_MIN, type FishDetection } from "./detect";
 import { demoIdentifySpecies, type VisionContext } from "./demo";
-import { hasOpenAiKey, identifyWithOpenAI } from "./openai";
+import { detectFishWithOpenAI, hasOpenAiKey, identifyWithOpenAI } from "./openai";
 
 export async function identifySpecies(
   image: Buffer,
@@ -21,5 +22,24 @@ export async function identifySpecies(
   return demoIdentifySpecies(image, context);
 }
 
-export { hasOpenAiKey };
-export type { VisionContext };
+export async function detectFish(
+  image: Buffer,
+  mimeType: string,
+  fileName = "",
+): Promise<FishDetection> {
+  if (hasOpenAiKey()) {
+    try {
+      return await detectFishWithOpenAI(image, mimeType);
+    } catch {
+      const fallback = demoDetectFish(image, fileName);
+      return {
+        ...fallback,
+        note: "Vision API failed — demo detector used. Confirm before adding.",
+      };
+    }
+  }
+  return demoDetectFish(image, fileName);
+}
+
+export { hasOpenAiKey, FISH_DETECT_MIN };
+export type { VisionContext, FishDetection };
