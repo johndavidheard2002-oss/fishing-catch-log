@@ -36,50 +36,33 @@
 
 html {
   height: 100%;
-  background: #8fb8b6;
+  background: #6e6240;
 }
 
 body {
   min-height: 100%;
   color: var(--ink);
-  background-color: #8fb8b6;
+  background-color: #6e6240;
   isolation: isolate;
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
 
-/* Soft silver-teal wash under the trout field (logo edges), kept light so spots stay dark. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  opacity: 0.32;
-  background:
-    radial-gradient(70% 48% at 50% 18%, rgb(232 242 236 / 0.7) 0%, transparent 58%),
-    linear-gradient(
-      180deg,
-      #c5ddd8 0%,
-      #8fb8b6 48%,
-      #5e8f93 100%
-    );
-}
-
+body::before,
 body::after {
   content: none;
 }
 
-/* Approved-logo trout field: silver-teal scale wash + dense black round speckles. No compass. */
-.brand-watermark {
+/* Option A: full-bleed soft trout wash. This IS the background — not a faint overlay. */
+.trout-wash-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("/brand/catch-compass-watermark.jpg");
+  background-color: #6e6240;
+  background-image: url("/brand/soft-trout-wash-bg.png");
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
-  opacity: 0.78;
 }
 
 .brand-mark {

@@ -75,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
-    <div className="brand-watermark" aria-hidden="true" />
+    <div className="trout-wash-bg" aria-hidden="true" />
     <div className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4">
       <header className="journal-card mb-4 flex items-center justify-between gap-3 rounded-2xl px-3 py-2">
         <Link href="/" className="flex min-w-0 items-center gap-2 text-teal">
