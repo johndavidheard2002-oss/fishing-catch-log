@@ -316,6 +316,18 @@ describe("planWhyChips", () => {
       }),
     ).toEqual(["Same afternoon", "Cloudy skies", "Speckled Trout at Matagorda Bay"]);
   });
+
+  it("leaves lean and good matches as the raw reason list", () => {
+    expect(
+      planWhyChips({
+        reasons: ["Same time of day", "Cloudy"],
+        strength: "good",
+        placeName: "Galveston Bay, TX",
+        species: "Redfish",
+        timeOfDay: "morning",
+      }),
+    ).toEqual(["Same time of day", "Cloudy"]);
+  });
 });
 
 describe("parsePlanDate", () => {
