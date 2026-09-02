@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { BasemapToggle } from "./BasemapToggle";
+import { addBasemapToMap, DEFAULT_MAP_STYLE, type MapStyle } from "@/lib/map-tiles";
 import type { SpotGroup } from "@/lib/types";
 import "leaflet/dist/leaflet.css";
 
@@ -27,11 +29,22 @@ export function SpotMap({
   const ref = useRef<HTMLDivElement>(null);
   const spotsRef = useRef(spots);
   const onSelectRef = useRef(onSelect);
+  const mapRef = useRef<{ remove: () => void; removeLayer?: (layer: unknown) => void } | null>(
+    null,
+  );
+  const LRef = useRef<{
+    tileLayer: (url: string, options: Record<string, unknown>) => { addTo: (map: unknown) => unknown };
+    layerGroup: (layers: unknown[]) => { addTo: (map: unknown) => unknown; remove: () => void };
+  } | null>(null);
+  const basemapLayerRef = useRef<{ remove: () => void } | null>(null);
+  const [basemap, setBasemap] = useState<MapStyle>(DEFAULT_MAP_STYLE);
+  const basemapStyleRef = useRef<MapStyle>(basemap);
   const signature = spotsSignature(spots, selectedKey);
 
   useEffect(() => {
     spotsRef.current = spots;
     onSelectRef.current = onSelect;
+    basemapStyleRef.current = basemap;
   });
 
   useEffect(() => {
@@ -39,24 +52,23 @@ export function SpotMap({
     if (!el) return;
     const current = spotsRef.current;
     const withCoords = current.filter((s) => s.latitude != null && s.longitude != null);
-    let map: { remove: () => void } | null = null;
     let cancelled = false;
 
     (async () => {
       const L = (await import("leaflet")).default;
       if (cancelled || !el) return;
+      LRef.current = L;
 
       const center = withCoords[0]
         ? ([withCoords[0].latitude!, withCoords[0].longitude!] as [number, number])
         : ([39.5, -98] as [number, number]);
 
-      const instance = L.map(el, { zoomControl: true, attributionControl: true }).setView(
-        center,
-        withCoords.length ? 5 : 4,
-      );
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap",
-      }).addTo(instance);
+      const instance = L.map(el, {
+        zoomControl: true,
+        attributionControl: true,
+        maxZoom: 19,
+      }).setView(center, withCoords.length ? 14 : 4);
+      basemapLayerRef.current = addBasemapToMap(L, instance, basemapStyleRef.current);
 
       const bounds = L.latLngBounds([]);
       for (const spot of withCoords) {
@@ -74,14 +86,29 @@ export function SpotMap({
         bounds.extend([spot.latitude!, spot.longitude!]);
       }
       if (withCoords.length > 1) instance.fitBounds(bounds.pad(0.25));
-      map = instance;
+      else if (withCoords.length === 1) instance.setView(center, 15);
+      mapRef.current = instance;
     })();
 
     return () => {
       cancelled = true;
-      map?.remove();
+      mapRef.current?.remove();
+      mapRef.current = null;
+      basemapLayerRef.current = null;
     };
   }, [signature, selectedKey]);
 
-  return <div ref={ref} className={className} />;
+  useEffect(() => {
+    const map = mapRef.current;
+    const L = LRef.current;
+    if (!map || !L) return;
+    basemapLayerRef.current = addBasemapToMap(L, map, basemap, basemapLayerRef.current);
+  }, [basemap]);
+
+  return (
+    <div className="relative">
+      <div ref={ref} className={className} />
+      <BasemapToggle value={basemap} onChange={setBasemap} />
+    </div>
+  );
 }
