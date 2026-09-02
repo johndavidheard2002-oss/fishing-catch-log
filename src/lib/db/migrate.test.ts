@@ -174,4 +174,23 @@ describe("migrate older journals", () => {
     expect(names).toContain("named_areas");
     expect(names).toContain("bait_spots");
   });
+
+  it("adds named_areas and bait_spots when opening an older journal again", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    const file = path.join(dir, "journal.sqlite");
+    process.env.DATABASE_PATH = file;
+    resetDbForTests();
+    getDb();
+    getSqlite().pragma("user_version = 9");
+    getSqlite().exec("DROP TABLE IF EXISTS named_areas");
+    getSqlite().exec("DROP TABLE IF EXISTS bait_spots");
+    getDb();
+    const tables = getSqlite()
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`)
+      .all() as { name: string }[];
+    const names = tables.map((t) => t.name);
+    expect(names).toContain("named_areas");
+    expect(names).toContain("bait_spots");
+  });
 });

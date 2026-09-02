@@ -418,7 +418,10 @@ function migrate(sqlite: Database.Database) {
 }
 
 export function getDb() {
-  if (globalThis.__castLogDb) return globalThis.__castLogDb.db;
+  if (globalThis.__castLogDb) {
+    migrate(globalThis.__castLogDb.sqlite);
+    return globalThis.__castLogDb.db;
+  }
 
   fs.mkdirSync(uploadsDir(), { recursive: true });
   const sqlite = new Database(dbPath());
