@@ -58,9 +58,9 @@ export function FirstRunSetup() {
             journal can be going before you log the next one.
           </p>
           <ol className="list-decimal space-y-1 pl-4 text-sm text-ink">
-            <li>Pick photos from the camera roll, files, or a folder.</li>
-            <li>Confirm the date. We use the photo’s time when it’s there.</li>
-            <li>Pin the water and save. One photo is one trip.</li>
+            <li>Pick a batch from the camera roll, files, or a folder — not the whole phone.</li>
+            <li>We pick out likely fish photos and read the date from the picture when it is there.</li>
+            <li>Confirm each one, pin the water, and save. One photo is one trip.</li>
           </ol>
           <button
             type="button"
@@ -68,7 +68,7 @@ export function FirstRunSetup() {
             onClick={goPhotos}
             className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white"
           >
-            Import old photos
+            Find fish photos
           </button>
           <button
             type="button"

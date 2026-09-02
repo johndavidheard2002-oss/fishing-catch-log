@@ -30,9 +30,18 @@ export function BackfillClient() {
           href="/log/scan"
           className="rounded-xl py-2 text-center text-xs font-semibold text-ink-muted"
         >
-          Your photos
+          Find fish photos
         </Link>
       </div>
+      {!importedPhotoPath ? (
+        <Link
+          href="/log/scan"
+          data-testid="backfill-find-fish"
+          className="block rounded-2xl bg-copper px-4 py-3 text-center text-lg font-semibold text-white"
+        >
+          Find fish photos
+        </Link>
+      ) : null}
       <CatchForm
         mode="create"
         pastMode

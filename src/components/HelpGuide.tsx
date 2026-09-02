@@ -88,9 +88,9 @@ export function HelpGuide() {
             </section>
           ))}
           <div className="rounded-2xl border border-line bg-card px-3 py-3">
-            <p className="font-semibold text-ink">Import old photos</p>
+            <p className="font-semibold text-ink">Find fish photos</p>
             <p className="mt-0.5 text-sm text-ink-muted">
-              Run setup again — pick past trips and put them on dates.
+              Run setup again — pick a batch, we filter likely catches and use the photo’s time.
             </p>
             <button
               type="button"

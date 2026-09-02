@@ -55,6 +55,8 @@ export function ScanLibraryClient() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
+  const [filteredOut, setFilteredOut] = useState(0);
+  const [heuristic, setHeuristic] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[]>(() => {
     const leftover = peekScanQueue();
     setScanQueue([]);
@@ -73,20 +75,30 @@ export function ScanLibraryClient() {
     setError(null);
     setBusy(true);
     setSkipped(0);
+    setFilteredOut(0);
+    setHeuristic(false);
     setCandidates([]);
     setIndex(0);
     setScanQueue([]);
     const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name));
     const found: Candidate[] = [];
     let skip = 0;
+    let notFish = 0;
+    let usedHeuristic = false;
     for (let i = 0; i < files.length; i++) {
-      setProgress(`Opening ${i + 1} of ${files.length}…`);
+      setProgress(`Looking for fish in ${i + 1} of ${files.length}…`);
       const original = files[i];
       try {
         const compressed = await compressImage(original);
         const file = new File([compressed], original.name.replace(/\.\w+$/, ".jpg"), {
           type: "image/jpeg",
         });
+        const detection = await detectFishPhoto(file, original.name);
+        if (detection.demo) usedHeuristic = true;
+        if (!detection.candidate) {
+          notFish += 1;
+          continue;
+        }
         let caughtAt = new Date();
         let photoTakenLatitude: number | null = null;
         let photoTakenLongitude: number | null = null;
@@ -111,9 +123,9 @@ export function ScanLibraryClient() {
           file,
           previewUrl: URL.createObjectURL(file),
           caughtAt,
-          note: "",
-          confidence: 0,
-          demo: false,
+          note: detection.note,
+          confidence: detection.confidence,
+          demo: detection.demo,
           photoTakenLatitude,
           photoTakenLongitude,
         });
@@ -122,6 +134,8 @@ export function ScanLibraryClient() {
       }
     }
     setSkipped(skip);
+    setFilteredOut(notFish);
+    setHeuristic(usedHeuristic);
     setCandidates(found);
     setBusy(false);
     setProgress("");
@@ -172,11 +186,11 @@ export function ScanLibraryClient() {
   return (
     <div className="space-y-4">
       <div className="page-intro">
-        <h1 className="font-display text-3xl text-teal">Find fishing photos in your library</h1>
+        <h1 className="font-display text-3xl text-teal">Find fish photos</h1>
         <p className="text-sm text-ink-muted">
-          Included with every Catch Compass journal. Choose pictures from this phone, then confirm
-          each one onto your calendar at the photo&apos;s time. You pick the species. Only your
-          photos — not anyone else&apos;s roll, and never a public share.
+          Point us at a batch — camera roll, files, or a folder. We pick out likely fish photos and
+          read the date from the picture when it is there. We cannot scan the whole phone in the
+          background. Nothing is added until you confirm.
         </p>
       </div>
       <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1">
@@ -187,17 +201,18 @@ export function ScanLibraryClient() {
           One trip
         </Link>
         <span className="rounded-xl bg-teal py-2 text-center text-xs font-semibold text-white">
-          Your photos
+          Find fish photos
         </span>
       </div>
 
       <button
         type="button"
+        data-testid="find-fish-photos"
         onClick={() => photosRef.current?.click()}
         disabled={busy}
         className="w-full rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
-        {busy ? progress || "Checking photos…" : "Choose photos from this phone"}
+        {busy ? progress || "Looking for fish…" : "Pick a batch from this phone"}
       </button>
       <button
         type="button"
@@ -205,7 +220,7 @@ export function ScanLibraryClient() {
         disabled={busy}
         className="w-full rounded-2xl border border-line bg-card px-4 py-3 font-semibold disabled:opacity-60"
       >
-        Choose a folder on this device
+        Pick a folder on this device
       </button>
       <input
         ref={photosRef}
@@ -231,11 +246,21 @@ export function ScanLibraryClient() {
 
       {error ? <p className="on-wash-chip text-sm text-copper">{error}</p> : null}
 
-      {!busy && !current && (skipped > 0 || candidates.length === 0) ? (
+      {!busy && !current ? (
         <p className="on-wash-chip text-sm">
-          {skipped
-            ? `Skipped ${skipped} file${skipped === 1 ? "" : "s"} we could not open.`
-            : "Pick a handful of trip photos. We only look at what you select."}
+          {filteredOut || skipped
+            ? [
+                filteredOut
+                  ? `Set aside ${filteredOut} that did not look like a catch.`
+                  : null,
+                skipped ? `Could not open ${skipped}.` : null,
+                candidates.length === 0
+                  ? "None of that batch looked like a fish photo. Try a set that includes trip pictures."
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" ")
+            : "Pick a batch. We only look at what you select."}
         </p>
       ) : null}
 
@@ -247,8 +272,16 @@ export function ScanLibraryClient() {
           </div>
           <div className="space-y-2 p-4">
             <p className="text-sm font-semibold">
-              Photo {index + 1} of {candidates.length}
+              Likely fish {index + 1} of {candidates.length}
             </p>
+            {current.note ? (
+              <p className="text-xs text-ink-muted">{current.note}</p>
+            ) : null}
+            {current.demo || heuristic ? (
+              <p className="text-xs text-ink-muted">
+                Fish pick is a heuristic unless vision is on — confirm before adding.
+              </p>
+            ) : null}
             <label className="block">
               <span className="mb-1 block text-xs text-ink-muted">Catch date and time</span>
               <input
@@ -301,13 +334,41 @@ export function ScanLibraryClient() {
       ) : null}
 
       <p className="on-wash-chip text-xs">
-        Privacy: this is your journal on this phone. Only the pictures you pick are checked. They
-        stay in your Catch Compass log. Nothing is added until you tap Yes. We do not look at the
-        rest of your camera roll.
+        Privacy: only the batch you pick is checked. We do not read the rest of the camera roll.
+        Dates come from the photo when EXIF is there. Nothing is added until you tap Yes.
       </p>
       <Link href="/backfill" className="on-wash-chip inline-block text-sm font-semibold text-teal">
         Backfill one photo instead
       </Link>
     </div>
   );
+}
+
+async function detectFishPhoto(
+  file: File,
+  fileName: string,
+): Promise<{ candidate: boolean; confidence: number; demo: boolean; note: string }> {
+  try {
+    const fd = new FormData();
+    fd.set("photo", file);
+    fd.set("fileName", fileName);
+    const res = await fetch("/api/assist/detect-fish", { method: "POST", body: fd });
+    const data = (await res.json()) as {
+      candidate?: boolean;
+      detection?: { confidence?: number; source?: string; note?: string };
+    };
+    return {
+      candidate: Boolean(data.candidate),
+      confidence: data.detection?.confidence ?? 0,
+      demo: data.detection?.source === "demo",
+      note: data.detection?.note ?? "",
+    };
+  } catch {
+    return {
+      candidate: true,
+      confidence: 0,
+      demo: true,
+      note: "Could not scan this file. Confirm it is a fish before adding.",
+    };
+  }
 }
