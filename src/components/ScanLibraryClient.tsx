@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import { compressImage } from "@/lib/photo";
-import { formatCatchWhen, formatTimeOnly, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
+import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import { peekScanQueue, setScanQueue, type QueuedScanCandidate } from "@/lib/scan-queue";
 
@@ -281,7 +281,7 @@ export function ScanLibraryClient() {
                     {adding === item.id ? "Opening trip…" : "Likely fish photo"}
                   </p>
                   <p className="truncate text-sm text-ink-muted">
-                    {formatCatchWhen(item.caughtAt.toISOString())} · {formatTimeOnly(item.caughtAt.toISOString())}
+                    {formatCatchWhen(item.caughtAt.toISOString())}
                   </p>
                   <p className="mt-1 text-xs text-ink-muted">
                     Tap for the same trip form — date, pin, and fields.
