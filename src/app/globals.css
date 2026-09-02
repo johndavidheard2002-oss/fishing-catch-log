@@ -36,13 +36,13 @@
 
 html {
   height: 100%;
-  background: #6e6240;
+  background: #14130e;
 }
 
 body {
   min-height: 100%;
   color: var(--ink);
-  background-color: #6e6240;
+  background-color: #14130e;
   isolation: isolate;
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
@@ -52,14 +52,14 @@ body::after {
   content: none;
 }
 
-/* Option A: full-bleed soft trout wash. This IS the background — not a faint overlay. */
+/* Option D: full-bleed dark gulf trout scale field. This IS the background. */
 .trout-wash-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-color: #6e6240;
-  background-image: url("/brand/soft-trout-wash-bg.png");
+  background-color: #14130e;
+  background-image: url("/brand/dark-trout-scale-bg.png");
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
@@ -125,17 +125,21 @@ textarea {
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.9);
 }
 
-/* Type sitting on the trout wash (not on opaque cards). Cream halo + darker muted. */
+/* Type sitting on the dark trout wash (not on opaque cards). Light type + dark halo. */
 main {
   --wash-text-shadow:
-    0 1px 0 rgb(255 252 245 / 0.95),
-    0 0 8px rgb(255 252 245 / 0.85),
-    0 1px 14px rgb(247 252 255 / 0.55);
+    0 1px 2px rgb(0 0 0 / 0.92),
+    0 0 12px rgb(0 0 0 / 0.55);
+  color: #f4f0e4;
   text-shadow: var(--wash-text-shadow);
 }
 
 main .text-ink-muted {
-  color: #041525;
+  color: #efe6d2;
+}
+
+main .text-teal {
+  color: #d7eef6;
 }
 
 /* Opaque cards, filled CTAs, maps, and fields keep crisp type — no wash halo. */
@@ -153,6 +157,7 @@ input,
 textarea,
 select,
 .on-wash-chip {
+  color: var(--ink);
   text-shadow: none;
 }
 
@@ -166,6 +171,13 @@ select,
   color: var(--ink-muted);
 }
 
+.journal-card .text-teal,
+.page-intro .text-teal,
+.bg-card .text-teal,
+.on-wash-chip.text-teal {
+  color: var(--teal);
+}
+
 /* Do not halo white-on-teal/copper CTAs (Log a catch / Log bait). */
 a.bg-teal,
 a.bg-copper,
@@ -173,6 +185,7 @@ a.bg-good,
 button.bg-teal,
 button.bg-copper,
 button.bg-good {
+  color: #fff;
   text-shadow: none;
 }
 
@@ -180,7 +193,7 @@ button.bg-good {
   display: block;
   padding: 0.5rem 0.8rem;
   border-radius: 0.75rem;
-  background: rgb(247 252 255 / 0.88);
+  background: rgb(247 252 255 / 0.9);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.72);

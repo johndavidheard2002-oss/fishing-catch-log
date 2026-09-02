@@ -185,13 +185,7 @@ export function BaitSpotForm({
   }
 
   function onPickArea(area: NamedArea) {
-    const hasPin = numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
-    const next: Partial<FormState> = { placeName: area.name };
-    if (!hasPin && area.latitude != null && area.longitude != null) {
-      next.latitude = String(area.latitude);
-      next.longitude = String(area.longitude);
-    }
-    patch(next);
+    patch({ placeName: area.name });
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -300,6 +294,19 @@ export function BaitSpotForm({
         longitude={catchLon}
         onChange={(lat, lng) => {
           patch({ latitude: lat.toFixed(5), longitude: lng.toFixed(5) });
+          if (form.placeName.trim()) return;
+          fetch("/api/assist/place", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ latitude: lat, longitude: lng }),
+          })
+            .then((r) => r.json())
+            .then((data) => {
+              const autoPlace = data.place?.placeName as string | undefined;
+              if (!autoPlace) return;
+              setForm((f) => (f.placeName.trim() ? f : { ...f, placeName: autoPlace }));
+            })
+            .catch(() => {});
         }}
       />
 

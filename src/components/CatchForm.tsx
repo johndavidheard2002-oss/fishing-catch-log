@@ -626,14 +626,7 @@ export function CatchForm({
         pinSource={pinSource}
         onPlace={(placeName) => patch({ placeName })}
         onSelectArea={(area) => {
-          const hasPin = numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
-          const next: Partial<FormState> = { placeName: area.name };
-          if (!hasPin && area.latitude != null && area.longitude != null) {
-            next.latitude = String(area.latitude);
-            next.longitude = String(area.longitude);
-            setPinSource("manual");
-          }
-          patch(next);
+          patch({ placeName: area.name });
         }}
         onCoords={(lat, lng) => {
           patch({ latitude: lat, longitude: lng });

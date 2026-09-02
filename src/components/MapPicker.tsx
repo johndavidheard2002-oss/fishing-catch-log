@@ -43,11 +43,6 @@ export function MapPicker({
   const basemapRef = useRef<{ remove: () => void } | null>(null);
   const [basemap, setBasemap] = useState<MapStyle>(DEFAULT_MAP_STYLE);
   const basemapRefStyle = useRef<MapStyle>(basemap);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<
-    { placeName: string; latitude: number; longitude: number }[]
-  >([]);
-  const [searching, setSearching] = useState(false);
   const hasPin = latitude != null && longitude != null;
 
   useEffect(() => {
@@ -155,60 +150,8 @@ export function MapPicker({
     if (jumped) map.setView([latitude, longitude], Math.max(map.getZoom(), 16));
   }, [latitude, longitude]);
 
-  async function searchPlaces() {
-    if (query.trim().length < 2) return;
-    setSearching(true);
-    try {
-      const res = await fetch(`/api/assist/place?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      setResults(data.results ?? []);
-    } finally {
-      setSearching(false);
-    }
-  }
-
   return (
     <div className="space-y-2">
-      <div className="flex gap-2">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return;
-            e.preventDefault();
-            void searchPlaces();
-          }}
-          placeholder="Search a bay, pass, or coast"
-          className="min-w-0 flex-1 rounded-xl border border-line bg-card px-3 py-2 text-sm"
-        />
-        <button
-          type="button"
-          className="rounded-xl bg-teal px-3 py-2 text-sm font-semibold text-white"
-          disabled={searching}
-          onClick={() => void searchPlaces()}
-        >
-          {searching ? "…" : "Find"}
-        </button>
-      </div>
-      {results.length ? (
-        <ul className="space-y-1">
-          {results.map((hit) => (
-            <li key={`${hit.latitude},${hit.longitude}`}>
-              <button
-                type="button"
-                className="w-full rounded-xl bg-paper-deep px-3 py-2 text-left text-sm"
-                onClick={() => {
-                  onChange(hit.latitude, hit.longitude);
-                  setQuery(hit.placeName);
-                  setResults([]);
-                }}
-              >
-                {hit.placeName}
-              </button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
       <div className="relative">
         <div ref={ref} className="h-64 w-full overflow-hidden rounded-2xl border border-line" />
         <BasemapToggle value={basemap} onChange={setBasemap} />
