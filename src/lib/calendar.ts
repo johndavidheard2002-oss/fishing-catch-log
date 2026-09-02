@@ -1,5 +1,5 @@
 import { groupSpots } from "./filters";
-import type { CatchRecord } from "./types";
+import type { CatchRecord, SpotGroup } from "./types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -94,6 +94,11 @@ export function catchSpotLabel(record: CatchRecord): string {
     return `${record.latitude.toFixed(3)}, ${record.longitude.toFixed(3)}`;
   }
   return "Unnamed spot";
+}
+
+/** Catch pins that have saved coordinates — unpinned trips stay off the map. */
+export function spotsWithPins(records: CatchRecord[]): SpotGroup[] {
+  return groupSpots(records).filter((s) => s.latitude != null && s.longitude != null);
 }
 
 /** Distinct catch pins in first-seen order — same place name, different water stays separate. */

@@ -47,24 +47,23 @@ body {
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
 
-/* Clear ocean water: bright aqua to deeper blue. CSS + SVG only — no photos, no gray slate. */
+/* Quiet water wash under the brand art. */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -2;
   pointer-events: none;
+  opacity: 0.55;
   background:
     radial-gradient(88% 52% at 12% -12%, rgb(255 255 255 / 0.8) 0%, transparent 46%),
     radial-gradient(58% 34% at 90% 4%, rgb(110 214 250 / 0.55) 0%, transparent 56%),
-    radial-gradient(38% 22% at 62% 40%, rgb(255 255 255 / 0.3) 0%, transparent 70%),
     linear-gradient(
       180deg,
       #d4f1fc 0%,
-      #9fdff8 20%,
-      #5ec8ee 46%,
-      #2b9edc 72%,
-      #1476be 100%
+      #9fdff8 28%,
+      #5ec8ee 62%,
+      #2b9edc 100%
     );
 }
 
@@ -74,13 +73,12 @@ body::after {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.42;
+  opacity: 0.18;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='88' viewBox='0 0 320 88' fill='none'%3E%3Cpath d='M0 46c32-16 48-16 80 0s48 16 80 0 48-16 80 0 48 16 80 0' stroke='%230a6cad' stroke-width='1.25' stroke-opacity='.42'/%3E%3Cpath d='M0 62c32-14 48-14 80 0s48 14 80 0 48-14 80 0 48 14 80 0' stroke='%230c4f88' stroke-width='1' stroke-opacity='.32'/%3E%3Cpath d='M0 30c40-12 56-12 80 0s40 12 80 0 56-12 80 0 40 12 80 0' stroke='%23ffffff' stroke-width='1.15' stroke-opacity='.55'/%3E%3C/svg%3E");
   background-size: 320px 88px;
-  mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
 }
 
-/* Approved Catch Compass mark: trout spots behind, compass in front. Soft watermark only. */
+/* Trout spots fill the viewport; compass stays centered while content scrolls. */
 .brand-watermark {
   position: fixed;
   inset: 0;
@@ -88,11 +86,9 @@ body::after {
   pointer-events: none;
   background-image: url("/brand/catch-compass-watermark.jpg");
   background-repeat: no-repeat;
-  background-position: center 6%;
-  background-size: min(88vw, 26rem);
-  opacity: 0.2;
-  mask-image: linear-gradient(180deg, #000 0%, #000 38%, transparent 78%);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 38%, transparent 78%);
+  background-position: center center;
+  background-size: cover;
+  opacity: 0.38;
 }
 
 .brand-mark {
@@ -123,9 +119,9 @@ textarea {
 }
 
 .journal-card {
-  background: color-mix(in srgb, var(--card) 90%, white);
-  backdrop-filter: blur(16px) saturate(1.16);
-  -webkit-backdrop-filter: blur(16px) saturate(1.16);
+  background: color-mix(in srgb, var(--card) 94%, white);
+  backdrop-filter: blur(18px) saturate(1.12);
+  -webkit-backdrop-filter: blur(18px) saturate(1.12);
   border: 1px solid rgb(255 255 255 / 0.72);
   box-shadow:
     0 1px 0 rgb(255 255 255 / 0.88),

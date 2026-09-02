@@ -8,6 +8,7 @@ import {
   monthGrid,
   monthLabel,
   shiftMonth,
+  spotsWithPins,
   todayKey,
   WEEKDAY_LABELS,
   uniqueSpotLabels,
@@ -24,7 +25,7 @@ import { useState } from "react";
 const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
   ssr: false,
   loading: () => (
-    <div className="flex h-44 items-center justify-center rounded-2xl border border-line bg-card text-sm text-ink-muted">
+    <div className="flex h-56 items-center justify-center rounded-2xl border border-line bg-card text-sm text-ink-muted">
       Loading map…
     </div>
   ),
@@ -55,7 +56,7 @@ export function HistoryCalendar({
   const selected = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
   const selectedSpots = uniqueSpotLabels(selected);
   const selectedSpotGroups = groupSpots(selected);
-  const mappedSpots = selectedSpotGroups.filter((s) => s.latitude != null && s.longitude != null);
+  const mappedSpots = spotsWithPins(selected);
 
   return (
     <div className="space-y-3">
@@ -132,6 +133,17 @@ export function HistoryCalendar({
       {selectedDay ? (
         <section className="space-y-2">
           <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
+          {selected.length === 0 ? null : mappedSpots.length ? (
+            <SpotMap
+              spots={mappedSpots}
+              selectedKey={null}
+              className="h-56 w-full overflow-hidden rounded-2xl border border-line"
+            />
+          ) : (
+            <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
+              No map pins this day — those trips have no saved location.
+            </p>
+          )}
           {selectedSpots.length > 1 ? (
             <p className="text-xs text-ink-muted">
               {selectedSpotGroups
@@ -157,13 +169,6 @@ export function HistoryCalendar({
               records={selected}
               viewerId={viewerId}
               onShareDay={onShareDay}
-            />
-          ) : null}
-          {mappedSpots.length > 1 ? (
-            <SpotMap
-              spots={selectedSpotGroups}
-              selectedKey={null}
-              className="h-44 w-full overflow-hidden rounded-2xl border border-line"
             />
           ) : null}
           {selected.length === 0 ? (

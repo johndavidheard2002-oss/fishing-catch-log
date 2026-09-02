@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupCatchesByDate, localDateKey, monthGrid, shiftMonth, uniqueSpotLabels } from "./calendar";
+import { groupCatchesByDate, localDateKey, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels } from "./calendar";
 import { catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
@@ -76,6 +76,36 @@ describe("groupCatchesByDate", () => {
     expect(labels).toHaveLength(2);
     expect(labels[0]).toContain("30.458");
     expect(labels[1]).toContain("30.388");
+  });
+});
+
+describe("spotsWithPins", () => {
+  it("maps every distinct pin on a day and skips trips with no coordinates", () => {
+    const dawn = catchOf({
+      id: "dawn",
+      placeName: "Mosquito Lagoon, FL",
+      latitude: 28.738,
+      longitude: -80.755,
+      caughtAt: new Date(2025, 6, 12, 7, 15).toISOString(),
+    });
+    const afternoon = catchOf({
+      id: "afternoon",
+      placeName: "Gulf Stream, FL",
+      latitude: 25.76,
+      longitude: -80.02,
+      caughtAt: new Date(2025, 6, 12, 15, 40).toISOString(),
+    });
+    const unpinned = catchOf({
+      id: "unpinned",
+      placeName: "Dock",
+      latitude: null,
+      longitude: null,
+      caughtAt: new Date(2025, 6, 12, 12, 0).toISOString(),
+    });
+    const pins = spotsWithPins([dawn, afternoon, unpinned]);
+    expect(pins).toHaveLength(2);
+    expect(pins.map((s) => s.placeName).sort()).toEqual(["Gulf Stream, FL", "Mosquito Lagoon, FL"]);
+    expect(spotsWithPins([unpinned])).toEqual([]);
   });
 });
 
