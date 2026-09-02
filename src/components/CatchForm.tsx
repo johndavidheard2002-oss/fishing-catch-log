@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import exifr from "exifr";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
@@ -104,6 +104,30 @@ const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => 
   };
 };
 
+function initialPinSource(
+  initial: CatchRecord | undefined,
+  importedPhotoLat: number | null,
+  importedPhotoLon: number | null,
+): "photo" | "device" | "manual" | null {
+  if (importedPhotoLat != null && importedPhotoLon != null && !initial?.id) return "photo";
+  if (
+    initial?.photoTakenLatitude != null &&
+    initial.photoTakenLongitude != null &&
+    initial.latitude != null &&
+    initial.longitude != null &&
+    !coordsLookDifferent(
+      initial.latitude,
+      initial.longitude,
+      initial.photoTakenLatitude,
+      initial.photoTakenLongitude,
+    )
+  ) {
+    return "photo";
+  }
+  if (initial?.latitude != null && initial.longitude != null) return "manual";
+  return null;
+}
+
 function fromRecord(record: CatchRecord): FormState {
   return {
     speciesList: record.speciesList?.length
@@ -174,9 +198,7 @@ export function CatchForm({
     const fromPhoto = catchPinFromPhotoGps({
       photoLat: importedPhotoLat,
       photoLon: importedPhotoLon,
-      catchLat: base.latitude,
-      catchLon: base.longitude,
-      catchLocationLocked: Boolean(initial?.latitude && initial?.longitude),
+      userMovedCatchPin: Boolean(initial?.id && initial.latitude != null && initial.longitude != null),
     });
     return {
       ...base,
@@ -201,14 +223,17 @@ export function CatchForm({
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
   const [moonLocked, setMoonLocked] = useState(false);
   const [timeOfDayLocked, setTimeOfDayLocked] = useState(false);
-  const [catchLocationLocked, setCatchLocationLocked] = useState(
-    Boolean(initial?.latitude && initial?.longitude),
+  const [catchPinUserMoved, setCatchPinUserMoved] = useState(
+    Boolean(mode === "edit" && initial?.latitude != null && initial?.longitude != null),
   );
-  const [pinSource, setPinSource] = useState<"photo" | "device" | "manual" | null>(
-    importedPhotoLat != null && importedPhotoLon != null && !(initial?.latitude && initial?.longitude)
-      ? "photo"
-      : null,
+  const catchPinUserMovedRef = useRef(catchPinUserMoved);
+  const [pinSource, setPinSource] = useState<"photo" | "device" | "manual" | null>(() =>
+    initialPinSource(initial, importedPhotoLat, importedPhotoLon),
   );
+
+  useEffect(() => {
+    catchPinUserMovedRef.current = catchPinUserMoved;
+  }, [catchPinUserMoved]);
 
   useEffect(() => {
     if (!focusLocation) return;
@@ -243,8 +268,9 @@ export function CatchForm({
     setForm((f) => ({ ...f, ...partial }));
   }
 
-  function lockCatchLocation(partial: Partial<FormState>) {
-    setCatchLocationLocked(true);
+  function markCatchPinMoved(partial: Partial<FormState>) {
+    catchPinUserMovedRef.current = true;
+    setCatchPinUserMoved(true);
     setPinSource("manual");
     patch(partial);
   }
@@ -338,7 +364,7 @@ export function CatchForm({
     }
 
     const notes: string[] = [];
-    const applyToCatch = shouldApplyPhotoGpsToCatch(catchLocationLocked);
+    const applyToCatch = shouldApplyPhotoGpsToCatch(catchPinUserMovedRef.current);
     if (photoLat != null && photoLon != null) {
       patch({
         photoTakenLatitude: photoLat.toFixed(5),
@@ -349,9 +375,13 @@ export function CatchForm({
       });
       if (applyToCatch) {
         setPinSource("photo");
-        notes.push("Catch pin placed from the photo. Drag it if you caught the fish somewhere else.");
+        notes.push(
+          "Catch pin auto-filled from this photo’s location stamp. Drag it if you caught the fish somewhere else — the pin is not locked.",
+        );
       } else {
-        notes.push("Catch pin left where you set it. Photo GPS is only “photo taken at.”");
+        notes.push(
+          "Catch pin left where you moved it. Photo GPS is only “photo taken at,” and re-saving this picture will not overwrite your pin.",
+        );
       }
     } else if (applyToCatch && deviceLat != null && deviceLon != null) {
       patch({
@@ -359,7 +389,7 @@ export function CatchForm({
         longitude: deviceLon.toFixed(5),
       });
       setPinSource("device");
-      notes.push("Catch pin placed from this phone’s location. Move it if needed.");
+      notes.push("No GPS in the photo — catch pin placed from this phone’s location. Drag it if needed.");
     }
 
     const hintLat = applyToCatch
@@ -451,8 +481,9 @@ export function CatchForm({
               body: JSON.stringify({ latitude: weatherLat, longitude: weatherLon }),
             });
             const data = await res.json();
-            if (data.place?.placeName) {
-              patch({ placeName: data.place.placeName });
+            const autoPlace = data.place?.placeName as string | undefined;
+            if (autoPlace) {
+              setForm((f) => (f.placeName.trim() ? f : { ...f, placeName: autoPlace }));
               notes.push(data.place.note);
             }
           } catch {
@@ -463,10 +494,10 @@ export function CatchForm({
       }
     } else if (pastMode) {
       notes.push(
-        "Pin the exact water on the map and set the date. We did not use your current location.",
+        "This photo has no location stamp. Tap the map to pin this catch — we did not use your current location.",
       );
     } else {
-      notes.push("No GPS yet — add a place name if you know it.");
+      notes.push("No GPS in the photo and this phone did not share a location. Tap the map to place the pin.");
     }
 
     await Promise.all(tasks);
@@ -771,16 +802,26 @@ export function CatchForm({
       <CatchLocationFields
         form={form}
         pinSource={pinSource}
-        onPlace={(placeName) => lockCatchLocation({ placeName })}
-        onCoords={(lat, lng) => lockCatchLocation({ latitude: lat, longitude: lng })}
+        onPlace={(placeName) => patch({ placeName })}
+        onCoords={(lat, lng) => {
+          patch({ latitude: lat, longitude: lng });
+          if (numOrNull(lat) != null && numOrNull(lng) != null) {
+            catchPinUserMovedRef.current = true;
+            setCatchPinUserMoved(true);
+            setPinSource("manual");
+          }
+        }}
         onUsePhotoGps={() => {
           const lat = form.photoTakenLatitude;
           const lon = form.photoTakenLongitude;
           if (!lat || !lon) return;
-          lockCatchLocation({ latitude: lat, longitude: lon });
+          catchPinUserMovedRef.current = false;
+          setCatchPinUserMoved(false);
+          setPinSource("photo");
+          patch({ latitude: lat, longitude: lon });
         }}
         onMapPin={async (lat, lng) => {
-          lockCatchLocation({ latitude: lat.toFixed(5), longitude: lng.toFixed(5) });
+          markCatchPinMoved({ latitude: lat.toFixed(5), longitude: lng.toFixed(5) });
           try {
             const res = await fetch("/api/assist/place", {
               method: "POST",
@@ -788,7 +829,7 @@ export function CatchForm({
               body: JSON.stringify({ latitude: lat, longitude: lng }),
             });
             const data = await res.json();
-            if (data.place?.placeName) lockCatchLocation({ placeName: data.place.placeName });
+            if (data.place?.placeName) patch({ placeName: data.place.placeName });
             const at = caughtDate(form.caughtAt);
             const weatherRes = await fetch("/api/assist/weather", {
               method: "POST",
@@ -1194,13 +1235,29 @@ function CatchLocationFields({
       <div>
         <p className="text-sm font-semibold">Catch location</p>
         <p className="text-xs text-ink-muted">
-          {pinSource === "photo"
-            ? "Pin placed from the photo location. Drag it if you caught the fish somewhere else."
-            : pinSource === "device"
-              ? "Pin placed from this phone’s location. Drag it if that isn’t the water."
-              : "Pin the water you caught it. This pin is for this catch only — other fish from the same day keep their own spots. Photo GPS is often the cooler, dock, or truck — that is not the catch spot."}
+          This pin is for this catch only — another fish the same day can be a different lake. Photo
+          GPS is often the cooler, dock, or truck, not the water.
         </p>
       </div>
+      {pinSource === "photo" && catchLat != null ? (
+        <div className="rounded-2xl border border-teal/40 bg-paper px-3 py-2 text-xs">
+          <p>
+            <span className="font-semibold text-teal">Auto-filled from this photo’s location stamp.</span>{" "}
+            The pin is not locked — drag it or tap a new spot if you caught the fish somewhere else.
+          </p>
+        </div>
+      ) : pinSource === "device" && catchLat != null ? (
+        <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
+          <p>
+            <span className="font-semibold">Placed from this phone’s location</span> because the photo
+            had no GPS. Drag it if that isn’t the water.
+          </p>
+        </div>
+      ) : catchLat == null ? (
+        <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
+          No catch pin yet. Tap the map to drop one — it stays movable after that.
+        </div>
+      ) : null}
       {hasPhotoGps ? (
         <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
           <p>
@@ -1209,7 +1266,7 @@ function CatchLocationFields({
           </p>
           {photoDiffers || catchLat == null ? (
             <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
-              Use photo GPS as catch pin
+              Reset catch pin to photo GPS
             </button>
           ) : null}
         </div>

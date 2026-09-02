@@ -38,8 +38,8 @@ export function PhotoCapture({
               </p>
               <p className="text-sm text-ink-muted">
                 {emphasis === "library"
-                  ? "Upload an old catch photo, then set the date and pin the spot."
-                  : "Camera first. We\u2019ll try species, weather, and GPS next."}
+                  ? "Upload an old catch photo. We’ll pin from GPS when the picture has it — you can still move it."
+                  : "Camera first. We’ll try species, weather, and a map pin from the photo’s GPS."}
               </p>
             </div>
           )}

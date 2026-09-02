@@ -2,20 +2,22 @@
 
 export type PinSource = "photo" | "device" | "manual";
 
-export function shouldApplyPhotoGpsToCatch(catchLocationLocked: boolean): boolean {
-  return !catchLocationLocked;
+/** Auto-place from the photo unless the angler already moved this catch’s pin. */
+export function shouldApplyPhotoGpsToCatch(userMovedCatchPin: boolean): boolean {
+  return !userMovedCatchPin;
 }
 
+/**
+ * Photo GPS fills the catch pin when the angler has not moved it.
+ * Device GPS or a prior auto-fill is replaced. A user-moved pin is not.
+ */
 export function catchPinFromPhotoGps(args: {
   photoLat: number | null | undefined;
   photoLon: number | null | undefined;
-  catchLat?: string | null;
-  catchLon?: string | null;
-  catchLocationLocked: boolean;
+  userMovedCatchPin: boolean;
 }): { latitude: string; longitude: string } | null {
-  if (args.catchLocationLocked) return null;
+  if (args.userMovedCatchPin) return null;
   if (args.photoLat == null || args.photoLon == null) return null;
-  if (args.catchLat?.trim() && args.catchLon?.trim()) return null;
   return { latitude: String(args.photoLat), longitude: String(args.photoLon) };
 }
 

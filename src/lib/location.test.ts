@@ -2,37 +2,49 @@ import { describe, expect, it } from "vitest";
 import { catchPinFromPhotoGps, coordsLookDifferent, shouldApplyPhotoGpsToCatch } from "./location";
 
 describe("shouldApplyPhotoGpsToCatch", () => {
-  it("fills the catch pin from the photo only when the angler has not set a spot", () => {
+  it("fills the catch pin from the photo until the angler moves it", () => {
     expect(shouldApplyPhotoGpsToCatch(false)).toBe(true);
     expect(shouldApplyPhotoGpsToCatch(true)).toBe(false);
   });
 });
 
 describe("catchPinFromPhotoGps", () => {
-  it("auto-places the catch pin from photo GPS until the angler moves it", () => {
+  it("auto-places the catch pin from photo GPS", () => {
     expect(
       catchPinFromPhotoGps({
         photoLat: 28.74,
         photoLon: -80.75,
-        catchLat: "",
-        catchLon: "",
-        catchLocationLocked: false,
+        userMovedCatchPin: false,
       }),
     ).toEqual({ latitude: "28.74", longitude: "-80.75" });
+  });
+
+  it("still applies photo GPS over an earlier auto-fill (device pin, same form)", () => {
     expect(
       catchPinFromPhotoGps({
         photoLat: 28.74,
         photoLon: -80.75,
-        catchLat: "30.1",
-        catchLon: "-97.9",
-        catchLocationLocked: false,
+        userMovedCatchPin: false,
+      }),
+    ).toEqual({ latitude: "28.74", longitude: "-80.75" });
+  });
+
+  it("does not overwrite a pin the angler already moved", () => {
+    expect(
+      catchPinFromPhotoGps({
+        photoLat: 28.74,
+        photoLon: -80.75,
+        userMovedCatchPin: true,
       }),
     ).toBeNull();
+  });
+
+  it("leaves the pin empty when the photo has no GPS", () => {
     expect(
       catchPinFromPhotoGps({
-        photoLat: 28.74,
-        photoLon: -80.75,
-        catchLocationLocked: true,
+        photoLat: null,
+        photoLon: null,
+        userMovedCatchPin: false,
       }),
     ).toBeNull();
   });

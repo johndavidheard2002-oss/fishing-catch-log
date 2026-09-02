@@ -136,6 +136,11 @@ textarea {
   transform: rotate(90deg);
 }
 
+.catch-map-pin.leaflet-div-icon {
+  background: transparent;
+  border: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app-more > summary::after {
     transition: none;

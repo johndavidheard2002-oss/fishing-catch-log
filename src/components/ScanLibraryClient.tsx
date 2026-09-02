@@ -7,6 +7,7 @@ import exifr from "exifr";
 import { compressImage } from "@/lib/photo";
 import { dateFromDatetimeLocal, datetimeLocalValue, parseExifStamp } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
+import { formatCoords } from "@/lib/location";
 import { peekScanQueue, setScanQueue, type QueuedScanCandidate } from "@/lib/scan-queue";
 
 type Candidate = {
@@ -280,6 +281,11 @@ export function ScanLibraryClient() {
             </label>
             <p className="text-xs text-ink-muted">
               Uses the time saved in the photo when it is there. Edit if the camera clock was wrong.
+            </p>
+            <p className="text-xs text-ink-muted">
+              {current.photoTakenLatitude != null && current.photoTakenLongitude != null
+                ? `Location stamp ${formatCoords(current.photoTakenLatitude, current.photoTakenLongitude)}. Yes drops a movable catch pin there — drag it if the picture was not taken on the water.`
+                : "No GPS in this photo — you’ll place the pin on the map. We will not use your current location for a past catch."}
             </p>
             <p className="text-xs text-ink-muted">
               {Math.round(current.confidence * 100)}% · {current.note}

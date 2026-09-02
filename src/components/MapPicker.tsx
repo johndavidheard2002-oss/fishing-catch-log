@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 
+const PIN_HTML =
+  '<div style="width:18px;height:18px;border-radius:50%;background:#c45c26;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)"></div>';
+
 export function MapPicker({
   latitude,
   longitude,
@@ -13,11 +16,17 @@ export function MapPicker({
   onChange: (lat: number, lng: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const onChangeRef = useRef(onChange);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<
     { placeName: string; latitude: number; longitude: number }[]
   >([]);
   const [searching, setSearching] = useState(false);
+  const hasPin = latitude != null && longitude != null;
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     const el = ref.current;
@@ -32,23 +41,49 @@ export function MapPicker({
         latitude != null && longitude != null ? [latitude, longitude] : [28.5, -81.3];
       const instance = L.map(el, { zoomControl: true }).setView(
         start,
-        latitude != null ? 9 : 5,
+        latitude != null && longitude != null ? 13 : 5,
       );
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap",
       }).addTo(instance);
 
-      const marker = L.circleMarker(start, {
-        radius: 9,
-        color: "#c45c26",
-        fillColor: "#c45c26",
-        fillOpacity: 0.9,
-        weight: 2,
-      }).addTo(instance);
+      const pinIcon = L.divIcon({
+        className: "catch-map-pin",
+        html: PIN_HTML,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+
+      type PinMarker = {
+        setLatLng: (ll: { lat: number; lng: number }) => void;
+        getLatLng: () => { lat: number; lng: number };
+        on: (ev: string, fn: () => void) => void;
+      };
+      let marker: PinMarker | null = null;
+
+      const bindMarker = (next: PinMarker) => {
+        marker = next;
+        marker.on("dragend", () => {
+          const ll = marker!.getLatLng();
+          onChangeRef.current(ll.lat, ll.lng);
+        });
+      };
+
+      if (latitude != null && longitude != null) {
+        bindMarker(
+          L.marker(start, { icon: pinIcon, draggable: true, autoPan: true }).addTo(instance),
+        );
+      }
 
       instance.on("click", (e: { latlng: { lat: number; lng: number } }) => {
-        marker.setLatLng(e.latlng);
-        onChange(e.latlng.lat, e.latlng.lng);
+        if (!marker) {
+          bindMarker(
+            L.marker(e.latlng, { icon: pinIcon, draggable: true, autoPan: true }).addTo(instance),
+          );
+        } else {
+          marker.setLatLng(e.latlng);
+        }
+        onChangeRef.current(e.latlng.lat, e.latlng.lng);
       });
       map = instance;
     })();
@@ -57,7 +92,7 @@ export function MapPicker({
       cancelled = true;
       map?.remove();
     };
-    // Recreate when coords jump from search/geolocation, not on every keystroke.
+    // Recreate when coords jump from search/photo GPS, not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [latitude == null ? "" : latitude.toFixed(3), longitude == null ? "" : longitude.toFixed(3)]);
 
@@ -111,7 +146,11 @@ export function MapPicker({
         </ul>
       ) : null}
       <div ref={ref} className="h-56 w-full overflow-hidden rounded-2xl border border-line" />
-      <p className="text-xs text-ink-muted">Tap the map to drop a pin. Drag by tapping a new spot.</p>
+      <p className="text-xs text-ink-muted">
+        {hasPin
+          ? "Drag the pin or tap a new spot. It stays editable."
+          : "No pin yet — tap the map to place this catch."}
+      </p>
     </div>
   );
 }
