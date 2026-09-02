@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
+import { catchSpotLabel } from "@/lib/calendar";
 import { speciesLabel } from "@/lib/species";
 import { formatDateOnly, formatTimeOnly } from "@/lib/time";
 import { catchPhotoFilename, photoSrc, weatherLine } from "@/lib/photo";
@@ -44,7 +45,7 @@ export function CatchCard({
           <p className="truncate font-semibold text-ink">
             {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
           </p>
-          <p className="truncate text-sm text-ink-muted">{record.placeName || "Unnamed spot"}</p>
+          <p className="truncate text-sm text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-1 truncate text-xs text-ink-muted">
             {showTime ? formatTimeOnly(record.caughtAt) : formatDateOnly(record.caughtAt)} ·{" "}
             {record.timeOfDay} · {weatherLine(record)}
@@ -87,7 +88,7 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
           <p className="truncate text-sm font-semibold">
             {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
           </p>
-          <p className="truncate text-xs text-ink-muted">{record.placeName || "Unnamed spot"}</p>
+          <p className="truncate text-xs text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-0.5 text-[10px] text-ink-muted">{habitatLabel(record.habitat)}</p>
         </div>
       </Link>

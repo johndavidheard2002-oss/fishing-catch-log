@@ -130,15 +130,15 @@ function mostCommon<T extends string>(values: T[]): T | null {
 }
 
 export function groupSpots(records: CatchRecord[]): SpotGroup[] {
-  const groups = new Map<string, CatchRecord[]>();
+  const byKey = new Map<string, CatchRecord[]>();
   for (const record of records) {
     const key = spotKey(record);
-    const list = groups.get(key) ?? [];
+    const list = byKey.get(key) ?? [];
     list.push(record);
-    groups.set(key, list);
+    byKey.set(key, list);
   }
 
-  return [...groups.entries()]
+  const groups = [...byKey.entries()]
     .map(([key, catches]) => {
       const withCoords = catches.filter((c) => c.latitude != null && c.longitude != null);
       const lat =
@@ -172,14 +172,32 @@ export function groupSpots(records: CatchRecord[]): SpotGroup[] {
       };
     })
     .sort((a, b) => b.catchCount - a.catchCount);
+
+  const nameCount = new Map<string, number>();
+  for (const group of groups) {
+    nameCount.set(group.placeName, (nameCount.get(group.placeName) ?? 0) + 1);
+  }
+  return groups.map((group) => {
+    if (
+      (nameCount.get(group.placeName) ?? 0) > 1 &&
+      group.latitude != null &&
+      group.longitude != null
+    ) {
+      return {
+        ...group,
+        placeName: `${group.placeName} · ${group.latitude.toFixed(3)}, ${group.longitude.toFixed(3)}`,
+      };
+    }
+    return group;
+  });
 }
 
 export function spotKey(record: CatchRecord): string {
+  if (record.latitude != null && record.longitude != null) {
+    return `${record.latitude.toFixed(3)},${record.longitude.toFixed(3)}`;
+  }
   if (record.placeName?.trim()) {
     return record.placeName.trim().toLowerCase().replace(/\s+/g, " ");
-  }
-  if (record.latitude != null && record.longitude != null) {
-    return `${record.latitude.toFixed(2)},${record.longitude.toFixed(2)}`;
   }
   return "unknown spot";
 }

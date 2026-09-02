@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #e4eef3;
-  --paper-deep: #c5d6df;
-  --ink: #12202a;
-  --ink-muted: #4a5d6a;
+  --paper: #e6f3fc;
+  --paper-deep: #b7d6ee;
+  --ink: #10263a;
+  --ink-muted: #3a5d78;
   --teal: #134e4c;
   --teal-deep: #0c3534;
   --copper: #c45c26;
   --copper-dark: #9a451c;
   --moss: #3f5c34;
-  --card: #f3f8fb;
-  --line: #b7c9d2;
+  --card: #f3f9fe;
+  --line: #9ec6e0;
   --good: #2f6b4f;
-  --water-deep: #0b3a48;
-  --water-horizon: #96becc;
+  --water-deep: #0a4f80;
+  --water-horizon: #3b9ad4;
 }
 
 @theme inline {
@@ -36,18 +36,18 @@
 
 html {
   height: 100%;
-  background: #d7e6ec;
+  background: #c5e5f8;
 }
 
 body {
   min-height: 100%;
   color: var(--ink);
-  background-color: #d7e6ec;
+  background-color: #c5e5f8;
   isolation: isolate;
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
 
-/* Calm water wash: layered CSS + a tiny repeating SVG. No photos. */
+/* Calm blue water wash: layered CSS + a tiny repeating SVG. No photos. */
 body::before {
   content: "";
   position: fixed;
@@ -55,16 +55,16 @@ body::before {
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(90% 55% at 14% -10%, rgb(255 255 255 / 0.62) 0%, transparent 48%),
-    radial-gradient(62% 36% at 92% 8%, rgb(186 220 228 / 0.38) 0%, transparent 54%),
-    radial-gradient(40% 24% at 70% 42%, rgb(255 255 255 / 0.2) 0%, transparent 70%),
+    radial-gradient(90% 55% at 14% -10%, rgb(255 255 255 / 0.72) 0%, transparent 48%),
+    radial-gradient(62% 36% at 92% 8%, rgb(90 186 230 / 0.42) 0%, transparent 54%),
+    radial-gradient(40% 24% at 70% 42%, rgb(255 255 255 / 0.28) 0%, transparent 70%),
     linear-gradient(
       180deg,
-      #eef5f8 0%,
-      #d8e8ef 32%,
-      #c3dae4 58%,
-      #a8c9d6 78%,
-      var(--water-horizon) 100%
+      #e7f4fd 0%,
+      #c5e5f8 26%,
+      #8ecbeb 52%,
+      #4eacd9 76%,
+      #2b8fc8 100%
     );
 }
 
@@ -74,8 +74,8 @@ body::after {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.3;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='88' viewBox='0 0 320 88' fill='none'%3E%3Cpath d='M0 46c32-16 48-16 80 0s48 16 80 0 48-16 80 0 48 16 80 0' stroke='%230b3a48' stroke-width='1.2' stroke-opacity='.32'/%3E%3Cpath d='M0 62c32-14 48-14 80 0s48 14 80 0 48-14 80 0 48 14 80 0' stroke='%23115e59' stroke-width='1' stroke-opacity='.22'/%3E%3Cpath d='M0 30c40-12 56-12 80 0s40 12 80 0 56-12 80 0 40 12 80 0' stroke='%23ffffff' stroke-width='1' stroke-opacity='.4'/%3E%3C/svg%3E");
+  opacity: 0.34;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='88' viewBox='0 0 320 88' fill='none'%3E%3Cpath d='M0 46c32-16 48-16 80 0s48 16 80 0 48-16 80 0 48 16 80 0' stroke='%230a4f80' stroke-width='1.2' stroke-opacity='.38'/%3E%3Cpath d='M0 62c32-14 48-14 80 0s48 14 80 0 48-14 80 0 48 14 80 0' stroke='%231565a8' stroke-width='1' stroke-opacity='.28'/%3E%3Cpath d='M0 30c40-12 56-12 80 0s40 12 80 0 56-12 80 0 40 12 80 0' stroke='%23ffffff' stroke-width='1' stroke-opacity='.5'/%3E%3C/svg%3E");
   background-size: 320px 88px;
   mask-image: linear-gradient(180deg, transparent 0%, #000 16%, #000 84%, transparent 100%);
 }

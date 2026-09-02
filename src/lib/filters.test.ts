@@ -74,4 +74,24 @@ describe("groupSpots", () => {
     const travis = spots.find((s) => s.placeName === "Lake Travis, TX");
     expect(travis?.catchCount).toBe(2);
   });
+
+  it("keeps distinct pins even when two same-day catches share a place name", () => {
+    const dawn = catchOf({
+      id: "dawn",
+      placeName: "Lake Travis, TX",
+      latitude: 30.458,
+      longitude: -98.012,
+      caughtAt: "2025-07-12T12:15:00.000Z",
+    });
+    const afternoon = catchOf({
+      id: "afternoon",
+      placeName: "Lake Travis, TX",
+      latitude: 30.388,
+      longitude: -97.975,
+      caughtAt: "2025-07-12T20:40:00.000Z",
+    });
+    const spots = groupSpots([dawn, afternoon]);
+    expect(spots).toHaveLength(2);
+    expect(spots.map((s) => s.catchCount)).toEqual([1, 1]);
+  });
 });

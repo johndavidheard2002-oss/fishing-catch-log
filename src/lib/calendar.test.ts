@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupCatchesByDate, localDateKey, monthGrid, shiftMonth } from "./calendar";
+import { groupCatchesByDate, localDateKey, monthGrid, shiftMonth, uniqueSpotLabels } from "./calendar";
 import { catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
@@ -34,6 +34,27 @@ describe("groupCatchesByDate", () => {
     const earlier = catchOn(new Date(2025, 6, 12, 6, 10), "dawn");
     const groups = groupCatchesByDate([later, earlier]);
     expect(groups.get("2025-07-12")?.map((r) => r.id)).toEqual(["dawn", "dusk"]);
+  });
+
+  it("keeps two spots on the same day as separate labels", () => {
+    const dawn = catchOf({
+      id: "dawn",
+      placeName: "Pace Bend, Lake Travis, TX",
+      latitude: 30.458,
+      longitude: -98.012,
+      caughtAt: new Date(2025, 6, 12, 7, 15).toISOString(),
+    });
+    const afternoon = catchOf({
+      id: "afternoon",
+      placeName: "Lake Travis, TX",
+      latitude: 30.388,
+      longitude: -97.975,
+      caughtAt: new Date(2025, 6, 12, 15, 40).toISOString(),
+    });
+    expect(uniqueSpotLabels([dawn, afternoon])).toEqual([
+      "Pace Bend, Lake Travis, TX",
+      "Lake Travis, TX",
+    ]);
   });
 });
 

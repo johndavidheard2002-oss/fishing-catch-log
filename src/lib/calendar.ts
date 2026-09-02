@@ -87,4 +87,14 @@ export function groupCatchesByDate(records: CatchRecord[]): Map<string, CatchRec
   return groups;
 }
 
-export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
+export function catchSpotLabel(record: CatchRecord): string {
+  if (record.placeName?.trim()) return record.placeName.trim();
+  if (record.latitude != null && record.longitude != null) {
+    return `${record.latitude.toFixed(3)}, ${record.longitude.toFixed(3)}`;
+  }
+  return "Unnamed spot";
+}
+
+export function uniqueSpotLabels(records: CatchRecord[]): string[] {
+  return [...new Set(records.map(catchSpotLabel))];
+}

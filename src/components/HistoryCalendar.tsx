@@ -8,6 +8,7 @@ import {
   shiftMonth,
   todayKey,
   WEEKDAY_LABELS,
+  uniqueSpotLabels,
 } from "@/lib/calendar";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
@@ -36,6 +37,7 @@ export function HistoryCalendar({
   const cells = monthGrid(year, month);
   const today = todayKey();
   const selected = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
+  const selectedSpots = uniqueSpotLabels(selected);
   const monthCount = cells
     .filter((c) => c.inMonth)
     .reduce((n, c) => n + (byDate.get(c.date)?.length ?? 0), 0);
@@ -118,7 +120,15 @@ export function HistoryCalendar({
       {selectedDay ? (
         <section className="space-y-2">
           <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
-          <p className="text-xs text-ink-muted">Earliest catch first, with the time you logged.</p>
+          <p className="text-xs text-ink-muted">
+            {selected.length} {selected.length === 1 ? "catch" : "catches"}
+            {selectedSpots.length > 1
+              ? ` · ${selectedSpots.length} spots`
+              : selectedSpots[0]
+                ? ` · ${selectedSpots[0]}`
+                : ""}
+            . Earliest first, each with its own pin.
+          </p>
           {selected.length === 0 ? (
             <p className="text-sm text-ink-muted">No matching catches on this day.</p>
           ) : (
