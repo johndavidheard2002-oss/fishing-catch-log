@@ -1,12 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_MAP_CENTER,
   DEFAULT_MAP_STYLE,
+  DEFAULT_MAP_ZOOM,
   ESRI_ATTRIBUTION,
   ESRI_WORLD_IMAGERY_URL,
   OSM_STREET_URL,
   addBasemapToMap,
   mapBasemapSpec,
 } from "./map-tiles";
+
+describe("default map view", () => {
+  it("starts on the Texas Gulf Coast, closer than the old Florida / US-wide view", () => {
+    const [lat, lng] = DEFAULT_MAP_CENTER;
+    expect(lat).toBeGreaterThan(27);
+    expect(lat).toBeLessThan(30);
+    expect(lng).toBeGreaterThan(-98);
+    expect(lng).toBeLessThan(-94);
+    expect(DEFAULT_MAP_ZOOM).toBeGreaterThanOrEqual(7);
+    expect(DEFAULT_MAP_ZOOM).toBeLessThanOrEqual(9);
+  });
+});
 
 describe("mapBasemapSpec", () => {
   it("defaults to Esri satellite imagery with no API key", () => {

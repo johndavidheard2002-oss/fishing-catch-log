@@ -2,6 +2,14 @@ export type MapStyle = "satellite" | "street";
 
 export const DEFAULT_MAP_STYLE: MapStyle = "satellite";
 
+/**
+ * Empty-map starting view: mid–upper Texas Gulf Coast (Galveston–Corpus /
+ * Matagorda). Used only when there is no pin yet — a catch with GPS still
+ * fits to that point.
+ */
+export const DEFAULT_MAP_CENTER: [number, number] = [28.55, -96.2];
+export const DEFAULT_MAP_ZOOM = 8;
+
 /** Esri World Imagery — no API key. Tile scheme is z/y/x. */
 export const ESRI_WORLD_IMAGERY_URL =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";

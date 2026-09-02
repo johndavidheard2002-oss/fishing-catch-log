@@ -5,7 +5,9 @@ import type { Map as LeafletMap, Marker } from "leaflet";
 import { BasemapToggle } from "./BasemapToggle";
 import {
   addBasemapToMap,
+  DEFAULT_MAP_CENTER,
   DEFAULT_MAP_STYLE,
+  DEFAULT_MAP_ZOOM,
   loadLeaflet,
   type LeafletNS,
   type MapStyle,
@@ -72,10 +74,13 @@ export function MapPicker({
       const start: [number, number] =
         current.latitude != null && current.longitude != null
           ? [current.latitude, current.longitude]
-          : [28.5, -81.3];
+          : DEFAULT_MAP_CENTER;
       const instance = leaflet
         .map(el, { zoomControl: true, maxZoom: 19, tapTolerance: 25 })
-        .setView(start, current.latitude != null && current.longitude != null ? 16 : 5);
+        .setView(
+          start,
+          current.latitude != null && current.longitude != null ? 16 : DEFAULT_MAP_ZOOM,
+        );
       basemapRef.current = addBasemapToMap(leaflet, instance, basemapRefStyle.current);
       mapRef.current = instance;
 

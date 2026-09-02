@@ -5,7 +5,9 @@ import type { Map as LeafletMap } from "leaflet";
 import { BasemapToggle } from "./BasemapToggle";
 import {
   addBasemapToMap,
+  DEFAULT_MAP_CENTER,
   DEFAULT_MAP_STYLE,
+  DEFAULT_MAP_ZOOM,
   loadLeaflet,
   type LeafletNS,
   type MapStyle,
@@ -78,14 +80,14 @@ export function SpotMap({
 
     function zoomToSpots(instance: LeafletMap, L: LeafletNS) {
       instance.invalidateSize();
-      const center = pinLatLngs[0] ?? ([39.5, -98] as [number, number]);
+      const center = pinLatLngs[0] ?? DEFAULT_MAP_CENTER;
       if (pinLatLngs.length > 1) {
         const bounds = L.latLngBounds(pinLatLngs);
         instance.fitBounds(bounds.pad(0.18), { maxZoom: 17, animate: false });
       } else if (pinLatLngs.length === 1) {
         instance.setView(center, 16, { animate: false });
       } else {
-        instance.setView(center, 4, { animate: false });
+        instance.setView(center, DEFAULT_MAP_ZOOM, { animate: false });
       }
     }
 
@@ -121,13 +123,13 @@ export function SpotMap({
       }
       if (cancelled || !el) return;
 
-      const center = pinLatLngs[0] ?? ([39.5, -98] as [number, number]);
+      const center = pinLatLngs[0] ?? DEFAULT_MAP_CENTER;
 
       const instance = L.map(el, {
         zoomControl: true,
         attributionControl: true,
         maxZoom: 19,
-      }).setView(center, pinLatLngs.length ? 16 : 4);
+      }).setView(center, pinLatLngs.length ? 16 : DEFAULT_MAP_ZOOM);
       basemapLayerRef.current = addBasemapToMap(L, instance, basemapStyleRef.current);
 
       for (const spot of catchCoords) {
