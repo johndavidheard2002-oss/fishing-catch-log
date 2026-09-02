@@ -71,7 +71,7 @@ describe("scoreWindowAgainstCatch", () => {
     );
     expect(match.score).toBeGreaterThanOrEqual(30);
     expect(match.reasons).toEqual(
-      expect.arrayContaining(["Afternoon", "Cloudy"]),
+      expect.arrayContaining(["Same time of day", "Cloudy"]),
     );
   });
 
