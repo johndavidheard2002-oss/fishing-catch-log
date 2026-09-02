@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BuddyPanel } from "@/components/BuddyPanel";
+import { FirstHelpTip } from "@/components/HelpGuide";
 import { SampleJournalControls } from "@/components/SampleJournalControls";
 
 export function HomeClient() {
@@ -13,6 +14,8 @@ export function HomeClient() {
         </h1>
         <p className="mt-1 font-display text-2xl leading-snug text-teal">Saltwater Logbook</p>
       </section>
+
+      <FirstHelpTip />
 
       <div className="grid grid-cols-2 gap-2">
         <Link

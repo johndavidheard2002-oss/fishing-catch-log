@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { HelpButton, HelpGuide } from "@/components/HelpGuide";
 import type { ProviderStatus } from "@/lib/types";
 
 const NAV: {
@@ -238,11 +239,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
             </span>
           </Link>
-          {demo ? (
-            <span className="rounded-full border border-line bg-card px-2.5 py-1 text-xs text-ink-muted">
-              Demo APIs
-            </span>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <HelpButton />
+            {demo ? (
+              <span className="rounded-full border border-line bg-card px-2.5 py-1 text-xs text-ink-muted">
+                Demo APIs
+              </span>
+            ) : null}
+          </div>
         </header>
         <main className="flex-1">{children}</main>
       </div>
@@ -270,6 +274,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </ul>
       </nav>
     </div>
+    <HelpGuide />
     </>
   );
 }
