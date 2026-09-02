@@ -16,7 +16,7 @@ export function LogClient() {
         </h1>
         <p className="text-sm text-ink-muted">
           {past
-            ? "Backfill from a camera-roll photo. Set the date, pin the water, and pick freshwater or saltwater first."
+            ? "Backfill from your camera roll. Set the date and time, pin the water, then fill species and weather."
             : "Photo first. Species, weather, and place fill in when they can — everything stays editable."}
         </p>
       </div>
@@ -27,7 +27,7 @@ export function LogClient() {
             !past ? "bg-teal text-white" : "text-ink-muted"
           }`}
         >
-          Today
+          Now
         </Link>
         <Link
           href="/log?past=1"
@@ -35,7 +35,7 @@ export function LogClient() {
             past ? "bg-teal text-white" : "text-ink-muted"
           }`}
         >
-          Add past catch
+          Backfill
         </Link>
       </div>
       <CatchForm mode="create" pastMode={past} />

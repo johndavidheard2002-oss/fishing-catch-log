@@ -43,7 +43,7 @@ export function HomeClient() {
         href="/log?past=1"
         className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
       >
-        Add a past catch
+        Backfill a past catch
       </Link>
       <Link
         href="/plan"

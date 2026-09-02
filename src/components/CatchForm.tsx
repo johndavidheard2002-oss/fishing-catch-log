@@ -44,7 +44,7 @@ type FormState = {
   sharedWithLinked: boolean;
 };
 
-const emptyForm = (): FormState => {
+const emptyForm = (pastMode = false): FormState => {
   const now = new Date();
   return {
     species: "",
@@ -59,7 +59,7 @@ const emptyForm = (): FormState => {
     windSpeedMph: "",
     precipitationIn: "",
     humidity: "",
-    caughtAt: datetimeLocalValue(now.toISOString()),
+    caughtAt: pastMode ? "" : datetimeLocalValue(now.toISOString()),
     timeOfDay: timeOfDayFromDate(now),
     season: seasonFromDate(now),
     notes: "",
@@ -107,7 +107,9 @@ export function CatchForm({
   pastMode?: boolean;
 }) {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>(initial ? fromRecord(initial) : emptyForm());
+  const [form, setForm] = useState<FormState>(
+    initial ? fromRecord(initial) : emptyForm(pastMode),
+  );
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initial ? photoSrc(initial.photoPath) : null,
@@ -192,7 +194,9 @@ export function CatchForm({
 
     let lat: number | undefined;
     let lon: number | undefined;
-    let at = new Date();
+    const formWhen = form.caughtAt ? new Date(form.caughtAt) : null;
+    let at =
+      formWhen && !Number.isNaN(formWhen.getTime()) ? formWhen : pastMode ? new Date(0) : new Date();
 
     try {
       const exif = (await exifr.parse(file, {
@@ -221,7 +225,7 @@ export function CatchForm({
       /* EXIF is optional */
     }
 
-    if (lat == null || lon == null) {
+    if (!pastMode && (lat == null || lon == null)) {
       const geo = await getPosition();
       if (geo) {
         lat = geo.coords.latitude;
@@ -264,6 +268,7 @@ export function CatchForm({
     );
 
     if (lat != null && lon != null) {
+      if (at.getTime() > 0) {
       tasks.push(
         (async () => {
           try {
@@ -289,6 +294,7 @@ export function CatchForm({
           }
         })(),
       );
+      }
       tasks.push(
         (async () => {
           try {
@@ -306,6 +312,10 @@ export function CatchForm({
             notes.push("Place name lookup failed. You can name the spot.");
           }
         })(),
+      );
+    } else if (pastMode) {
+      notes.push(
+        "Pin the exact water on the map and set the date. We did not use your current location.",
       );
     } else {
       notes.push("No GPS yet — add a place name if you know it.");
@@ -391,6 +401,85 @@ export function CatchForm({
         </p>
       ) : null}
 
+      {pastMode ? (
+        <>
+          <div>
+            <p className="mb-1 text-sm font-semibold">When you caught it</p>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1 block text-xs text-ink-muted">Date</span>
+                <input
+                  type="date"
+                  value={form.caughtAt.slice(0, 10)}
+                  onChange={(e) => {
+                    const next = joinDateTime(e.target.value, form.caughtAt.slice(11, 16) || "12:00");
+                    const d = new Date(next);
+                    patch({
+                      caughtAt: next,
+                      timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
+                      season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+                    });
+                  }}
+                  className="w-full rounded-xl border border-line bg-card px-3 py-3"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs text-ink-muted">Time</span>
+                <input
+                  type="time"
+                  value={form.caughtAt.slice(11, 16)}
+                  onChange={(e) => {
+                    const day = form.caughtAt.slice(0, 10);
+                    if (!day) return;
+                    const next = joinDateTime(day, e.target.value);
+                    const d = new Date(next);
+                    patch({
+                      caughtAt: next,
+                      timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
+                      season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+                    });
+                  }}
+                  className="w-full rounded-xl border border-line bg-card px-3 py-3"
+                  required
+                />
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-ink-muted">
+              Any past date. The photo&apos;s EXIF time is used when it&apos;s there.
+            </p>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold">Place</span>
+            <input
+              value={form.placeName}
+              onChange={(e) => patch({ placeName: e.target.value })}
+              placeholder="Lake, ramp, or hole name"
+              className="w-full rounded-xl border border-line bg-card px-3 py-3"
+            />
+          </label>
+          <p className="text-sm font-semibold">Pin where you caught it</p>
+          <MapPicker
+            latitude={numOrNull(form.latitude)}
+            longitude={numOrNull(form.longitude)}
+            onChange={async (lat, lng) => {
+              patch({ latitude: lat.toFixed(5), longitude: lng.toFixed(5) });
+              try {
+                const res = await fetch("/api/assist/place", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ latitude: lat, longitude: lng }),
+                });
+                const data = await res.json();
+                if (data.place?.placeName) patch({ placeName: data.place.placeName });
+              } catch {
+                /* optional */
+              }
+            }}
+          />
+        </>
+      ) : null}
+
       <SpeciesPicker
         species={form.species}
         habitat={form.habitat}
@@ -434,6 +523,7 @@ export function CatchForm({
         </p>
       )}
 
+      {pastMode ? null : (
       <label className="block">
         <span className="mb-1 block text-sm font-semibold">Place</span>
         <input
@@ -443,7 +533,9 @@ export function CatchForm({
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
       </label>
+      )}
 
+      {pastMode ? null : (
       <button
         type="button"
         className="text-left text-sm font-semibold text-teal"
@@ -451,7 +543,8 @@ export function CatchForm({
       >
         {showMap ? "Hide map pin" : "Pin the spot on a map"}
       </button>
-      {showMap ? (
+      )}
+      {!pastMode && showMap ? (
         <MapPicker
           latitude={numOrNull(form.latitude)}
           longitude={numOrNull(form.longitude)}
@@ -560,9 +653,10 @@ export function CatchForm({
         </label>
       </div>
 
+      {pastMode ? null : (
       <label className="block">
         <span className="mb-1 block text-sm font-semibold">
-          {pastMode ? "When you caught it" : "When"}
+          When
         </span>
         <input
           type="datetime-local"
@@ -580,6 +674,7 @@ export function CatchForm({
           required
         />
       </label>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
@@ -687,6 +782,11 @@ export function CatchForm({
       </button>
     </form>
   );
+}
+
+function joinDateTime(date: string, time: string): string {
+  if (!date) return "";
+  return `${date}T${time || "12:00"}`;
 }
 
 function numOrNull(value: string): number | null {
