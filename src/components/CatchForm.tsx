@@ -16,7 +16,7 @@ import { coordsLookDifferent, formatCoords, shouldApplyPhotoGpsToCatch } from "@
 import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
 import { clampFishCount } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
-import { datetimeLocalValue, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
+import { datetimeLocalValue, parseExifStamp, seasonFromCaughtAtInput, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromCaughtAtInput, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
 import type {
@@ -63,10 +63,11 @@ type FormState = {
 };
 
 const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => {
-  const parsed = caughtAtIso ? new Date(caughtAtIso) : new Date();
-  const now = Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+  const parsed = caughtAtIso ? parseExifStamp(caughtAtIso) ?? new Date(caughtAtIso) : new Date();
+  const now = parsed instanceof Date && !Number.isNaN(parsed.getTime()) ? parsed : new Date();
   const moon = moonForDate(now);
-  const hasStamp = Boolean(caughtAtIso && !Number.isNaN(parsed.getTime()));
+  const hasStamp = Boolean(caughtAtIso && !Number.isNaN(now.getTime()));
+  const caughtAt = pastMode && !hasStamp ? "" : datetimeLocalValue(now.toISOString());
   return {
     speciesList: [],
     speciesSuggested: "",
@@ -88,9 +89,9 @@ const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => 
     pressureInHg: "",
     pressureMb: "",
     pressureTrend: "",
-    caughtAt: pastMode && !hasStamp ? "" : datetimeLocalValue(now.toISOString()),
-    timeOfDay: timeOfDayFromDate(now),
-    season: seasonFromDate(now),
+    caughtAt,
+    timeOfDay: (caughtAt && timeOfDayFromCaughtAtInput(caughtAt)) || timeOfDayFromDate(now),
+    season: (caughtAt && seasonFromCaughtAtInput(caughtAt)) || seasonFromDate(now),
     notes: "",
     bait: "",
     tide: "",
@@ -191,6 +192,7 @@ export function CatchForm({
   const [showMore, setShowMore] = useState(Boolean(initial?.notes || initial?.bait));
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
   const [moonLocked, setMoonLocked] = useState(false);
+  const [timeOfDayLocked, setTimeOfDayLocked] = useState(false);
   const [catchLocationLocked, setCatchLocationLocked] = useState(
     Boolean(initial?.latitude && initial?.longitude),
   );
@@ -232,6 +234,10 @@ export function CatchForm({
     setCatchLocationLocked(true);
     patch(partial);
   }
+
+  const derivedTimeOfDay =
+    timeOfDayFromCaughtAtInput(form.caughtAt) ?? form.timeOfDay;
+  const timeOfDay = timeOfDayLocked ? form.timeOfDay : derivedTimeOfDay;
 
   useEffect(() => {
     if (!pastMode) return;
@@ -291,13 +297,15 @@ export function CatchForm({
         lat = exif.latitude;
         lon = exif.longitude;
       }
-      const stamp = exif?.DateTimeOriginal ?? exif?.CreateDate;
-      if (stamp instanceof Date && !Number.isNaN(stamp.getTime())) {
+      const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
+      if (stamp) {
         at = stamp;
+        const caughtAt = datetimeLocalValue(stamp.toISOString());
+        setTimeOfDayLocked(false);
         patch({
-          caughtAt: datetimeLocalValue(stamp.toISOString()),
-          timeOfDay: timeOfDayFromDate(stamp),
-          season: seasonFromDate(stamp),
+          caughtAt,
+          timeOfDay: timeOfDayFromCaughtAtInput(caughtAt) ?? timeOfDayFromDate(stamp),
+          season: seasonFromCaughtAtInput(caughtAt) ?? seasonFromDate(stamp),
           ...moonFields(stamp, moonLocked),
         });
       }
@@ -480,7 +488,7 @@ export function CatchForm({
         pressureMb: numOrNull(form.pressureMb),
         pressureTrend: form.pressureTrend || null,
         caughtAt: new Date(form.caughtAt).toISOString(),
-        timeOfDay: form.timeOfDay,
+        timeOfDay,
         season: form.season,
         notes: form.notes || null,
         bait: form.bait || null,
@@ -540,10 +548,11 @@ export function CatchForm({
                   onChange={(e) => {
                     const next = joinDateTime(e.target.value, form.caughtAt.slice(11, 16) || "12:00");
                     const d = new Date(next);
+                    setTimeOfDayLocked(false);
                     patch({
                       caughtAt: next,
-                      timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
-                      season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+                      timeOfDay: timeOfDayFromCaughtAtInput(next) ?? form.timeOfDay,
+                      season: seasonFromCaughtAtInput(next) ?? form.season,
                       ...moonFields(d, moonLocked),
                     });
                   }}
@@ -561,10 +570,11 @@ export function CatchForm({
                     if (!day) return;
                     const next = joinDateTime(day, e.target.value);
                     const d = new Date(next);
+                    setTimeOfDayLocked(false);
                     patch({
                       caughtAt: next,
-                      timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
-                      season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+                      timeOfDay: timeOfDayFromCaughtAtInput(next) ?? form.timeOfDay,
+                      season: seasonFromCaughtAtInput(next) ?? form.season,
                       ...moonFields(d, moonLocked),
                     });
                   }}
@@ -916,10 +926,11 @@ export function CatchForm({
           onChange={(e) => {
             const value = e.target.value;
             const d = new Date(value);
+            setTimeOfDayLocked(false);
             patch({
               caughtAt: value,
-              timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
-              season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+              timeOfDay: timeOfDayFromCaughtAtInput(value) ?? form.timeOfDay,
+              season: seasonFromCaughtAtInput(value) ?? form.season,
               ...moonFields(d, moonLocked),
             });
           }}
@@ -933,8 +944,11 @@ export function CatchForm({
         <label className="block">
           <span className="mb-1 block text-sm font-semibold">Time of day</span>
           <select
-            value={form.timeOfDay}
-            onChange={(e) => patch({ timeOfDay: e.target.value as TimeOfDay })}
+            value={timeOfDay}
+            onChange={(e) => {
+              setTimeOfDayLocked(true);
+              patch({ timeOfDay: e.target.value as TimeOfDay });
+            }}
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           >
             {TIME_OF_DAY.map((t) => (

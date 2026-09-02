@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import { compressImage } from "@/lib/photo";
-import { datetimeLocalValue } from "@/lib/time";
+import { dateFromDatetimeLocal, datetimeLocalValue, parseExifStamp } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import { peekScanQueue, setScanQueue, type QueuedScanCandidate } from "@/lib/scan-queue";
 
@@ -98,8 +98,8 @@ export function ScanLibraryClient() {
           latitude?: number;
           longitude?: number;
         } | undefined;
-        const stamp = exif?.DateTimeOriginal ?? exif?.CreateDate;
-        if (stamp instanceof Date && !Number.isNaN(stamp.getTime())) caughtAt = stamp;
+        const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
+        if (stamp) caughtAt = stamp;
         if (exif?.latitude != null && exif.longitude != null) {
           photoTakenLatitude = exif.latitude;
           photoTakenLongitude = exif.longitude;
@@ -269,8 +269,8 @@ export function ScanLibraryClient() {
                 type="datetime-local"
                 value={datetimeLocalValue(current.caughtAt.toISOString())}
                 onChange={(e) => {
-                  const next = new Date(e.target.value);
-                  if (Number.isNaN(next.getTime())) return;
+                  const next = dateFromDatetimeLocal(e.target.value);
+                  if (!next) return;
                   setCandidates((list) =>
                     list.map((c, i) => (i === index ? { ...c, caughtAt: next } : c)),
                   );

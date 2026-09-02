@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { seasonFromDate, timeOfDayFromDate } from "./time";
+import { parseExifStamp, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "./time";
 
 describe("timeOfDayFromDate", () => {
   it("buckets local hours into dawn through night", () => {
@@ -13,6 +13,25 @@ describe("timeOfDayFromDate", () => {
     expect(at(18)).toBe("dusk");
     expect(at(22)).toBe("night");
     expect(at(2)).toBe("night");
+  });
+});
+
+describe("timeOfDayFromCaughtAtInput", () => {
+  it("uses the datetime-local clock, not Date UTC parsing", () => {
+    expect(timeOfDayFromCaughtAtInput("2025-07-12T06:10")).toBe("dawn");
+    expect(timeOfDayFromCaughtAtInput("2025-07-12T08:00")).toBe("morning");
+    expect(timeOfDayFromCaughtAtInput("2025-07-12T14:30")).toBe("afternoon");
+    expect(timeOfDayFromCaughtAtInput("2025-07-12T18:05")).toBe("dusk");
+    expect(timeOfDayFromCaughtAtInput("2025-07-12T22:00")).toBe("night");
+  });
+});
+
+describe("parseExifStamp", () => {
+  it("accepts Date objects and EXIF-style strings", () => {
+    const fromDate = parseExifStamp(new Date(2025, 6, 12, 6, 10));
+    expect(fromDate && timeOfDayFromDate(fromDate)).toBe("dawn");
+    const fromString = parseExifStamp("2025:07:12 06:10:00");
+    expect(fromString).toBeInstanceOf(Date);
   });
 });
 

@@ -18,6 +18,37 @@ export function timeOfDayFromDate(date: Date): TimeOfDay {
   return timeOfDayFromHour(date.getHours() + date.getMinutes() / 60);
 }
 
+const DATETIME_LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/;
+
+/** Bucket from the wall-clock in a datetime-local value, ignoring Date UTC parsing quirks. */
+export function timeOfDayFromCaughtAtInput(value: string): TimeOfDay | null {
+  const local = value.match(DATETIME_LOCAL_RE);
+  if (local) return timeOfDayFromHour(Number(local[4]) + Number(local[5]) / 60);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return timeOfDayFromDate(date);
+}
+
+export function seasonFromCaughtAtInput(value: string): Season | null {
+  const local = value.match(DATETIME_LOCAL_RE);
+  if (local) return seasonFromDate(new Date(Number(local[1]), Number(local[2]) - 1, Number(local[3])));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return seasonFromDate(date);
+}
+
+export function parseExifStamp(value: unknown): Date | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = value.trim().replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3");
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function seasonFromDate(date: Date): Season {
   const month = date.getMonth() + 1;
   if (month >= 3 && month <= 5) return "spring";
@@ -68,6 +99,21 @@ export function formatDateOnly(iso: string): string {
     day: "numeric",
     year: "numeric",
   }).format(date);
+}
+
+export function dateFromDatetimeLocal(value: string): Date | null {
+  const local = value.match(DATETIME_LOCAL_RE);
+  if (local) {
+    return new Date(
+      Number(local[1]),
+      Number(local[2]) - 1,
+      Number(local[3]),
+      Number(local[4]),
+      Number(local[5]),
+    );
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export function datetimeLocalValue(iso: string): string {
