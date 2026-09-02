@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
@@ -37,61 +37,44 @@ export function PlanClient() {
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlanResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [mapTarget, setMapTarget] = useState<PlanMapTarget | null>(null);
+  const resultsRef = useRef<HTMLElement | null>(null);
+  const requestKey = selectedDay ? `${selectedDay}|${includeShared ? "1" : "0"}` : null;
+  const waiting = Boolean(requestKey) && loadedKey !== requestKey;
 
   useEffect(() => {
-    if (!selectedDay) return;
+    if (!selectedDay || !requestKey) return;
     let cancelled = false;
     const extra = sharedQuery(includeShared);
     fetch(`/api/plan?date=${selectedDay}${extra ? `&${extra}` : ""}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) {
-          setPlan(data);
-          setError(null);
-          setLoading(false);
-        }
+      .then((data: PlanResult) => {
+        if (cancelled) return;
+        setPlan(data);
+        setError(null);
+        setLoadedKey(requestKey);
       })
       .catch(() => {
-        if (!cancelled) {
-          setError("Could not build a plan.");
-          setLoading(false);
-        }
+        if (cancelled) return;
+        setError("Could not build a plan.");
+        setPlan(null);
+        setLoadedKey(requestKey);
       });
     return () => {
       cancelled = true;
     };
-  }, [selectedDay, includeShared]);
+  }, [selectedDay, includeShared, requestKey]);
 
-  const byDay = useMemo(() => {
-    const map = new Map<string, PlanSuggestion[]>();
-    for (const s of plan?.suggestions ?? []) {
-      const list = map.get(s.window.date) ?? [];
-      list.push(s);
-      map.set(s.window.date, list);
-    }
-    return map;
-  }, [plan]);
+  useEffect(() => {
+    if (!selectedDay || waiting || !resultsRef.current) return;
+    resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedDay, waiting, loadedKey]);
 
-  const baitByDay = useMemo(() => {
-    const map = new Map<string, BaitPlanSuggestion[]>();
-    for (const s of plan?.baitSuggestions ?? []) {
-      const list = map.get(s.window.date) ?? [];
-      list.push(s);
-      map.set(s.window.date, list);
-    }
-    return map;
-  }, [plan]);
-
-  const dayKeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const date of byDay.keys()) keys.add(date);
-    for (const date of baitByDay.keys()) keys.add(date);
-    return [...keys].sort();
-  }, [byDay, baitByDay]);
+  const suggestions = plan?.suggestions ?? [];
+  const baitSuggestions = plan?.baitSuggestions ?? [];
 
   return (
     <div className="space-y-4">
@@ -114,13 +97,10 @@ export function PlanClient() {
           setYear(next.year);
           setMonth(next.month);
         }}
-        onSelectDay={(date) => {
-          setLoading(true);
-          setSelectedDay(date);
-        }}
+        onSelectDay={setSelectedDay}
       />
 
-      {plan && selectedDay ? (
+      {plan && selectedDay && !waiting ? (
         <p className="rounded-2xl border border-line bg-card px-3 py-2 text-xs text-ink-muted">
           {plan.weatherSource === "demo" || plan.tideSource === "demo"
             ? "Demo forecast/tides until you add API keys. "
@@ -134,55 +114,51 @@ export function PlanClient() {
 
       {!selectedDay ? (
         <p className="text-sm text-ink-muted">Tap a day to plan it.</p>
-      ) : loading ? (
+      ) : waiting ? (
         <p className="text-sm text-ink-muted">Matching that day to your journal…</p>
       ) : error ? (
         <p className="text-sm text-copper">{error}</p>
-      ) : !(plan?.suggestions?.length || plan?.baitSuggestions?.length) ? (
-        <p className="text-sm text-ink-muted">
-          No close matches for this day. Log more catches or bait spots, or pick another date.
-        </p>
       ) : (
-        dayKeys.map((date) => {
-          const items = byDay.get(date) ?? [];
-          const baitItems = baitByDay.get(date) ?? [];
-          return (
-          <section key={date} className="space-y-2">
-            <h2 className="font-display text-xl text-teal">{formatWeekdayDate(date)}</h2>
-            {items.map((s) => (
-              <SuggestionCard
-                key={s.id}
-                suggestion={s}
-                showOwner={includeShared}
-                onOpenMap={() => setMapTarget(mapTargetFromCatch(s))}
-              />
-            ))}
-            {baitItems.length ? (
-              <>
-                <h3 className="pt-1 text-sm font-semibold text-copper" data-testid="bait-plan-heading">
-                  Bait under similar conditions
-                </h3>
-                {baitItems.map((s) => (
-                  <BaitSuggestionCard
-                    key={s.id}
-                    suggestion={s}
-                    showOwner={includeShared}
-                    onOpenMap={() => setMapTarget(mapTargetFromBait(s))}
-                  />
-                ))}
-              </>
-            ) : null}
-          </section>
-          );
-        })
+        <section
+          ref={resultsRef}
+          className="space-y-2"
+          data-testid="plan-day-results"
+        >
+          <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
+          {suggestions.length || baitSuggestions.length ? (
+            <>
+              {suggestions.map((s) => (
+                <SuggestionCard
+                  key={s.id}
+                  suggestion={s}
+                  showOwner={includeShared}
+                  onOpenMap={() => setMapTarget(mapTargetFromCatch(s))}
+                />
+              ))}
+              {baitSuggestions.length ? (
+                <>
+                  <h3 className="pt-1 text-sm font-semibold text-copper" data-testid="bait-plan-heading">
+                    Bait under similar conditions
+                  </h3>
+                  {baitSuggestions.map((s) => (
+                    <BaitSuggestionCard
+                      key={s.id}
+                      suggestion={s}
+                      showOwner={includeShared}
+                      onOpenMap={() => setMapTarget(mapTargetFromBait(s))}
+                    />
+                  ))}
+                </>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-sm text-ink-muted">
+              No close matches for this day. Log more catches or bait spots, or pick another date.
+            </p>
+          )}
+        </section>
       )}
-      <SharedToggle
-        includeShared={includeShared}
-        onChange={(next) => {
-          if (selectedDay) setLoading(true);
-          setIncludeShared(next);
-        }}
-      />
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
       <PlanSpotSheet target={mapTarget} onClose={() => setMapTarget(null)} />
     </div>
   );
@@ -240,6 +216,7 @@ function PlanDayCalendar({
               onClick={() => onSelectDay(cell.date)}
               aria-label={cell.date}
               aria-pressed={isSelected}
+              data-testid={`plan-day-${cell.date}`}
               className={`min-h-10 rounded-xl py-2 text-sm ${
                 isSelected
                   ? "bg-teal font-semibold text-white"
