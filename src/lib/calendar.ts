@@ -98,3 +98,5 @@ export function catchSpotLabel(record: CatchRecord): string {
 export function uniqueSpotLabels(records: CatchRecord[]): string[] {
   return [...new Set(records.map(catchSpotLabel))];
 }
+
+export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
