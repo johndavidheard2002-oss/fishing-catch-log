@@ -152,7 +152,6 @@ export function HistoryCalendar({
             <SpotMap
               spots={selectedSpotGroups}
               selectedKey={null}
-              onSelect={() => {}}
               className="h-44 w-full overflow-hidden rounded-2xl border border-line"
             />
           ) : null}

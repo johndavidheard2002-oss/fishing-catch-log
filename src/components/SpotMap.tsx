@@ -4,6 +4,15 @@ import { useEffect, useRef } from "react";
 import type { SpotGroup } from "@/lib/types";
 import "leaflet/dist/leaflet.css";
 
+function spotsSignature(spots: SpotGroup[], selectedKey: string | null): string {
+  return spots
+    .map(
+      (s) =>
+        `${s.key}:${s.latitude}:${s.longitude}:${s.catchCount}:${s.fishCount}:${s.placeName}:${selectedKey === s.key ? 1 : 0}`,
+    )
+    .join("|");
+}
+
 export function SpotMap({
   spots,
   selectedKey,
@@ -12,15 +21,24 @@ export function SpotMap({
 }: {
   spots: SpotGroup[];
   selectedKey: string | null;
-  onSelect: (key: string) => void;
+  onSelect?: (key: string) => void;
   className?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const spotsRef = useRef(spots);
+  const onSelectRef = useRef(onSelect);
+  const signature = spotsSignature(spots, selectedKey);
+
+  useEffect(() => {
+    spotsRef.current = spots;
+    onSelectRef.current = onSelect;
+  });
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const withCoords = spots.filter((s) => s.latitude != null && s.longitude != null);
+    const current = spotsRef.current;
+    const withCoords = current.filter((s) => s.latitude != null && s.longitude != null);
     let map: { remove: () => void } | null = null;
     let cancelled = false;
 
@@ -50,7 +68,7 @@ export function SpotMap({
           weight: 2,
         }).addTo(instance);
         marker.bindTooltip(`${spot.placeName} · ${spot.fishCount} fish · ${spot.catchCount}`);
-        marker.on("click", () => onSelect(spot.key));
+        marker.on("click", () => onSelectRef.current?.(spot.key));
         bounds.extend([spot.latitude!, spot.longitude!]);
       }
       if (withCoords.length > 1) instance.fitBounds(bounds.pad(0.25));
@@ -61,7 +79,7 @@ export function SpotMap({
       cancelled = true;
       map?.remove();
     };
-  }, [spots, selectedKey, onSelect]);
+  }, [signature, selectedKey]);
 
   return <div ref={ref} className={className} />;
 }
