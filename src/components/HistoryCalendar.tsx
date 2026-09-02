@@ -80,13 +80,16 @@ export function HistoryCalendar({
     baitYearGroupsAll.length > 1 ||
     (thisYearSelected.length === 0 && acrossYears.length > 0) ||
     (thisYearBait.length === 0 && acrossYearsBait.length > 0);
-  const selected = thisYearOnly ? thisYearSelected : acrossYears;
-  const selectedBait = thisYearOnly ? thisYearBait : acrossYearsBait;
-  const yearGroups = groupCatchesByYear(selected);
-  const baitYearGroups = groupBaitSpotsByYear(selectedBait);
-  const mappedSpots = spotsWithPins(selected);
-  const mappedBait = baitSpotsWithPins(selectedBait);
-  const showYearLabels = !thisYearOnly && hasOtherYears;
+  const mappedSpots = spotsWithPins(thisYearSelected);
+  const mappedBait = baitSpotsWithPins(thisYearBait);
+  const viewYear = selectedDay ? yearFromDateKey(selectedDay) : year;
+  const priorCatchGroups = groupCatchesByYear(
+    acrossYears.filter((record) => yearFromDateKey(record.caughtAt) !== viewYear),
+  );
+  const priorBaitGroups = groupBaitSpotsByYear(
+    acrossYearsBait.filter((spot) => yearFromDateKey(spot.loggedAt) !== viewYear),
+  );
+  const showPriorYears = !thisYearOnly && (priorCatchGroups.length > 0 || priorBaitGroups.length > 0);
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const allYearsLabel = selectedDay
     ? yearsOnMonthDay(catches, baitSpots, selectedDay).join(" · ")
@@ -258,31 +261,6 @@ export function HistoryCalendar({
                 : formatWeekdayDate(selectedDay)}
             </h2>
           </div>
-          {selected.length === 0 && selectedBait.length === 0 ? null : mappedSpots.length || mappedBait.length ? (
-            <div className="space-y-1">
-              <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">
-                Locations
-              </p>
-              <SpotMap
-                spots={mappedSpots}
-                baitSpots={mappedBait}
-                selectedKey={null}
-                className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
-              />
-              {mappedSpots.length && mappedBait.length ? (
-                <p className="on-wash-chip w-fit text-[11px]">
-                  Teal pins are catches. Copper pins are bait holes.
-                </p>
-              ) : mappedBait.length && !mappedSpots.length ? (
-                <p className="on-wash-chip w-fit text-[11px]">Copper pins are bait holes.</p>
-              ) : null}
-              <PinSummary spots={mappedSpots} baitSpots={mappedBait} />
-            </div>
-          ) : (
-            <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
-              No map pins this date — those trips have no saved location.
-            </p>
-          )}
           {hasOtherYears ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="on-wash-chip w-fit text-xs">
@@ -312,51 +290,139 @@ export function HistoryCalendar({
               </div>
             </div>
           ) : null}
-          {onCreateNote && onUpdateNote && onDeleteNote ? (
-            <DayNotes
-              day={selectedDay}
-              notes={selectedNotes}
-              onCreate={onCreateNote}
-              onUpdate={onUpdateNote}
-              onDelete={onDeleteNote}
-            />
-          ) : null}
-          {onShareDay ? (
-            <DayShareToggle
-              day={selectedDay}
-              records={thisYearSelected}
-              viewerId={viewerId}
-              onShareDay={onShareDay}
-              selectedYearOnly={hasOtherYears}
-            />
-          ) : null}
-          {selected.length === 0 && selectedBait.length === 0 ? (
-            <p className="on-wash-chip text-sm">
-              {thisYearOnly && (acrossYears.length || acrossYearsBait.length)
-                ? `Nothing in ${yearFromDateKey(selectedDay)}. Other years have trips on this date — switch to All years.`
-                : selectedDay > today
-                  ? "No logged catch or bait yet — add a planned trip above. Log the fish from Log or bait from Log bait after the trip."
-                  : "No matching catches or bait spots on this day. You can still add a planned-trip note."}
-            </p>
+          {thisYearSelected.length === 0 && thisYearBait.length === 0 && !showPriorYears ? (
+            <>
+              {onCreateNote && onUpdateNote && onDeleteNote ? (
+                <DayNotes
+                  day={selectedDay}
+                  notes={selectedNotes}
+                  onCreate={onCreateNote}
+                  onUpdate={onUpdateNote}
+                  onDelete={onDeleteNote}
+                />
+              ) : null}
+              <p className="on-wash-chip text-sm">
+                {thisYearOnly && (acrossYears.length || acrossYearsBait.length)
+                  ? `Nothing in ${viewYear}. Other years have trips on this date — switch to All years.`
+                  : selectedDay > today
+                    ? "No logged catch or bait yet — add a planned trip above. Log the fish from Log or bait from Log bait after the trip."
+                    : "No matching catches or bait spots on this day. You can still add a planned-trip note."}
+              </p>
+            </>
           ) : (
             <>
-              {selectedBait.length ? (
-                <div className="space-y-2">
-                  <h3 className="on-wash-chip w-fit text-sm font-semibold text-copper">Bait</h3>
-                  {baitYearGroups.map((group) => (
-                    <div key={`bait-${group.year}`} className="space-y-2">
-                      {showYearLabels && yearGroups.length + baitYearGroups.length > 1 ? (
-                        <h4 className="on-wash-chip w-fit pt-1 font-display text-lg text-teal">
-                          {group.year}
-                        </h4>
-                      ) : null}
+              <div className="space-y-2" data-testid="calendar-this-year">
+                <h3 className="on-wash-chip w-fit font-display text-lg text-teal">
+                  {viewYear} · this year
+                </h3>
+                {thisYearSelected.length === 0 && thisYearBait.length === 0 ? (
+                  <p className="on-wash-chip text-sm">
+                    Nothing logged in {viewYear}. Same date in other years is below.
+                  </p>
+                ) : null}
+                {thisYearSelected.map((record) => (
+                  <CatchCard
+                    key={record.id}
+                    record={record}
+                    showTime
+                    viewerId={viewerId}
+                  />
+                ))}
+                {thisYearBait.length ? (
+                  <div className="space-y-2">
+                    <h4 className="on-wash-chip w-fit text-sm font-semibold text-copper">Bait</h4>
+                    {thisYearBait.map((spot) => (
+                      <BaitSpotCard
+                        key={spot.id}
+                        spot={spot}
+                        compact
+                        showTime
+                        viewerId={viewerId}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              {mappedSpots.length || mappedBait.length ? (
+                <div className="space-y-1">
+                  <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">
+                    Locations
+                  </p>
+                  <SpotMap
+                    spots={mappedSpots}
+                    baitSpots={mappedBait}
+                    selectedKey={null}
+                    className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
+                  />
+                  {mappedSpots.length && mappedBait.length ? (
+                    <p className="on-wash-chip w-fit text-[11px]">
+                      Teal pins are catches. Copper pins are bait holes.
+                    </p>
+                  ) : mappedBait.length && !mappedSpots.length ? (
+                    <p className="on-wash-chip w-fit text-[11px]">Copper pins are bait holes.</p>
+                  ) : null}
+                  <PinSummary spots={mappedSpots} baitSpots={mappedBait} />
+                </div>
+              ) : thisYearSelected.length || thisYearBait.length ? (
+                <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
+                  No map pins this year — those trips have no saved location.
+                </p>
+              ) : null}
+              {onCreateNote && onUpdateNote && onDeleteNote ? (
+                <DayNotes
+                  day={selectedDay}
+                  notes={selectedNotes}
+                  onCreate={onCreateNote}
+                  onUpdate={onUpdateNote}
+                  onDelete={onDeleteNote}
+                />
+              ) : null}
+              {onShareDay ? (
+                <DayShareToggle
+                  day={selectedDay}
+                  records={thisYearSelected}
+                  viewerId={viewerId}
+                  onShareDay={onShareDay}
+                  selectedYearOnly={hasOtherYears}
+                />
+              ) : null}
+              {showPriorYears ? (
+                <div className="space-y-3 pt-2" data-testid="calendar-prior-years">
+                  <h3 className="on-wash-chip w-fit font-display text-lg text-teal">
+                    Same date in other years
+                  </h3>
+                  <p className="on-wash-chip w-fit text-xs text-ink-muted">
+                    Below this year’s photo — {allYearsLabel}.
+                  </p>
+                  {priorCatchGroups.map((group) => (
+                    <div key={`prior-${group.year}`} className="space-y-2">
+                      <h4 className="on-wash-chip w-fit text-sm font-semibold">
+                        {group.year}
+                      </h4>
+                      {group.catches.map((record) => (
+                        <CatchCard
+                          key={record.id}
+                          record={record}
+                          compact
+                          showTime
+                          showYear
+                          viewerId={viewerId}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                  {priorBaitGroups.map((group) => (
+                    <div key={`prior-bait-${group.year}`} className="space-y-2">
+                      <h4 className="on-wash-chip w-fit text-sm font-semibold text-copper">
+                        Bait · {group.year}
+                      </h4>
                       {group.spots.map((spot) => (
                         <BaitSpotCard
                           key={spot.id}
                           spot={spot}
                           compact
                           showTime
-                          showYear={showYearLabels}
+                          showYear
                           viewerId={viewerId}
                         />
                       ))}
@@ -364,25 +430,6 @@ export function HistoryCalendar({
                   ))}
                 </div>
               ) : null}
-              {yearGroups.map((group) => (
-                <div key={group.year} className="space-y-2">
-                  {showYearLabels ? (
-                    <h3 className="on-wash-chip w-fit pt-1 font-display text-lg text-teal">
-                      {group.year}
-                    </h3>
-                  ) : null}
-                  {group.catches.map((record) => (
-                    <CatchCard
-                      key={record.id}
-                      record={record}
-                      compact
-                      showTime
-                      showYear={showYearLabels}
-                      viewerId={viewerId}
-                    />
-                  ))}
-                </div>
-              ))}
             </>
           )}
         </section>

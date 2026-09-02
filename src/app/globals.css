@@ -283,6 +283,10 @@ main a.home-plan-cta {
   touch-action: pan-y;
 }
 
+.backfill-photo-dock {
+  background: rgb(247 252 255 / 0.98);
+}
+
 .app-more > summary {
   list-style: none;
   display: flex;

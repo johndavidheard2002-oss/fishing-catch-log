@@ -11,6 +11,7 @@ export function PhotoCapture({
   emptyTitle,
   emptyHint,
   keepVisible = false,
+  compactPreview = false,
 }: {
   previewUrl: string | null;
   onFile: (file: File) => void;
@@ -19,6 +20,7 @@ export function PhotoCapture({
   emptyTitle?: string;
   emptyHint?: string;
   keepVisible?: boolean;
+  compactPreview?: boolean;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
@@ -32,10 +34,15 @@ export function PhotoCapture({
   return (
     <div
       className={`journal-card overflow-hidden rounded-3xl ${
-        keepVisible && previewUrl ? "sticky top-0 z-10" : ""
+        keepVisible && previewUrl ? "backfill-photo-dock sticky top-0 z-10" : ""
       }`}
+      data-testid={keepVisible && previewUrl ? "backfill-photo-dock" : undefined}
     >
-      <div className="relative aspect-[4/3] w-full bg-paper-deep">
+      <div
+        className={`relative w-full bg-paper-deep ${
+          compactPreview && previewUrl ? "h-40" : "aspect-[4/3]"
+        }`}
+      >
         <button
           type="button"
           onClick={() => cameraRef.current?.click()}
@@ -64,7 +71,11 @@ export function PhotoCapture({
             variant="overlay"
           />
         ) : null}
-        {busy ? (
+        {busy && previewUrl ? (
+          <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-ink/80 px-2.5 py-1 text-xs font-semibold text-white">
+            Reading the photo…
+          </span>
+        ) : busy ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/40 text-sm font-semibold text-white">
             Reading the photo…
           </div>

@@ -229,6 +229,12 @@ export function CatchForm({
         ? photoSrc(importedPhotoPath)
         : null,
   );
+  const previewHold = useRef<string | null>(previewUrl);
+
+  function showPreview(next: string | null) {
+    if (next) previewHold.current = next;
+    setPreviewUrl(next ?? previewHold.current);
+  }
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -248,6 +254,12 @@ export function CatchForm({
   useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
   }, [catchPinUserMoved]);
+
+  useEffect(() => {
+    if (!importedPhotoPath) return;
+    const src = photoSrc(importedPhotoPath);
+    if (src) showPreview(src);
+  }, [importedPhotoPath]);
 
   useEffect(() => {
     if (!focusLocation) return;
@@ -323,7 +335,7 @@ export function CatchForm({
     });
     setPhotoFile(nextFile);
     const url = URL.createObjectURL(nextFile);
-    setPreviewUrl(url);
+    showPreview(url);
 
     let photoLat: number | undefined;
     let photoLon: number | undefined;
@@ -567,6 +579,7 @@ export function CatchForm({
         emptyTitle={pastMode ? "Photo" : undefined}
         emptyHint={pastMode ? "" : undefined}
         keepVisible={pastMode && Boolean(previewUrl)}
+        compactPreview={pastMode && Boolean(previewUrl)}
       />
 
       {assistNote && !pastMode ? (
