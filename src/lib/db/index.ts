@@ -50,8 +50,6 @@ CREATE INDEX IF NOT EXISTS idx_catches_species ON catches(species);
 CREATE INDEX IF NOT EXISTS idx_catches_season ON catches(season);
 CREATE INDEX IF NOT EXISTS idx_catches_time ON catches(time_of_day);
 CREATE INDEX IF NOT EXISTS idx_catches_weather ON catches(weather_condition);
-CREATE INDEX IF NOT EXISTS idx_catches_habitat ON catches(habitat);
-CREATE INDEX IF NOT EXISTS idx_catches_angler ON catches(angler_id);
 
 CREATE TABLE IF NOT EXISTS anglers (
   id TEXT PRIMARY KEY,
