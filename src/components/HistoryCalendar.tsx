@@ -22,9 +22,9 @@ import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
-import type { CatchRecord } from "@/lib/types";
-import Link from "next/link";
-import { useState } from "react";
+import type { CatchRecord, SpotGroup } from "@/lib/types";
+import { createPortal } from "react-dom";
+import { useEffect, useState } from "react";
 
 const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
   ssr: false,
@@ -55,6 +55,7 @@ export function HistoryCalendar({
   viewerId?: string;
 }) {
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
+  const [mapDay, setMapDay] = useState<string | null>(null);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
   const cells = monthGrid(year, month);
@@ -69,6 +70,28 @@ export function HistoryCalendar({
   const selectedSpotGroups = groupSpots(selected);
   const mappedSpots = spotsWithPins(selected);
   const showYearLabels = !thisYearOnly && hasOtherYears;
+  const popupRecords =
+    mapDay == null
+      ? []
+      : thisYearOnly && mapDay === selectedDay
+        ? (byDate.get(mapDay) ?? [])
+        : catchesOnMonthDay(catches, mapDay);
+  const popupSpots = spotsWithPins(popupRecords);
+  const popupOpen = Boolean(mapDay && popupSpots.length);
+
+  function openDay(date: string) {
+    onSelectDay(date);
+    setMapDay(date);
+  }
+
+  useEffect(() => {
+    if (!popupOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMapDay(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [popupOpen]);
 
   return (
     <div className="space-y-3">
@@ -126,41 +149,39 @@ export function HistoryCalendar({
               >
                 <button
                   type="button"
-                  onClick={() => onSelectDay(cell.date)}
+                  onClick={() => openDay(cell.date)}
                   aria-label={`${cell.date}${count ? `, ${count} catches` : ""}${
                     otherYears ? ", other years on this date" : ""
                   }`}
                   aria-pressed={isSelected}
-                  className="w-full leading-none"
+                  className="flex w-full flex-1 flex-col items-center leading-none"
                 >
-                  {cell.day}
-                  {otherYears && count ? (
+                  <span>
+                    {cell.day}
+                    {otherYears && count ? (
+                      <span
+                        className={`ml-0.5 text-[8px] font-bold ${
+                          isSelected ? "text-white/80" : "text-copper"
+                        }`}
+                      >
+                        {groupCatchesByYear(anniversary).length}y
+                      </span>
+                    ) : null}
+                  </span>
+                  {count ? (
+                    <DayThumbs records={dayCatches} selected={isSelected} />
+                  ) : otherYears ? (
                     <span
-                      className={`ml-0.5 text-[8px] font-bold ${
-                        isSelected ? "text-white/80" : "text-copper"
+                      className={`mt-1 rounded-full px-1 text-[9px] font-bold ${
+                        isSelected ? "bg-white text-teal" : "bg-copper text-white"
                       }`}
                     >
                       {groupCatchesByYear(anniversary).length}y
                     </span>
-                  ) : null}
+                  ) : (
+                    <span className="mt-1 h-7" />
+                  )}
                 </button>
-                {count ? (
-                  <DayThumbs
-                    records={dayCatches}
-                    selected={isSelected}
-                    onOpenDay={() => onSelectDay(cell.date)}
-                  />
-                ) : otherYears ? (
-                  <span
-                    className={`mt-1 rounded-full px-1 text-[9px] font-bold ${
-                      isSelected ? "bg-white text-teal" : "bg-copper text-white"
-                    }`}
-                  >
-                    {groupCatchesByYear(anniversary).length}y
-                  </span>
-                ) : (
-                  <span className="mt-1 h-7" />
-                )}
               </div>
             );
           })}
@@ -169,11 +190,22 @@ export function HistoryCalendar({
 
       {selectedDay ? (
         <section className="space-y-2">
-          <h2 className="font-display text-xl text-teal">
-            {hasOtherYears && !thisYearOnly
-              ? monthDayLabel(selectedDay)
-              : formatWeekdayDate(selectedDay)}
-          </h2>
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="font-display text-xl text-teal">
+              {hasOtherYears && !thisYearOnly
+                ? monthDayLabel(selectedDay)
+                : formatWeekdayDate(selectedDay)}
+            </h2>
+            {mappedSpots.length ? (
+              <button
+                type="button"
+                onClick={() => setMapDay(selectedDay)}
+                className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-teal"
+              >
+                {popupOpen ? "Map open" : "Open map"}
+              </button>
+            ) : null}
+          </div>
           {hasOtherYears ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-ink-muted">
@@ -272,9 +304,17 @@ export function HistoryCalendar({
         </section>
       ) : (
         <p className="text-sm text-ink-muted">
-          Tap a photo to open that catch, or tap the day number for the full list.
+          Tap a day to open its map and trips. Open a catch from the list under the calendar.
         </p>
       )}
+      {popupOpen && mapDay ? (
+        <DayMapPopup
+          day={mapDay}
+          spots={popupSpots}
+          thisYearOnly={thisYearOnly && mapDay === selectedDay}
+          onClose={() => setMapDay(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -331,14 +371,64 @@ function DayShareToggle({
   );
 }
 
+function DayMapPopup({
+  day,
+  spots,
+  thisYearOnly,
+  onClose,
+}: {
+  day: string;
+  spots: SpotGroup[];
+  thisYearOnly: boolean;
+  onClose: () => void;
+}) {
+  if (typeof document === "undefined") return null;
+  const title = thisYearOnly ? formatWeekdayDate(day) : monthDayLabel(day);
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/55 p-3 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Map for ${title}`}
+      onClick={onClose}
+    >
+      <div
+        className="journal-card w-full max-w-lg overflow-hidden rounded-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <div>
+            <p className="font-display text-lg text-teal">{title}</p>
+            <p className="text-[11px] text-ink-muted">
+              {spots.length === 1 ? spots[0].placeName : `${spots.length} pins this date`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-paper text-lg leading-none"
+            aria-label="Close map"
+          >
+            ×
+          </button>
+        </div>
+        <SpotMap
+          spots={spots}
+          selectedKey={null}
+          className="h-[min(65dvh,28rem)] w-full overflow-hidden"
+        />
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function DayThumbs({
   records,
   selected,
-  onOpenDay,
 }: {
   records: CatchRecord[];
   selected: boolean;
-  onOpenDay: () => void;
 }) {
   if (!records.length) return <span className="mt-1 h-7" />;
   const shown = records.slice(0, 2);
@@ -351,11 +441,9 @@ function DayThumbs({
           const src = photoSrc(record.photoPath);
           const size = large ? "h-7 w-7" : "h-6 w-6";
           return (
-            <Link
+            <span
               key={record.id}
-              href={`/catch/${record.id}`}
               title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} · ${catchSpotLabel(record)}`}
-              aria-label={`${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} at ${formatTimeOnly(record.caughtAt)}, ${catchSpotLabel(record)}`}
               className={`relative ${size} overflow-hidden rounded-md border ${
                 selected ? "border-white/70" : "border-white"
               } bg-paper`}
@@ -367,20 +455,17 @@ function DayThumbs({
               ) : (
                 <span className="block h-full w-full bg-copper/40" />
               )}
-            </Link>
+            </span>
           );
         })}
         {extra > 0 ? (
-          <button
-            type="button"
-            onClick={onOpenDay}
+          <span
             className={`relative -ml-1 rounded-full px-1 text-[9px] font-bold ${
               selected ? "bg-white text-teal" : "bg-copper text-white"
             }`}
-            aria-label={`${extra} more catches this day`}
           >
             +{extra}
-          </button>
+          </span>
         ) : null}
       </span>
     </span>

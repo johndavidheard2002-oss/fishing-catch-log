@@ -78,7 +78,7 @@ body::after {
   background-size: 320px 88px;
 }
 
-/* Trout spots fill the viewport; compass stays centered while content scrolls. */
+/* Trout spots fill the viewport. Compass stays on the header mark only. */
 .brand-watermark {
   position: fixed;
   inset: 0;
@@ -88,7 +88,7 @@ body::after {
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
-  opacity: 0.38;
+  opacity: 0.34;
 }
 
 .brand-mark {

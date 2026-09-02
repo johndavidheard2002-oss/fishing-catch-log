@@ -57,6 +57,23 @@ export function SpotMap({
     const withCoords = current.filter((s) => s.latitude != null && s.longitude != null);
     let cancelled = false;
 
+    function zoomToSpots(instance: LeafletMap, L: LeafletNS) {
+      instance.invalidateSize();
+      const center = withCoords[0]
+        ? ([withCoords[0].latitude!, withCoords[0].longitude!] as [number, number])
+        : ([39.5, -98] as [number, number]);
+      if (withCoords.length > 1) {
+        const bounds = L.latLngBounds(
+          withCoords.map((s) => [s.latitude!, s.longitude!] as [number, number]),
+        );
+        instance.fitBounds(bounds.pad(0.18), { maxZoom: 17, animate: false });
+      } else if (withCoords.length === 1) {
+        instance.setView(center, 16, { animate: false });
+      } else {
+        instance.setView(center, 4, { animate: false });
+      }
+    }
+
     (async () => {
       const L = await loadLeaflet();
       if (cancelled || !el) return;
@@ -70,10 +87,9 @@ export function SpotMap({
         zoomControl: true,
         attributionControl: true,
         maxZoom: 19,
-      }).setView(center, withCoords.length ? 14 : 4);
+      }).setView(center, withCoords.length ? 16 : 4);
       basemapLayerRef.current = addBasemapToMap(L, instance, basemapStyleRef.current);
 
-      const bounds = L.latLngBounds([]);
       for (const spot of withCoords) {
         const marker = L.circleMarker([spot.latitude!, spot.longitude!], {
           radius: 8 + Math.min(8, spot.catchCount),
@@ -92,15 +108,22 @@ export function SpotMap({
           }${yearBit}`,
         );
         marker.on("click", () => onSelectRef.current?.(spot.key));
-        bounds.extend([spot.latitude!, spot.longitude!]);
       }
-      if (withCoords.length > 1) instance.fitBounds(bounds.pad(0.25));
-      else if (withCoords.length === 1) instance.setView(center, 15);
+      zoomToSpots(instance, L);
+      instance.whenReady(() => {
+        if (!cancelled) zoomToSpots(instance, L);
+      });
       mapRef.current = instance;
     })();
 
+    const ro = new ResizeObserver(() => {
+      mapRef.current?.invalidateSize();
+    });
+    ro.observe(el);
+
     return () => {
       cancelled = true;
+      ro.disconnect();
       mapRef.current?.remove();
       mapRef.current = null;
       basemapLayerRef.current = null;
