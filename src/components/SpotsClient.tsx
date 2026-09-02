@@ -23,6 +23,13 @@ export function SpotsClient() {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [includeShared, setIncludeShared] = useIncludeShared();
+  const [viewerId, setViewerId] = useState<string | undefined>();
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => setViewerId(data.me?.id));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -102,7 +109,7 @@ export function SpotsClient() {
                 .
               </p>
               {current.catches.map((record) => (
-                <CatchCard key={record.id} record={record} compact />
+                <CatchCard key={record.id} record={record} compact viewerId={viewerId} />
               ))}
               <Link href="/history" className="inline-block text-sm font-semibold text-teal">
                 Filter the full journal

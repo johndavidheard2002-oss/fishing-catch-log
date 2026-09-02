@@ -43,7 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link href="/" className="font-display text-2xl tracking-tight text-teal">
           Catch Compass
           <span className="ml-2 font-body text-xs font-normal tracking-wide text-ink-muted uppercase">
-            Logbook
+            Automatic Logbook
           </span>
         </Link>
         {demo ? (

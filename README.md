@@ -1,6 +1,6 @@
 # Catch Compass
 
-**Logbook.** Personal fishing journal. Log a catch with a photo, remember the weather and spot, then look back and find days that felt like this one.
+**Automatic Logbook.** Personal fishing journal. Log a catch with a photo, remember the weather and spot, then look back and find days that felt like this one.
 
 This is a single-angler notebook — not a social network. Species ID is an assist you can edit.
 
@@ -45,9 +45,11 @@ The header shows **Demo APIs** when weather or vision is not live.
 - **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, and wind, and says why.
 - **Plan** — upcoming 3/5/7-day windows vs days you actually caught fish. Photos on Plan cards are **only your logged trip photos** — no seed art or stock. Honest that this is a pattern match, not a guarantee.
 - **Spots** — map + grouped list so you can revisit water that produced under similar conditions.
-- **Linked buddies** — invite code pairing (or a household profile on this journal). Combined History / Plan / Spots can include trips a buddy **explicitly shared**. Sharing is never public: only people you’ve linked. Unlink anytime.
+- **Linked buddies** — invite code pairing (or a household profile on this journal). Combined History / Plan / Spots can include trips a buddy **explicitly shared**, labeled with whose catch it is. Sharing is never public: only people you’ve linked. Unlink anytime. Entire histories are never auto-shared; there is no social feed or public profile.
 
-Production accounts (magic link / email) can replace the local profile switcher; invite codes and the per-trip share flag stay the same. This v1 journal is one SQLite file, so linking works for profiles on this journal (household / demo). A shared server database is what makes two phones one pair.
+### How linking works (v1 vs production)
+
+v1 is invite codes plus optional household profiles on this SQLite journal so two anglers can be demoed on one phone. Production auth (magic link / email accounts) should replace the profile switcher only: each signed-in angler still has an invite code, still accepts a buddy, and still shares **per trip**. A shared server database is what lets two phones pair. Unapproved users never see another angler’s data.
 
 Everything is editable if GPS, weather, or vision fail.
 

@@ -103,7 +103,7 @@ export function PlanClient() {
           <section key={date} className="space-y-2">
             <h2 className="font-display text-xl text-teal">{formatWeekdayDate(date)}</h2>
             {items.map((s) => (
-              <SuggestionCard key={s.id} suggestion={s} />
+              <SuggestionCard key={s.id} suggestion={s} showOwner={includeShared} />
             ))}
           </section>
         ))
@@ -112,13 +112,20 @@ export function PlanClient() {
   );
 }
 
-function SuggestionCard({ suggestion }: { suggestion: PlanSuggestion }) {
+function SuggestionCard({
+  suggestion,
+  showOwner,
+}: {
+  suggestion: PlanSuggestion;
+  showOwner: boolean;
+}) {
   const w = suggestion.window;
   const matchPhotos = suggestion.matches.map((m) => ({
     id: m.catch.id,
     src: personalPhotoSrc(m.catch.photoPath),
     species: m.catch.species,
     date: formatDateOnly(m.catch.caughtAt),
+    ownerName: m.catch.ownerName,
     reasons: m.reasons,
   }));
   const firstPhoto = matchPhotos.find((m) => m.src);
@@ -179,6 +186,9 @@ function SuggestionCard({ suggestion }: { suggestion: PlanSuggestion }) {
               <Link href={`/catch/${m.id}`} className="text-sm font-semibold text-teal">
                 {m.species} · {m.date}
               </Link>
+              {showOwner ? (
+                <p className="text-[11px] font-semibold text-copper">{m.ownerName}</p>
+              ) : null}
               <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
             </div>
           </li>

@@ -10,6 +10,7 @@ import type {
   TimeOfDay,
   WeatherCondition,
 } from "../types";
+import { isCatchVisibleToViewer } from "../sharing";
 import { getAngler, linkedBuddyIds } from "./anglers";
 import { getDb } from "./index";
 import { catches } from "./schema";
@@ -89,14 +90,15 @@ export function listCatches(opts: ListCatchOptions = {}): CatchRecord[] {
   const records = rows.map((row) => mapRow(row, names));
   if (!opts.viewerId) return records;
   const buddyIds = opts.includeShared ? linkedBuddyIds(opts.viewerId) : [];
-  return records.filter((record) => {
-    if (record.anglerId === opts.viewerId) return true;
-    return (
-      Boolean(opts.includeShared) &&
-      record.sharedWithLinked &&
-      buddyIds.includes(record.anglerId)
-    );
-  });
+  return records.filter((record) =>
+    isCatchVisibleToViewer({
+      anglerId: record.anglerId,
+      sharedWithLinked: record.sharedWithLinked,
+      viewerId: opts.viewerId!,
+      includeShared: Boolean(opts.includeShared),
+      linkedBuddyIds: buddyIds,
+    }),
+  );
 }
 
 export function getCatch(id: string): CatchRecord | null {
@@ -107,8 +109,13 @@ export function getCatch(id: string): CatchRecord | null {
 }
 
 export function canViewCatch(record: CatchRecord, viewerId: string): boolean {
-  if (record.anglerId === viewerId) return true;
-  return record.sharedWithLinked && linkedBuddyIds(viewerId).includes(record.anglerId);
+  return isCatchVisibleToViewer({
+    anglerId: record.anglerId,
+    sharedWithLinked: record.sharedWithLinked,
+    viewerId,
+    includeShared: true,
+    linkedBuddyIds: linkedBuddyIds(viewerId),
+  });
 }
 
 export function createCatch(input: CatchInput): CatchRecord {
