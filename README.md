@@ -1,6 +1,6 @@
-# Cast Log
+# Catch Compass
 
-Personal fishing journal. Log a catch with a photo, remember the weather and spot, then look back and find days that felt like this one.
+**Logbook.** Personal fishing journal. Log a catch with a photo, remember the weather and spot, then look back and find days that felt like this one.
 
 This is a single-angler notebook — not a social network. Species ID is an assist you can edit.
 

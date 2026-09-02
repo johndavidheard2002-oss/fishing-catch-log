@@ -15,13 +15,13 @@ const body = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Cast Log",
+  title: { default: "Catch Compass", template: "%s · Catch Compass" },
   description:
-    "Personal fishing journal — log catches with photo, weather, and spot, then find similar conditions later.",
-  applicationName: "Cast Log",
+    "Logbook — log catches with photo, weather, and spot, then find similar conditions later.",
+  applicationName: "Catch Compass",
   appleWebApp: {
     capable: true,
-    title: "Cast Log",
+    title: "Catch Compass",
     statusBarStyle: "default",
   },
   formatDetection: { telephone: false },

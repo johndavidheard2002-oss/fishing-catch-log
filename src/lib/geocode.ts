@@ -13,7 +13,7 @@ export async function reverseGeocode(
 
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "CastLog/1.0 (personal fishing journal)",
+        "User-Agent": "CatchCompass/1.0 (logbook)",
         Accept: "application/json",
       },
       cache: "no-store",
@@ -69,7 +69,7 @@ export async function searchPlace(
     url.searchParams.set("limit", "5");
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "CastLog/1.0 (personal fishing journal)",
+        "User-Agent": "CatchCompass/1.0 (logbook)",
         Accept: "application/json",
       },
       cache: "no-store",

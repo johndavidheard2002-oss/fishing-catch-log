@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Cast Log",
-    short_name: "Cast Log",
-    description: "Personal fishing journal for catches, weather, and similar conditions.",
+    name: "Catch Compass",
+    short_name: "Catch Compass",
+    description: "Logbook for catches, weather, and similar conditions.",
     start_url: "/",
     display: "standalone",
     background_color: "#efe6d2",

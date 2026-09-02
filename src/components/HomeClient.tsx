@@ -24,7 +24,7 @@ export function HomeClient() {
   return (
     <div className="space-y-6">
       <section>
-        <p className="text-sm tracking-wide text-ink-muted uppercase">Personal journal</p>
+        <p className="text-sm tracking-wide text-ink-muted uppercase">Logbook</p>
         <h1 className="font-display mt-1 text-4xl leading-tight text-teal">
           Remember the trip. Find the pattern later.
         </h1>

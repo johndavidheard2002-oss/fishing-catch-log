@@ -41,7 +41,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4">
       <header className="mb-4 flex items-baseline justify-between gap-3">
         <Link href="/" className="font-display text-2xl tracking-tight text-teal">
-          Cast Log
+          Catch Compass
+          <span className="ml-2 font-body text-xs font-normal tracking-wide text-ink-muted uppercase">
+            Logbook
+          </span>
         </Link>
         {demo ? (
           <span className="rounded-full border border-line bg-card px-2.5 py-1 text-xs text-ink-muted">
