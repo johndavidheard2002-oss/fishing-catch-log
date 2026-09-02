@@ -267,3 +267,24 @@ export type PlanResult = {
   note: string;
   suggestions: PlanSuggestion[];
 };
+
+/** A personal planned trip / calendar note — not a logged catch. */
+export type CalendarNote = {
+  id: string;
+  anglerId: string;
+  day: string;
+  title: string | null;
+  notes: string | null;
+  placeName: string | null;
+  speciesTargets: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CalendarNoteInput = {
+  day: string;
+  title?: string | null;
+  notes?: string | null;
+  placeName?: string | null;
+  speciesTargets?: string[] | null;
+};

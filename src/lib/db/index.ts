@@ -70,6 +70,19 @@ CREATE TABLE IF NOT EXISTS buddy_links (
   created_at TEXT NOT NULL,
   UNIQUE (angler_id, buddy_id)
 );
+
+CREATE TABLE IF NOT EXISTS calendar_notes (
+  id TEXT PRIMARY KEY,
+  angler_id TEXT NOT NULL,
+  day TEXT NOT NULL,
+  title TEXT,
+  notes TEXT,
+  place_name TEXT,
+  species_targets TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_calendar_notes_angler_day ON calendar_notes(angler_id, day);
 `;
 
 type DbHandle = {
@@ -282,6 +295,23 @@ function migrate(sqlite: Database.Database) {
   }
   if (version < 8) {
     sqlite.pragma("user_version = 8");
+  }
+  if (version < 9) {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS calendar_notes (
+        id TEXT PRIMARY KEY,
+        angler_id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        title TEXT,
+        notes TEXT,
+        place_name TEXT,
+        species_targets TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_calendar_notes_angler_day ON calendar_notes(angler_id, day);
+    `);
+    sqlite.pragma("user_version = 9");
   }
 }
 

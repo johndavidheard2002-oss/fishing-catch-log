@@ -4,9 +4,9 @@ import { CatchCard, CatchGridCard } from "@/components/CatchCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
-import { localDateKey, parseYearMonth } from "@/lib/calendar";
+import { parseYearMonth } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
-import type { CatchFilters, CatchRecord } from "@/lib/types";
+import type { CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
 import { scanQueueCount } from "@/lib/scan-queue";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -27,14 +27,17 @@ function logPath(params: URLSearchParams): string {
 
 export function HistoryClient({
   initialCatches,
+  initialNotes,
   initialViewerId,
 }: {
   initialCatches?: CatchRecord[];
+  initialNotes?: CalendarNote[];
   initialViewerId?: string;
 } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [catches, setCatches] = useState<CatchRecord[]>(initialCatches ?? []);
+  const [notes, setNotes] = useState<CalendarNote[]>(initialNotes ?? []);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CatchFilters>(() => ({
     species: searchParams.get("species") || undefined,
@@ -56,6 +59,19 @@ export function HistoryClient({
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => setViewerId(data.me?.id));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/calendar-notes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.notes)) setNotes(data.notes);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -104,12 +120,11 @@ export function HistoryClient({
     [catches, filters],
   );
   const active = hasActiveFilters(filters);
-  const latestDay = filtered[0] ? localDateKey(filtered[0].caughtAt) : null;
-  const displayDay = selectedDay ?? (view === "calendar" ? latestDay : null);
+  const displayDay = selectedDay;
   const monthCursor =
     monthOverride ??
-    (displayDay
-      ? parseYearMonth(displayDay)
+    (queryDay
+      ? parseYearMonth(queryDay)
       : { year: new Date().getFullYear(), month: new Date().getMonth() });
 
   return (
@@ -207,7 +222,8 @@ export function HistoryClient({
         <div className="space-y-3">
           {catches.length === 0 ? (
             <p className="text-sm text-ink-muted">
-              Empty until you log or backfill a catch. One picture becomes one trip at one pin.
+              No logged catches yet. Tap a day to plan a trip with a note — no photo needed. Log
+              the fish later from Log or Backfill.
             </p>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-ink-muted">
@@ -216,6 +232,7 @@ export function HistoryClient({
           ) : null}
           <HistoryCalendar
             catches={filtered}
+            notes={notes}
             year={monthCursor.year}
             month={monthCursor.month}
             selectedDay={displayDay}
@@ -232,6 +249,33 @@ export function HistoryClient({
                 body: JSON.stringify({ day, shared }),
               });
               setShareEpoch((n) => n + 1);
+            }}
+            onCreateNote={async (input: CalendarNoteInput) => {
+              const res = await fetch("/api/calendar-notes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(input),
+              });
+              if (!res.ok) throw new Error("save failed");
+              const data = await res.json();
+              if (data.note) setNotes((current) => [...current, data.note]);
+            }}
+            onUpdateNote={async (id, input) => {
+              const res = await fetch(`/api/calendar-notes/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(input),
+              });
+              if (!res.ok) throw new Error("save failed");
+              const data = await res.json();
+              if (data.note) {
+                setNotes((current) => current.map((n) => (n.id === id ? data.note : n)));
+              }
+            }}
+            onDeleteNote={async (id) => {
+              const res = await fetch(`/api/calendar-notes/${id}`, { method: "DELETE" });
+              if (!res.ok) throw new Error("delete failed");
+              setNotes((current) => current.filter((n) => n.id !== id));
             }}
             viewerId={viewerId}
           />

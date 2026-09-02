@@ -4,7 +4,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { listCatches } from "./catches";
-import { getDb, resetDbForTests } from "./index";
+import { getDb, getSqlite, resetDbForTests } from "./index";
 
 const OLD_CREATE = `
 CREATE TABLE catches (
@@ -158,5 +158,17 @@ describe("migrate older journals", () => {
     expect(records).toHaveLength(1);
     expect(records[0].placeName).toBe("My lagoon");
     expect(records[0].photoPath).toBe("real-catch.jpg");
+  });
+
+  it("creates the calendar_notes table for planned trips", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    getDb();
+    const tables = getSqlite()
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`)
+      .all() as { name: string }[];
+    expect(tables.map((t) => t.name)).toContain("calendar_notes");
   });
 });

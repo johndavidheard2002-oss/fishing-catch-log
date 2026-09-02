@@ -1,6 +1,7 @@
 "use client";
 
 import { CatchCard } from "@/components/CatchCard";
+import { DayNotes } from "@/components/CalendarNotes";
 import { SpotMap } from "@/components/SpotMap";
 import {
   catchSpotLabel,
@@ -14,19 +15,19 @@ import {
   spotsWithPins,
   todayKey,
   WEEKDAY_LABELS,
-  uniqueSpotLabels,
   yearFromDateKey,
 } from "@/lib/calendar";
-import { groupSpots } from "@/lib/filters";
+import { groupNotesByDay } from "@/lib/notes";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
-import type { CatchRecord, SpotGroup } from "@/lib/types";
+import type { CalendarNote, CalendarNoteInput, CatchRecord, SpotGroup } from "@/lib/types";
 import { useEffect, useState } from "react";
 
 export function HistoryCalendar({
   catches,
+  notes = [],
   year,
   month,
   selectedDay,
@@ -34,9 +35,13 @@ export function HistoryCalendar({
   onMonthChange,
   onSelectDay,
   onShareDay,
+  onCreateNote,
+  onUpdateNote,
+  onDeleteNote,
   viewerId,
 }: {
   catches: CatchRecord[];
+  notes?: CalendarNote[];
   year: number;
   month: number;
   selectedDay: string | null;
@@ -44,12 +49,16 @@ export function HistoryCalendar({
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
   onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
+  onCreateNote?: (input: CalendarNoteInput) => void | Promise<void>;
+  onUpdateNote?: (id: string, input: CalendarNoteInput) => void | Promise<void>;
+  onDeleteNote?: (id: string) => void | Promise<void>;
   viewerId?: string;
 }) {
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
   const [mapDay, setMapDay] = useState<string | null>(autoOpenMapDay);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
+  const notesByDay = groupNotesByDay(notes);
   const cells = monthGrid(year, month);
   const today = todayKey();
   const thisYearSelected = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
@@ -58,8 +67,6 @@ export function HistoryCalendar({
   const hasOtherYears = yearGroupsAll.length > 1 || (thisYearSelected.length === 0 && acrossYears.length > 0);
   const selected = thisYearOnly ? thisYearSelected : acrossYears;
   const yearGroups = groupCatchesByYear(selected);
-  const selectedSpots = uniqueSpotLabels(selected);
-  const selectedSpotGroups = groupSpots(selected);
   const mappedSpots = spotsWithPins(selected);
   const showYearLabels = !thisYearOnly && hasOtherYears;
   const popupRecords =
@@ -70,6 +77,7 @@ export function HistoryCalendar({
         : catchesOnMonthDay(catches, mapDay);
   const popupSpots = spotsWithPins(popupRecords);
   const popupOpen = Boolean(mapDay && popupSpots.length);
+  const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
 
   function openDay(date: string) {
     onSelectDay(date);
@@ -124,6 +132,8 @@ export function HistoryCalendar({
             const count = dayCatches.length;
             const anniversary = cell.inMonth ? catchesOnMonthDay(catches, cell.date) : [];
             const otherYears = anniversary.length > count;
+            const dayNotes = cell.inMonth ? (notesByDay.get(cell.date) ?? []) : [];
+            const planned = dayNotes.length > 0;
             const isSelected = selectedDay === cell.date;
             const isToday = cell.date === today;
             return (
@@ -136,15 +146,15 @@ export function HistoryCalendar({
                       ? "ring-1 ring-copper"
                       : ""
                 } ${cell.inMonth ? "" : "opacity-35"} ${
-                  !isSelected && (count > 0 || otherYears) ? "bg-paper-deep" : ""
-                }`}
+                  !isSelected && (count > 0 || otherYears || planned) ? "bg-paper-deep" : ""
+                } ${!isSelected && planned && count === 0 ? "border border-dashed border-copper/70" : ""}`}
               >
                 <button
                   type="button"
                   onClick={() => openDay(cell.date)}
                   aria-label={`${cell.date}${count ? `, ${count} catches` : ""}${
                     otherYears ? ", other years on this date" : ""
-                  }`}
+                  }${planned ? `, ${dayNotes.length} planned trip${dayNotes.length === 1 ? "" : "s"}` : ""}`}
                   aria-pressed={isSelected}
                   className="flex w-full flex-1 flex-col items-center leading-none"
                 >
@@ -161,7 +171,18 @@ export function HistoryCalendar({
                     ) : null}
                   </span>
                   {count ? (
-                    <DayThumbs records={dayCatches} selected={isSelected} />
+                    <span className="relative">
+                      <DayThumbs records={dayCatches} selected={isSelected} />
+                      {planned ? (
+                        <span
+                          className={`absolute -right-1 -bottom-0.5 rounded-full px-1 text-[8px] font-bold ${
+                            isSelected ? "bg-white text-copper" : "bg-copper text-white"
+                          }`}
+                        >
+                          P
+                        </span>
+                      ) : null}
+                    </span>
                   ) : otherYears ? (
                     <span
                       className={`mt-1 rounded-full px-1 text-[9px] font-bold ${
@@ -169,6 +190,14 @@ export function HistoryCalendar({
                       }`}
                     >
                       {groupCatchesByYear(anniversary).length}y
+                    </span>
+                  ) : planned ? (
+                    <span
+                      className={`mt-1 rounded-full px-1.5 text-[9px] font-bold ${
+                        isSelected ? "bg-white text-copper" : "bg-copper text-white"
+                      }`}
+                    >
+                      Plan
                     </span>
                   ) : (
                     <span className="mt-1 h-7" />
@@ -181,7 +210,7 @@ export function HistoryCalendar({
       </div>
 
       {selectedDay ? (
-        <section className="space-y-2">
+        <section id="day-detail" className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <h2 className="font-display text-xl text-teal">
               {hasOtherYears && !thisYearOnly
@@ -192,12 +221,29 @@ export function HistoryCalendar({
               <button
                 type="button"
                 onClick={() => setMapDay(selectedDay)}
-                className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-teal"
+                className="rounded-full bg-teal px-3 py-1 text-xs font-semibold text-white"
               >
                 {popupOpen ? "Map open" : "Open map"}
               </button>
             ) : null}
           </div>
+          {selected.length === 0 ? null : mappedSpots.length ? (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                Catch locations
+              </p>
+              <SpotMap
+                spots={mappedSpots}
+                selectedKey={null}
+                className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
+              />
+              <PinSummary spots={mappedSpots} />
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
+              No map pins this date — those trips have no saved location.
+            </p>
+          )}
           {hasOtherYears ? (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-ink-muted">
@@ -227,37 +273,14 @@ export function HistoryCalendar({
               </div>
             </div>
           ) : null}
-          {selected.length === 0 ? null : mappedSpots.length ? (
-            <SpotMap
-              spots={mappedSpots}
-              selectedKey={null}
-              className="h-56 w-full overflow-hidden rounded-2xl border border-line"
+          {onCreateNote && onUpdateNote && onDeleteNote ? (
+            <DayNotes
+              day={selectedDay}
+              notes={selectedNotes}
+              onCreate={onCreateNote}
+              onUpdate={onUpdateNote}
+              onDelete={onDeleteNote}
             />
-          ) : (
-            <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
-              {thisYearOnly || !hasOtherYears
-                ? "No map pins this day — those trips have no saved location."
-                : "No map pins on this date — those trips have no saved location."}
-            </p>
-          )}
-          {selectedSpots.length > 1 ? (
-            <p className="text-xs text-ink-muted">
-              {selectedSpotGroups
-                .slice()
-                .sort((a, b) => {
-                  const aFirst =
-                    [...a.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]
-                      ?.caughtAt ?? "";
-                  const bFirst =
-                    [...b.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]
-                      ?.caughtAt ?? "";
-                  return aFirst.localeCompare(bFirst);
-                })
-                .map((spot) => `${spot.placeName} · ${fishCountLabel(spot.fishCount)}`)
-                .join(" · ")}
-            </p>
-          ) : selectedSpots[0] ? (
-            <p className="text-xs text-ink-muted">{selectedSpots[0]}</p>
           ) : null}
           {onShareDay ? (
             <DayShareToggle
@@ -272,7 +295,9 @@ export function HistoryCalendar({
             <p className="text-sm text-ink-muted">
               {thisYearOnly && acrossYears.length
                 ? `Nothing in ${yearFromDateKey(selectedDay)}. Other years have trips on this date — switch to All years.`
-                : "No matching catches on this day."}
+                : selectedDay > today
+                  ? "No logged catch yet — add a planned trip above. Log the fish from Log or Backfill after the trip."
+                  : "No matching catches on this day. You can still add a planned-trip note."}
             </p>
           ) : (
             yearGroups.map((group) => (
@@ -296,7 +321,8 @@ export function HistoryCalendar({
         </section>
       ) : (
         <p className="text-sm text-ink-muted">
-          Tap a day to open its map and trips. Open a catch from the list under the calendar.
+          Tap a day for its map, logged catches, or to add a planned-trip note. No photo needed for
+          future days.
         </p>
       )}
       {popupOpen && mapDay ? (
@@ -413,9 +439,35 @@ function DayMapPopup({
           selectedKey={null}
           className="h-72 w-full overflow-hidden bg-paper-deep"
         />
+        <div className="space-y-2 px-3 py-2">
+          <PinSummary spots={spots} />
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-full bg-teal py-2 text-sm font-semibold text-white"
+          >
+            See this day’s trips
+          </button>
+        </div>
       </div>
     </div>
   );
+}
+
+function PinSummary({ spots }: { spots: SpotGroup[] }) {
+  if (!spots.length) return null;
+  const line = spots
+    .slice()
+    .sort((a, b) => {
+      const aFirst =
+        [...a.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]?.caughtAt ?? "";
+      const bFirst =
+        [...b.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]?.caughtAt ?? "";
+      return aFirst.localeCompare(bFirst);
+    })
+    .map((spot) => `${spot.placeName} · ${fishCountLabel(spot.fishCount)}`)
+    .join(" · ");
+  return <p className="text-xs text-ink-muted">{line}</p>;
 }
 
 function DayThumbs({

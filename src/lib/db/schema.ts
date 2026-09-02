@@ -55,3 +55,16 @@ export const buddyLinks = sqliteTable("buddy_links", {
   buddyId: text("buddy_id").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+/** Personal planner notes on a calendar day — not a logged catch. */
+export const calendarNotes = sqliteTable("calendar_notes", {
+  id: text("id").primaryKey(),
+  anglerId: text("angler_id").notNull(),
+  day: text("day").notNull(),
+  title: text("title"),
+  notes: text("notes"),
+  placeName: text("place_name"),
+  speciesTargets: text("species_targets"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
