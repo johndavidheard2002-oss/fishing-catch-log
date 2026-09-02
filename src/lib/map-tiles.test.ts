@@ -12,14 +12,13 @@ import {
 } from "./map-tiles";
 
 describe("default map view", () => {
-  it("starts on the Texas Gulf Coast, closer than the old Florida / US-wide view", () => {
+  it("frames San Antonio (upper-left) and Houston (upper-right) on the TX Gulf", () => {
     const [lat, lng] = DEFAULT_MAP_CENTER;
-    expect(lat).toBeGreaterThan(27);
-    expect(lat).toBeLessThan(30);
-    expect(lng).toBeGreaterThan(-98);
-    expect(lng).toBeLessThan(-94);
-    expect(DEFAULT_MAP_ZOOM).toBeGreaterThanOrEqual(7);
-    expect(DEFAULT_MAP_ZOOM).toBeLessThanOrEqual(9);
+    expect(lat).toBeGreaterThan(28.6);
+    expect(lat).toBeLessThan(29.4);
+    expect(lng).toBeGreaterThan(-97.4);
+    expect(lng).toBeLessThan(-96.4);
+    expect(DEFAULT_MAP_ZOOM).toBe(7);
     expect(DEFAULT_MAP_FRAME_CLASS).toContain("h-64");
   });
 });

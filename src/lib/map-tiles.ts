@@ -3,12 +3,13 @@ export type MapStyle = "satellite" | "street";
 export const DEFAULT_MAP_STYLE: MapStyle = "satellite";
 
 /**
- * Empty-map starting view: mid–upper Texas Gulf Coast (Galveston–Corpus /
- * Matagorda). Used only when there is no pin yet — a catch with GPS still
- * fits to that point.
+ * Empty-map starting view: Texas Gulf Coast with San Antonio (upper-left)
+ * and Houston (upper-right) on screen and the shoreline across the lower
+ * mid. Used only when there is no pin yet — a catch with GPS still fits
+ * to that point.
  */
-export const DEFAULT_MAP_CENTER: [number, number] = [28.55, -96.2];
-export const DEFAULT_MAP_ZOOM = 8;
+export const DEFAULT_MAP_CENTER: [number, number] = [28.95, -96.9];
+export const DEFAULT_MAP_ZOOM = 7;
 
 /** Same pixel frame on Spots and Calendar so empty TX-Gulf views match. */
 export const DEFAULT_MAP_FRAME_CLASS =

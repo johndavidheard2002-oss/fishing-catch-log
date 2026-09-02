@@ -24,6 +24,8 @@ import {
   WEEKDAY_LABELS,
   yearFromDateKey,
   yearsOnMonthDay,
+  type YearBaitGroup,
+  type YearCatchGroup,
 } from "@/lib/calendar";
 import { baitTypesLabel } from "@/lib/bait";
 import { groupSpots } from "@/lib/filters";
@@ -93,7 +95,8 @@ export function HistoryCalendar({
   const priorBaitGroups = groupBaitSpotsByYear(
     acrossYearsBait.filter((spot) => yearFromDateKey(spot.loggedAt) !== viewYear),
   );
-  const showPriorYears = !thisYearOnly && (priorCatchGroups.length > 0 || priorBaitGroups.length > 0);
+  const priorYearBlocks = mergePriorYearBlocks(priorCatchGroups, priorBaitGroups);
+  const showPriorYears = !thisYearOnly && priorYearBlocks.length > 0;
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const allYearsLabel = selectedDay
     ? yearsOnMonthDay(catches, baitSpots, selectedDay).join(" · ")
@@ -293,7 +296,10 @@ export function HistoryCalendar({
           ) : (
             <>
               <div className="space-y-2" data-testid="calendar-this-year">
-                <h3 className="on-wash-chip w-fit font-display text-lg text-teal">
+                <h3
+                  className="on-wash-chip w-fit font-display text-lg text-teal"
+                  data-testid="calendar-year-date"
+                >
                   {selectedDay ? fullDateLabel(selectedDay) : viewYear} · this year
                 </h3>
                 {thisYearSelected.length === 0 && thisYearBait.length === 0 ? (
@@ -362,19 +368,19 @@ export function HistoryCalendar({
                 />
               ) : null}
               {showPriorYears ? (
-                <div className="space-y-3 pt-2" data-testid="calendar-prior-years">
-                  <h3 className="on-wash-chip w-fit font-display text-lg text-teal">
-                    Same date in other years
-                  </h3>
+                <div className="space-y-4 pt-2" data-testid="calendar-prior-years">
                   <p className="on-wash-chip w-fit text-xs text-ink-muted">
-                    Below this year’s photo — {allYearsLabel}.
+                    Same date in other years — {allYearsLabel}.
                   </p>
-                  {priorCatchGroups.map((group) => (
-                    <div key={`prior-${group.year}`} className="space-y-2">
-                      <h4 className="on-wash-chip w-fit text-sm font-semibold">
-                        {fullDateLabel(group.dateKey)}
-                      </h4>
-                      {group.catches.map((record) => (
+                  {priorYearBlocks.map((block) => (
+                    <div key={`prior-${block.year}`} className="space-y-2">
+                      <h3
+                        className="on-wash-chip w-fit font-display text-lg text-teal"
+                        data-testid="calendar-year-date"
+                      >
+                        {fullDateLabel(block.dateKey)}
+                      </h3>
+                      {block.catches.map((record) => (
                         <CatchCard
                           key={record.id}
                           record={record}
@@ -385,23 +391,23 @@ export function HistoryCalendar({
                           onOpenMap={() => setMapCatch(record)}
                         />
                       ))}
-                    </div>
-                  ))}
-                  {priorBaitGroups.map((group) => (
-                    <div key={`prior-bait-${group.year}`} className="space-y-2">
-                      <h4 className="on-wash-chip w-fit text-sm font-semibold text-copper">
-                        Bait · {fullDateLabel(group.dateKey)}
-                      </h4>
-                      {group.spots.map((spot) => (
-                        <BaitSpotCard
-                          key={spot.id}
-                          spot={spot}
-                          compact
-                          showTime
-                          showYear
-                          viewerId={viewerId}
-                        />
-                      ))}
+                      {block.spots.length ? (
+                        <div className="space-y-2">
+                          <h4 className="on-wash-chip w-fit text-sm font-semibold text-copper">
+                            Bait
+                          </h4>
+                          {block.spots.map((spot) => (
+                            <BaitSpotCard
+                              key={spot.id}
+                              spot={spot}
+                              compact
+                              showTime
+                              showYear
+                              viewerId={viewerId}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -418,6 +424,32 @@ export function HistoryCalendar({
       <CalendarCatchMapSheet record={mapCatch} onClose={() => setMapCatch(null)} />
     </div>
   );
+}
+
+function mergePriorYearBlocks(catchGroups: YearCatchGroup[], baitGroups: YearBaitGroup[]) {
+  const years = new Map<number, { year: number; dateKey: string; catches: CatchRecord[]; spots: BaitSpot[] }>();
+  for (const group of catchGroups) {
+    years.set(group.year, {
+      year: group.year,
+      dateKey: group.dateKey,
+      catches: group.catches,
+      spots: [],
+    });
+  }
+  for (const group of baitGroups) {
+    const existing = years.get(group.year);
+    if (existing) {
+      existing.spots = group.spots;
+    } else {
+      years.set(group.year, {
+        year: group.year,
+        dateKey: group.dateKey,
+        catches: [],
+        spots: group.spots,
+      });
+    }
+  }
+  return [...years.values()].sort((a, b) => b.year - a.year);
 }
 
 function CalendarCatchMapSheet({

@@ -338,9 +338,7 @@ function SuggestionCard({
       {suggestion.strength === "very-strong" ? (
         <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
       ) : null}
-      <p className="px-3 text-xs text-ink-muted">
-        Why: {suggestion.reasons.slice(0, 5).join(" · ") || "pattern overlap"}
-      </p>
+      <MatchWhy reasons={suggestion.reasons} strength={suggestion.strength} />
       <p className="px-3 pt-2 text-[11px] text-ink-muted">
         Photos are from the matching trips you logged — never stock or placeholder fish.
       </p>
@@ -440,9 +438,7 @@ function BaitSuggestionCard({
       {suggestion.strength === "very-strong" ? (
         <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
       ) : null}
-      <p className="px-3 text-xs text-ink-muted">
-        Why: {suggestion.reasons.slice(0, 5).join(" · ") || "pattern overlap"}
-      </p>
+      <MatchWhy reasons={suggestion.reasons} strength={suggestion.strength} />
       <ul className="space-y-2 px-3 py-3">
         {suggestion.matches.map((m) => (
           <li key={m.baitSpot.id}>
@@ -457,6 +453,35 @@ function BaitSuggestionCard({
         ))}
       </ul>
     </article>
+  );
+}
+
+function MatchWhy({
+  reasons,
+  strength,
+}: {
+  reasons: string[];
+  strength: PlanSuggestion["strength"];
+}) {
+  const bits = reasons.filter(Boolean).slice(0, 3);
+  if ((strength === "strong" || strength === "very-strong") && bits.length) {
+    return (
+      <ul className="flex flex-wrap gap-1 px-3" data-testid="plan-match-why">
+        {bits.map((reason) => (
+          <li
+            key={reason}
+            className="rounded-full bg-paper-deep px-2 py-0.5 text-[11px] font-semibold text-ink"
+          >
+            {reason}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <p className="px-3 text-xs text-ink-muted">
+      Why: {reasons.slice(0, 5).join(" · ") || "pattern overlap"}
+    </p>
   );
 }
 
