@@ -220,7 +220,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="trout-wash-bg" aria-hidden="true" />
     <div
       ref={shellRef}
-      className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col overflow-x-clip px-4 pb-32 pt-4"
+      className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col overflow-x-clip px-4 pb-36 pt-4"
     >
       <div ref={paneRef} className="tab-swipe-pane flex min-h-0 flex-1 flex-col">
         <header className="journal-card mb-4 flex items-center justify-between gap-3 rounded-2xl px-3 py-2">
@@ -262,11 +262,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   href={item.href}
                   aria-label={item.ariaLabel ?? (typeof item.label === "string" ? item.label : undefined)}
-                  className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[12px] leading-tight tracking-tight ${tone}`}
+                  className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[13px] leading-[1.15] tracking-tight ${tone}`}
                 >
                   <span
                     className={`nav-icon flex items-center justify-center rounded-full ${
-                      item.primary ? "h-12 w-12" : "h-10 w-10"
+                      item.primary ? "h-14 w-14" : "h-11 w-11"
                     }`}
                   >
                     <Icon />
@@ -287,7 +287,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function HomeIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M4 11.5 12 4l8 7.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-8.5Z" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
     </svg>
   );
@@ -295,7 +295,7 @@ function HomeIcon() {
 
 function PlanIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="2.2" />
       <path d="M8 3v4M16 3v4M4 10h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
       <path d="M9 14h.01M12 14h.01M15 14h.01M9 17h6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -305,7 +305,7 @@ function PlanIcon() {
 
 function PlusIcon() {
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
     </svg>
   );
@@ -313,7 +313,7 @@ function PlusIcon() {
 
 function PastIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="13" r="8" stroke="currentColor" strokeWidth="2.2" />
       <path d="M12 9v4l2.5 1.5M9 4h6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
     </svg>
@@ -322,7 +322,7 @@ function PastIcon() {
 
 function CalendarIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect x="4" y="5" width="16" height="15" rx="2" stroke="currentColor" strokeWidth="2.2" />
       <path d="M8 3v4M16 3v4M4 10h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
       <rect x="8" y="13" width="4" height="4" rx="0.8" fill="currentColor" />
@@ -332,7 +332,7 @@ function CalendarIcon() {
 
 function MapIcon() {
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path d="M12 21s7-5.4 7-11a7 7 0 1 0-14 0c0 5.6 7 11 7 11Z" stroke="currentColor" strokeWidth="2.2" />
       <circle cx="12" cy="10" r="2.2" stroke="currentColor" strokeWidth="2.2" />
     </svg>
