@@ -161,8 +161,7 @@ export function MapPicker({
     if (jumped) map.setView([latitude, longitude], Math.max(map.getZoom(), 16));
   }, [latitude, longitude]);
 
-  async function search(e: React.FormEvent) {
-    e.preventDefault();
+  async function searchPlaces() {
     if (query.trim().length < 2) return;
     setSearching(true);
     try {
@@ -176,21 +175,27 @@ export function MapPicker({
 
   return (
     <div className="space-y-2">
-      <form onSubmit={search} className="flex gap-2">
+      <div className="flex gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            void searchPlaces();
+          }}
           placeholder="Search a lake, ramp, or coast"
           className="min-w-0 flex-1 rounded-xl border border-line bg-card px-3 py-2 text-sm"
         />
         <button
-          type="submit"
+          type="button"
           className="rounded-xl bg-teal px-3 py-2 text-sm font-semibold text-white"
           disabled={searching}
+          onClick={() => void searchPlaces()}
         >
           {searching ? "…" : "Find"}
         </button>
-      </form>
+      </div>
       {results.length ? (
         <ul className="space-y-1">
           {results.map((hit) => (
