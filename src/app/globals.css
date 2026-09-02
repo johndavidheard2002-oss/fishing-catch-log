@@ -36,13 +36,13 @@
 
 html {
   height: 100%;
-  background: #14130e;
+  background: #140c09;
 }
 
 body {
   min-height: 100%;
   color: var(--ink);
-  background-color: #14130e;
+  background-color: #140c09;
   isolation: isolate;
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
@@ -52,14 +52,14 @@ body::after {
   content: none;
 }
 
-/* Option D: full-bleed dark gulf trout scale field. This IS the background. */
+/* R3: full-bleed dark copper redfish scale field. This IS the background. */
 .trout-wash-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-color: #14130e;
-  background-image: url("/brand/dark-trout-scale-bg.png");
+  background-color: #140c09;
+  background-image: url("/brand/dark-copper-redfish-bg.png");
   background-repeat: no-repeat;
   background-position: center center;
   background-size: cover;
@@ -125,7 +125,7 @@ textarea {
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.9);
 }
 
-/* Type sitting on the dark trout wash (not on opaque cards). Light type + dark halo. */
+/* Type sitting on the dark copper wash (not on opaque cards). Light type + dark halo. */
 main {
   --wash-text-shadow:
     0 1px 2px rgb(0 0 0 / 0.92),
