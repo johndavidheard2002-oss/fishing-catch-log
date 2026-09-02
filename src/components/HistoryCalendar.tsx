@@ -344,31 +344,24 @@ export function HistoryCalendar({
                   </div>
                 ) : null}
               </div>
-              {mappedSpots.length || mappedBait.length ? (
-                <div className="space-y-1">
-                  <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">
-                    Locations
-                  </p>
-                  <SpotMap
-                    spots={mappedSpots}
-                    baitSpots={mappedBait}
-                    selectedKey={null}
-                    className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
-                  />
-                  {mappedSpots.length && mappedBait.length ? (
-                    <p className="on-wash-chip w-fit text-[11px]">
-                      Teal pins are catches. Copper pins are bait holes.
-                    </p>
-                  ) : mappedBait.length && !mappedSpots.length ? (
-                    <p className="on-wash-chip w-fit text-[11px]">Copper pins are bait holes.</p>
-                  ) : null}
-                  <PinSummary spots={mappedSpots} baitSpots={mappedBait} />
-                </div>
-              ) : thisYearSelected.length || thisYearBait.length ? (
-                <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
-                  No map pins this year — those trips have no saved location.
+              <div className="space-y-1" data-testid="calendar-day-map">
+                <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">
+                  Locations
                 </p>
-              ) : null}
+                <SpotMap
+                  spots={mappedSpots}
+                  baitSpots={mappedBait}
+                  selectedKey={null}
+                />
+                {mappedSpots.length && mappedBait.length ? (
+                  <p className="on-wash-chip w-fit text-[11px]">
+                    Teal pins are catches. Copper pins are bait holes.
+                  </p>
+                ) : mappedBait.length && !mappedSpots.length ? (
+                  <p className="on-wash-chip w-fit text-[11px]">Copper pins are bait holes.</p>
+                ) : null}
+                <PinSummary spots={mappedSpots} baitSpots={mappedBait} />
+              </div>
               {onCreateNote && onUpdateNote && onDeleteNote ? (
                 <DayNotes
                   day={selectedDay}

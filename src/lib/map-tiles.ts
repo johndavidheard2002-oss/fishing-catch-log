@@ -10,6 +10,10 @@ export const DEFAULT_MAP_STYLE: MapStyle = "satellite";
 export const DEFAULT_MAP_CENTER: [number, number] = [28.55, -96.2];
 export const DEFAULT_MAP_ZOOM = 8;
 
+/** Same pixel frame on Spots and Calendar so empty TX-Gulf views match. */
+export const DEFAULT_MAP_FRAME_CLASS =
+  "h-64 w-full overflow-hidden rounded-2xl border border-line";
+
 /** Esri World Imagery — no API key. Tile scheme is z/y/x. */
 export const ESRI_WORLD_IMAGERY_URL =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";

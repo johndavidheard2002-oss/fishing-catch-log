@@ -6,6 +6,7 @@ import { BasemapToggle } from "./BasemapToggle";
 import {
   addBasemapToMap,
   DEFAULT_MAP_CENTER,
+  DEFAULT_MAP_FRAME_CLASS,
   DEFAULT_MAP_STYLE,
   DEFAULT_MAP_ZOOM,
   loadLeaflet,
@@ -39,7 +40,7 @@ export function SpotMap({
   baitSpots = [],
   selectedKey,
   onSelect,
-  className = "h-64 w-full overflow-hidden rounded-2xl border border-line",
+  className = DEFAULT_MAP_FRAME_CLASS,
 }: {
   spots: SpotGroup[];
   baitSpots?: BaitSpot[];

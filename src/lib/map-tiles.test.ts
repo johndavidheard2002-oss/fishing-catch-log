@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MAP_CENTER,
+  DEFAULT_MAP_FRAME_CLASS,
   DEFAULT_MAP_STYLE,
   DEFAULT_MAP_ZOOM,
   ESRI_ATTRIBUTION,
@@ -19,6 +20,7 @@ describe("default map view", () => {
     expect(lng).toBeLessThan(-94);
     expect(DEFAULT_MAP_ZOOM).toBeGreaterThanOrEqual(7);
     expect(DEFAULT_MAP_ZOOM).toBeLessThanOrEqual(9);
+    expect(DEFAULT_MAP_FRAME_CLASS).toContain("h-64");
   });
 });
 
