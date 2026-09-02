@@ -12,7 +12,9 @@ export function HomeClient() {
         <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-teal">
           Catch Compass
         </h1>
-        <p className="mt-1 font-display text-2xl leading-snug text-teal">Saltwater Logbook</p>
+        <p className="mt-1 whitespace-nowrap font-display text-xl leading-snug tracking-tight text-teal sm:text-2xl">
+          Saltwater Logbook
+        </p>
       </section>
 
       <FirstHelpTip />

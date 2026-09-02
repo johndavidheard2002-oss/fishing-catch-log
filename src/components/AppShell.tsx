@@ -233,9 +233,11 @@ export function AppShell({ children }: { children: ReactNode }) {
               height={32}
               className="brand-mark"
             />
-            <span className="font-display text-2xl tracking-tight">
-              Catch Compass
-              <span className="ml-2 font-body text-xs font-normal tracking-wide text-ink-muted uppercase">
+            <span className="min-w-0">
+              <span className="block font-display text-2xl leading-tight tracking-tight">
+                Catch Compass
+              </span>
+              <span className="block whitespace-nowrap font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase">
                 Saltwater Logbook
               </span>
             </span>
