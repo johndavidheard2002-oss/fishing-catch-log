@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import { compressImage } from "@/lib/photo";
-import { dateFromDatetimeLocal, datetimeLocalFromDate, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
+import { formatCatchWhen, formatTimeOnly, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
-import { formatCoords } from "@/lib/location";
 import { peekScanQueue, setScanQueue, type QueuedScanCandidate } from "@/lib/scan-queue";
 
 type Candidate = {
@@ -62,9 +61,8 @@ export function ScanLibraryClient() {
     setScanQueue([]);
     return leftover.map(fromQueued);
   });
-  const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<string | null>(null);
 
   useEffect(() => {
     folderRef.current?.setAttribute("webkitdirectory", "true");
@@ -78,7 +76,6 @@ export function ScanLibraryClient() {
     setFilteredOut(0);
     setHeuristic(false);
     setCandidates([]);
-    setIndex(0);
     setScanQueue([]);
     const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name));
     const found: Candidate[] = [];
@@ -141,45 +138,39 @@ export function ScanLibraryClient() {
     setProgress("");
   }
 
-  const current = candidates[index];
-
-  function skipOne() {
-    if (current) URL.revokeObjectURL(current.previewUrl);
-    if (index + 1 >= candidates.length) {
-      setCandidates([]);
-      setIndex(0);
-      setScanQueue([]);
-      return;
-    }
-    setIndex((i) => i + 1);
+  function dismiss(i: number) {
+    setCandidates((list) => {
+      const gone = list[i];
+      if (gone) URL.revokeObjectURL(gone.previewUrl);
+      return list.filter((_, j) => j !== i);
+    });
   }
 
-  async function addCurrent() {
-    if (!current) return;
-    setAdding(true);
+  async function openCandidate(item: Candidate) {
+    setAdding(item.id);
     setError(null);
     try {
       const fd = new FormData();
-      fd.set("photo", current.file);
+      fd.set("photo", item.file);
       const up = await fetch("/api/media", { method: "POST", body: fd });
       const data = await up.json();
       if (!up.ok) throw new Error(data.error || "Photo upload failed");
-      const at = current.caughtAt.toISOString();
-      const day = localDateKeyFromDate(current.caughtAt);
-      const remaining = candidates.slice(index + 1);
+      const at = item.caughtAt.toISOString();
+      const day = localDateKeyFromDate(item.caughtAt);
+      const remaining = candidates.filter((c) => c.id !== item.id);
       setScanQueue(remaining.map(toQueued));
       remaining.forEach((c) => URL.revokeObjectURL(c.previewUrl));
-      URL.revokeObjectURL(current.previewUrl);
+      URL.revokeObjectURL(item.previewUrl);
       const gps =
-        current.photoTakenLatitude != null && current.photoTakenLongitude != null
-          ? `&plat=${encodeURIComponent(String(current.photoTakenLatitude))}&plon=${encodeURIComponent(String(current.photoTakenLongitude))}`
+        item.photoTakenLatitude != null && item.photoTakenLongitude != null
+          ? `&plat=${encodeURIComponent(String(item.photoTakenLatitude))}&plon=${encodeURIComponent(String(item.photoTakenLongitude))}`
           : "";
       router.push(
         `/backfill?photo=${encodeURIComponent(data.photoPath)}&at=${encodeURIComponent(at)}&day=${day}&next=calendar${gps}`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add that photo");
-      setAdding(false);
+      setAdding(null);
     }
   }
 
@@ -246,7 +237,7 @@ export function ScanLibraryClient() {
 
       {error ? <p className="on-wash-chip text-sm text-copper">{error}</p> : null}
 
-      {!busy && !current ? (
+      {!busy && candidates.length === 0 ? (
         <p className="on-wash-chip text-sm">
           {filteredOut || skipped
             ? [
@@ -254,9 +245,7 @@ export function ScanLibraryClient() {
                   ? `Set aside ${filteredOut} that did not look like a catch.`
                   : null,
                 skipped ? `Could not open ${skipped}.` : null,
-                candidates.length === 0
-                  ? "None of that batch looked like a fish photo. Try a set that includes trip pictures."
-                  : null,
+                "None of that batch looked like a fish photo. Try a set that includes trip pictures.",
               ]
                 .filter(Boolean)
                 .join(" ")
@@ -264,78 +253,57 @@ export function ScanLibraryClient() {
         </p>
       ) : null}
 
-      {current ? (
-        <article className="journal-card overflow-hidden rounded-3xl">
-          <div className="aspect-[4/3] bg-paper-deep">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={current.previewUrl} alt="" className="h-full w-full object-cover" />
-          </div>
-          <div className="space-y-2 p-4">
-            <p className="text-sm font-semibold">
-              Likely fish {index + 1} of {candidates.length}
-            </p>
-            {current.note ? (
-              <p className="text-xs text-ink-muted">{current.note}</p>
-            ) : null}
-            {current.demo || heuristic ? (
-              <p className="text-xs text-ink-muted">
-                Fish pick is a heuristic unless vision is on — confirm before adding.
-              </p>
-            ) : null}
-            <label className="block">
-              <span className="mb-1 block text-xs text-ink-muted">Catch date and time</span>
-              <input
-                type="datetime-local"
-                value={datetimeLocalFromDate(current.caughtAt)}
-                onChange={(e) => {
-                  const next = dateFromDatetimeLocal(e.target.value);
-                  if (!next) return;
-                  setCandidates((list) =>
-                    list.map((c, i) => (i === index ? { ...c, caughtAt: next } : c)),
-                  );
-                }}
-                className="w-full rounded-xl border border-line bg-card px-3 py-3"
-              />
-            </label>
-            <p className="text-xs text-ink-muted">
-              Uses the time saved in the photo when it is there. Edit if the camera clock was wrong.
-            </p>
-            <p className="text-xs text-ink-muted">
-              {current.photoTakenLatitude != null && current.photoTakenLongitude != null
-                ? `Location stamp ${formatCoords(current.photoTakenLatitude, current.photoTakenLongitude)}. Yes drops a movable catch pin there — drag it if the picture was not taken on the water.`
-                : "No GPS in this photo — you’ll place the pin on the map. We will not use your current location for a past catch."}
-            </p>
-            <p className="text-sm font-semibold">Add this to the log?</p>
-            <div className="grid grid-cols-2 gap-2">
+      {candidates.length ? (
+        <div className="space-y-2">
+          <p className="on-wash-chip w-fit text-sm">
+            {candidates.length} likely fish photo{candidates.length === 1 ? "" : "s"}. Tap one to
+            finish it the same way as One trip — photo, date, pin, and fields.
+            {heuristic ? " Fish pick is a heuristic unless vision is on." : ""}
+          </p>
+          {candidates.map((item, i) => (
+            <div
+              key={item.id}
+              className="journal-card relative flex overflow-hidden rounded-2xl"
+              data-testid="scan-photo-row"
+            >
               <button
                 type="button"
-                disabled={adding}
-                onClick={() => void addCurrent()}
-                className="rounded-xl bg-teal py-3 font-semibold text-white disabled:opacity-60"
+                disabled={adding !== null}
+                onClick={() => void openCandidate(item)}
+                className="flex min-w-0 flex-1 text-left disabled:opacity-60"
               >
-                {adding ? "Opening…" : "Yes, add"}
+                <div className="h-24 w-24 shrink-0 bg-paper-deep">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0 flex-1 px-3 py-2">
+                  <p className="truncate font-semibold text-ink">
+                    {adding === item.id ? "Opening trip…" : "Likely fish photo"}
+                  </p>
+                  <p className="truncate text-sm text-ink-muted">
+                    {formatCatchWhen(item.caughtAt.toISOString())} · {formatTimeOnly(item.caughtAt.toISOString())}
+                  </p>
+                  <p className="mt-1 text-xs text-ink-muted">
+                    Tap for the same trip form — date, pin, and fields.
+                  </p>
+                </div>
               </button>
               <button
                 type="button"
-                disabled={adding}
-                onClick={skipOne}
-                className="rounded-xl border border-line py-3 font-semibold"
+                disabled={adding !== null}
+                onClick={() => dismiss(i)}
+                className="shrink-0 px-3 text-xs font-semibold text-ink-muted"
               >
                 Skip
               </button>
             </div>
-            <p className="text-xs text-ink-muted">
-              Yes opens the past-catch form with this photo, timestamp, and this photo’s GPS when it
-              has one. You can still move the pin. Remaining photos keep their own locations. After
-              save, Calendar Log opens on that day.
-            </p>
-          </div>
-        </article>
+          ))}
+        </div>
       ) : null}
 
       <p className="on-wash-chip text-xs">
         Privacy: only the batch you pick is checked. We do not read the rest of the camera roll.
-        Dates come from the photo when EXIF is there. Nothing is added until you tap Yes.
+        Dates come from the photo when EXIF is there. Nothing is added until you finish the trip form.
       </p>
       <Link href="/backfill" className="on-wash-chip inline-block text-sm font-semibold text-teal">
         Backfill one photo instead

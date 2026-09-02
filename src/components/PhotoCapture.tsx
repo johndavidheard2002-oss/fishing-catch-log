@@ -10,6 +10,7 @@ export function PhotoCapture({
   emphasis = "camera",
   emptyTitle,
   emptyHint,
+  keepVisible = false,
 }: {
   previewUrl: string | null;
   onFile: (file: File) => void;
@@ -17,6 +18,7 @@ export function PhotoCapture({
   emphasis?: "camera" | "library";
   emptyTitle?: string;
   emptyHint?: string;
+  keepVisible?: boolean;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
@@ -28,7 +30,11 @@ export function PhotoCapture({
       : emptyHint;
 
   return (
-    <div className="journal-card overflow-hidden rounded-3xl">
+    <div
+      className={`journal-card overflow-hidden rounded-3xl ${
+        keepVisible && previewUrl ? "sticky top-0 z-10" : ""
+      }`}
+    >
       <div className="relative aspect-[4/3] w-full bg-paper-deep">
         <button
           type="button"

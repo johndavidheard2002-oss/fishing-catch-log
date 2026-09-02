@@ -566,6 +566,7 @@ export function CatchForm({
         emphasis={pastMode ? "library" : "camera"}
         emptyTitle={pastMode ? "Photo" : undefined}
         emptyHint={pastMode ? "" : undefined}
+        keepVisible={pastMode && Boolean(previewUrl)}
       />
 
       {assistNote && !pastMode ? (

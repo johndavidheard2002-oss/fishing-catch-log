@@ -43,6 +43,7 @@ export function BackfillClient() {
         </Link>
       ) : null}
       <CatchForm
+        key={importedPhotoPath ?? "new-trip"}
         mode="create"
         pastMode
         importedPhotoPath={importedPhotoPath}
