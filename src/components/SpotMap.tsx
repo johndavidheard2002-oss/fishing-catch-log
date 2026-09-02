@@ -10,6 +10,7 @@ import {
   type LeafletNS,
   type MapStyle,
 } from "@/lib/map-tiles";
+import { yearFromDateKey } from "@/lib/calendar";
 import type { SpotGroup } from "@/lib/types";
 import "leaflet/dist/leaflet.css";
 
@@ -81,8 +82,14 @@ export function SpotMap({
           fillOpacity: 0.85,
           weight: 2,
         }).addTo(instance);
+        const years = [
+          ...new Set(spot.catches.map((c) => yearFromDateKey(c.caughtAt))),
+        ].sort((a, b) => b - a);
+        const yearBit = years.length > 1 ? ` · ${years.join(" · ")}` : "";
         marker.bindTooltip(
-          `${spot.placeName} · ${spot.fishCount} fish · ${spot.catchCount} ${spot.catchCount === 1 ? "trip" : "trips"}`,
+          `${spot.placeName} · ${spot.fishCount} fish · ${spot.catchCount} ${
+            spot.catchCount === 1 ? "trip" : "trips"
+          }${yearBit}`,
         );
         marker.on("click", () => onSelectRef.current?.(spot.key));
         bounds.extend([spot.latitude!, spot.longitude!]);

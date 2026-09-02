@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupCatchesByDate, localDateKey, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels } from "./calendar";
+import { catchesOnMonthDay, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels, yearFromDateKey } from "./calendar";
 import { catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
@@ -106,6 +106,57 @@ describe("spotsWithPins", () => {
     expect(pins).toHaveLength(2);
     expect(pins.map((s) => s.placeName).sort()).toEqual(["Gulf Stream, FL", "Mosquito Lagoon, FL"]);
     expect(spotsWithPins([unpinned])).toEqual([]);
+  });
+});
+
+describe("catchesOnMonthDay", () => {
+  it("combines the same month-day across years and skips neighboring days", () => {
+    const y25 = catchOn(new Date(2025, 8, 2, 7, 10), "25");
+    const y24 = catchOn(new Date(2024, 8, 2, 18, 40), "24");
+    const y23 = catchOn(new Date(2023, 8, 2, 12, 0), "23");
+    const next = catchOn(new Date(2025, 8, 3, 7, 10), "next");
+    const ids = catchesOnMonthDay([y25, y24, next, y23], "2025-09-02").map((r) => r.id);
+    expect(ids.sort()).toEqual(["23", "24", "25"]);
+    expect(monthDayKey("2025-09-02")).toBe("09-02");
+    expect(monthDayKey(y24.caughtAt)).toBe("09-02");
+  });
+
+  it("groups combined days by year, newest first", () => {
+    const y25a = catchOn(new Date(2025, 8, 2, 18, 0), "25dusk");
+    const y25b = catchOn(new Date(2025, 8, 2, 6, 0), "25dawn");
+    const y24 = catchOn(new Date(2024, 8, 2, 12, 0), "24");
+    const groups = groupCatchesByYear(catchesOnMonthDay([y25a, y24, y25b], "2026-09-02"));
+    expect(groups.map((g) => g.year)).toEqual([2025, 2024]);
+    expect(groups[0].catches.map((c) => c.id)).toEqual(["25dawn", "25dusk"]);
+    expect(groups[1].catches.map((c) => c.id)).toEqual(["24"]);
+  });
+
+  it("matches leap day only on Feb 29, not Feb 28", () => {
+    const leap = catchOn(new Date(2024, 1, 29, 7, 0), "leap");
+    const eve = catchOn(new Date(2024, 1, 28, 7, 0), "eve");
+    expect(catchesOnMonthDay([leap, eve], "2024-02-29").map((r) => r.id)).toEqual(["leap"]);
+    expect(catchesOnMonthDay([leap, eve], "2023-02-28").map((r) => r.id)).toEqual(["eve"]);
+    expect(yearFromDateKey("2024-02-29")).toBe(2024);
+    expect(monthDayLabel("2025-09-02")).toBe("Sep 2");
+  });
+
+  it("maps pins from the same month-day in different years", () => {
+    const y25 = catchOf({
+      id: "25",
+      placeName: "Mosquito Lagoon, FL",
+      latitude: 28.738,
+      longitude: -80.755,
+      caughtAt: new Date(2025, 8, 2, 7, 0).toISOString(),
+    });
+    const y24 = catchOf({
+      id: "24",
+      placeName: "Chesapeake Bay, MD",
+      latitude: 38.99,
+      longitude: -76.4,
+      caughtAt: new Date(2024, 8, 2, 18, 0).toISOString(),
+    });
+    const combined = catchesOnMonthDay([y25, y24], "2026-09-02");
+    expect(spotsWithPins(combined)).toHaveLength(2);
   });
 });
 

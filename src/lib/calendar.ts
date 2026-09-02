@@ -101,6 +101,56 @@ export function spotsWithPins(records: CatchRecord[]): SpotGroup[] {
   return groupSpots(records).filter((s) => s.latitude != null && s.longitude != null);
 }
 
+/** Local month-day (MM-DD) so Sep 2 lines up across years. */
+export function monthDayKey(dateKeyOrIso: string): string {
+  const key = dateKeyOrIso.length <= 10 ? dateKeyOrIso : localDateKey(dateKeyOrIso);
+  return key.slice(5, 10);
+}
+
+export function yearFromDateKey(dateKeyOrIso: string): number {
+  const key = dateKeyOrIso.length <= 10 ? dateKeyOrIso : localDateKey(dateKeyOrIso);
+  return Number(key.slice(0, 4));
+}
+
+/** Month + day without a year — “Sep 2” for combined-year day detail. */
+export function monthDayLabel(dateKeyOrIso: string): string {
+  const key = dateKeyOrIso.length <= 10 ? dateKeyOrIso : localDateKey(dateKeyOrIso);
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(
+    new Date(`${key}T12:00:00`),
+  );
+}
+
+/** Every catch on the same month+day, any year. */
+export function catchesOnMonthDay(records: CatchRecord[], dateKey: string): CatchRecord[] {
+  const md = monthDayKey(dateKey);
+  return records.filter((record) => monthDayKey(record.caughtAt) === md);
+}
+
+export type YearCatchGroup = {
+  year: number;
+  dateKey: string;
+  catches: CatchRecord[];
+};
+
+/** Newest year first; trips inside a year stay earliest-first. */
+export function groupCatchesByYear(records: CatchRecord[]): YearCatchGroup[] {
+  const map = new Map<number, CatchRecord[]>();
+  for (const record of records) {
+    const key = localDateKey(record.caughtAt);
+    const year = yearFromDateKey(key);
+    const list = map.get(year) ?? [];
+    list.push(record);
+    map.set(year, list);
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([year, list]) => ({
+      year,
+      dateKey: localDateKey(list[0].caughtAt),
+      catches: [...list].sort((a, b) => a.caughtAt.localeCompare(b.caughtAt)),
+    }));
+}
+
 /** Distinct catch pins in first-seen order — same place name, different water stays separate. */
 export function uniqueSpotLabels(records: CatchRecord[]): string[] {
   return groupSpots(records)

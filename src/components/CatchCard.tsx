@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
-import { catchSpotLabel } from "@/lib/calendar";
+import { catchSpotLabel, yearFromDateKey } from "@/lib/calendar";
 import { formatCatchWhen, formatTimeOnly } from "@/lib/time";
 import { catchSpeciesTitle } from "@/lib/count";
 import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
@@ -19,11 +19,13 @@ export function CatchCard({
   record,
   compact = false,
   showTime = false,
+  showYear = false,
   viewerId,
 }: {
   record: CatchRecord;
   compact?: boolean;
   showTime?: boolean;
+  showYear?: boolean;
   viewerId?: string;
 }) {
   const src = photoSrc(record.photoPath);
@@ -56,6 +58,11 @@ export function CatchCard({
             {weatherLine(record)}
           </p>
           <p className="mt-1 flex flex-wrap gap-1">
+            {showYear ? (
+              <span className="rounded-full bg-teal/15 px-2 py-0.5 text-[10px] font-semibold text-teal">
+                {yearFromDateKey(record.caughtAt)}
+              </span>
+            ) : null}
             <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
               {habitatLabel(record.habitat)}
             </span>

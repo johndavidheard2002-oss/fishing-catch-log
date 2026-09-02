@@ -4,7 +4,10 @@ import dynamic from "next/dynamic";
 import { CatchCard } from "@/components/CatchCard";
 import {
   catchSpotLabel,
+  catchesOnMonthDay,
   groupCatchesByDate,
+  groupCatchesByYear,
+  monthDayLabel,
   monthGrid,
   monthLabel,
   shiftMonth,
@@ -12,6 +15,7 @@ import {
   todayKey,
   WEEKDAY_LABELS,
   uniqueSpotLabels,
+  yearFromDateKey,
 } from "@/lib/calendar";
 import { groupSpots } from "@/lib/filters";
 import { photoSrc } from "@/lib/photo";
@@ -20,7 +24,7 @@ import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { CatchRecord } from "@/lib/types";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
   ssr: false,
@@ -50,13 +54,23 @@ export function HistoryCalendar({
   onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
   viewerId?: string;
 }) {
+  const [thisYearOnly, setThisYearOnly] = useState(false);
+  useEffect(() => {
+    setThisYearOnly(false);
+  }, [selectedDay]);
   const byDate = groupCatchesByDate(catches);
   const cells = monthGrid(year, month);
   const today = todayKey();
-  const selected = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
+  const thisYearSelected = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
+  const acrossYears = selectedDay ? catchesOnMonthDay(catches, selectedDay) : [];
+  const yearGroupsAll = groupCatchesByYear(acrossYears);
+  const hasOtherYears = yearGroupsAll.length > 1 || (thisYearSelected.length === 0 && acrossYears.length > 0);
+  const selected = thisYearOnly ? thisYearSelected : acrossYears;
+  const yearGroups = groupCatchesByYear(selected);
   const selectedSpots = uniqueSpotLabels(selected);
   const selectedSpotGroups = groupSpots(selected);
   const mappedSpots = spotsWithPins(selected);
+  const showYearLabels = !thisYearOnly && hasOtherYears;
 
   return (
     <div className="space-y-3">
@@ -95,6 +109,8 @@ export function HistoryCalendar({
           {cells.map((cell) => {
             const dayCatches = byDate.get(cell.date) ?? [];
             const count = dayCatches.length;
+            const anniversary = cell.inMonth ? catchesOnMonthDay(catches, cell.date) : [];
+            const otherYears = anniversary.length > count;
             const isSelected = selectedDay === cell.date;
             const isToday = cell.date === today;
             return (
@@ -107,23 +123,46 @@ export function HistoryCalendar({
                       ? "ring-1 ring-copper"
                       : ""
                 } ${cell.inMonth ? "" : "opacity-35"} ${
-                  !isSelected && count > 0 ? "bg-paper-deep" : ""
+                  !isSelected && (count > 0 || otherYears) ? "bg-paper-deep" : ""
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => onSelectDay(cell.date)}
-                  aria-label={`${cell.date}${count ? `, ${count} catches` : ""}`}
+                  aria-label={`${cell.date}${count ? `, ${count} catches` : ""}${
+                    otherYears ? ", other years on this date" : ""
+                  }`}
                   aria-pressed={isSelected}
                   className="w-full leading-none"
                 >
                   {cell.day}
+                  {otherYears && count ? (
+                    <span
+                      className={`ml-0.5 text-[8px] font-bold ${
+                        isSelected ? "text-white/80" : "text-copper"
+                      }`}
+                    >
+                      {groupCatchesByYear(anniversary).length}y
+                    </span>
+                  ) : null}
                 </button>
-                <DayThumbs
-                  records={dayCatches}
-                  selected={isSelected}
-                  onOpenDay={() => onSelectDay(cell.date)}
-                />
+                {count ? (
+                  <DayThumbs
+                    records={dayCatches}
+                    selected={isSelected}
+                    onOpenDay={() => onSelectDay(cell.date)}
+                  />
+                ) : otherYears ? (
+                  <span
+                    className={`mt-1 rounded-full px-1 text-[9px] font-bold ${
+                      isSelected ? "bg-white text-teal" : "bg-copper text-white"
+                    }`}
+                  >
+                    {groupCatchesByYear(anniversary).length}y
+                  </span>
+                ) : (
+                  <span className="mt-1 h-7" />
+                )}
               </div>
             );
           })}
@@ -132,7 +171,40 @@ export function HistoryCalendar({
 
       {selectedDay ? (
         <section className="space-y-2">
-          <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
+          <h2 className="font-display text-xl text-teal">
+            {hasOtherYears && !thisYearOnly
+              ? monthDayLabel(selectedDay)
+              : formatWeekdayDate(selectedDay)}
+          </h2>
+          {hasOtherYears ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs text-ink-muted">
+                {thisYearOnly
+                  ? yearFromDateKey(selectedDay)
+                  : `Same date · ${yearGroupsAll.map((g) => g.year).join(" · ")}`}
+              </p>
+              <div className="ml-auto grid grid-cols-2 overflow-hidden rounded-full border border-line bg-card p-0.5 text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setThisYearOnly(false)}
+                  className={`rounded-full px-2.5 py-1 ${
+                    !thisYearOnly ? "bg-teal text-white" : "text-ink-muted"
+                  }`}
+                >
+                  All years
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setThisYearOnly(true)}
+                  className={`rounded-full px-2.5 py-1 ${
+                    thisYearOnly ? "bg-teal text-white" : "text-ink-muted"
+                  }`}
+                >
+                  This year
+                </button>
+              </div>
+            </div>
+          ) : null}
           {selected.length === 0 ? null : mappedSpots.length ? (
             <SpotMap
               spots={mappedSpots}
@@ -141,7 +213,9 @@ export function HistoryCalendar({
             />
           ) : (
             <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm text-ink-muted">
-              No map pins this day — those trips have no saved location.
+              {thisYearOnly || !hasOtherYears
+                ? "No map pins this day — those trips have no saved location."
+                : "No map pins on this date — those trips have no saved location."}
             </p>
           )}
           {selectedSpots.length > 1 ? (
@@ -166,16 +240,35 @@ export function HistoryCalendar({
           {onShareDay ? (
             <DayShareToggle
               day={selectedDay}
-              records={selected}
+              records={thisYearSelected}
               viewerId={viewerId}
               onShareDay={onShareDay}
+              selectedYearOnly={hasOtherYears}
             />
           ) : null}
           {selected.length === 0 ? (
-            <p className="text-sm text-ink-muted">No matching catches on this day.</p>
+            <p className="text-sm text-ink-muted">
+              {thisYearOnly && acrossYears.length
+                ? `Nothing in ${yearFromDateKey(selectedDay)}. Other years have trips on this date — switch to All years.`
+                : "No matching catches on this day."}
+            </p>
           ) : (
-            selected.map((record) => (
-              <CatchCard key={record.id} record={record} compact showTime viewerId={viewerId} />
+            yearGroups.map((group) => (
+              <div key={group.year} className="space-y-2">
+                {showYearLabels ? (
+                  <h3 className="pt-1 font-display text-lg text-teal">{group.year}</h3>
+                ) : null}
+                {group.catches.map((record) => (
+                  <CatchCard
+                    key={record.id}
+                    record={record}
+                    compact
+                    showTime
+                    showYear={showYearLabels}
+                    viewerId={viewerId}
+                  />
+                ))}
+              </div>
             ))
           )}
         </section>
@@ -193,11 +286,13 @@ function DayShareToggle({
   records,
   viewerId,
   onShareDay,
+  selectedYearOnly = false,
 }: {
   day: string;
   records: CatchRecord[];
   viewerId?: string;
   onShareDay: (day: string, shared: boolean) => void | Promise<void>;
+  selectedYearOnly?: boolean;
 }) {
   const mine = records.filter((r) => !viewerId || r.anglerId === viewerId);
   const [busy, setBusy] = useState(false);
@@ -229,6 +324,9 @@ function DayShareToggle({
             : someShared
               ? "Some trips on this day are already shared. Turn on to share the whole day."
               : "Off until you choose. Linking a buddy does not share this day."}
+          {selectedYearOnly
+            ? ` Shares ${yearFromDateKey(day)} only — other years on this date stay as they are.`
+            : ""}
         </span>
       </span>
     </label>
