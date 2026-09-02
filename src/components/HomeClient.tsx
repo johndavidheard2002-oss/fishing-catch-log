@@ -44,6 +44,12 @@ export function HomeClient() {
         Log a catch
       </Link>
       <Link
+        href="/backfill"
+        className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+      >
+        Backfill a past catch
+      </Link>
+      <Link
         href="/plan"
         className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold text-teal"
       >
