@@ -114,21 +114,26 @@ export function PlanClient() {
 
 function SuggestionCard({ suggestion }: { suggestion: PlanSuggestion }) {
   const w = suggestion.window;
-  const personal = suggestion.matches
-    .map((m) => ({ id: m.catch.id, src: personalPhotoSrc(m.catch.photoPath) }))
-    .filter((m): m is { id: string; src: string } => Boolean(m.src));
+  const matchPhotos = suggestion.matches.map((m) => ({
+    id: m.catch.id,
+    src: personalPhotoSrc(m.catch.photoPath),
+    species: m.catch.species,
+    date: formatDateOnly(m.catch.caughtAt),
+    reasons: m.reasons,
+  }));
+  const firstPhoto = matchPhotos.find((m) => m.src);
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
       <div className="flex gap-3 p-3">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
-          {personal[0] ? (
-            <Link href={`/catch/${personal[0].id}`} className="h-full w-full">
+          {firstPhoto?.src ? (
+            <Link href={`/catch/${firstPhoto.id}`} className="h-full w-full" aria-label={firstPhoto.species}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={personal[0].src} alt="" className="h-full w-full object-cover" />
+              <img src={firstPhoto.src} alt={firstPhoto.species} className="h-full w-full object-cover" />
             </Link>
           ) : (
-            <span className="px-1 text-center text-[10px] leading-tight text-ink-muted">
-              No personal photo
+            <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">
+              No photo from that trip
             </span>
           )}
         </div>
@@ -146,34 +151,36 @@ function SuggestionCard({ suggestion }: { suggestion: PlanSuggestion }) {
           </p>
         </div>
       </div>
-      {personal.length > 1 ? (
-        <div className="flex gap-1.5 px-3 pb-2">
-          {personal.slice(1, 4).map((photo) => (
-            <Link
-              key={photo.id}
-              href={`/catch/${photo.id}`}
-              className="h-12 w-12 overflow-hidden rounded-lg bg-paper-deep"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photo.src} alt="" className="h-full w-full object-cover" />
-            </Link>
-          ))}
-        </div>
-      ) : null}
       <p className="px-3 pb-2 text-sm">{suggestion.headline}</p>
       <p className="px-3 text-xs text-ink-muted">
         Why: {suggestion.reasons.slice(0, 5).join(" · ") || "pattern overlap"}
       </p>
-      <ul className="space-y-1 px-3 py-3">
-        {suggestion.matches.map((m) => (
-          <li key={m.catch.id}>
-            <Link
-              href={`/catch/${m.catch.id}`}
-              className="text-sm font-semibold text-teal"
-            >
-              {m.catch.species} · {formatDateOnly(m.catch.caughtAt)}
-            </Link>
-            <span className="text-xs text-ink-muted"> — {m.reasons.slice(0, 3).join(", ")}</span>
+      <p className="px-3 pt-2 text-[11px] text-ink-muted">
+        Photos are from the matching trips you logged — never stock or placeholder fish.
+      </p>
+      <ul className="space-y-2 px-3 py-3">
+        {matchPhotos.map((m) => (
+          <li key={m.id} className="flex gap-2">
+            {m.src ? (
+              <Link
+                href={`/catch/${m.id}`}
+                className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep"
+                aria-label={`${m.species} photo`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={m.src} alt={m.species} className="h-full w-full object-cover" />
+              </Link>
+            ) : (
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
+                No photo
+              </span>
+            )}
+            <div className="min-w-0">
+              <Link href={`/catch/${m.id}`} className="text-sm font-semibold text-teal">
+                {m.species} · {m.date}
+              </Link>
+              <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
+            </div>
           </li>
         ))}
       </ul>
