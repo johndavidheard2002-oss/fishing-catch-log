@@ -76,7 +76,7 @@ export function SampleJournalControls({
         </button>
       ) : (
         <p className="text-center text-xs text-ink-muted">
-          Optional examples only. Your journal stays empty until you log a catch or load these.
+          Optional examples only. Nothing is pre-filled until you log a catch or load these.
         </p>
       )}
     </div>

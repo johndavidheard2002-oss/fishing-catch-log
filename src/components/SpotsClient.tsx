@@ -68,7 +68,7 @@ export function SpotsClient() {
         <p className="text-sm text-ink-muted">Loading spots…</p>
       ) : spots.length === 0 ? (
         <p className="text-sm text-ink-muted">
-          No spots yet. Log a catch to drop your first pin. Sample lakes stay off until you load
+          No spots yet. Log a catch to drop your first pin. Sample trips stay off until you load
           them from Home → More.
         </p>
       ) : (

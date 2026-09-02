@@ -17,7 +17,7 @@ const body = Source_Sans_3({
 export const metadata: Metadata = {
   title: { default: "Catch Compass", template: "%s · Catch Compass" },
   description:
-    "Automatic Logbook — log catches with photo, weather, and spot, then find similar conditions later.",
+    "Catch Compass Saltwater Logbook — log catches with photo, weather, and spot, then find similar conditions later.",
   applicationName: "Catch Compass",
   appleWebApp: {
     capable: true,

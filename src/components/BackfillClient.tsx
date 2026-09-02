@@ -25,7 +25,7 @@ export function BackfillClient() {
               : "A location stamp dropped a movable catch pin. Drag it if you caught the fish somewhere else — it is not locked. Each catch keeps its own pin."
             : importedPhotoPath
               ? "Photo and time came from your library. This picture had no GPS, so tap the map to pin the water. Tag every species and confirm weather."
-              : "Past photo, date and time, then pin the water. Photo GPS drops a movable pin when the picture has it. Each catch gets its own pin — another fish from the same day can be a different lake."}
+              : "Past photo, date and time, then pin the water. Photo GPS drops a movable pin when the picture has it. Each catch gets its own pin — another fish from the same day can be a different spot."}
         </p>
       </div>
       <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1">

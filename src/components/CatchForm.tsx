@@ -964,7 +964,9 @@ export function CatchForm({
             </p>
           </>
         ) : (
-          <p className="col-span-2 text-xs text-ink-muted">Tide does not apply to freshwater.</p>
+          <p className="col-span-2 text-xs text-ink-muted">
+            Tide does not apply to this older freshwater trip.
+          </p>
         )}
       </div>
 

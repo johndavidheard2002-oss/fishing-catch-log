@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Catch Compass",
     short_name: "Catch Compass",
-    description: "Automatic Logbook for catches, weather, and similar conditions.",
+    description: "Catch Compass Saltwater Logbook for catches, weather, and similar conditions.",
     start_url: "/",
     display: "standalone",
     background_color: "#7ecdee",

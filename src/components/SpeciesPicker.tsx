@@ -3,14 +3,17 @@
 import { useState } from "react";
 import {
   HABITAT_LABELS,
-  WATER_TYPE_LABELS,
-  catalogHabitat,
   speciesForHabitat,
-  waterTypeOf,
+  catalogHabitat,
   type Habitat,
-  type WaterType,
 } from "@/lib/habitat";
 import { normalizeSpeciesList } from "@/lib/species";
+
+const SALT_OPTIONS: Habitat[] = ["saltwater-inshore", "saltwater-offshore"];
+
+function pickerHabitat(habitat: Habitat): Habitat {
+  return habitat === "saltwater-offshore" ? "saltwater-offshore" : "saltwater-inshore";
+}
 
 export function SpeciesPicker({
   speciesList,
@@ -23,17 +26,13 @@ export function SpeciesPicker({
   onChange: (speciesList: string[], habitat: Habitat) => void;
   onHabitat: (habitat: Habitat) => void;
 }) {
-  const water = waterTypeOf(habitat);
   const selected = normalizeSpeciesList(null, speciesList);
   const [query, setQuery] = useState("");
-  const catalog = speciesForHabitat(habitat);
+  const listHabitat = pickerHabitat(habitat);
+  const catalog = speciesForHabitat(listHabitat);
   const q = query.trim().toLowerCase();
   const filtered = q ? catalog.filter((name) => name.toLowerCase().includes(q)) : catalog;
-
-  function setWater(next: WaterType) {
-    if (next === "freshwater") onHabitat("freshwater");
-    else if (water !== "saltwater") onHabitat("saltwater-inshore");
-  }
+  const saltSelected = habitat === "saltwater-offshore" || habitat === "saltwater-inshore";
 
   function toggle(name: string) {
     const key = name.trim().toLowerCase();
@@ -42,7 +41,9 @@ export function SpeciesPicker({
       ? selected.filter((s) => s.toLowerCase() !== key)
       : [...selected, name.trim()];
     const inferred = catalogHabitat(name);
-    onChange(next, inferred && next.length === 1 ? inferred : habitat);
+    const nextHabitat =
+      inferred && next.length === 1 && inferred !== "freshwater" ? inferred : habitat;
+    onChange(next, nextHabitat);
   }
 
   function addTyped() {
@@ -62,42 +63,27 @@ export function SpeciesPicker({
   return (
     <div className="space-y-3">
       <div>
-        <p className="mb-1.5 text-sm font-semibold">Water type</p>
+        <p className="mb-1.5 text-sm font-semibold">Water</p>
         <div className="grid grid-cols-2 gap-2">
-          {(["saltwater", "freshwater"] as const).map((id) => (
+          {SALT_OPTIONS.map((id) => (
             <button
               key={id}
               type="button"
-              onClick={() => setWater(id)}
+              onClick={() => onHabitat(id)}
               className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${
-                water === id ? "bg-teal text-white" : "border border-line bg-card"
+                saltSelected && habitat === id ? "bg-teal text-white" : "border border-line bg-card"
               }`}
             >
-              {WATER_TYPE_LABELS[id]}
+              {HABITAT_LABELS[id]}
             </button>
           ))}
         </div>
+        {habitat === "freshwater" ? (
+          <p className="mt-1.5 text-xs text-ink-muted">
+            This older trip is not inshore or offshore yet. Pick one to recategorize, or leave it.
+          </p>
+        ) : null}
       </div>
-
-      {water === "saltwater" ? (
-        <div>
-          <p className="mb-1.5 text-sm font-semibold">Saltwater</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(["saltwater-inshore", "saltwater-offshore"] as const).map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => onHabitat(id)}
-                className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${
-                  habitat === id ? "bg-teal text-white" : "border border-line bg-card"
-                }`}
-              >
-                {HABITAT_LABELS[id]}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       <div>
         <p className="mb-1 block text-sm font-semibold">Species in this photo</p>
@@ -130,7 +116,7 @@ export function SpeciesPicker({
                 addTyped();
               }
             }}
-            placeholder={`Search ${HABITAT_LABELS[habitat].toLowerCase()} or type a name`}
+            placeholder={`Search ${HABITAT_LABELS[listHabitat].toLowerCase()} or type a name`}
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
           <button
@@ -147,7 +133,7 @@ export function SpeciesPicker({
         {filtered.length === 0 ? (
           <p className="px-1 py-2 text-xs text-ink-muted">
             No catalog match — type the name and tap Add. Habitat stays{" "}
-            {HABITAT_LABELS[habitat].toLowerCase()}.
+            {HABITAT_LABELS[listHabitat].toLowerCase()}.
           </p>
         ) : (
           filtered.map((name) => {
@@ -168,7 +154,8 @@ export function SpeciesPicker({
         )}
       </div>
       <p className="text-xs text-ink-muted">
-        Pick water type first so the list stays short. One picture can hold more than one species.
+        Inshore or offshore first so the list stays short. One picture can hold more than one
+        species.
       </p>
     </div>
   );

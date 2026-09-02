@@ -1,4 +1,5 @@
 import {
+  DEFAULT_HABITAT,
   SPECIES_CATALOG,
   catalogHabitat,
   inferHabitat,
@@ -155,7 +156,7 @@ export function habitatForSuggestion(
   species: string,
   hinted?: Habitat | null,
 ): Habitat {
-  return catalogHabitat(species) ?? inferHabitat(species, hinted ?? "freshwater");
+  return catalogHabitat(species) ?? inferHabitat(species, hinted ?? DEFAULT_HABITAT);
 }
 
 export const SPECIES_AUTO_FILL_MIN = 0.5;

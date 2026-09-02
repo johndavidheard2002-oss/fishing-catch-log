@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { inferHabitat, isHabitat } from "../habitat";
 import { moonForDate } from "../moon";
 import {
@@ -350,10 +350,4 @@ export function setSharedForDay(args: {
     updateCatch(record.id, { sharedWithLinked: args.shared });
   }
   return { updated: mine.length };
-}
-
-export function countCatches(): number {
-  const db = getDb();
-  const row = db.select({ n: count() }).from(catches).get();
-  return row?.n ?? 0;
 }

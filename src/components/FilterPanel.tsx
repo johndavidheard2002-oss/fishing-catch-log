@@ -1,13 +1,13 @@
 "use client";
 
-import { HABITAT_LABELS, WATER_TYPE_LABELS, habitatsForWaterType } from "@/lib/habitat";
+import { HABITAT_LABELS } from "@/lib/habitat";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { MOON_PHASES } from "@/lib/moon";
 import { PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/pressure";
 import { TIME_OF_DAY_LABELS } from "@/lib/time";
 import { TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_CARDINALS } from "@/lib/wind";
-import type { CatchFilters, Habitat, TimeOfDay, WeatherCondition } from "@/lib/types";
+import type { CatchFilters, TimeOfDay, WeatherCondition } from "@/lib/types";
 
 export function FilterPanel({
   filters,
@@ -168,55 +168,27 @@ function HabitatFilters({
   filters: CatchFilters;
   onChange: (next: CatchFilters) => void;
 }) {
-  const selected = filters.habitats ?? [];
-  const freshOn = selected.includes("freshwater");
-  const inshoreOn = selected.includes("saltwater-inshore");
-  const offshoreOn = selected.includes("saltwater-offshore");
-  const saltOn = inshoreOn || offshoreOn;
+  const selected = (filters.habitats ?? []).filter(
+    (h): h is "saltwater-inshore" | "saltwater-offshore" =>
+      h === "saltwater-inshore" || h === "saltwater-offshore",
+  );
 
-  function setHabitats(next: Habitat[]) {
+  function toggleSaltKind(kind: "saltwater-inshore" | "saltwater-offshore") {
+    const on = selected.includes(kind);
+    const next = on ? selected.filter((h) => h !== kind) : [...selected, kind];
     onChange({ ...filters, habitats: next.length ? next : undefined });
   }
 
-  function toggleFresh() {
-    const rest = selected.filter((h) => h !== "freshwater");
-    setHabitats(freshOn ? rest : [...rest, "freshwater"]);
-  }
-
-  function toggleSalt() {
-    const rest = selected.filter((h) => h === "freshwater");
-    setHabitats(saltOn ? rest : [...rest, ...habitatsForWaterType("saltwater")]);
-  }
-
-  function toggleSaltKind(kind: "saltwater-inshore" | "saltwater-offshore") {
-    const rest = selected.filter((h) => h !== kind);
-    const on = selected.includes(kind);
-    setHabitats(on ? rest : [...rest, kind]);
-  }
-
   return (
-    <div className="space-y-2">
-      <ChipRow
-        label="Water type"
-        options={[
-          { value: "freshwater", label: WATER_TYPE_LABELS.freshwater },
-          { value: "saltwater", label: WATER_TYPE_LABELS.saltwater },
-        ]}
-        selected={[...(freshOn ? ["freshwater"] : []), ...(saltOn ? ["saltwater"] : [])]}
-        onToggle={(v) => (v === "freshwater" ? toggleFresh() : toggleSalt())}
-      />
-      {saltOn ? (
-        <ChipRow
-          label="Saltwater"
-          options={[
-            { value: "saltwater-inshore", label: HABITAT_LABELS["saltwater-inshore"] },
-            { value: "saltwater-offshore", label: HABITAT_LABELS["saltwater-offshore"] },
-          ]}
-          selected={selected}
-          onToggle={(v) => toggleSaltKind(v as "saltwater-inshore" | "saltwater-offshore")}
-        />
-      ) : null}
-    </div>
+    <ChipRow
+      label="Water"
+      options={[
+        { value: "saltwater-inshore", label: HABITAT_LABELS["saltwater-inshore"] },
+        { value: "saltwater-offshore", label: HABITAT_LABELS["saltwater-offshore"] },
+      ]}
+      selected={selected}
+      onToggle={(v) => toggleSaltKind(v as "saltwater-inshore" | "saltwater-offshore")}
+    />
   );
 }
 

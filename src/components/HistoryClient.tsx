@@ -164,16 +164,9 @@ export function HistoryClient() {
           }}
         />
         <Preset
-          label="Bass"
+          label="Redfish"
           onClick={() => {
-            setFilters({ species: "Bass" });
-            setShowFilters(true);
-          }}
-        />
-        <Preset
-          label="Freshwater"
-          onClick={() => {
-            setFilters({ habitats: ["freshwater"] });
+            setFilters({ species: "Redfish" });
             setShowFilters(true);
           }}
         />
@@ -181,6 +174,13 @@ export function HistoryClient() {
           label="Inshore"
           onClick={() => {
             setFilters({ habitats: ["saltwater-inshore"] });
+            setShowFilters(true);
+          }}
+        />
+        <Preset
+          label="Offshore"
+          onClick={() => {
+            setFilters({ habitats: ["saltwater-offshore"] });
             setShowFilters(true);
           }}
         />
@@ -231,7 +231,7 @@ export function HistoryClient() {
         </div>
       ) : catches.length === 0 ? (
         <p className="text-sm text-ink-muted">
-          Your journal is empty. Log a catch or backfill a photo — one picture becomes one trip at
+          Nothing logged yet. Log a catch or backfill a photo — one picture becomes one trip at
           one pin. Sample trips are off unless you load them from Home → More.
         </p>
       ) : filtered.length === 0 ? (

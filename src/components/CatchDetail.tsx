@@ -43,7 +43,7 @@ export function CatchDetail({ id }: { id: string }) {
   }, [id]);
 
   async function onDelete() {
-    if (!confirm("Delete this catch from your journal?")) return;
+    if (!confirm("Delete this catch?")) return;
     await fetch(`/api/catches/${id}`, { method: "DELETE" });
     router.push("/calendar");
   }

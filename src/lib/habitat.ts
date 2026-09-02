@@ -9,7 +9,7 @@ export type Habitat = (typeof HABITATS)[number];
 export const WATER_TYPES = ["freshwater", "saltwater"] as const;
 export type WaterType = (typeof WATER_TYPES)[number];
 
-/** New log / backfill / import starts on saltwater (inshore). Freshwater stays a tap away. */
+/** New log / backfill / import starts on saltwater inshore. Freshwater is not offered in the UI. */
 export const DEFAULT_HABITAT: Habitat = "saltwater-inshore";
 
 export const HABITAT_LABELS: Record<Habitat, string> = {
@@ -187,7 +187,7 @@ const FRESH_HINTS = [
   "freshwater",
 ];
 
-export function inferHabitat(species: string, fallback: Habitat = "freshwater"): Habitat {
+export function inferHabitat(species: string, fallback: Habitat = DEFAULT_HABITAT): Habitat {
   const exact = catalogHabitat(species);
   if (exact) return exact;
 
@@ -210,7 +210,8 @@ export function matchesHabitatFilters(
 
 /**
  * Rough US/Gulf hint from coordinates or a place name so species assist
- * prefers freshwater vs inshore vs offshore when the photo is ambiguous.
+ * prefers inshore vs offshore (and still recognizes inland water on older rows)
+ * when the photo is ambiguous.
  */
 export function habitatHintFromLocation(
   lat?: number | null,
