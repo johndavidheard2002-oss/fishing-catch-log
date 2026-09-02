@@ -25,10 +25,16 @@ function logPath(params: URLSearchParams): string {
   return qs ? `/calendar?${qs}` : "/calendar";
 }
 
-export function HistoryClient() {
+export function HistoryClient({
+  initialCatches,
+  initialViewerId,
+}: {
+  initialCatches?: CatchRecord[];
+  initialViewerId?: string;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [catches, setCatches] = useState<CatchRecord[]>([]);
+  const [catches, setCatches] = useState<CatchRecord[]>(initialCatches ?? []);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CatchFilters>(() => ({
     species: searchParams.get("species") || undefined,
@@ -36,9 +42,9 @@ export function HistoryClient() {
   const viewParam = searchParams.get("view");
   const view: LogView = viewParam === "list" || viewParam === "grid" ? viewParam : "calendar";
   const [showFilters, setShowFilters] = useState(Boolean(searchParams.get("species")));
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialCatches === undefined);
   const [includeShared, setIncludeShared] = useIncludeShared();
-  const [viewerId, setViewerId] = useState<string | undefined>();
+  const [viewerId, setViewerId] = useState<string | undefined>(initialViewerId);
   const [shareEpoch, setShareEpoch] = useState(0);
   const queryDay = searchParams.get("day");
   const [monthOverride, setMonthOverride] = useState<{ year: number; month: number } | null>(
@@ -195,7 +201,7 @@ export function HistoryClient() {
 
       {loadError ? <p className="text-sm text-copper">{loadError}</p> : null}
 
-      {loading ? (
+      {loading && catches.length === 0 ? (
         <p className="text-sm text-ink-muted">Loading the journal…</p>
       ) : view === "calendar" ? (
         <div className="space-y-3">
