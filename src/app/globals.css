@@ -78,19 +78,19 @@ body::after {
   background-size: 320px 88px;
 }
 
-/* Trout spots fill the viewport, kept faint so copy stays readable. Compass stays on the header mark only. */
+/* Trout spots fill the viewport. Compass stays on the header mark only. */
 .brand-watermark {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(180deg, rgb(232 247 253 / 0.55) 0%, rgb(210 240 250 / 0.42) 42%, rgb(180 228 246 / 0.5) 100%),
-    url("/brand/catch-compass-watermark.jpg");
-  background-repeat: no-repeat;
-  background-position: center center;
-  background-size: cover;
-  opacity: 0.22;
+    linear-gradient(180deg, rgb(232 247 253 / 0.28) 0%, rgb(210 240 250 / 0.16) 46%, rgb(180 228 246 / 0.3) 100%),
+    url("/brand/trout-spots.svg");
+  background-repeat: repeat;
+  background-position: center top;
+  background-size: 220px 256px;
+  opacity: 0.42;
 }
 
 .brand-mark {
@@ -105,8 +105,21 @@ body::after {
   font-family: var(--font-display), Georgia, "Times New Roman", serif;
 }
 
-a {
-  color: inherit;
+/* Inherit ink on plain links. Layered so filled CTA utilities still win. */
+@layer base {
+  a {
+    color: inherit;
+  }
+}
+
+/* White type on filled teal/copper (Home Log bait, Spots Catch/Bait, Log a catch). */
+a.bg-teal,
+a.bg-copper,
+a.bg-good,
+button.bg-teal,
+button.bg-copper,
+button.bg-good {
+  color: #fff;
 }
 
 button,
@@ -121,7 +134,7 @@ textarea {
 }
 
 .journal-card {
-  background: rgb(247 252 255 / 0.92);
+  background: rgb(247 252 255 / 0.96);
   backdrop-filter: blur(18px) saturate(1.08);
   -webkit-backdrop-filter: blur(18px) saturate(1.08);
   border: 1px solid rgb(255 255 255 / 0.82);
@@ -131,7 +144,7 @@ textarea {
 }
 
 .page-intro {
-  background: rgb(247 252 255 / 0.9);
+  background: rgb(247 252 255 / 0.95);
   backdrop-filter: blur(16px) saturate(1.08);
   -webkit-backdrop-filter: blur(16px) saturate(1.08);
   border: 1px solid rgb(255 255 255 / 0.82);

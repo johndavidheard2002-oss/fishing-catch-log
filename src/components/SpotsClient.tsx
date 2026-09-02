@@ -124,13 +124,13 @@ export function SpotsClient() {
       <div className="grid grid-cols-2 gap-2">
         <Link
           href="/log"
-          className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+          className="flex items-center justify-center rounded-2xl bg-copper px-4 py-3 font-semibold text-white"
         >
           Log a catch
         </Link>
         <Link
           href="/bait/new"
-          className="flex items-center justify-center rounded-2xl bg-copper px-4 py-3 font-semibold text-white"
+          className="flex items-center justify-center rounded-2xl bg-teal px-4 py-3 font-semibold text-white"
           data-testid="log-bait-spot"
         >
           Log bait

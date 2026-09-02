@@ -8,12 +8,10 @@ export function HomeClient() {
   return (
     <div className="space-y-6">
       <section className="page-intro">
-        <h1 className="font-display text-4xl leading-tight text-teal">
-          Remember the trip. Find the pattern later.
+        <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-teal">
+          Catch Compass
         </h1>
-        <p className="mt-2 text-ink-muted">
-          Photo, species, weather, and spot — then search the days that felt like this one.
-        </p>
+        <p className="mt-1 font-display text-2xl leading-snug text-teal">Saltwater Logbook</p>
       </section>
 
       <div className="grid grid-cols-2 gap-2">
