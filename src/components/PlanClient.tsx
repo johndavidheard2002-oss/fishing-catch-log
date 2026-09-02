@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
@@ -9,6 +10,7 @@ import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
+import { parsePlanDate } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel, VERY_STRONG_MATCH_CHIP, VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
 import type { BaitPlanSuggestion, BaitSpot, PlanResult, PlanSuggestion, SpotGroup } from "@/lib/types";
@@ -33,9 +35,17 @@ type PlanMapTarget = {
 
 export function PlanClient() {
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const dateParam = searchParams.get("date");
+  const selectedDay = parsePlanDate(dateParam) ? dateParam : null;
+  const [year, setYear] = useState(() => {
+    const parsed = parsePlanDate(dateParam);
+    return parsed ? parsed.getFullYear() : now.getFullYear();
+  });
+  const [month, setMonth] = useState(() => {
+    const parsed = parsePlanDate(dateParam);
+    return parsed ? parsed.getMonth() : now.getMonth();
+  });
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +107,6 @@ export function PlanClient() {
           setYear(next.year);
           setMonth(next.month);
         }}
-        onSelectDay={setSelectedDay}
       />
 
       {plan && selectedDay && !waiting ? (
@@ -169,13 +178,11 @@ function PlanDayCalendar({
   month,
   selectedDay,
   onMonthChange,
-  onSelectDay,
 }: {
   year: number;
   month: number;
   selectedDay: string | null;
   onMonthChange: (next: { year: number; month: number }) => void;
-  onSelectDay: (date: string) => void;
 }) {
   const cells = monthGrid(year, month);
   const today = todayKey();
@@ -210,14 +217,14 @@ function PlanDayCalendar({
           const isSelected = selectedDay === cell.date;
           const isToday = cell.date === today;
           return (
-            <button
+            <Link
               key={cell.date}
-              type="button"
-              onClick={() => onSelectDay(cell.date)}
+              href={`/plan?date=${cell.date}`}
+              scroll={false}
               aria-label={cell.date}
-              aria-pressed={isSelected}
+              aria-current={isSelected ? "date" : undefined}
               data-testid={`plan-day-${cell.date}`}
-              className={`min-h-10 rounded-xl py-2 text-sm ${
+              className={`flex min-h-10 items-center justify-center rounded-xl py-2 text-sm ${
                 isSelected
                   ? "bg-teal font-semibold text-white"
                   : isToday
@@ -226,7 +233,7 @@ function PlanDayCalendar({
               } ${cell.inMonth ? "" : "opacity-35"}`}
             >
               {cell.day}
-            </button>
+            </Link>
           );
         })}
       </div>
