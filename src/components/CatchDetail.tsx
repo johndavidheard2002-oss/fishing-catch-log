@@ -184,14 +184,20 @@ export function CatchDetail({ id }: { id: string }) {
       ) : null}
 
       {src ? (
-        <SaveToPhotosButton
-          src={src}
-          filename={catchPhotoFilename({
-            species: record.speciesList?.length ? record.speciesList : record.species,
-            caughtAt: record.caughtAt,
-            photoPath: record.photoPath,
-          })}
-        />
+        <div>
+          <SaveToPhotosButton
+            src={src}
+            filename={catchPhotoFilename({
+              species: record.speciesList?.length ? record.speciesList : record.species,
+              caughtAt: record.caughtAt,
+              photoPath: record.photoPath,
+            })}
+          />
+          <p className="mt-1.5 text-xs text-ink-muted">
+            Save this catch photo to this phone whenever you want. Catch Compass never adds it to
+            Photos by itself.
+          </p>
+        </div>
       ) : null}
 
       <div className="flex gap-2">
