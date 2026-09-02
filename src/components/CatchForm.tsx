@@ -14,6 +14,7 @@ import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { coordsLookDifferent, formatCoords, shouldApplyPhotoGpsToCatch } from "@/lib/location";
 import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
+import { clampFishCount } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
 import { datetimeLocalValue, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
@@ -55,6 +56,7 @@ type FormState = {
   tide: string;
   waterClarity: string;
   habitat: Habitat;
+  fishCount: number;
   sharedWithLinked: boolean;
   speciesAlternatives: { species: string; confidence: number }[];
   speciesSuggestedList: string[];
@@ -94,6 +96,7 @@ const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => 
     tide: "",
     waterClarity: "",
     habitat: "freshwater",
+    fishCount: 1,
     sharedWithLinked: false,
     speciesAlternatives: [],
     speciesSuggestedList: [],
@@ -135,6 +138,7 @@ function fromRecord(record: CatchRecord): FormState {
     tide: record.tide ?? "",
     waterClarity: record.waterClarity ?? "",
     habitat: record.habitat,
+    fishCount: record.fishCount ?? 1,
     sharedWithLinked: record.sharedWithLinked,
     speciesAlternatives: [],
     speciesSuggestedList: [],
@@ -483,6 +487,7 @@ export function CatchForm({
         tide: form.tide || null,
         waterClarity: form.waterClarity || null,
         habitat: form.habitat,
+        fishCount: clampFishCount(form.fishCount, form.speciesList.length || 1),
         sharedWithLinked: form.sharedWithLinked,
       };
 
@@ -583,10 +588,29 @@ export function CatchForm({
           patch({
             speciesList,
             habitat,
+            fishCount: clampFishCount(form.fishCount, speciesList.length || 1),
             speciesSource: form.speciesSuggested ? "edited" : "manual",
           })
         }
       />
+
+      <label className="block">
+        <span className="mb-1 block text-sm font-semibold">How many fish</span>
+        <input
+          type="number"
+          min={1}
+          max={99}
+          inputMode="numeric"
+          value={form.fishCount}
+          onChange={(e) =>
+            patch({ fishCount: clampFishCount(e.target.value, form.speciesList.length || 1) })
+          }
+          className="w-full rounded-xl border border-line bg-card px-3 py-3"
+        />
+        <span className="mt-1 block text-xs text-ink-muted">
+          This catch, this spot. Two species in the photo starts at two unless you change it.
+        </span>
+      </label>
 
       {suggestion?.species ? (
         <div className="space-y-2">
@@ -614,6 +638,7 @@ export function CatchForm({
                   patch({
                     speciesList: merged,
                     habitat: inferHabitat(primarySpecies(merged), form.habitat),
+                    fishCount: clampFishCount(form.fishCount, merged.length),
                     speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
                   });
                 }}
@@ -630,6 +655,7 @@ export function CatchForm({
                   patch({
                     speciesList: merged,
                     habitat: inferHabitat(suggestion.species, form.habitat),
+                    fishCount: clampFishCount(form.fishCount, merged.length),
                     speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
                   });
                 }}
@@ -651,13 +677,15 @@ export function CatchForm({
                   key={name}
                   type="button"
                   className="rounded-full border border-line bg-card px-2.5 py-1 text-xs font-semibold"
-                  onClick={() =>
+                  onClick={() => {
+                    const speciesList = normalizeSpeciesList(null, [...form.speciesList, name]);
                     patch({
-                      speciesList: normalizeSpeciesList(null, [...form.speciesList, name]),
+                      speciesList,
                       habitat: inferHabitat(name, form.habitat),
+                      fishCount: clampFishCount(form.fishCount, speciesList.length),
                       speciesSource: "edited",
-                    })
-                  }
+                    });
+                  }}
                 >
                   Add {name}
                 </button>
@@ -667,13 +695,18 @@ export function CatchForm({
                 key={alt.species}
                 type="button"
                 className="rounded-full border border-line bg-card px-2.5 py-1 text-xs font-semibold"
-                onClick={() =>
-                  patch({
-                    speciesList: normalizeSpeciesList(null, [...form.speciesList, alt.species]),
-                    habitat: inferHabitat(alt.species, form.habitat),
-                    speciesSource: "edited",
-                  })
-                }
+                onClick={() => {
+                    const speciesList = normalizeSpeciesList(null, [
+                      ...form.speciesList,
+                      alt.species,
+                    ]);
+                    patch({
+                      speciesList,
+                      habitat: inferHabitat(alt.species, form.habitat),
+                      fishCount: clampFishCount(form.fishCount, speciesList.length),
+                      speciesSource: "edited",
+                    });
+                  }}
               >
                 Add {alt.species}
                 {alt.confidence != null ? ` ${Math.round(alt.confidence * 100)}%` : ""}

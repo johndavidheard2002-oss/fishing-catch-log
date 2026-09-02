@@ -44,6 +44,7 @@ export function CatchCard({
         <div className="min-w-0 flex-1 px-3 py-2">
           <p className="truncate font-semibold text-ink">
             {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
+            {record.fishCount > 1 ? ` · ${record.fishCount}` : ""}
           </p>
           <p className="truncate text-sm text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-1 truncate text-xs text-ink-muted">
@@ -87,6 +88,7 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
         <div className="px-2.5 py-2">
           <p className="truncate text-sm font-semibold">
             {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
+            {record.fishCount > 1 ? ` · ${record.fishCount}` : ""}
           </p>
           <p className="truncate text-xs text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-0.5 text-[10px] text-ink-muted">{habitatLabel(record.habitat)}</p>

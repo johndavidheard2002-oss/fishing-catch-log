@@ -12,6 +12,7 @@ import type {
   WeatherCondition,
 } from "./types";
 import { SEASONS, SPECIES_SOURCES, TIME_OF_DAY, WEATHER_CONDITIONS } from "./types";
+import { clampFishCount } from "./count";
 import { isWindDirection } from "./wind";
 
 function asString(value: unknown): string | null {
@@ -133,6 +134,7 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
     tide: asString(body.tide),
     waterClarity: asString(body.waterClarity),
     habitat: asHabitat(body.habitat, species),
+    fishCount: clampFishCount(asNumber(body.fishCount), (asStringArray(body.speciesList) ?? [species]).length),
     sharedWithLinked: body.sharedWithLinked === true || body.sharedWithLinked === 1,
   };
 }

@@ -153,6 +153,7 @@ export function groupSpots(records: CatchRecord[]): SpotGroup[] {
         latitude: withCoords.length ? lat : null,
         longitude: withCoords.length ? lng : null,
         catchCount: catches.length,
+        fishCount: catches.reduce((n, c) => n + (c.fishCount || 1), 0),
         species: [
           ...new Set(catches.flatMap((c) => (c.speciesList?.length ? c.speciesList : [c.species]))),
         ],

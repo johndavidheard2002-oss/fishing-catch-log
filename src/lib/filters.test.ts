@@ -73,6 +73,7 @@ describe("groupSpots", () => {
     expect(spots).toHaveLength(2);
     const travis = spots.find((s) => s.placeName === "Lake Travis, TX");
     expect(travis?.catchCount).toBe(2);
+    expect(travis?.fishCount).toBe(2);
   });
 
   it("keeps distinct pins even when two same-day catches share a place name", () => {

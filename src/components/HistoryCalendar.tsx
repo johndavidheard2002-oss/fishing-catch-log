@@ -13,6 +13,7 @@ import {
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
+import { fishCountLabel } from "@/lib/count";
 import type { CatchRecord } from "@/lib/types";
 import Link from "next/link";
 
@@ -122,6 +123,7 @@ export function HistoryCalendar({
           <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
           <p className="text-xs text-ink-muted">
             {selected.length} {selected.length === 1 ? "catch" : "catches"}
+            {` · ${fishCountLabel(selected.reduce((n, c) => n + (c.fishCount || 1), 0))}`}
             {selectedSpots.length > 1
               ? ` · ${selectedSpots.length} spots`
               : selectedSpots[0]

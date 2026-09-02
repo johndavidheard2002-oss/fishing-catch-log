@@ -32,6 +32,7 @@ export const catches = sqliteTable("catches", {
   tide: text("tide"),
   waterClarity: text("water_clarity"),
   habitat: text("habitat").notNull().default("freshwater"),
+  fishCount: integer("fish_count").notNull().default(1),
   anglerId: text("angler_id"),
   sharedWithLinked: integer("shared_with_linked").notNull().default(0),
   createdAt: text("created_at").notNull(),

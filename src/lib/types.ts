@@ -83,6 +83,7 @@ export type CatchRecord = {
   tide: string | null;
   waterClarity: string | null;
   habitat: Habitat;
+  fishCount: number;
   anglerId: string;
   sharedWithLinked: boolean;
   ownerName: string;
@@ -121,6 +122,7 @@ export type CatchInput = {
   tide?: string | null;
   waterClarity?: string | null;
   habitat?: Habitat | null;
+  fishCount?: number | null;
   anglerId?: string | null;
   sharedWithLinked?: boolean;
 };
@@ -158,6 +160,7 @@ export type SpotGroup = {
   latitude: number | null;
   longitude: number | null;
   catchCount: number;
+  fishCount: number;
   species: string[];
   lastCaughtAt: string;
   typicalCondition: WeatherCondition | null;

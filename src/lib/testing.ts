@@ -37,6 +37,7 @@ export function catchOf(
     tide: null,
     waterClarity: null,
     habitat: inferHabitat(species),
+    fishCount: 1,
     anglerId: "you",
     sharedWithLinked: false,
     ownerName: "You",

@@ -47,7 +47,7 @@ export function SpotMap({
           fillOpacity: 0.85,
           weight: 2,
         }).addTo(instance);
-        marker.bindTooltip(`${spot.placeName} · ${spot.catchCount}`);
+        marker.bindTooltip(`${spot.placeName} · ${spot.fishCount} fish · ${spot.catchCount}`);
         marker.on("click", () => onSelect(spot.key));
         bounds.extend([spot.latitude!, spot.longitude!]);
       }

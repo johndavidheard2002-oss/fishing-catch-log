@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS catches (
   tide TEXT,
   water_clarity TEXT,
   habitat TEXT NOT NULL DEFAULT 'freshwater',
+  fish_count INTEGER NOT NULL DEFAULT 1,
   angler_id TEXT,
   shared_with_linked INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
@@ -120,6 +121,7 @@ function migrate(sqlite: Database.Database) {
     ["species_list", "TEXT"],
     ["photo_taken_latitude", "REAL"],
     ["photo_taken_longitude", "REAL"],
+    ["fish_count", "INTEGER NOT NULL DEFAULT 1"],
   ];
   const latestCols = tableColumns(sqlite, "catches");
   for (const [name, type] of extra) {
@@ -242,6 +244,28 @@ function migrate(sqlite: Database.Database) {
       );
     }
     sqlite.pragma("user_version = 5");
+  }
+  if (version < 6) {
+    const rows = sqlite.prepare("SELECT id, species, species_list, fish_count FROM catches").all() as {
+      id: string;
+      species: string;
+      species_list: string | null;
+      fish_count: number | null;
+    }[];
+    const update = sqlite.prepare("UPDATE catches SET fish_count = ? WHERE id = ?");
+    for (const row of rows) {
+      let speciesCount = 1;
+      try {
+        const parsed = row.species_list ? (JSON.parse(row.species_list) as unknown) : null;
+        if (Array.isArray(parsed) && parsed.length) speciesCount = parsed.length;
+        else if (row.species) speciesCount = 1;
+      } catch {
+        speciesCount = row.species ? 1 : 1;
+      }
+      const next = Math.max(row.fish_count && row.fish_count > 0 ? row.fish_count : 1, speciesCount);
+      update.run(next, row.id);
+    }
+    sqlite.pragma("user_version = 6");
   }
 }
 

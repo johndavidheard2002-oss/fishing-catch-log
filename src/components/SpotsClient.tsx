@@ -7,6 +7,7 @@ import { SharedToggle, sharedQuery, useIncludeShared } from "./BuddyPanel";
 import { CatchCard } from "./CatchCard";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { formatDateOnly } from "@/lib/time";
+import { fishCountLabel } from "@/lib/count";
 import type { SpotGroup } from "@/lib/types";
 
 const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
@@ -80,7 +81,8 @@ export function SpotsClient() {
                 >
                   <p className="font-semibold">{spot.placeName}</p>
                   <p className="text-sm text-ink-muted">
-                    {spot.catchCount} {spot.catchCount === 1 ? "catch" : "catches"} ·{" "}
+                    {fishCountLabel(spot.fishCount)} · {spot.catchCount}{" "}
+                    {spot.catchCount === 1 ? "trip" : "trips"} ·{" "}
                     {spot.species.slice(0, 3).join(", ")}
                     {spot.avgTempF != null ? ` · ~${spot.avgTempF}°F` : ""}
                     {spot.typicalCondition

@@ -1,6 +1,7 @@
 import { count, desc, eq } from "drizzle-orm";
 import { inferHabitat, isHabitat } from "../habitat";
 import { moonForDate } from "../moon";
+import { clampFishCount } from "../count";
 import { normalizeSpeciesList, parseSpeciesListJson, primarySpecies } from "../species";
 import { seasonFromDate, timeOfDayFromDate } from "../time";
 import type {
@@ -68,6 +69,7 @@ function mapRow(
     tide: row.tide,
     waterClarity: row.waterClarity,
     habitat: asHabitat(row.habitat, species),
+    fishCount: clampFishCount(row.fishCount, speciesList.length || 1),
     anglerId,
     sharedWithLinked: Boolean(row.sharedWithLinked),
     ownerName: ownerNameById.get(anglerId) ?? "Angler",
@@ -144,6 +146,7 @@ export function createCatch(input: CatchInput): CatchRecord {
   const speciesList = normalizeSpeciesList(input.species, input.speciesList);
   const species = primarySpecies(speciesList);
   const habitat = asHabitat(input.habitat, species);
+  const fishCount = clampFishCount(input.fishCount, speciesList.length || 1);
   db.insert(catches)
     .values({
       id,
@@ -177,6 +180,7 @@ export function createCatch(input: CatchInput): CatchRecord {
       tide: input.tide ?? null,
       waterClarity: input.waterClarity ?? null,
       habitat,
+      fishCount,
       anglerId: input.anglerId ?? null,
       sharedWithLinked: input.sharedWithLinked ? 1 : 0,
       createdAt: stamp,
@@ -212,6 +216,10 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
   });
   const habitat =
     input.habitat === undefined ? existing.habitat : asHabitat(input.habitat, species);
+  const fishCount =
+    input.fishCount === undefined
+      ? clampFishCount(existing.fishCount, speciesList.length || 1)
+      : clampFishCount(input.fishCount, speciesList.length || 1);
   db.update(catches)
     .set({
       photoPath: input.photoPath === undefined ? existing.photoPath : input.photoPath,
@@ -269,6 +277,7 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
       waterClarity:
         input.waterClarity === undefined ? existing.waterClarity : input.waterClarity,
       habitat,
+      fishCount,
       anglerId: input.anglerId === undefined ? existing.anglerId : input.anglerId,
       sharedWithLinked:
         input.sharedWithLinked === undefined

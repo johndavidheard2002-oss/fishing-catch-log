@@ -89,5 +89,6 @@ describe("migrate older journals", () => {
     expect(records[0].windDirection).toBeTruthy();
     expect(records[0].pressureInHg).toEqual(expect.any(Number));
     expect(records[0].speciesList).toEqual(["Redfish"]);
+    expect(records[0].fishCount).toBe(1);
   });
 });
