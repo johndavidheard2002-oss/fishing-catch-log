@@ -233,10 +233,6 @@ export function CatchForm({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [showMore, setShowMore] = useState(
-    Boolean(initial?.notes || initial?.bait || initial?.waterClarity || initial?.sharedWithLinked),
-  );
-  const [showWeather, setShowWeather] = useState(false);
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
   const [moonLocked, setMoonLocked] = useState(false);
   const [tideLocked, setTideLocked] = useState(false);
@@ -780,19 +776,16 @@ export function CatchForm({
         </label>
       )}
 
-      <div>
-        <button
-          type="button"
-          className="w-full rounded-2xl border border-line bg-card px-3 py-3 text-left"
-          onClick={() => setShowWeather((v) => !v)}
-        >
-          <span className="block text-sm font-semibold text-teal">
-            {showWeather ? "Hide weather & time" : "Weather & time"}
+      <details className="app-more rounded-2xl border border-line bg-card">
+        <summary className="cursor-pointer px-3 py-3">
+          <span>
+            <span className="block text-sm font-semibold">Weather & time</span>
+            <span className="mt-0.5 block text-xs font-normal text-ink-muted">
+              {weatherSummary(form)}
+            </span>
           </span>
-          <span className="mt-0.5 block text-xs text-ink-muted">{weatherSummary(form)}</span>
-        </button>
-        {showWeather ? (
-          <div className="mt-3 space-y-3">
+        </summary>
+        <div className="space-y-3 px-3 pb-3">
             <p className="text-xs text-ink-muted">
               Fills in from the pin and clock. Open this only to correct it.
             </p>
@@ -992,16 +985,14 @@ export function CatchForm({
             });
           }}
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
-          required
         />
         <span className="mt-1 block text-xs text-ink-muted">
           History shows this clock. A photo stamp fills it in.
         </span>
       </label>
       )}
-          </div>
-        ) : null}
-      </div>
+        </div>
+      </details>
 
       {error ? <p className="text-sm text-copper">{error}</p> : null}
 
@@ -1019,16 +1010,11 @@ export function CatchForm({
               : "Save catch"}
       </button>
 
-      <button
-        type="button"
-        className="text-left text-sm font-semibold text-teal"
-        onClick={() => setShowMore((v) => !v)}
-      >
-        {showMore ? "Hide bait, water, notes" : "Bait, water, notes"}
-      </button>
-
-      {showMore ? (
-        <div className="grid gap-3">
+      <details className="app-more">
+        <summary className="cursor-pointer text-sm font-semibold text-teal">
+          Bait, water, notes
+        </summary>
+        <div className="mt-3 grid gap-3">
           <input
             value={form.bait}
             onChange={(e) => patch({ bait: e.target.value })}
@@ -1066,7 +1052,7 @@ export function CatchForm({
             </span>
           </label>
         </div>
-      ) : null}
+      </details>
     </form>
   );
 }
@@ -1238,7 +1224,6 @@ function CatchLocationFields({
   const photoLon = numOrNull(form.photoTakenLongitude);
   const photoDiffers = coordsLookDifferent(catchLat, catchLon, photoLat, photoLon);
   const hasPhotoGps = photoLat != null && photoLon != null;
-  const [showCoords, setShowCoords] = useState(false);
 
   return (
     <section id="catch-location" className="space-y-3">
@@ -1299,15 +1284,9 @@ function CatchLocationFields({
         />
       </label>
       <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} />
-      <button
-        type="button"
-        className="text-left text-sm font-semibold text-teal"
-        onClick={() => setShowCoords((v) => !v)}
-      >
-        {showCoords ? "Hide coordinates" : "Coordinates"}
-      </button>
-      {showCoords ? (
-        <div className="grid grid-cols-2 gap-3">
+      <details className="app-more">
+        <summary className="cursor-pointer text-sm font-semibold text-teal">Coordinates</summary>
+        <div className="mt-3 grid grid-cols-2 gap-3">
           <label className="block">
             <span className="mb-1 block text-sm font-semibold">Catch lat</span>
             <input
@@ -1327,7 +1306,7 @@ function CatchLocationFields({
             />
           </label>
         </div>
-      ) : null}
+      </details>
     </section>
   );
 }
