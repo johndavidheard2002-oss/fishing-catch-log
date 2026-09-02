@@ -66,12 +66,24 @@ export function AppShell({ children }: { children: ReactNode }) {
       status.tides === "demo");
 
   return (
-    <div className="mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4">
-      <header className="mb-4 flex items-baseline justify-between gap-3">
-        <Link href="/" className="font-display text-2xl tracking-tight text-teal">
-          Catch Compass
-          <span className="ml-2 font-body text-xs font-normal tracking-wide text-ink-muted uppercase">
-            Saltwater Logbook
+    <>
+    <div className="brand-watermark" aria-hidden="true" />
+    <div className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4">
+      <header className="mb-4 flex items-center justify-between gap-3">
+        <Link href="/" className="flex min-w-0 items-center gap-2 text-teal">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/icon-192.png"
+            alt=""
+            width={32}
+            height={32}
+            className="brand-mark"
+          />
+          <span className="font-display text-2xl tracking-tight">
+            Catch Compass
+            <span className="ml-2 font-body text-xs font-normal tracking-wide text-ink-muted uppercase">
+              Saltwater Logbook
+            </span>
           </span>
         </Link>
         {demo ? (
@@ -114,6 +126,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </ul>
       </nav>
     </div>
+    </>
   );
 }
 
