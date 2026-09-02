@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS catches (
   species_source TEXT NOT NULL DEFAULT 'manual',
   latitude REAL,
   longitude REAL,
+  photo_taken_latitude REAL,
+  photo_taken_longitude REAL,
   place_name TEXT,
   temperature_f REAL,
   weather_condition TEXT,
@@ -116,6 +118,8 @@ function migrate(sqlite: Database.Database) {
     ["pressure_mb", "REAL"],
     ["pressure_trend", "TEXT"],
     ["species_list", "TEXT"],
+    ["photo_taken_latitude", "REAL"],
+    ["photo_taken_longitude", "REAL"],
   ];
   const latestCols = tableColumns(sqlite, "catches");
   for (const [name, type] of extra) {

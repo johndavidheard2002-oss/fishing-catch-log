@@ -111,6 +111,8 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
     speciesSource: asSource(body.speciesSource),
     latitude: asNumber(body.latitude),
     longitude: asNumber(body.longitude),
+    photoTakenLatitude: asNumber(body.photoTakenLatitude),
+    photoTakenLongitude: asNumber(body.photoTakenLongitude),
     placeName: asString(body.placeName),
     temperatureF: asNumber(body.temperatureF),
     weatherCondition: asCondition(body.weatherCondition),

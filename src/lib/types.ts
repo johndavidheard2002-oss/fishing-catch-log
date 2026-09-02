@@ -61,6 +61,8 @@ export type CatchRecord = {
   speciesSource: SpeciesSource;
   latitude: number | null;
   longitude: number | null;
+  photoTakenLatitude: number | null;
+  photoTakenLongitude: number | null;
   placeName: string | null;
   temperatureF: number | null;
   weatherCondition: WeatherCondition | null;
@@ -97,6 +99,8 @@ export type CatchInput = {
   speciesSource?: SpeciesSource;
   latitude?: number | null;
   longitude?: number | null;
+  photoTakenLatitude?: number | null;
+  photoTakenLongitude?: number | null;
   placeName?: string | null;
   temperatureF?: number | null;
   weatherCondition?: WeatherCondition | null;

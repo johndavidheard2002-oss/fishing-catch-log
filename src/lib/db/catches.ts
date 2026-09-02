@@ -46,6 +46,8 @@ function mapRow(
     speciesSource: row.speciesSource as SpeciesSource,
     latitude: row.latitude,
     longitude: row.longitude,
+    photoTakenLatitude: row.photoTakenLatitude,
+    photoTakenLongitude: row.photoTakenLongitude,
     placeName: row.placeName,
     temperatureF: row.temperatureF,
     weatherCondition: row.weatherCondition as WeatherCondition | null,
@@ -153,6 +155,8 @@ export function createCatch(input: CatchInput): CatchRecord {
       speciesSource: input.speciesSource ?? "manual",
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
+      photoTakenLatitude: input.photoTakenLatitude ?? null,
+      photoTakenLongitude: input.photoTakenLongitude ?? null,
       placeName: input.placeName ?? null,
       temperatureF: input.temperatureF ?? null,
       weatherCondition: input.weatherCondition ?? null,
@@ -224,6 +228,14 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
       speciesSource: input.speciesSource ?? existing.speciesSource,
       latitude: input.latitude === undefined ? existing.latitude : input.latitude,
       longitude: input.longitude === undefined ? existing.longitude : input.longitude,
+      photoTakenLatitude:
+        input.photoTakenLatitude === undefined
+          ? existing.photoTakenLatitude
+          : input.photoTakenLatitude,
+      photoTakenLongitude:
+        input.photoTakenLongitude === undefined
+          ? existing.photoTakenLongitude
+          : input.photoTakenLongitude,
       placeName: input.placeName === undefined ? existing.placeName : input.placeName,
       temperatureF:
         input.temperatureF === undefined ? existing.temperatureF : input.temperatureF,

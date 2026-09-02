@@ -10,6 +10,8 @@ export const catches = sqliteTable("catches", {
   speciesSource: text("species_source").notNull().default("manual"),
   latitude: real("latitude"),
   longitude: real("longitude"),
+  photoTakenLatitude: real("photo_taken_latitude"),
+  photoTakenLongitude: real("photo_taken_longitude"),
   placeName: text("place_name"),
   temperatureF: real("temperature_f"),
   weatherCondition: text("weather_condition"),

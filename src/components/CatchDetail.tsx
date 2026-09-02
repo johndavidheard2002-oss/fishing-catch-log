@@ -10,6 +10,7 @@ import { speciesLabel } from "@/lib/species";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { coordsLookDifferent } from "@/lib/location";
 import { catchPhotoFilename, photoSrc, weatherLine } from "@/lib/photo";
 import { formatCaughtAt } from "@/lib/time";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
@@ -156,13 +157,26 @@ export function CatchDetail({ id }: { id: string }) {
         <Item label="Tide" value={record.tide || "—"} />
         <Item label="Water" value={record.waterClarity || "—"} />
         <Item
-          label="GPS"
+          label="Catch location"
           value={
             record.latitude != null && record.longitude != null
-              ? `${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`
-              : "—"
+              ? `${record.placeName ? `${record.placeName} · ` : ""}${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`
+              : record.placeName || "—"
           }
         />
+        {record.photoTakenLatitude != null &&
+        record.photoTakenLongitude != null &&
+        coordsLookDifferent(
+          record.latitude,
+          record.longitude,
+          record.photoTakenLatitude,
+          record.photoTakenLongitude,
+        ) ? (
+          <Item
+            label="Photo taken at"
+            value={`${record.photoTakenLatitude.toFixed(4)}, ${record.photoTakenLongitude.toFixed(4)}`}
+          />
+        ) : null}
       </dl>
 
       {record.notes ? (
@@ -187,6 +201,13 @@ export function CatchDetail({ id }: { id: string }) {
           className="flex-1 rounded-xl bg-teal py-3 font-semibold text-white"
         >
           Edit
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="rounded-xl border border-line px-4 py-3 font-semibold"
+        >
+          Edit spot
         </button>
         <button
           type="button"

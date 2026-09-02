@@ -59,5 +59,6 @@ describe("demoIdentifySpecies", () => {
     expect(inshore.note.toLowerCase()).toContain("demo");
     expect(inshore.confidence).toBeLessThan(0.5);
     expect(fresh.confidence).toBeLessThan(0.5);
+    expect(inshore.speciesList?.length).toBeGreaterThan(0);
   });
 });

@@ -15,6 +15,8 @@ export function catchOf(
     speciesSource: "manual",
     latitude: 30.388,
     longitude: -97.975,
+    photoTakenLatitude: null,
+    photoTakenLongitude: null,
     placeName: "Lake Travis, TX",
     temperatureF: 80,
     weatherCondition: "clear",

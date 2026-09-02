@@ -66,6 +66,28 @@ describe("scoreSimilarity", () => {
     );
     expect(match.score).toBeGreaterThan(unmatched.score);
   });
+
+  it("matches if any tagged species overlaps", () => {
+    const mixed = catchOf({
+      id: "mix",
+      species: "Redfish",
+      speciesList: ["Redfish", "Speckled Trout"],
+      placeName: "Mosquito Lagoon, FL",
+      latitude: 28.738,
+      longitude: -80.755,
+    });
+    const trout = catchOf({
+      id: "trout-only",
+      species: "Speckled Trout",
+      speciesList: ["Speckled Trout"],
+      placeName: "Mosquito Lagoon, FL",
+      latitude: 28.741,
+      longitude: -80.752,
+    });
+    const match = scoreSimilarity(mixed, trout);
+    expect(match.reasons).toContain("Shared species");
+    expect(match.score).toBeGreaterThan(20);
+  });
 });
 
 describe("findSimilar", () => {

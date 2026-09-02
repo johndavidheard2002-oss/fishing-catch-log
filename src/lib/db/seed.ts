@@ -111,6 +111,7 @@ const SEED: CatchInput[] = [
   {
     photoPath: "/seed/redfish.svg",
     species: "Redfish",
+    speciesList: ["Redfish", "Speckled Trout"],
     speciesSuggested: "Redfish",
     speciesConfidence: 0.84,
     speciesSource: "demo",
@@ -132,7 +133,7 @@ const SEED: CatchInput[] = [
     bait: "Gold spoon",
     tide: "incoming",
     waterClarity: "stained",
-    notes: "Tailing on the flood. Wind enough to ripple the flat.",
+    notes: "Tailing on the flood. Wind enough to ripple the flat. Trout in the same photo.",
   },
   {
     photoPath: "/seed/speckled.svg",
@@ -333,6 +334,8 @@ export function seedIfEmpty(db: BetterSQLite3Database<typeof schema>, ownerId: s
         speciesSource: item.speciesSource ?? "demo",
         latitude: item.latitude ?? null,
         longitude: item.longitude ?? null,
+        photoTakenLatitude: item.photoTakenLatitude ?? null,
+        photoTakenLongitude: item.photoTakenLongitude ?? null,
         placeName: item.placeName ?? null,
         temperatureF: item.temperatureF ?? null,
         weatherCondition: item.weatherCondition ?? null,
