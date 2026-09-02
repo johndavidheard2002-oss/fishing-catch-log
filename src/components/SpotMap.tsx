@@ -62,8 +62,8 @@ export function SpotMap({
       for (const spot of withCoords) {
         const marker = L.circleMarker([spot.latitude!, spot.longitude!], {
           radius: 8 + Math.min(8, spot.catchCount),
-          color: spot.key === selectedKey ? "#c45c26" : "#134e4c",
-          fillColor: spot.key === selectedKey ? "#c45c26" : "#134e4c",
+          color: spot.key === selectedKey ? "#c45c26" : "#0a4e6a",
+          fillColor: spot.key === selectedKey ? "#c45c26" : "#0a4e6a",
           fillOpacity: 0.85,
           weight: 2,
         }).addTo(instance);
