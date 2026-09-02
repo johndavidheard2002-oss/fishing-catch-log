@@ -95,4 +95,23 @@ describe("groupSpots", () => {
     expect(spots).toHaveLength(2);
     expect(spots.map((s) => s.catchCount)).toEqual([1, 1]);
   });
+
+  it("still groups nearby GPS jitter at the same hole", () => {
+    const a = catchOf({
+      id: "a",
+      placeName: "Farm Pond, OH",
+      latitude: 40.212,
+      longitude: -82.891,
+    });
+    const b = catchOf({
+      id: "b",
+      placeName: "Farm Pond, OH",
+      latitude: 40.213,
+      longitude: -82.89,
+      caughtAt: "2025-06-22T19:05:00.000Z",
+    });
+    const spots = groupSpots([a, b]);
+    expect(spots).toHaveLength(1);
+    expect(spots[0].catchCount).toBe(2);
+  });
 });

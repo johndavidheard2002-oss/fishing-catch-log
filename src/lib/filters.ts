@@ -129,29 +129,54 @@ function mostCommon<T extends string>(values: T[]): T | null {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
+/** Same hole / GPS jitter vs a different piece of water on the same day. */
+export const SAME_SPOT_KM = 2;
+
+function placeNameKey(record: CatchRecord): string | null {
+  const name = record.placeName?.trim();
+  if (!name) return null;
+  return name.toLowerCase().replace(/\s+/g, " ");
+}
+
+function clusterCenter(cluster: CatchRecord[]): { lat: number; lon: number } | null {
+  const withCoords = cluster.filter((c) => c.latitude != null && c.longitude != null);
+  if (!withCoords.length) return null;
+  return {
+    lat: withCoords.reduce((s, c) => s + (c.latitude ?? 0), 0) / withCoords.length,
+    lon: withCoords.reduce((s, c) => s + (c.longitude ?? 0), 0) / withCoords.length,
+  };
+}
+
+function belongsToCluster(cluster: CatchRecord[], record: CatchRecord): boolean {
+  const center = clusterCenter(cluster);
+  if (record.latitude != null && record.longitude != null && center) {
+    return haversineKm(center.lat, center.lon, record.latitude, record.longitude) <= SAME_SPOT_KM;
+  }
+  const a = placeNameKey(cluster[0]);
+  const b = placeNameKey(record);
+  return Boolean(a && b && a === b);
+}
+
 export function groupSpots(records: CatchRecord[]): SpotGroup[] {
-  const byKey = new Map<string, CatchRecord[]>();
+  const clusters: CatchRecord[][] = [];
   for (const record of records) {
-    const key = spotKey(record);
-    const list = byKey.get(key) ?? [];
-    list.push(record);
-    byKey.set(key, list);
+    const hit = clusters.find((cluster) => belongsToCluster(cluster, record));
+    if (hit) hit.push(record);
+    else clusters.push([record]);
   }
 
-  const groups = [...byKey.entries()]
-    .map(([key, catches]) => {
-      const withCoords = catches.filter((c) => c.latitude != null && c.longitude != null);
-      const lat =
-        withCoords.reduce((s, c) => s + (c.latitude ?? 0), 0) / (withCoords.length || 1);
-      const lng =
-        withCoords.reduce((s, c) => s + (c.longitude ?? 0), 0) / (withCoords.length || 1);
-      const temps = catches.map((c) => c.temperatureF).filter((n): n is number => n != null);
+  const groups = clusters
+    .map((catches) => {
+      const center = clusterCenter(catches);
       const named = catches.find((c) => c.placeName)?.placeName;
+      const key = center
+        ? `${center.lat.toFixed(3)},${center.lon.toFixed(3)}`
+        : spotKey(catches[0]);
       return {
         key,
         placeName: named ?? key,
-        latitude: withCoords.length ? lat : null,
-        longitude: withCoords.length ? lng : null,
+        latitude: center?.lat ?? null,
+        longitude: center?.lon ?? null,
         catchCount: catches.length,
         fishCount: catches.reduce((n, c) => n + (c.fishCount || 1), 0),
         species: [
@@ -166,9 +191,10 @@ export function groupSpots(records: CatchRecord[]): SpotGroup[] {
         ),
         typicalSeason: mostCommon(catches.map((c) => c.season)),
         typicalTime: mostCommon(catches.map((c) => c.timeOfDay)),
-        avgTempF: temps.length
-          ? Math.round(temps.reduce((s, n) => s + n, 0) / temps.length)
-          : null,
+        avgTempF: (() => {
+          const temps = catches.map((c) => c.temperatureF).filter((n): n is number => n != null);
+          return temps.length ? Math.round(temps.reduce((s, n) => s + n, 0) / temps.length) : null;
+        })(),
         catches: [...catches].sort((a, b) => b.caughtAt.localeCompare(a.caughtAt)),
       };
     })

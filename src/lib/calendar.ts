@@ -1,4 +1,4 @@
-import { spotKey } from "./filters";
+import { groupSpots } from "./filters";
 import type { CatchRecord } from "./types";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -96,30 +96,18 @@ export function catchSpotLabel(record: CatchRecord): string {
   return "Unnamed spot";
 }
 
-/** Distinct catch pins in first-seen order — same place name, different coords stay separate. */
+/** Distinct catch pins in first-seen order — same place name, different water stays separate. */
 export function uniqueSpotLabels(records: CatchRecord[]): string[] {
-  const seen = new Map<string, CatchRecord>();
-  for (const record of records) {
-    const key = spotKey(record);
-    if (!seen.has(key)) seen.set(key, record);
-  }
-  const first = [...seen.values()];
-  const nameCount = new Map<string, number>();
-  for (const record of first) {
-    const name = catchSpotLabel(record);
-    nameCount.set(name, (nameCount.get(name) ?? 0) + 1);
-  }
-  return first.map((record) => {
-    const name = catchSpotLabel(record);
-    if (
-      (nameCount.get(name) ?? 0) > 1 &&
-      record.latitude != null &&
-      record.longitude != null
-    ) {
-      return `${name} · ${record.latitude.toFixed(3)}, ${record.longitude.toFixed(3)}`;
-    }
-    return name;
-  });
+  return groupSpots(records)
+    .slice()
+    .sort((a, b) => {
+      const aFirst = [...a.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]
+        .caughtAt;
+      const bFirst = [...b.catches].sort((x, y) => x.caughtAt.localeCompare(y.caughtAt))[0]
+        .caughtAt;
+      return aFirst.localeCompare(bFirst);
+    })
+    .map((group) => group.placeName);
 }
 
 export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
