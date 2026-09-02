@@ -9,14 +9,16 @@ import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import type { CatchFilters, CatchRecord } from "@/lib/types";
 import { scanQueueCount } from "@/lib/scan-queue";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type HistoryView = "grid" | "list" | "calendar";
 
 export function HistoryClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [catches, setCatches] = useState<CatchRecord[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filters, setFilters] = useState<CatchFilters>(() => ({
     species: searchParams.get("species") || undefined,
   }));
@@ -47,9 +49,17 @@ export function HistoryClient() {
     let cancelled = false;
     const q = sharedQuery(includeShared);
     fetch(`/api/catches${q ? `?${q}` : ""}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("bad status");
+        return r.json();
+      })
       .then((data) => {
-        if (!cancelled) setCatches(data.catches ?? []);
+        if (cancelled) return;
+        if (Array.isArray(data.catches)) setCatches(data.catches);
+        setLoadError(null);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Could not open the journal. Try again.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -58,6 +68,17 @@ export function HistoryClient() {
       cancelled = true;
     };
   }, [includeShared]);
+
+  function clearFilters() {
+    setFilters({});
+    const next = new URLSearchParams();
+    const view = searchParams.get("view");
+    const day = searchParams.get("day");
+    if (view) next.set("view", view);
+    if (day) next.set("day", day);
+    const qs = next.toString();
+    router.replace(qs ? `/history?${qs}` : "/history");
+  }
 
   const filtered = useMemo(
     () => catches.filter((c) => matchesFilters(c, filters)),
@@ -115,7 +136,7 @@ export function HistoryClient() {
         <FilterPanel
           filters={filters}
           onChange={setFilters}
-          onClear={() => setFilters({})}
+          onClear={clearFilters}
         />
       ) : null}
 
@@ -176,6 +197,8 @@ export function HistoryClient() {
           Export CSV
         </a>
       </div>
+
+      {loadError ? <p className="text-sm text-copper">{loadError}</p> : null}
 
       {loading ? (
         <p className="text-sm text-ink-muted">Loading the journal…</p>

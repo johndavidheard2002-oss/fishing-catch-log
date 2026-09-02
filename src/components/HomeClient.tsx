@@ -14,8 +14,14 @@ export function HomeClient() {
 
   useEffect(() => {
     fetch("/api/catches")
-      .then((r) => r.json())
-      .then((data) => setCatches(data.catches ?? []));
+      .then(async (r) => {
+        if (!r.ok) throw new Error("bad status");
+        return r.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data.catches)) setCatches(data.catches);
+      })
+      .catch(() => {});
   }, []);
 
   const latest = catches[0];

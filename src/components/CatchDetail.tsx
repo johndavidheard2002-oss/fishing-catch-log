@@ -25,14 +25,19 @@ export function CatchDetail({ id }: { id: string }) {
 
   useEffect(() => {
     fetch(`/api/catches/${id}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) throw new Error("missing");
+        return r.json();
+      })
       .then((data) => {
         if (data.catch) setRecord(data.catch);
         else setError("Catch not found");
-      });
+      })
+      .catch(() => setError("Could not open this catch. Go back and try again."));
     fetch(`/api/catches/${id}/similar`)
-      .then((r) => r.json())
-      .then((data) => setMatches(data.matches ?? []));
+      .then(async (r) => (r.ok ? r.json() : { matches: [] }))
+      .then((data) => setMatches(data.matches ?? []))
+      .catch(() => {});
   }, [id]);
 
   async function onDelete() {
