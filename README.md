@@ -12,7 +12,7 @@ cp .env.example .env.local   # optional — demo mode works with empty keys
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The first launch creates an **empty** journal (`data/cast-log.sqlite`). Your Calendar Log and Spots stay empty until you log or backfill a catch — one photo is one trip at one pin. Optional example trips (Lake Travis, Frying Pan, Mosquito Lagoon, and more) load only from Home → More → **Load sample catches**. They are labeled Sample and can be removed the same way.
+Open [http://localhost:3000](http://localhost:3000). The first launch creates an **empty** log (`data/cast-log.sqlite`). Your Calendar Log and Spots stay empty until you log or backfill a catch — one photo is one trip at one pin. Optional example trips (Mosquito Lagoon, Chesapeake Bay, Gulf Stream, and more) load only from Home → More → **Load sample catches**. They are labeled Sample and can be removed the same way.
 
 ```bash
 npm test          # similarity / filter / time-of-day / plan / calendar unit tests

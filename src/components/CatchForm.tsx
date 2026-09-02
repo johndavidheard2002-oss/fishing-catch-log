@@ -1282,7 +1282,7 @@ function CatchLocationFields({
         <input
           value={form.placeName}
           onChange={(e) => onPlace(e.target.value)}
-          placeholder="Lake, ramp, or hole name"
+          placeholder="Bay, pass, or hole name"
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
       </label>
