@@ -5,10 +5,20 @@ import { BasemapToggle } from "./BasemapToggle";
 import { addBasemapToMap, DEFAULT_MAP_STYLE, type MapStyle } from "@/lib/map-tiles";
 import "leaflet/dist/leaflet.css";
 
-const PIN_HTML =
-  '<div style="width:22px;height:22px;border-radius:50%;background:#c45c26;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.55)"></div>';
-
 type LeafletNs = typeof import("leaflet");
+
+const PIN_BOX = 36;
+const PIN_DOT = 22;
+const PIN_HTML = `<div style="width:${PIN_BOX}px;height:${PIN_BOX}px;display:flex;align-items:center;justify-content:center"><div style="width:${PIN_DOT}px;height:${PIN_DOT}px;border-radius:50%;background:#c45c26;border:2px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.55)"></div></div>`;
+
+function pinIcon(leaflet: LeafletNs["default"]) {
+  return leaflet.divIcon({
+    className: "catch-map-pin",
+    html: PIN_HTML,
+    iconSize: [PIN_BOX, PIN_BOX],
+    iconAnchor: [PIN_BOX / 2, PIN_BOX / 2],
+  });
+}
 type PinMarker = {
   setLatLng: (ll: { lat: number; lng: number }) => void;
   getLatLng: () => { lat: number; lng: number };
@@ -72,19 +82,13 @@ export function MapPicker({
         current.latitude != null && current.longitude != null
           ? [current.latitude, current.longitude]
           : [28.5, -81.3];
-      const instance = leaflet.map(el, { zoomControl: true, maxZoom: 19 }).setView(
-        start,
-        current.latitude != null && current.longitude != null ? 16 : 5,
-      );
+      const instance = leaflet
+        .map(el, { zoomControl: true, maxZoom: 19, tapTolerance: 25 })
+        .setView(start, current.latitude != null && current.longitude != null ? 16 : 5);
       basemapRef.current = addBasemapToMap(leaflet, instance, basemapRefStyle.current);
       mapRef.current = instance;
 
-      const pinIcon = leaflet.divIcon({
-        className: "catch-map-pin",
-        html: PIN_HTML,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-      });
+      const icon = pinIcon(leaflet);
 
       const bindMarker = (next: PinMarker) => {
         markerRef.current = next;
@@ -96,7 +100,7 @@ export function MapPicker({
 
       if (current.latitude != null && current.longitude != null) {
         bindMarker(
-          leaflet.marker(start, { icon: pinIcon, draggable: true, autoPan: true }).addTo(instance),
+          leaflet.marker(start, { icon, draggable: true, autoPan: true }).addTo(instance),
         );
       }
 
@@ -106,7 +110,7 @@ export function MapPicker({
         if (!L || !map) return;
         if (!markerRef.current) {
           bindMarker(
-            L.marker(e.latlng, { icon: pinIcon, draggable: true, autoPan: true }).addTo(instance),
+            L.marker(e.latlng, { icon: pinIcon(L), draggable: true, autoPan: true }).addTo(instance),
           );
         } else {
           markerRef.current.setLatLng(e.latlng);
@@ -147,13 +151,7 @@ export function MapPicker({
     if (markerRef.current) {
       markerRef.current.setLatLng(next);
     } else {
-      const pinIcon = L.divIcon({
-        className: "catch-map-pin",
-        html: PIN_HTML,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-      });
-      const marker = L.marker(next, { icon: pinIcon, draggable: true, autoPan: true }).addTo(map);
+      const marker = L.marker(next, { icon: pinIcon(L), draggable: true, autoPan: true }).addTo(map);
       markerRef.current = marker;
       marker.on("dragend", () => {
         const ll = marker.getLatLng();
@@ -213,7 +211,7 @@ export function MapPicker({
         </ul>
       ) : null}
       <div className="relative">
-        <div ref={ref} className="h-56 w-full overflow-hidden rounded-2xl border border-line" />
+        <div ref={ref} className="h-64 w-full overflow-hidden rounded-2xl border border-line" />
         <BasemapToggle value={basemap} onChange={setBasemap} />
       </div>
       <p className="text-xs text-ink-muted">

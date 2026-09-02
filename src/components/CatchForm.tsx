@@ -26,7 +26,7 @@ import {
   totalFishCount,
 } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
-import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
+import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
 import type { CatchRecord, Habitat, Season, TimeOfDay } from "@/lib/types";
@@ -233,7 +233,10 @@ export function CatchForm({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
-  const [showMore, setShowMore] = useState(Boolean(initial?.notes || initial?.bait));
+  const [showMore, setShowMore] = useState(
+    Boolean(initial?.notes || initial?.bait || initial?.waterClarity || initial?.sharedWithLinked),
+  );
+  const [showWeather, setShowWeather] = useState(false);
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
   const [moonLocked, setMoonLocked] = useState(false);
   const [tideLocked, setTideLocked] = useState(false);
@@ -621,97 +624,6 @@ export function CatchForm({
         </>
       ) : null}
 
-      <SpeciesPicker
-        speciesList={form.speciesList}
-        habitat={form.habitat}
-        onHabitat={(habitat) => {
-          if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
-          patch(habitatPatch(habitat));
-        }}
-        onChange={(speciesList, habitat) => {
-          if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
-          const speciesCountDrafts = alignCountDrafts(
-            speciesList,
-            form.speciesCountDrafts,
-            form.fishCount,
-          );
-          patch({
-            speciesList,
-            ...habitatPatch(habitat),
-            speciesCountDrafts,
-            fishCount:
-              speciesList.length <= 1
-                ? draftFishCountForSpecies(form.fishCount)
-                : String(totalFishCount(countsFromDrafts(speciesList, speciesCountDrafts, form.fishCount))),
-            speciesSource: "manual",
-          });
-        }}
-      />
-
-      {form.speciesList.length > 1 ? (
-        <div className="space-y-2">
-          <p className="text-sm font-semibold">How many of each</p>
-          {form.speciesList.map((name) => (
-            <label key={name} className="flex items-center gap-3">
-              <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="off"
-                value={form.speciesCountDrafts[name] ?? ""}
-                onChange={(e) =>
-                  patch({
-                    speciesCountDrafts: {
-                      ...form.speciesCountDrafts,
-                      [name]: sanitizeFishCountDraft(e.target.value),
-                    },
-                  })
-                }
-                onBlur={() =>
-                  patch({
-                    speciesCountDrafts: {
-                      ...form.speciesCountDrafts,
-                      [name]: draftFishCountForSpecies(form.speciesCountDrafts[name] ?? ""),
-                    },
-                  })
-                }
-                className="w-20 rounded-xl border border-line bg-card px-3 py-2 text-center"
-              />
-            </label>
-          ))}
-          <p className="text-xs text-ink-muted">
-            {fishCountLabel(
-              totalFishCount(
-                countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount),
-              ),
-            )}{" "}
-            this catch. Clear a box while typing — it becomes 1 when you leave it.
-          </p>
-        </div>
-      ) : (
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">How many fish</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            autoComplete="off"
-            value={form.fishCount}
-            onChange={(e) => patch({ fishCount: sanitizeFishCountDraft(e.target.value) })}
-            onBlur={() =>
-              patch({
-                fishCount: draftFishCountForSpecies(form.fishCount),
-              })
-            }
-            className="w-full rounded-xl border border-line bg-card px-3 py-3"
-          />
-          <span className="mt-1 block text-xs text-ink-muted">
-            This catch, this spot. Tag a second species to count each kind.
-          </span>
-        </label>
-      )}
-
       <CatchLocationFields
         form={form}
         pinSource={pinSource}
@@ -777,6 +689,113 @@ export function CatchForm({
         }}
       />
 
+      <SpeciesPicker
+        speciesList={form.speciesList}
+        habitat={form.habitat}
+        onHabitat={(habitat) => {
+          if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
+          patch(habitatPatch(habitat));
+        }}
+        onChange={(speciesList, habitat) => {
+          if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
+          const speciesCountDrafts = alignCountDrafts(
+            speciesList,
+            form.speciesCountDrafts,
+            form.fishCount,
+          );
+          patch({
+            speciesList,
+            ...habitatPatch(habitat),
+            speciesCountDrafts,
+            fishCount:
+              speciesList.length <= 1
+                ? draftFishCountForSpecies(form.fishCount)
+                : String(totalFishCount(countsFromDrafts(speciesList, speciesCountDrafts, form.fishCount))),
+            speciesSource: "manual",
+          });
+        }}
+      />
+
+      {form.speciesList.length > 1 ? (
+        <div className="space-y-2">
+          <p className="text-sm font-semibold">How many of each</p>
+          {form.speciesList.map((name) => (
+            <label key={name} className="flex items-center gap-3">
+              <span className="min-w-0 flex-1 truncate text-sm">{name}</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                value={form.speciesCountDrafts[name] ?? ""}
+                onChange={(e) =>
+                  patch({
+                    speciesCountDrafts: {
+                      ...form.speciesCountDrafts,
+                      [name]: sanitizeFishCountDraft(e.target.value),
+                    },
+                  })
+                }
+                onBlur={() =>
+                  patch({
+                    speciesCountDrafts: {
+                      ...form.speciesCountDrafts,
+                      [name]: draftFishCountForSpecies(form.speciesCountDrafts[name] ?? ""),
+                    },
+                  })
+                }
+                className="w-20 rounded-xl border border-line bg-card px-3 py-2 text-center"
+              />
+            </label>
+          ))}
+          <p className="text-xs text-ink-muted">
+            {fishCountLabel(
+              totalFishCount(
+                countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount),
+              ),
+            )}{" "}
+            this catch. Empty boxes become 1.
+          </p>
+        </div>
+      ) : (
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">How many fish</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
+            value={form.fishCount}
+            onChange={(e) => patch({ fishCount: sanitizeFishCountDraft(e.target.value) })}
+            onBlur={() =>
+              patch({
+                fishCount: draftFishCountForSpecies(form.fishCount),
+              })
+            }
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          />
+          <span className="mt-1 block text-xs text-ink-muted">
+            Tag a second species to count each kind.
+          </span>
+        </label>
+      )}
+
+      <div>
+        <button
+          type="button"
+          className="w-full rounded-2xl border border-line bg-card px-3 py-3 text-left"
+          onClick={() => setShowWeather((v) => !v)}
+        >
+          <span className="block text-sm font-semibold text-teal">
+            {showWeather ? "Hide weather & time" : "Weather & time"}
+          </span>
+          <span className="mt-0.5 block text-xs text-ink-muted">{weatherSummary(form)}</span>
+        </button>
+        {showWeather ? (
+          <div className="mt-3 space-y-3">
+            <p className="text-xs text-ink-muted">
+              Fills in from the pin and clock. Open this only to correct it.
+            </p>
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="mb-1 block text-sm font-semibold">Temp °F</span>
@@ -948,8 +967,7 @@ export function CatchForm({
               />
             </label>
             <p className="col-span-2 text-xs text-ink-muted">
-              {form.tideDetail ||
-                "Next high/low fills in from the pin and catch time when a station is nearby."}
+              {form.tideDetail || "High/low fills in from the pin and clock."}
             </p>
           </>
         ) : (
@@ -977,10 +995,29 @@ export function CatchForm({
           required
         />
         <span className="mt-1 block text-xs text-ink-muted">
-          History shows this clock. A photo with a time stamp fills it in.
+          History shows this clock. A photo stamp fills it in.
         </span>
       </label>
       )}
+          </div>
+        ) : null}
+      </div>
+
+      {error ? <p className="text-sm text-copper">{error}</p> : null}
+
+      <button
+        type="submit"
+        disabled={saving || busy}
+        className="rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
+      >
+        {saving
+          ? "Saving…"
+          : mode === "edit"
+            ? "Save changes"
+            : pastMode
+              ? "Save past catch"
+              : "Save catch"}
+      </button>
 
       <button
         type="button"
@@ -989,24 +1026,6 @@ export function CatchForm({
       >
         {showMore ? "Hide bait, water, notes" : "Bait, water, notes"}
       </button>
-
-      <label className="flex items-start gap-2 rounded-2xl border border-line bg-card px-3 py-3 text-sm">
-        <input
-          type="checkbox"
-          checked={form.sharedWithLinked}
-          onChange={(e) => patch({ sharedWithLinked: e.target.checked })}
-          className="mt-1"
-        />
-        <span>
-          <span className="font-semibold">Share with linked buddies</span>
-          <span className="mt-0.5 block text-xs text-ink-muted">
-            Off by default. {PRIVACY_LINE} Never public.
-            {buddyNames.length
-              ? ` This trip would go to: ${buddyNames.join(", ")}.`
-              : " You have no linked buddies yet, so nobody else can see this."}
-          </span>
-        </span>
-      </label>
 
       {showMore ? (
         <div className="grid gap-3">
@@ -1029,24 +1048,25 @@ export function CatchForm({
             rows={3}
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
+          <label className="flex items-start gap-2 rounded-2xl border border-line bg-card px-3 py-3 text-sm">
+            <input
+              type="checkbox"
+              checked={form.sharedWithLinked}
+              onChange={(e) => patch({ sharedWithLinked: e.target.checked })}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold">Share with linked buddies</span>
+              <span className="mt-0.5 block text-xs text-ink-muted">
+                Off by default. {PRIVACY_LINE} Never public.
+                {buddyNames.length
+                  ? ` This trip would go to: ${buddyNames.join(", ")}.`
+                  : " You have no linked buddies yet, so nobody else can see this."}
+              </span>
+            </span>
+          </label>
         </div>
       ) : null}
-
-      {error ? <p className="text-sm text-copper">{error}</p> : null}
-
-      <button
-        type="submit"
-        disabled={saving || busy}
-        className="rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
-      >
-        {saving
-          ? "Saving…"
-          : mode === "edit"
-            ? "Save changes"
-            : pastMode
-              ? "Save past catch"
-              : "Save catch"}
-      </button>
     </form>
   );
 }
@@ -1143,6 +1163,34 @@ function habitatPatch(habitat: Habitat): Partial<FormState> {
   return { habitat, tide: "", tideHeightFt: "", tideDetail: "" };
 }
 
+function weatherSummary(form: FormState): string {
+  const parts: string[] = [];
+  if (form.caughtAt.trim()) {
+    parts.push(formatTimeOnly(isoFromDatetimeLocal(form.caughtAt)));
+  }
+  if (form.temperatureF.trim()) parts.push(`${form.temperatureF}°`);
+  if (form.weatherCondition) {
+    parts.push(
+      form.weatherCondition in CONDITION_LABELS
+        ? CONDITION_LABELS[form.weatherCondition as keyof typeof CONDITION_LABELS]
+        : form.weatherCondition,
+    );
+  }
+  if (form.windSpeedMph.trim()) {
+    parts.push(
+      form.windDirection
+        ? `${form.windSpeedMph} mph ${form.windDirection}`
+        : `${form.windSpeedMph} mph`,
+    );
+  }
+  if (tidesApplyToHabitat(form.habitat) && form.tide) {
+    parts.push(`${form.tide.charAt(0).toUpperCase()}${form.tide.slice(1)} tide`);
+  }
+  if (form.moonPhase) parts.push(form.moonPhase);
+  if (form.pressureInHg.trim()) parts.push(`${form.pressureInHg} inHg`);
+  return parts.length ? parts.join(" · ") : "Fills in from the pin and clock";
+}
+
 function joinDateTime(date: string, time: string): string {
   if (!date) return "";
   return `${date}T${time || "12:00"}`;
@@ -1190,54 +1238,53 @@ function CatchLocationFields({
   const photoLon = numOrNull(form.photoTakenLongitude);
   const photoDiffers = coordsLookDifferent(catchLat, catchLon, photoLat, photoLon);
   const hasPhotoGps = photoLat != null && photoLon != null;
+  const [showCoords, setShowCoords] = useState(false);
 
   return (
     <section id="catch-location" className="space-y-3">
       <div>
         <p className="text-sm font-semibold">Catch location</p>
         <p className="text-xs text-ink-muted">
-          This pin is for this catch only — another fish the same day can be a different lake. Photo
-          GPS is often the cooler, dock, or truck, not the water.
+          One pin for this catch. Drag if the photo GPS is the truck, not the water.
         </p>
       </div>
       {pinSource === "photo" && catchLat != null ? (
         <div className="rounded-2xl border border-teal/40 bg-paper px-3 py-2 text-xs">
           <p>
-            <span className="font-semibold text-teal">Auto-filled from this photo’s location stamp.</span>{" "}
-            The pin is not locked — drag it or tap a new spot if you caught the fish somewhere else.
+            <span className="font-semibold text-teal">From this photo.</span> Drag if you caught it
+            somewhere else.
           </p>
         </div>
       ) : hasPhotoGps && photoDiffers ? (
         <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
           <p>
-            <span className="font-semibold">You moved the catch pin.</span> Re-saving this photo will
-            not overwrite it. This pin is only for this catch.
+            <span className="font-semibold">You moved the pin.</span> Re-saving the photo will not
+            overwrite it.
           </p>
           <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
-            Reset catch pin to photo GPS
+            Reset to photo GPS
           </button>
         </div>
       ) : pinSource === "device" && catchLat != null ? (
         <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
           <p>
-            <span className="font-semibold">Placed from this phone’s location</span> because the photo
-            had no GPS. Drag it if that isn’t the water.
+            <span className="font-semibold">From this phone.</span> Drag if that isn’t the water.
           </p>
         </div>
       ) : catchLat == null ? (
         <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
-          No catch pin yet. Tap the map to drop one — it stays movable after that.
+          Tap the map to drop a pin.
         </div>
       ) : null}
       {hasPhotoGps ? (
         <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
           <p>
-            Photo taken at {formatCoords(photoLat, photoLon)}
-            {photoDiffers ? " — different from the catch pin." : "."}
+            Photo GPS {formatCoords(photoLat, photoLon)}
+            {photoDiffers ? " — different from the pin." : "."}
           </p>
           {catchLat == null ? (
             <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
-              Place catch pin at photo GPS
+              Use photo GPS
             </button>
           ) : null}
         </div>
@@ -1252,26 +1299,35 @@ function CatchLocationFields({
         />
       </label>
       <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} />
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">Catch lat</span>
-          <input
-            inputMode="decimal"
-            value={form.latitude}
-            onChange={(e) => onCoords(e.target.value, form.longitude)}
-            className="w-full rounded-xl border border-line bg-card px-3 py-3"
-          />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">Catch long</span>
-          <input
-            inputMode="decimal"
-            value={form.longitude}
-            onChange={(e) => onCoords(form.latitude, e.target.value)}
-            className="w-full rounded-xl border border-line bg-card px-3 py-3"
-          />
-        </label>
-      </div>
+      <button
+        type="button"
+        className="text-left text-sm font-semibold text-teal"
+        onClick={() => setShowCoords((v) => !v)}
+      >
+        {showCoords ? "Hide coordinates" : "Coordinates"}
+      </button>
+      {showCoords ? (
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold">Catch lat</span>
+            <input
+              inputMode="decimal"
+              value={form.latitude}
+              onChange={(e) => onCoords(e.target.value, form.longitude)}
+              className="w-full rounded-xl border border-line bg-card px-3 py-3"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-semibold">Catch long</span>
+            <input
+              inputMode="decimal"
+              value={form.longitude}
+              onChange={(e) => onCoords(form.latitude, e.target.value)}
+              className="w-full rounded-xl border border-line bg-card px-3 py-3"
+            />
+          </label>
+        </div>
+      ) : null}
     </section>
   );
 }

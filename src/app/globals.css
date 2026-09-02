@@ -139,6 +139,10 @@ textarea {
 .catch-map-pin.leaflet-div-icon {
   background: transparent;
   border: none;
+  width: 36px !important;
+  height: 36px !important;
+  margin-left: -18px !important;
+  margin-top: -18px !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
