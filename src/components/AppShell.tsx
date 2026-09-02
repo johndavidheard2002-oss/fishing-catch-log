@@ -27,7 +27,12 @@ const NAV: {
     ariaLabel: "Calendar Log",
     icon: CalendarIcon,
   },
-  { href: "/spots", label: "Spots", icon: MapIcon },
+  { href: "/spots", label: (
+      <>
+        Spots
+        <span className="block">Bait</span>
+      </>
+    ), ariaLabel: "Spots and bait", icon: MapIcon },
 ];
 
 function navIsActive(href: string, pathname: string) {
@@ -72,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <>
     <div className="brand-watermark" aria-hidden="true" />
     <div className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4">
-      <header className="mb-4 flex items-center justify-between gap-3">
+      <header className="journal-card mb-4 flex items-center justify-between gap-3 rounded-2xl px-3 py-2">
         <Link href="/" className="flex min-w-0 items-center gap-2 text-teal">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img

@@ -96,47 +96,53 @@ export function SpotsClient() {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Spots</h1>
         <p className="text-sm text-ink-muted">
           {kind === "bait"
-            ? "Where you get bait. Separate from catch pins so you can find shrimp and mullet under similar conditions."
-            : "Grouped so you can go back under similar conditions. Same-day catches at different water stay as separate pins — moving one does not move the others."}
+            ? "Bait holes — shrimp, mullet, crabs — separate from where you land fish."
+            : "Catch pins grouped so you can go back under similar conditions. Same-day catches at different water stay as separate pins."}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-line bg-card p-1 text-sm font-semibold">
+      <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1 text-sm font-semibold">
         <Link
           href="/spots"
-          className={`rounded-xl py-2 text-center ${kind === "catch" ? "bg-teal text-white" : "text-ink-muted"}`}
+          className={`rounded-xl py-2.5 text-center ${kind === "catch" ? "bg-teal text-white" : "text-ink-muted"}`}
         >
           Catch
         </Link>
         <Link
           href="/spots?kind=bait"
-          className={`rounded-xl py-2 text-center ${kind === "bait" ? "bg-teal text-white" : "text-ink-muted"}`}
+          className={`rounded-xl py-2.5 text-center ${kind === "bait" ? "bg-teal text-white" : "text-ink-muted"}`}
           data-testid="spots-bait-tab"
         >
           Bait
         </Link>
       </div>
 
-      {kind === "bait" ? (
+      <div className="grid grid-cols-2 gap-2">
+        <Link
+          href="/log"
+          className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+        >
+          Log a catch
+        </Link>
         <Link
           href="/bait/new"
           className="flex items-center justify-center rounded-2xl bg-copper px-4 py-3 font-semibold text-white"
           data-testid="log-bait-spot"
         >
-          Log a bait spot
+          Log bait
         </Link>
-      ) : null}
+      </div>
 
       {loading ? (
         <p className="text-sm text-ink-muted">Loading spots…</p>
       ) : kind === "bait" && baitGroups.length === 0 ? (
         <p className="text-sm text-ink-muted">
-          No bait spots yet. Log where you throw the net or dip shrimp so Plan can match similar
-          tides and weather.
+          No bait yet. Tap Log bait, pin the hole, and tag shrimp, mullet, or crabs so Plan can
+          match similar tides and weather.
         </p>
       ) : kind === "catch" && spots.length === 0 ? (
         <p className="text-sm text-ink-muted">

@@ -70,10 +70,10 @@ export function PlanClient() {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Plan</h1>
         <p className="text-sm text-ink-muted">
-          Upcoming windows matched to days you actually caught fish, plus bait spots that produced
+          Upcoming windows matched to days you actually caught fish, plus bait holes that produced
           under similar weather and tide.
         </p>
       </div>

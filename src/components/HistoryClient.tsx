@@ -129,8 +129,8 @@ export function HistoryClient({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="page-intro flex-1">
           <h1 className="font-display text-3xl text-teal">Calendar Log</h1>
         </div>
         <button
@@ -236,7 +236,6 @@ export function HistoryClient({
             year={monthCursor.year}
             month={monthCursor.month}
             selectedDay={displayDay}
-            autoOpenMapDay={queryDay}
             onMonthChange={setMonthOverride}
             onSelectDay={(day) => {
               setSelectedDay(day);

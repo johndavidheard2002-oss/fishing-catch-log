@@ -42,7 +42,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
       <div className="space-y-3">
         <p className="text-sm text-copper">{error}</p>
         <Link href="/spots?kind=bait" className="text-sm font-semibold text-teal">
-          Back to bait spots
+          Back to bait
         </Link>
       </div>
     );
@@ -67,21 +67,21 @@ export function BaitSpotDetail({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <Link href="/spots?kind=bait" className="text-sm font-semibold text-teal">
-        ← Bait spots
+        ← Bait
       </Link>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" className="w-full rounded-3xl object-cover" />
       ) : null}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-copper">Bait spot</p>
+      <div className="page-intro">
+        <p className="text-xs font-semibold uppercase tracking-wide text-copper">Bait</p>
         <h1 className="font-display text-3xl text-teal">{record.placeName || "Unnamed hole"}</h1>
         <p className="mt-1 text-sm text-ink-muted">
           {baitTypesLabel(record.baitTypes)} · {formatCaughtAt(record.loggedAt)} ·{" "}
           {habitatLabel(record.habitat)}
         </p>
       </div>
-      <p className="text-sm text-ink-muted">
+      <p className="journal-card rounded-2xl px-3 py-3 text-sm">
         {record.weatherCondition ? CONDITION_LABELS[record.weatherCondition] : "Conditions logged"}
         {record.temperatureF != null ? ` · ${Math.round(record.temperatureF)}°F` : ""}
         {record.tide ? ` · ${record.tide} tide` : ""}

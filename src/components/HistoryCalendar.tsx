@@ -23,7 +23,7 @@ import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { CalendarNote, CalendarNoteInput, CatchRecord, SpotGroup } from "@/lib/types";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function HistoryCalendar({
   catches,
@@ -31,7 +31,6 @@ export function HistoryCalendar({
   year,
   month,
   selectedDay,
-  autoOpenMapDay = null,
   onMonthChange,
   onSelectDay,
   onShareDay,
@@ -45,7 +44,6 @@ export function HistoryCalendar({
   year: number;
   month: number;
   selectedDay: string | null;
-  autoOpenMapDay?: string | null;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
   onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
@@ -55,7 +53,6 @@ export function HistoryCalendar({
   viewerId?: string;
 }) {
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
-  const [mapDay, setMapDay] = useState<string | null>(autoOpenMapDay);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
   const notesByDay = groupNotesByDay(notes);
@@ -69,29 +66,11 @@ export function HistoryCalendar({
   const yearGroups = groupCatchesByYear(selected);
   const mappedSpots = spotsWithPins(selected);
   const showYearLabels = !thisYearOnly && hasOtherYears;
-  const popupRecords =
-    mapDay == null
-      ? []
-      : thisYearOnly && mapDay === selectedDay
-        ? (byDate.get(mapDay) ?? [])
-        : catchesOnMonthDay(catches, mapDay);
-  const popupSpots = spotsWithPins(popupRecords);
-  const popupOpen = Boolean(mapDay && popupSpots.length);
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
 
   function openDay(date: string) {
     onSelectDay(date);
-    setMapDay(date);
   }
-
-  useEffect(() => {
-    if (!popupOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMapDay(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [popupOpen]);
 
   return (
     <div className="space-y-3">
@@ -217,15 +196,6 @@ export function HistoryCalendar({
                 ? monthDayLabel(selectedDay)
                 : formatWeekdayDate(selectedDay)}
             </h2>
-            {mappedSpots.length ? (
-              <button
-                type="button"
-                onClick={() => setMapDay(selectedDay)}
-                className="rounded-full bg-teal px-3 py-1 text-xs font-semibold text-white"
-              >
-                {popupOpen ? "Map open" : "Open map"}
-              </button>
-            ) : null}
           </div>
           {selected.length === 0 ? null : mappedSpots.length ? (
             <div className="space-y-1">
@@ -325,14 +295,6 @@ export function HistoryCalendar({
           future days.
         </p>
       )}
-      {popupOpen && mapDay ? (
-        <DayMapPopup
-          day={mapDay}
-          spots={popupSpots}
-          thisYearOnly={thisYearOnly && mapDay === selectedDay}
-          onClose={() => setMapDay(null)}
-        />
-      ) : null}
     </div>
   );
 }
@@ -386,71 +348,6 @@ function DayShareToggle({
         </span>
       </span>
     </label>
-  );
-}
-
-function DayMapPopup({
-  day,
-  spots,
-  thisYearOnly,
-  onClose,
-}: {
-  day: string;
-  spots: SpotGroup[];
-  thisYearOnly: boolean;
-  onClose: () => void;
-}) {
-  const title = thisYearOnly ? formatWeekdayDate(day) : monthDayLabel(day);
-  return (
-    <div
-      className="fixed inset-0 z-[80] flex items-center justify-center p-3"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Map for ${title}`}
-      data-testid="day-map-popup"
-      style={{ backgroundColor: "rgba(12, 53, 84, 0.62)" }}
-      onClick={onClose}
-    >
-      <div
-        className="journal-card w-full max-w-lg overflow-hidden rounded-2xl shadow-lg"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="relative z-20 flex items-center justify-between gap-2 px-3 py-2">
-          <div>
-            <p className="font-display text-lg text-teal">{title}</p>
-            <p className="text-[11px] text-ink-muted">
-              {spots.length === 1 ? spots[0].placeName : `${spots.length} pins this date`}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onClose();
-            }}
-            className="relative z-20 flex h-10 w-10 items-center justify-center rounded-full border border-line bg-paper text-lg leading-none"
-            aria-label="Close map"
-          >
-            ×
-          </button>
-        </div>
-        <SpotMap
-          spots={spots}
-          selectedKey={null}
-          className="h-72 w-full overflow-hidden bg-paper-deep"
-        />
-        <div className="space-y-2 px-3 py-2">
-          <PinSummary spots={spots} />
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-full bg-teal py-2 text-sm font-semibold text-white"
-          >
-            See this day’s trips
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 

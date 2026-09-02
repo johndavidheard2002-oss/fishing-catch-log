@@ -416,7 +416,7 @@ export function BaitSpotForm({
         data-testid="save-bait-spot"
         className="rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
       >
-        {saving ? "Saving…" : mode === "edit" ? "Save bait spot" : "Log bait spot"}
+        {saving ? "Saving…" : mode === "edit" ? "Save bait" : "Log bait"}
       </button>
     </form>
   );

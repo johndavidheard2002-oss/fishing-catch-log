@@ -171,7 +171,7 @@ export function ScanLibraryClient() {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Find fishing photos in your library</h1>
         <p className="text-sm text-ink-muted">
           Included with every Catch Compass journal. Choose pictures from this phone, then confirm

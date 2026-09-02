@@ -14,7 +14,7 @@ export function BackfillClient() {
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">
           {importedPhotoPath ? "Finish this catch" : "Backfill a past catch"}
         </h1>
