@@ -48,7 +48,7 @@ export function HistoryClient() {
   useEffect(() => {
     let cancelled = false;
     const q = sharedQuery(includeShared);
-    fetch(`/api/catches${q ? `?${q}` : ""}`)
+    fetch(`/api/catches${q ? `?${q}` : ""}`, { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) throw new Error("bad status");
         return r.json();

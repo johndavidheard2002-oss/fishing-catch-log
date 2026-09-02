@@ -35,7 +35,7 @@ export function SpotsClient() {
   useEffect(() => {
     let cancelled = false;
     const q = sharedQuery(includeShared);
-    fetch(`/api/spots${q ? `?${q}` : ""}`)
+    fetch(`/api/spots${q ? `?${q}` : ""}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;

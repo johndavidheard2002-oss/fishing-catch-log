@@ -14,7 +14,7 @@ export function SampleJournalControls({
   const [busy, setBusy] = useState(false);
 
   function refresh() {
-    fetch("/api/samples")
+    fetch("/api/samples", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         setLoaded(Boolean(data.loaded));
@@ -33,6 +33,7 @@ export function SampleJournalControls({
       const res = await fetch("/api/samples", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify({ action }),
       });
       const data = await res.json();

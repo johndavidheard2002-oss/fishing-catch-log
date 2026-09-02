@@ -11,7 +11,7 @@ export function HomeClient() {
   const [catches, setCatches] = useState<CatchRecord[]>([]);
 
   function loadJournal() {
-    fetch("/api/catches")
+    fetch("/api/catches", { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) throw new Error("bad status");
         return r.json();
