@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baitSpotsOnMonthDay, baitSpotsWithPins, catchesOnMonthDay, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
+import { baitSpotsOnMonthDay, baitSpotsWithPins, catchesOnMonthDay, fullDateLabel, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
 import { baitOf, catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
@@ -138,6 +138,8 @@ describe("catchesOnMonthDay", () => {
     expect(catchesOnMonthDay([leap, eve], "2023-02-28").map((r) => r.id)).toEqual(["eve"]);
     expect(yearFromDateKey("2024-02-29")).toBe(2024);
     expect(monthDayLabel("2025-09-02")).toBe("Sep 2");
+    expect(fullDateLabel("2024-09-02")).toBe("Sep 2, 2024");
+    expect(fullDateLabel("2024-02-29")).toBe("Feb 29, 2024");
   });
 
   it("maps pins from the same month-day in different years", () => {

@@ -14,6 +14,7 @@ import {
   groupBaitSpotsByYear,
   groupCatchesByDate,
   groupCatchesByYear,
+  fullDateLabel,
   monthDayLabel,
   monthGrid,
   monthLabel,
@@ -265,7 +266,7 @@ export function HistoryCalendar({
             <div className="flex flex-wrap items-center gap-2">
               <p className="on-wash-chip w-fit text-xs">
                 {thisYearOnly
-                  ? yearFromDateKey(selectedDay)
+                  ? `${fullDateLabel(selectedDay)} · this year`
                   : `Same date · ${allYearsLabel}`}
               </p>
               <div className="ml-auto grid grid-cols-2 overflow-hidden rounded-full border border-line bg-card p-0.5 text-[11px] font-semibold">
@@ -313,7 +314,7 @@ export function HistoryCalendar({
             <>
               <div className="space-y-2" data-testid="calendar-this-year">
                 <h3 className="on-wash-chip w-fit font-display text-lg text-teal">
-                  {viewYear} · this year
+                  {selectedDay ? fullDateLabel(selectedDay) : viewYear} · this year
                 </h3>
                 {thisYearSelected.length === 0 && thisYearBait.length === 0 ? (
                   <p className="on-wash-chip text-sm">
@@ -397,7 +398,7 @@ export function HistoryCalendar({
                   {priorCatchGroups.map((group) => (
                     <div key={`prior-${group.year}`} className="space-y-2">
                       <h4 className="on-wash-chip w-fit text-sm font-semibold">
-                        {group.year}
+                        {fullDateLabel(group.dateKey)}
                       </h4>
                       {group.catches.map((record) => (
                         <CatchCard
@@ -414,7 +415,7 @@ export function HistoryCalendar({
                   {priorBaitGroups.map((group) => (
                     <div key={`prior-bait-${group.year}`} className="space-y-2">
                       <h4 className="on-wash-chip w-fit text-sm font-semibold text-copper">
-                        Bait · {group.year}
+                        Bait · {fullDateLabel(group.dateKey)}
                       </h4>
                       {group.spots.map((spot) => (
                         <BaitSpotCard

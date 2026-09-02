@@ -120,6 +120,16 @@ export function monthDayLabel(dateKeyOrIso: string): string {
   );
 }
 
+/** Month + day + year — “Sep 2, 2024” for prior-year day headers. */
+export function fullDateLabel(dateKeyOrIso: string): string {
+  const key = dateKeyOrIso.length <= 10 ? dateKeyOrIso : localDateKey(dateKeyOrIso);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${key}T12:00:00`));
+}
+
 /** Every catch on the same month+day, any year. */
 export function catchesOnMonthDay(records: CatchRecord[], dateKey: string): CatchRecord[] {
   const md = monthDayKey(dateKey);
