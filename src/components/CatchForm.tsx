@@ -1288,8 +1288,6 @@ function CatchLocationFields({
       ) : null}
       <AreaNamePicker
         value={form.placeName}
-        latitude={catchLat}
-        longitude={catchLon}
         onChange={onPlace}
         onPickArea={onSelectArea}
       />

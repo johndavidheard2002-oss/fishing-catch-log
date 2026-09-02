@@ -279,8 +279,6 @@ export function BaitSpotForm({
 
       <AreaNamePicker
         value={form.placeName}
-        latitude={catchLat}
-        longitude={catchLon}
         onChange={(placeName) => patch({ placeName })}
         onPickArea={onPickArea}
       />
