@@ -131,6 +131,21 @@ describe("migrate older journals", () => {
       "2026-08-02T15:00:00.000Z",
       "2026-08-02T15:00:00.000Z",
     );
+    sqlite.exec(`UPDATE catches SET species_source = 'manual' WHERE id = 'mine-1'`);
+    insert.run(
+      "ghost-demo",
+      null,
+      "Largemouth Bass",
+      30.458,
+      -98.012,
+      "Pace Bend, Lake Travis, TX",
+      "2025-07-12T12:15:00.000Z",
+      "dawn",
+      "summer",
+      "2026-09-02T02:49:18.000Z",
+      "2026-09-02T02:49:18.000Z",
+    );
+    sqlite.exec(`UPDATE catches SET species_source = 'demo' WHERE id = 'ghost-demo'`);
     sqlite.close();
 
     process.env.DATABASE_PATH = file;

@@ -267,7 +267,11 @@ function migrate(sqlite: Database.Database) {
     sqlite.pragma("user_version = 6");
   }
   if (version < 7) {
-    sqlite.exec(`DELETE FROM catches WHERE photo_path LIKE '/seed/%'`);
+    sqlite.exec(`
+      DELETE FROM catches
+      WHERE photo_path LIKE '/seed/%'
+         OR (species_source = 'demo' AND (photo_path IS NULL OR photo_path = ''))
+    `);
     sqlite.pragma("user_version = 7");
   }
 }
