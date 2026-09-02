@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { inferHabitat } from "../habitat";
 import { moonForDate } from "../moon";
+import { demoWeather } from "../weather/demo";
 import { ensureDefaultAngler } from "./anglers";
 import { seedIfEmpty } from "./seed";
 import * as schema from "./schema";
@@ -167,6 +168,78 @@ function migrate(sqlite: Database.Database) {
       update.run(JSON.stringify(row.species ? [row.species] : []), row.id);
     }
     sqlite.pragma("user_version = 4");
+  }
+  if (version < 5) {
+    const rows = sqlite
+      .prepare(
+        `SELECT id, species, species_list, caught_at, latitude, longitude,
+                moon_phase, moon_illumination, wind_direction,
+                pressure_in_hg, pressure_mb, pressure_trend
+         FROM catches`,
+      )
+      .all() as {
+      id: string;
+      species: string;
+      species_list: string | null;
+      caught_at: string;
+      latitude: number | null;
+      longitude: number | null;
+      moon_phase: string | null;
+      moon_illumination: number | null;
+      wind_direction: string | null;
+      pressure_in_hg: number | null;
+      pressure_mb: number | null;
+      pressure_trend: string | null;
+    }[];
+    const update = sqlite.prepare(
+      `UPDATE catches SET
+         species_list = ?,
+         moon_phase = ?,
+         moon_illumination = ?,
+         wind_direction = ?,
+         pressure_in_hg = ?,
+         pressure_mb = ?,
+         pressure_trend = ?
+       WHERE id = ?`,
+    );
+    for (const row of rows) {
+      const at = new Date(row.caught_at);
+      const moon =
+        row.moon_phase && row.moon_illumination != null
+          ? { phase: row.moon_phase, illumination: row.moon_illumination }
+          : Number.isNaN(at.getTime())
+            ? null
+            : moonForDate(at);
+      let windDirection = row.wind_direction;
+      let pressureInHg = row.pressure_in_hg;
+      let pressureMb = row.pressure_mb;
+      let pressureTrend = row.pressure_trend;
+      if (
+        row.latitude != null &&
+        row.longitude != null &&
+        !Number.isNaN(at.getTime()) &&
+        (!windDirection || pressureInHg == null)
+      ) {
+        const demo = demoWeather(row.latitude, row.longitude, at);
+        windDirection = windDirection || demo.windDirection;
+        if (pressureInHg == null) {
+          pressureInHg = demo.pressureInHg;
+          pressureMb = pressureMb ?? demo.pressureMb ?? null;
+          pressureTrend = pressureTrend || demo.pressureTrend;
+        }
+      }
+      update.run(
+        row.species_list || JSON.stringify(row.species ? [row.species] : []),
+        moon?.phase ?? row.moon_phase,
+        moon?.illumination ?? row.moon_illumination,
+        windDirection,
+        pressureInHg,
+        pressureMb,
+        pressureTrend,
+        row.id,
+      );
+    }
+    sqlite.pragma("user_version = 5");
   }
 }
 
