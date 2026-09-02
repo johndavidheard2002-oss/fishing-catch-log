@@ -1,5 +1,6 @@
 "use client";
 
+import { PRIVACY_DETAIL, PRIVACY_LINE } from "@/lib/privacy";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 type Angler = { id: string; name: string; inviteCode: string };
@@ -131,11 +132,7 @@ export function BuddyPanel() {
   return (
     <section className="journal-card space-y-3 rounded-2xl p-4">
       <h2 className="font-display text-2xl text-teal">Linked buddies</h2>
-      <p className="text-sm text-ink-muted">
-        Sharing is never public. Combined History, Plan, and Spots only include trips you
-        explicitly share, and only with people you&apos;ve linked. Unapproved users see nothing.
-      </p>
-      <p className="text-xs text-ink-muted">Only shared with people you&apos;ve linked.</p>
+      <PrivacyBanner />
 
       <label className="block text-sm">
         <span className="mb-1 block font-semibold">Your name</span>
@@ -262,9 +259,18 @@ export function SharedToggle({
       <span>
         <span className="font-semibold">Include shared from linked buddies</span>
         <span className="mt-0.5 block text-xs text-ink-muted">
-          Only trips they marked share, and only people you&apos;ve linked. Never public.
+          {PRIVACY_LINE} Combined views never include strangers or a public feed.
         </span>
       </span>
     </label>
+  );
+}
+
+export function PrivacyBanner() {
+  return (
+    <div className="rounded-2xl border border-line bg-paper-deep px-3 py-2 text-sm">
+      <p className="font-semibold">{PRIVACY_LINE}</p>
+      <p className="mt-1 text-xs text-ink-muted">{PRIVACY_DETAIL}</p>
+    </div>
   );
 }

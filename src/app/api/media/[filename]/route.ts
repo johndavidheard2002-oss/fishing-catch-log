@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
+import { listCatches } from "@/lib/db/catches";
+import { viewerIdFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,11 +16,19 @@ const TYPES: Record<string, string> = {
 };
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   ctx: { params: Promise<{ filename: string }> },
 ) {
+  const viewerId = viewerIdFromRequest(request);
   const { filename } = await ctx.params;
   const safe = path.basename(filename);
+  const allowed = listCatches({ viewerId, includeShared: true }).some((record) => {
+    const stored = record.photoPath ?? "";
+    return stored === safe || stored.endsWith(`/${safe}`) || stored === filename;
+  });
+  if (!allowed) {
+    return new Response("Not found", { status: 404 });
+  }
   const filePath = path.join(process.cwd(), "data", "uploads", safe);
   if (!fs.existsSync(filePath)) {
     return new Response("Not found", { status: 404 });
@@ -28,7 +38,7 @@ export async function GET(
   return new Response(buf, {
     headers: {
       "Content-Type": TYPES[ext] ?? "application/octet-stream",
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "private, max-age=31536000, immutable",
     },
   });
 }

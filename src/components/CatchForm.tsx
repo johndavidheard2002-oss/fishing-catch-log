@@ -7,6 +7,7 @@ import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
 import { inferHabitat } from "@/lib/habitat";
+import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { datetimeLocalValue, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
@@ -117,6 +118,16 @@ export function CatchForm({
   const [error, setError] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(Boolean(initial?.notes || initial?.bait));
   const [showMap, setShowMap] = useState(pastMode || Boolean(initial?.latitude));
+  const [buddyNames, setBuddyNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/buddies")
+      .then((r) => r.json())
+      .then((data) => {
+        setBuddyNames(((data.buddies ?? []) as { name: string }[]).map((b) => b.name));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -619,7 +630,10 @@ export function CatchForm({
         <span>
           <span className="font-semibold">Share with linked buddies</span>
           <span className="mt-0.5 block text-xs text-ink-muted">
-            Off by default. Only shared with people you&apos;ve linked — never public.
+            Off by default. {PRIVACY_LINE} Never public.
+            {buddyNames.length
+              ? ` This trip would go to: ${buddyNames.join(", ")}.`
+              : " You have no linked buddies yet, so nobody else can see this."}
           </span>
         </span>
       </label>

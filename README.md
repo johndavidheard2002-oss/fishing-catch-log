@@ -45,7 +45,7 @@ The header shows **Demo APIs** when weather or vision is not live.
 - **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, and wind, and says why.
 - **Plan** — upcoming 3/5/7-day windows vs days you actually caught fish. Photos on Plan cards are **only your logged trip photos** — no seed art or stock. Honest that this is a pattern match, not a guarantee.
 - **Spots** — map + grouped list so you can revisit water that produced under similar conditions.
-- **Linked buddies** — invite code pairing (or a household profile on this journal). Combined History / Plan / Spots can include trips a buddy **explicitly shared**, labeled with whose catch it is. Sharing is never public: only people you’ve linked. Unlink anytime. Entire histories are never auto-shared; there is no social feed or public profile.
+- **Linked buddies** — invite code pairing (or a household profile on this journal). Combined History / Plan / Spots can include trips a buddy **explicitly shared**, labeled with whose catch it is. **Only shared with people you’ve linked.** Never public: no feed, no discoverable profile, no share-with-everyone. Unapproved people see nothing. Unlink anytime. Entire histories are never auto-shared.
 
 ### How linking works (v1 vs production)
 

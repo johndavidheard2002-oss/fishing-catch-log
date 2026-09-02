@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
 import { SimilarList } from "@/components/SimilarList";
 import { habitatLabel } from "@/lib/habitat";
+import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { photoSrc, weatherLine } from "@/lib/photo";
 import { formatCaughtAt } from "@/lib/time";
@@ -73,10 +74,10 @@ export function CatchDetail({ id }: { id: string }) {
           </p>
           {record.sharedWithLinked ? (
             <p className="text-xs text-ink-muted">
-              Shared with linked buddies only — not public.
+              {PRIVACY_LINE} Never public. No feed.
             </p>
           ) : (
-            <p className="text-xs text-ink-muted">Private to you. Not shared.</p>
+            <p className="text-xs text-ink-muted">Private to you. Not shared with anyone.</p>
           )}
           <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
           {record.speciesSuggested ? (
