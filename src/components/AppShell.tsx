@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { BrandWordmark } from "@/components/BrandWordmark";
 import { FirstRunSetup } from "@/components/FirstRunSetup";
 import { HelpButton, HelpGuide } from "@/components/HelpGuide";
 import type { ProviderStatus } from "@/lib/types";
@@ -223,8 +224,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col overflow-x-clip px-4 pb-36 pt-4"
     >
       <div ref={paneRef} className="tab-swipe-pane flex min-h-0 flex-1 flex-col">
-        <header className="journal-card mb-4 flex items-center justify-between gap-3 rounded-2xl px-3 py-2">
-          <Link href="/" className="flex min-w-0 items-center gap-2 text-teal">
+        <header className="journal-card mb-4 flex items-center justify-between gap-2 rounded-2xl px-3 py-2">
+          <Link href="/" className="flex min-w-0 items-center gap-2 text-teal" data-testid="header-lockup">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/icon-192.png"
@@ -233,14 +234,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               height={32}
               className="brand-mark"
             />
-            <span className="min-w-0">
-              <span className="block font-display text-2xl leading-tight tracking-tight">
-                Catch Compass
-              </span>
-              <span className="block whitespace-nowrap font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase">
-                Saltwater Logbook
-              </span>
-            </span>
+            <BrandWordmark size="header" />
           </Link>
           <div className="flex shrink-0 items-center gap-1.5">
             <HelpButton />

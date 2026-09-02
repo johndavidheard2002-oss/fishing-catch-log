@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandWordmark } from "@/components/BrandWordmark";
 import { BuddyPanel } from "@/components/BuddyPanel";
 import { FirstHelpTip } from "@/components/HelpGuide";
 import { SampleJournalControls } from "@/components/SampleJournalControls";
@@ -8,13 +9,8 @@ import { SampleJournalControls } from "@/components/SampleJournalControls";
 export function HomeClient() {
   return (
     <div className="space-y-6">
-      <section className="page-intro home-lockup mx-auto w-fit text-center">
-        <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-teal">
-          Catch Compass
-        </h1>
-        <p className="mt-1 whitespace-nowrap font-display text-xl leading-snug tracking-tight text-teal sm:text-2xl">
-          Saltwater Logbook
-        </p>
+      <section className="page-intro home-lockup mx-auto w-fit">
+        <BrandWordmark as="h1" size="home" />
       </section>
 
       <FirstHelpTip />
