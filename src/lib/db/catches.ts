@@ -3,7 +3,7 @@ import { inferHabitat, isHabitat } from "../habitat";
 import { moonForDate } from "../moon";
 import { clampFishCount } from "../count";
 import { normalizeSpeciesList, parseSpeciesListJson, primarySpecies } from "../species";
-import { seasonFromDate, timeOfDayFromDate } from "../time";
+import { seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "../time";
 import type {
   CatchInput,
   CatchRecord,
@@ -91,8 +91,8 @@ function withDerived(input: CatchInput) {
   const caught = new Date(input.caughtAt);
   const moon = Number.isNaN(caught.getTime()) ? null : moonForDate(caught);
   return {
-    timeOfDay: input.timeOfDay ?? timeOfDayFromDate(caught),
-    season: input.season ?? seasonFromDate(caught),
+    timeOfDay: input.timeOfDay ?? timeOfDayFromCaughtAtInput(input.caughtAt) ?? timeOfDayFromDate(caught),
+    season: input.season ?? seasonFromCaughtAtInput(input.caughtAt) ?? seasonFromDate(caught),
     moonPhase: input.moonPhase ?? moon?.phase ?? null,
     moonIllumination: input.moonIllumination ?? moon?.illumination ?? null,
   };

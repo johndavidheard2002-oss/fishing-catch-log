@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseExifStamp, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "./time";
+import {
+  datetimeLocalValue,
+  isoFromDatetimeLocal,
+  parseExifStamp,
+  seasonFromDate,
+  timeOfDayFromCaughtAtInput,
+  timeOfDayFromDate,
+} from "./time";
 
 describe("timeOfDayFromDate", () => {
   it("buckets local hours into dawn through night", () => {
@@ -24,14 +31,42 @@ describe("timeOfDayFromCaughtAtInput", () => {
     expect(timeOfDayFromCaughtAtInput("2025-07-12T18:05")).toBe("dusk");
     expect(timeOfDayFromCaughtAtInput("2025-07-12T22:00")).toBe("night");
   });
+
+  it("does not treat a Zulu ISO hour as a datetime-local wall clock", () => {
+    const utcAfternoon = timeOfDayFromCaughtAtInput("2025-07-12T18:00:00.000Z");
+    const fromDate = timeOfDayFromDate(new Date("2025-07-12T18:00:00.000Z"));
+    expect(utcAfternoon).toBe(fromDate);
+  });
 });
 
 describe("parseExifStamp", () => {
-  it("accepts Date objects and EXIF-style strings", () => {
+  it("reads EXIF naive clocks as local wall time", () => {
+    const stamp = parseExifStamp("2025:07:12 06:10:00");
+    expect(stamp).toBeInstanceOf(Date);
+    expect(stamp?.getFullYear()).toBe(2025);
+    expect(stamp?.getMonth()).toBe(6);
+    expect(stamp?.getDate()).toBe(12);
+    expect(stamp?.getHours()).toBe(6);
+    expect(stamp?.getMinutes()).toBe(10);
+    expect(stamp && timeOfDayFromDate(stamp)).toBe("dawn");
+  });
+
+  it("accepts Date objects", () => {
     const fromDate = parseExifStamp(new Date(2025, 6, 12, 6, 10));
     expect(fromDate && timeOfDayFromDate(fromDate)).toBe("dawn");
-    const fromString = parseExifStamp("2025:07:12 06:10:00");
-    expect(fromString).toBeInstanceOf(Date);
+  });
+
+  it("still parses ISO instants with a timezone", () => {
+    const stamp = parseExifStamp("2025-07-12T11:10:00.000Z");
+    expect(stamp && !Number.isNaN(stamp.getTime())).toBe(true);
+  });
+});
+
+describe("isoFromDatetimeLocal", () => {
+  it("round-trips a dawn clock without shifting the displayed local time", () => {
+    const iso = isoFromDatetimeLocal("2025-07-12T06:10");
+    expect(datetimeLocalValue(iso).startsWith("2025-07-12T06:10")).toBe(true);
+    expect(timeOfDayFromCaughtAtInput("2025-07-12T06:10")).toBe("dawn");
   });
 });
 

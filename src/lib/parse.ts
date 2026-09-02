@@ -2,7 +2,7 @@ import { inferHabitat, isHabitat } from "./habitat";
 import { isMoonPhase } from "./moon";
 import { isPressureTrend } from "./pressure";
 import { normalizeCondition } from "./labels";
-import { seasonFromDate, timeOfDayFromDate } from "./time";
+import { seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "./time";
 import type {
   CatchInput,
   Habitat,
@@ -27,18 +27,18 @@ function asNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function asTime(value: unknown, fallbackDate: Date): TimeOfDay {
+function asTime(value: unknown, fallbackDate: Date, caughtRaw: string): TimeOfDay {
   if (typeof value === "string" && TIME_OF_DAY.includes(value as TimeOfDay)) {
     return value as TimeOfDay;
   }
-  return timeOfDayFromDate(fallbackDate);
+  return timeOfDayFromCaughtAtInput(caughtRaw) ?? timeOfDayFromDate(fallbackDate);
 }
 
-function asSeason(value: unknown, fallbackDate: Date): Season {
+function asSeason(value: unknown, fallbackDate: Date, caughtRaw: string): Season {
   if (typeof value === "string" && SEASONS.includes(value as Season)) {
     return value as Season;
   }
-  return seasonFromDate(fallbackDate);
+  return seasonFromCaughtAtInput(caughtRaw) ?? seasonFromDate(fallbackDate);
 }
 
 function asStringArray(value: unknown): string[] | null {
@@ -127,8 +127,8 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
     pressureMb: asNumber(body.pressureMb),
     pressureTrend: asPressureTrend(body.pressureTrend),
     caughtAt: caughtAt.toISOString(),
-    timeOfDay: asTime(body.timeOfDay, caughtAt),
-    season: asSeason(body.season, caughtAt),
+    timeOfDay: asTime(body.timeOfDay, caughtAt, caughtRaw),
+    season: asSeason(body.season, caughtAt, caughtRaw),
     notes: asString(body.notes),
     bait: asString(body.bait),
     tide: asString(body.tide),

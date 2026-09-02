@@ -18,11 +18,19 @@ export function timeOfDayFromDate(date: Date): TimeOfDay {
   return timeOfDayFromHour(date.getHours() + date.getMinutes() / 60);
 }
 
-const DATETIME_LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/;
+/** datetime-local only (no Z / offset). Safari treats `new Date("2025-07-12T06:10")` as UTC. */
+const DATETIME_LOCAL_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/;
+const EXIF_NAIVE_RE =
+  /^(\d{4})[:\-](\d{2})[:\-](\d{2})[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/;
+
+function hasExplicitTimeZone(value: string): boolean {
+  const s = value.trim();
+  return /[zZ]$/.test(s) || /[+-]\d{2}:?\d{2}$/.test(s);
+}
 
 /** Bucket from the wall-clock in a datetime-local value, ignoring Date UTC parsing quirks. */
 export function timeOfDayFromCaughtAtInput(value: string): TimeOfDay | null {
-  const local = value.match(DATETIME_LOCAL_RE);
+  const local = value.trim().match(DATETIME_LOCAL_RE);
   if (local) return timeOfDayFromHour(Number(local[4]) + Number(local[5]) / 60);
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -30,13 +38,27 @@ export function timeOfDayFromCaughtAtInput(value: string): TimeOfDay | null {
 }
 
 export function seasonFromCaughtAtInput(value: string): Season | null {
-  const local = value.match(DATETIME_LOCAL_RE);
-  if (local) return seasonFromDate(new Date(Number(local[1]), Number(local[2]) - 1, Number(local[3])));
+  const local = value.trim().match(DATETIME_LOCAL_RE);
+  if (local) {
+    return seasonFromDate(new Date(Number(local[1]), Number(local[2]) - 1, Number(local[3])));
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return seasonFromDate(date);
 }
 
+function dateFromWallClock(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second = 0,
+): Date {
+  return new Date(year, month - 1, day, hour, minute, second);
+}
+
+/** Camera EXIF is a naive local clock. Do not UTC-parse `2025:07:12 06:10:00`. */
 export function parseExifStamp(value: unknown): Date | null {
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
   if (typeof value === "number" && Number.isFinite(value)) {
@@ -44,8 +66,21 @@ export function parseExifStamp(value: unknown): Date | null {
     return Number.isNaN(date.getTime()) ? null : date;
   }
   if (typeof value !== "string" || !value.trim()) return null;
-  const normalized = value.trim().replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3");
-  const date = new Date(normalized);
+  const raw = value.trim();
+  if (!hasExplicitTimeZone(raw)) {
+    const naive = raw.match(EXIF_NAIVE_RE);
+    if (naive) {
+      return dateFromWallClock(
+        Number(naive[1]),
+        Number(naive[2]),
+        Number(naive[3]),
+        Number(naive[4]),
+        Number(naive[5]),
+        Number(naive[6] || 0),
+      );
+    }
+  }
+  const date = new Date(raw);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -102,18 +137,24 @@ export function formatDateOnly(iso: string): string {
 }
 
 export function dateFromDatetimeLocal(value: string): Date | null {
-  const local = value.match(DATETIME_LOCAL_RE);
+  const local = value.trim().match(DATETIME_LOCAL_RE);
   if (local) {
-    return new Date(
+    return dateFromWallClock(
       Number(local[1]),
-      Number(local[2]) - 1,
+      Number(local[2]),
       Number(local[3]),
       Number(local[4]),
       Number(local[5]),
+      Number(local[6] || 0),
     );
   }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  return parseExifStamp(value);
+}
+
+/** Persist a datetime-local wall clock as an ISO instant in the user's timezone. */
+export function isoFromDatetimeLocal(value: string): string {
+  const date = dateFromDatetimeLocal(value);
+  return (date ?? new Date()).toISOString();
 }
 
 export function datetimeLocalValue(iso: string): string {

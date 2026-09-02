@@ -16,7 +16,7 @@ import { catchPinFromPhotoGps, coordsLookDifferent, formatCoords, shouldApplyPho
 import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
 import { clampFishCount } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
-import { datetimeLocalValue, parseExifStamp, seasonFromCaughtAtInput, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromCaughtAtInput, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
+import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, seasonFromCaughtAtInput, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromCaughtAtInput, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
 import type {
@@ -257,7 +257,7 @@ export function CatchForm({
     if (!pastMode) return;
     const lat = numOrNull(form.latitude);
     const lon = numOrNull(form.longitude);
-    const at = new Date(form.caughtAt);
+    const at = caughtDate(form.caughtAt);
     if (lat == null || lon == null || Number.isNaN(at.getTime())) return;
     let cancelled = false;
     fetch("/api/assist/weather", {
@@ -293,7 +293,7 @@ export function CatchForm({
 
     let photoLat: number | undefined;
     let photoLon: number | undefined;
-    const formWhen = form.caughtAt ? new Date(form.caughtAt) : null;
+    const formWhen = form.caughtAt ? dateFromDatetimeLocal(form.caughtAt) : null;
     let at =
       formWhen && !Number.isNaN(formWhen.getTime()) ? formWhen : pastMode ? new Date(0) : new Date();
 
@@ -522,7 +522,7 @@ export function CatchForm({
         pressureInHg: numOrNull(form.pressureInHg),
         pressureMb: numOrNull(form.pressureMb),
         pressureTrend: form.pressureTrend || null,
-        caughtAt: new Date(form.caughtAt).toISOString(),
+        caughtAt: isoFromDatetimeLocal(form.caughtAt),
         timeOfDay,
         season: form.season,
         notes: form.notes || null,
@@ -582,7 +582,7 @@ export function CatchForm({
                   value={form.caughtAt.slice(0, 10)}
                   onChange={(e) => {
                     const next = joinDateTime(e.target.value, form.caughtAt.slice(11, 16) || "12:00");
-                    const d = new Date(next);
+                    const d = caughtDate(next);
                     setTimeOfDayLocked(false);
                     patch({
                       caughtAt: next,
@@ -604,7 +604,7 @@ export function CatchForm({
                     const day = form.caughtAt.slice(0, 10);
                     if (!day) return;
                     const next = joinDateTime(day, e.target.value);
-                    const d = new Date(next);
+                    const d = caughtDate(next);
                     setTimeOfDayLocked(false);
                     patch({
                       caughtAt: next,
@@ -789,7 +789,7 @@ export function CatchForm({
             });
             const data = await res.json();
             if (data.place?.placeName) lockCatchLocation({ placeName: data.place.placeName });
-            const at = new Date(form.caughtAt);
+            const at = caughtDate(form.caughtAt);
             const weatherRes = await fetch("/api/assist/weather", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -961,7 +961,7 @@ export function CatchForm({
           value={form.caughtAt}
           onChange={(e) => {
             const value = e.target.value;
-            const d = new Date(value);
+            const d = caughtDate(value);
             setTimeOfDayLocked(false);
             patch({
               caughtAt: value,
@@ -993,6 +993,9 @@ export function CatchForm({
               </option>
             ))}
           </select>
+          <span className="mt-1 block text-xs text-ink-muted">
+            Follows the catch clock (photo time when we have it) unless you change it.
+          </span>
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-semibold">Season</span>
@@ -1141,6 +1144,10 @@ function weatherFields(
 function joinDateTime(date: string, time: string): string {
   if (!date) return "";
   return `${date}T${time || "12:00"}`;
+}
+
+function caughtDate(value: string): Date {
+  return dateFromDatetimeLocal(value) ?? new Date(value);
 }
 
 function numOrNull(value: string): number | null {
