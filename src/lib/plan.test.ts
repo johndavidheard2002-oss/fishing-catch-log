@@ -3,6 +3,7 @@ import { groupSpots } from "./filters";
 import {
   baitPlanHeadline,
   isPositiveCatch,
+  parsePlanDate,
   planHeadline,
   scoreWindowAgainstBait,
   scoreWindowAgainstCatch,
@@ -283,5 +284,18 @@ describe("bait plan matches", () => {
     expect(suggestions[0]?.placeName).toBe("Haulover Canal");
     expect(suggestions[0]?.baitTypes).toEqual(["Shrimp"]);
     expect(suggestions[0]?.strength).toBe("very-strong");
+  });
+});
+
+describe("parsePlanDate", () => {
+  it("reads a local calendar day and rejects junk", () => {
+    const date = parsePlanDate("2026-09-08");
+    expect(date).not.toBeNull();
+    expect(date?.getFullYear()).toBe(2026);
+    expect(date?.getMonth()).toBe(8);
+    expect(date?.getDate()).toBe(8);
+    expect(parsePlanDate("not-a-day")).toBeNull();
+    expect(parsePlanDate("2026-13-40")).toBeNull();
+    expect(parsePlanDate(null)).toBeNull();
   });
 });

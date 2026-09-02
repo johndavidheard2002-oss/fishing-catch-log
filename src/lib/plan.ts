@@ -281,10 +281,23 @@ async function windowsForLocated(args: {
   return { windows, weatherSource, tideSource, note: forecast.note };
 }
 
+/** Local calendar day from a YYYY-MM-DD query value. */
+export function parsePlanDate(raw: string | null | undefined): Date | null {
+  if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const [year, month, day] = raw.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
 export async function buildPlan(
   records: CatchRecord[],
   days: number,
   baitRecords: BaitSpot[] = [],
+  startDate?: Date,
 ): Promise<PlanResult> {
   const productive = records.filter(isPositiveCatch);
   const spots = groupSpots(productive).filter(
@@ -293,8 +306,8 @@ export async function buildPlan(
   const baitGroups = groupBaitSpots(baitRecords).filter(
     (s) => s.latitude != null && s.longitude != null,
   );
-  const start = new Date();
-  start.setUTCHours(0, 0, 0, 0);
+  const start = startDate ? new Date(startDate) : new Date();
+  start.setHours(0, 0, 0, 0);
 
   const windowsBySpotKey: Record<string, ForecastWindow[]> = {};
   const baitWindowsBySpotKey: Record<string, ForecastWindow[]> = {};

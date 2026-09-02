@@ -8,6 +8,7 @@ import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
+import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel, VERY_STRONG_MATCH_CHIP, VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
 import type { BaitPlanSuggestion, BaitSpot, PlanResult, PlanSuggestion, SpotGroup } from "@/lib/types";
@@ -31,17 +32,21 @@ type PlanMapTarget = {
 };
 
 export function PlanClient() {
-  const [days, setDays] = useState<3 | 5 | 7>(5);
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlanResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [mapTarget, setMapTarget] = useState<PlanMapTarget | null>(null);
 
   useEffect(() => {
+    if (!selectedDay) return;
     let cancelled = false;
     const extra = sharedQuery(includeShared);
-    fetch(`/api/plan?days=${days}${extra ? `&${extra}` : ""}`)
+    fetch(`/api/plan?date=${selectedDay}${extra ? `&${extra}` : ""}`)
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) {
@@ -59,7 +64,7 @@ export function PlanClient() {
     return () => {
       cancelled = true;
     };
-  }, [days, includeShared]);
+  }, [selectedDay, includeShared]);
 
   const byDay = useMemo(() => {
     const map = new Map<string, PlanSuggestion[]>();
@@ -91,32 +96,31 @@ export function PlanClient() {
   return (
     <div className="space-y-4">
       <div className="page-intro">
-        <h1 className="font-display text-3xl text-teal">Plan</h1>
+        <h1 className="font-display text-3xl text-teal" data-testid="plan-a-day">
+          Plan a day
+        </h1>
         <p className="text-sm text-ink-muted">
-          Upcoming windows matched to days you actually caught fish, plus bait holes that produced
-          under similar tide, time, and weather. Tap a suggested spot for its map.
+          Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
+          produced — including very strong matches with matching tides. Tap a suggested spot for
+          its map.
         </p>
       </div>
 
-      <div className="flex gap-2">
-        {([3, 5, 7] as const).map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => {
-              if (n !== days) setLoading(true);
-              setDays(n);
-            }}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              days === n ? "bg-teal text-white" : "border border-line bg-card"
-            }`}
-          >
-            Next {n} days
-          </button>
-        ))}
-      </div>
+      <PlanDayCalendar
+        year={year}
+        month={month}
+        selectedDay={selectedDay}
+        onMonthChange={(next) => {
+          setYear(next.year);
+          setMonth(next.month);
+        }}
+        onSelectDay={(date) => {
+          setLoading(true);
+          setSelectedDay(date);
+        }}
+      />
 
-      {plan ? (
+      {plan && selectedDay ? (
         <p className="rounded-2xl border border-line bg-card px-3 py-2 text-xs text-ink-muted">
           {plan.weatherSource === "demo" || plan.tideSource === "demo"
             ? "Demo forecast/tides until you add API keys. "
@@ -124,17 +128,19 @@ export function PlanClient() {
           {plan.weatherSource === "openweather" ? " Weather: OpenWeather. " : null}
           {plan.tideSource === "worldtides" ? " Tides: WorldTides. " : null}
           Suggestions compare tide stage and height, clock time, sky, temp, and wind
-          against productive trips and bait spots.
+          against productive trips and bait spots for {formatWeekdayDate(selectedDay)}.
         </p>
       ) : null}
 
-      {loading ? (
-        <p className="text-sm text-ink-muted">Matching upcoming days to your journal…</p>
+      {!selectedDay ? (
+        <p className="text-sm text-ink-muted">Tap a day to plan it.</p>
+      ) : loading ? (
+        <p className="text-sm text-ink-muted">Matching that day to your journal…</p>
       ) : error ? (
         <p className="text-sm text-copper">{error}</p>
       ) : !(plan?.suggestions?.length || plan?.baitSuggestions?.length) ? (
         <p className="text-sm text-ink-muted">
-          No close matches in this window. Log more catches or bait spots, or try a longer range.
+          No close matches for this day. Log more catches or bait spots, or pick another date.
         </p>
       ) : (
         dayKeys.map((date) => {
@@ -170,9 +176,84 @@ export function PlanClient() {
           );
         })
       )}
-      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
+      <SharedToggle
+        includeShared={includeShared}
+        onChange={(next) => {
+          if (selectedDay) setLoading(true);
+          setIncludeShared(next);
+        }}
+      />
       <PlanSpotSheet target={mapTarget} onClose={() => setMapTarget(null)} />
     </div>
+  );
+}
+
+function PlanDayCalendar({
+  year,
+  month,
+  selectedDay,
+  onMonthChange,
+  onSelectDay,
+}: {
+  year: number;
+  month: number;
+  selectedDay: string | null;
+  onMonthChange: (next: { year: number; month: number }) => void;
+  onSelectDay: (date: string) => void;
+}) {
+  const cells = monthGrid(year, month);
+  const today = todayKey();
+  return (
+    <section className="journal-card rounded-2xl px-3 py-3" data-testid="plan-day-calendar">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          className="rounded-full px-3 py-1 text-sm font-semibold text-teal"
+          onClick={() => onMonthChange(shiftMonth(year, month, -1))}
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+        <h2 className="font-display text-lg text-teal">{monthLabel(year, month)}</h2>
+        <button
+          type="button"
+          className="rounded-full px-3 py-1 text-sm font-semibold text-teal"
+          onClick={() => onMonthChange(shiftMonth(year, month, 1))}
+          aria-label="Next month"
+        >
+          ›
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase text-ink-muted">
+        {WEEKDAY_LABELS.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((cell) => {
+          const isSelected = selectedDay === cell.date;
+          const isToday = cell.date === today;
+          return (
+            <button
+              key={cell.date}
+              type="button"
+              onClick={() => onSelectDay(cell.date)}
+              aria-label={cell.date}
+              aria-pressed={isSelected}
+              className={`min-h-10 rounded-xl py-2 text-sm ${
+                isSelected
+                  ? "bg-teal font-semibold text-white"
+                  : isToday
+                    ? "ring-1 ring-copper"
+                    : "bg-card"
+              } ${cell.inMonth ? "" : "opacity-35"}`}
+            >
+              {cell.day}
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

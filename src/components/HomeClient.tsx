@@ -33,7 +33,7 @@ export function HomeClient() {
         href="/plan"
         className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold text-teal"
       >
-        Plan the next few days
+        Plan a day
       </Link>
       <div className="grid grid-cols-2 gap-2">
         <Link
