@@ -57,40 +57,6 @@ export async function reverseGeocode(
   }
 }
 
-export async function searchPlace(
-  query: string,
-): Promise<{ placeName: string; latitude: number; longitude: number }[]> {
-  const q = query.trim();
-  if (q.length < 2) return [];
-  try {
-    const url = new URL("https://nominatim.openstreetmap.org/search");
-    url.searchParams.set("q", q);
-    url.searchParams.set("format", "jsonv2");
-    url.searchParams.set("limit", "5");
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "CatchCompass/1.0 (logbook)",
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as {
-      display_name?: string;
-      name?: string;
-      lat: string;
-      lon: string;
-    }[];
-    return data.map((item) => ({
-      placeName: item.name || item.display_name?.split(",").slice(0, 3).join(",").trim() || q,
-      latitude: Number(item.lat),
-      longitude: Number(item.lon),
-    })).filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude));
-  } catch {
-    return [];
-  }
-}
-
 export function coordsLabel(lat: number, lon: number): string {
   const ns = lat >= 0 ? "N" : "S";
   const ew = lon >= 0 ? "E" : "W";

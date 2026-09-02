@@ -159,7 +159,7 @@ export function MapPicker({
       <p className="on-wash-chip text-xs">
         {hasPin
           ? "Satellite by default — drag the pin or tap a new spot. It stays editable."
-          : "No pin yet — tap the satellite map to place this catch."}
+          : "No pin yet — tap the satellite map to drop one."}
       </p>
     </div>
   );
