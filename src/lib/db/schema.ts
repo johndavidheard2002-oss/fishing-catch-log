@@ -4,6 +4,7 @@ export const catches = sqliteTable("catches", {
   id: text("id").primaryKey(),
   photoPath: text("photo_path"),
   species: text("species").notNull(),
+  speciesList: text("species_list"),
   speciesSuggested: text("species_suggested"),
   speciesConfidence: real("species_confidence"),
   speciesSource: text("species_source").notNull().default("manual"),

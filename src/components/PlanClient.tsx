@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { personalPhotoSrc } from "@/lib/photo";
+import { speciesLabel } from "@/lib/species";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel } from "@/lib/similar";
 import type { PlanResult, PlanSuggestion } from "@/lib/types";
@@ -123,7 +124,7 @@ function SuggestionCard({
   const matchPhotos = suggestion.matches.map((m) => ({
     id: m.catch.id,
     src: personalPhotoSrc(m.catch.photoPath),
-    species: m.catch.species,
+    species: speciesLabel(m.catch.speciesList?.length ? m.catch.speciesList : m.catch.species),
     date: formatDateOnly(m.catch.caughtAt),
     ownerName: m.catch.ownerName,
     reasons: m.reasons,

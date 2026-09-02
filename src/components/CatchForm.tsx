@@ -12,7 +12,7 @@ import { inHgToMb, mbToInHg, PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/p
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
-import { SPECIES_AUTO_FILL_MIN } from "@/lib/species";
+import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
 import { datetimeLocalValue, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
@@ -25,7 +25,7 @@ import type {
 } from "@/lib/types";
 
 type FormState = {
-  species: string;
+  speciesList: string[];
   speciesSuggested: string;
   speciesConfidence: number | null;
   speciesSource: CatchRecord["speciesSource"];
@@ -59,7 +59,7 @@ const emptyForm = (pastMode = false): FormState => {
   const now = new Date();
   const moon = moonForDate(now);
   return {
-    species: "",
+    speciesList: [],
     speciesSuggested: "",
     speciesConfidence: null,
     speciesSource: "manual",
@@ -92,7 +92,11 @@ const emptyForm = (pastMode = false): FormState => {
 
 function fromRecord(record: CatchRecord): FormState {
   return {
-    species: record.species,
+    speciesList: record.speciesList?.length
+      ? record.speciesList
+      : record.species
+        ? [record.species]
+        : [],
     speciesSuggested: record.speciesSuggested ?? "",
     speciesConfidence: record.speciesConfidence,
     speciesSource: record.speciesSource,
@@ -278,20 +282,22 @@ export function CatchForm({
           if (data.suggestion) {
             setForm((f) => {
               const guess = data.suggestion!;
+              const suggestedList = normalizeSpeciesList(guess.species, guess.speciesList);
               const autoFill =
-                !f.species.trim() &&
+                !f.speciesList.length &&
                 guess.species !== "Unknown" &&
-                guess.confidence >= SPECIES_AUTO_FILL_MIN;
-              const nextSpecies = autoFill ? guess.species : f.species;
+                guess.confidence >= SPECIES_AUTO_FILL_MIN &&
+                suggestedList.length > 0;
+              const nextList = autoFill ? suggestedList : f.speciesList;
               const nextHabitat =
                 autoFill && guess.habitat && isHabitat(guess.habitat)
                   ? guess.habitat
                   : autoFill
-                    ? inferHabitat(nextSpecies, f.habitat)
+                    ? inferHabitat(primarySpecies(nextList), f.habitat)
                     : f.habitat;
               return {
                 ...f,
-                species: nextSpecies,
+                speciesList: nextList,
                 speciesSuggested: guess.species,
                 speciesConfidence: guess.confidence,
                 speciesSource: guess.source === "openai" ? "vision" : "demo",
@@ -364,6 +370,11 @@ export function CatchForm({
     e.preventDefault();
     setSaving(true);
     setError(null);
+    if (!form.speciesList.length) {
+      setSaving(false);
+      setError("Add at least one species. You can tag more than one fish in the same photo.");
+      return;
+    }
     try {
       let photoPath = initial?.photoPath ?? null;
       if (photoFile) {
@@ -377,11 +388,14 @@ export function CatchForm({
 
       const payload = {
         photoPath,
-        species: form.species || form.speciesSuggested || "Unknown",
+        species: primarySpecies(form.speciesList),
+        speciesList: form.speciesList,
         speciesSuggested: form.speciesSuggested || null,
         speciesConfidence: form.speciesConfidence,
         speciesSource:
-          form.species && form.speciesSuggested && form.species !== form.speciesSuggested
+          form.speciesList.length &&
+          form.speciesSuggested &&
+          !form.speciesList.map((s) => s.toLowerCase()).includes(form.speciesSuggested.toLowerCase())
             ? "edited"
             : form.speciesSource,
         latitude: numOrNull(form.latitude),
@@ -523,12 +537,12 @@ export function CatchForm({
       ) : null}
 
       <SpeciesPicker
-        species={form.species}
+        speciesList={form.speciesList}
         habitat={form.habitat}
         onHabitat={(habitat) => patch({ habitat })}
-        onSpecies={(species, habitat) =>
+        onChange={(speciesList, habitat) =>
           patch({
-            species,
+            speciesList,
             habitat,
             speciesSource: form.speciesSuggested ? "edited" : "manual",
           })
@@ -545,25 +559,25 @@ export function CatchForm({
                 : ""}
               {form.speciesSource === "demo" ? " · demo" : ""}
             </span>
-            {form.species !== suggestion.species ? (
-              <button
-                type="button"
-                className="font-semibold text-teal"
-                onClick={() =>
-                  patch({
-                    species: suggestion.species,
-                    habitat: inferHabitat(suggestion.species, form.habitat),
-                    speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
-                  })
-                }
-              >
-                Use suggestion
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="font-semibold text-teal"
+              onClick={() => {
+                const add = normalizeSpeciesList(suggestion.species, null);
+                const merged = normalizeSpeciesList(null, [...form.speciesList, ...add]);
+                patch({
+                  speciesList: merged,
+                  habitat: inferHabitat(suggestion.species, form.habitat),
+                  speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
+                });
+              }}
+            >
+              Add suggestion
+            </button>
           </div>
           {(suggestion.confidence ?? 1) < SPECIES_AUTO_FILL_MIN ? (
             <p className="text-xs text-copper">
-              Low confidence — pick a chip or type the species. The field stays editable.
+              Low confidence — add chips or type the species. Everything stays editable.
             </p>
           ) : null}
           {form.speciesAlternatives.length ? (
@@ -575,25 +589,25 @@ export function CatchForm({
                   className="rounded-full border border-line bg-card px-2.5 py-1 text-xs font-semibold"
                   onClick={() =>
                     patch({
-                      species: alt.species,
+                      speciesList: normalizeSpeciesList(null, [...form.speciesList, alt.species]),
                       habitat: inferHabitat(alt.species, form.habitat),
                       speciesSource: "edited",
                     })
                   }
                 >
-                  {alt.species}
+                  Add {alt.species}
                   {alt.confidence != null ? ` ${Math.round(alt.confidence * 100)}%` : ""}
                 </button>
               ))}
             </div>
           ) : null}
           <p className="text-xs text-ink-muted">
-            Species ID is an assist, not a guarantee. Edit anytime.
+            Species ID is an assist, not a guarantee. Tag every fish in the photo.
           </p>
         </div>
       ) : (
         <p className="text-xs text-ink-muted">
-          Species ID is an assist, not a guarantee. Edit anytime.
+          Species ID is an assist, not a guarantee. Tag every fish in the photo.
         </p>
       )}
 

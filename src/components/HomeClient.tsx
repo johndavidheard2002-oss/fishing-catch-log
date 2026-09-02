@@ -6,6 +6,7 @@ import { BuddyPanel } from "@/components/BuddyPanel";
 import { CatchGridCard } from "@/components/CatchCard";
 import { formatDateOnly } from "@/lib/time";
 import { weatherLine } from "@/lib/photo";
+import { speciesLabel } from "@/lib/species";
 import type { CatchRecord } from "@/lib/types";
 
 export function HomeClient() {
@@ -18,7 +19,9 @@ export function HomeClient() {
   }, []);
 
   const latest = catches[0];
-  const species = new Set(catches.map((c) => c.species)).size;
+  const species = new Set(
+    catches.flatMap((c) => (c.speciesList?.length ? c.speciesList : [c.species])),
+  ).size;
   const spots = new Set(catches.map((c) => c.placeName || "unknown")).size;
 
   return (
@@ -61,7 +64,9 @@ export function HomeClient() {
       {latest ? (
         <section className="journal-card rounded-2xl p-4">
           <p className="text-xs tracking-wide text-ink-muted uppercase">Last trip</p>
-          <p className="mt-1 text-lg font-semibold">{latest.species}</p>
+          <p className="mt-1 text-lg font-semibold">
+            {speciesLabel(latest.speciesList?.length ? latest.speciesList : latest.species)}
+          </p>
           <p className="text-sm text-ink-muted">
             {latest.placeName || "Unnamed spot"} · {formatDateOnly(latest.caughtAt)}
           </p>

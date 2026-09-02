@@ -2,6 +2,7 @@ import { isHabitat, matchesHabitatFilters } from "./habitat";
 import { isMoonPhase } from "./moon";
 import { isPressureTrend } from "./pressure";
 import { haversineKm } from "./similar";
+import { speciesListMatchesQuery } from "./species";
 import type { CatchFilters, CatchRecord, Habitat, SpotGroup } from "./types";
 import { windMatchesCardinal } from "./wind";
 
@@ -10,7 +11,8 @@ export function matchesFilters(record: CatchRecord, filters: CatchFilters): bool
 
   if (filters.species) {
     const q = filters.species.trim().toLowerCase();
-    if (!record.species.toLowerCase().includes(q)) return false;
+    const list = record.speciesList?.length ? record.speciesList : [record.species];
+    if (!speciesListMatchesQuery(list, q)) return false;
   }
 
   if (filters.place) {
@@ -151,7 +153,9 @@ export function groupSpots(records: CatchRecord[]): SpotGroup[] {
         latitude: withCoords.length ? lat : null,
         longitude: withCoords.length ? lng : null,
         catchCount: catches.length,
-        species: [...new Set(catches.map((c) => c.species))],
+        species: [
+          ...new Set(catches.flatMap((c) => (c.speciesList?.length ? c.speciesList : [c.species]))),
+        ],
         lastCaughtAt: [...catches].sort((a, b) => b.caughtAt.localeCompare(a.caughtAt))[0]
           .caughtAt,
         typicalCondition: mostCommon(

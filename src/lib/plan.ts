@@ -1,4 +1,5 @@
 import { groupSpots, spotKey } from "./filters";
+import { speciesLabel } from "./species";
 import { formatDateOnly } from "./time";
 import { conditionLabel, scoreConditionOverlap } from "./similar";
 import { getTideSeries, hasWorldTidesKey } from "./tides";
@@ -18,9 +19,11 @@ const MIN_SCORE = 22;
 const MAX_MATCHES = 3;
 
 export function isPositiveCatch(record: CatchRecord): boolean {
-  const species = record.species.trim().toLowerCase();
-  if (!species) return false;
-  return !["unknown", "none", "skunk", "no fish", "empty"].includes(species);
+  const names = record.speciesList?.length ? record.speciesList : [record.species];
+  return names.some((s) => {
+    const species = s.trim().toLowerCase();
+    return Boolean(species) && !["unknown", "none", "skunk", "no fish", "empty"].includes(species);
+  });
 }
 
 export function suggestionStrength(score: number): PlanSuggestion["strength"] {
@@ -36,7 +39,7 @@ export function planHeadline(window: ForecastWindow, match: CatchRecord): string
   bits.push(window.timeOfDay);
   if (window.tide) bits.push(`${window.tide} tide`);
   const place = match.placeName || "this water";
-  return `${bits.join(" + ")} like your ${match.species} at ${place} on ${formatDateOnly(match.caughtAt)}`;
+  return `${bits.join(" + ")} like your ${speciesLabel(match.speciesList?.length ? match.speciesList : match.species)} at ${place} on ${formatDateOnly(match.caughtAt)}`;
 }
 
 export function scoreWindowAgainstCatch(

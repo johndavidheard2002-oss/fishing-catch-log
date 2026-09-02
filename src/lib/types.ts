@@ -55,6 +55,7 @@ export type CatchRecord = {
   id: string;
   photoPath: string | null;
   species: string;
+  speciesList: string[];
   speciesSuggested: string | null;
   speciesConfidence: number | null;
   speciesSource: SpeciesSource;
@@ -90,6 +91,7 @@ export type CatchRecord = {
 export type CatchInput = {
   photoPath?: string | null;
   species: string;
+  speciesList?: string[] | null;
   speciesSuggested?: string | null;
   speciesConfidence?: number | null;
   speciesSource?: SpeciesSource;
@@ -181,6 +183,7 @@ export type SpeciesSuggestion = {
   species: string;
   confidence: number;
   alternatives: { species: string; confidence: number }[];
+  speciesList?: string[];
   habitat?: Habitat | null;
   source: "openai" | "demo";
   note: string;

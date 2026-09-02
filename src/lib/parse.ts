@@ -40,6 +40,22 @@ function asSeason(value: unknown, fallbackDate: Date): Season {
   return seasonFromDate(fallbackDate);
 }
 
+function asStringArray(value: unknown): string[] | null {
+  if (Array.isArray(value)) {
+    const list = value.filter((s): s is string => typeof s === "string").map((s) => s.trim()).filter(Boolean);
+    return list.length ? list : null;
+  }
+  if (typeof value === "string" && value.trim().startsWith("[")) {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return asStringArray(parsed);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 function asSource(value: unknown): SpeciesSource | undefined {
   if (typeof value === "string" && SPECIES_SOURCES.includes(value as SpeciesSource)) {
     return value as SpeciesSource;
@@ -89,6 +105,7 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
   return {
     photoPath: asString(body.photoPath),
     species,
+    speciesList: asStringArray(body.speciesList),
     speciesSuggested: asString(body.speciesSuggested),
     speciesConfidence: asNumber(body.speciesConfidence),
     speciesSource: asSource(body.speciesSource),

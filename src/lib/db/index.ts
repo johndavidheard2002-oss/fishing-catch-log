@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS catches (
   id TEXT PRIMARY KEY,
   photo_path TEXT,
   species TEXT NOT NULL,
+  species_list TEXT,
   species_suggested TEXT,
   species_confidence REAL,
   species_source TEXT NOT NULL DEFAULT 'manual',
@@ -115,6 +116,7 @@ function migrate(sqlite: Database.Database) {
     ["pressure_in_hg", "REAL"],
     ["pressure_mb", "REAL"],
     ["pressure_trend", "TEXT"],
+    ["species_list", "TEXT"],
   ];
   const latestCols = tableColumns(sqlite, "catches");
   for (const [name, type] of extra) {
@@ -152,6 +154,19 @@ function migrate(sqlite: Database.Database) {
       update.run(moon.phase, moon.illumination, row.id);
     }
     sqlite.pragma("user_version = 3");
+  }
+  if (version < 4) {
+    const rows = sqlite.prepare("SELECT id, species, species_list FROM catches").all() as {
+      id: string;
+      species: string;
+      species_list: string | null;
+    }[];
+    const update = sqlite.prepare("UPDATE catches SET species_list = ? WHERE id = ?");
+    for (const row of rows) {
+      if (row.species_list) continue;
+      update.run(JSON.stringify(row.species ? [row.species] : []), row.id);
+    }
+    sqlite.pragma("user_version = 4");
   }
 }
 

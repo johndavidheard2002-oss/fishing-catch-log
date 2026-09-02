@@ -39,7 +39,7 @@ The header shows **Demo APIs** when weather or vision is not live.
 
 ## What you can do
 
-- **Log** — camera or camera-roll upload, fast save. Pick **Freshwater / Saltwater**, then **Inshore / Offshore** for salt, so the species list stays short. Weather, GPS, and place fill in when they can — including **moon phase**, **wind direction**, and **barometric pressure** (inHg and mb, with trend when we have it). Optional bait / tide / water / notes. **Share with linked buddies** is off unless you turn it on.
+- **Log** — camera or camera-roll upload, fast save. Pick **Freshwater / Saltwater**, then **Inshore / Offshore** for salt, so the species list stays short. **Tag every species in the photo** — one catch can have more than one fish. Weather, GPS, and place fill in when they can — including **moon phase**, **wind direction**, and **barometric pressure** (inHg and mb, with trend when we have it). Optional bait / tide / water / notes. **Share with linked buddies** is off unless you turn it on.
 - **Add a past catch** — backfill from an old photo: set the date/time, drop a map pin, search a place, and we try archive weather for that day (moon from the date, wind dir and pressure from the archive when available).
 - **History** — grid, list, or **calendar** month view. Day cells show stacked catch photos (and +N). Tap a day for that day’s trips in time order. Filter by freshwater / saltwater / inshore / offshore, moon phase, wind direction, and pressure trend. Presets like “Cloudy 70–80°F” and “Full moon”. CSV export.
 - **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, wind (speed + direction), moon, and pressure, and says why.

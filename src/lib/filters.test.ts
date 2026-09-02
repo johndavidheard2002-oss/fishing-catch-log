@@ -24,6 +24,18 @@ describe("matchesFilters", () => {
     expect(matchesFilters(bass, { seasons: ["spring"] })).toBe(false);
   });
 
+  it("matches any tagged species on a multi-fish catch", () => {
+    const mixed = catchOf({
+      id: "mix",
+      species: "Redfish",
+      speciesList: ["Redfish", "Speckled Trout"],
+      habitat: "saltwater-inshore",
+    });
+    expect(matchesFilters(mixed, { species: "trout" })).toBe(true);
+    expect(matchesFilters(mixed, { species: "redfish" })).toBe(true);
+    expect(matchesFilters(mixed, { species: "snook" })).toBe(false);
+  });
+
   it("filters freshwater vs inshore vs offshore", () => {
     const redfish = catchOf({ id: "r", species: "Redfish", habitat: "saltwater-inshore" });
     const mahi = catchOf({ id: "m", species: "Mahi-mahi", habitat: "saltwater-offshore" });

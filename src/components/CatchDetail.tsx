@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
 import { SimilarList } from "@/components/SimilarList";
 import { habitatLabel } from "@/lib/habitat";
+import { speciesLabel } from "@/lib/species";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { photoSrc, weatherLine } from "@/lib/photo";
@@ -65,7 +66,9 @@ export function CatchDetail({ id }: { id: string }) {
           )}
         </div>
         <div className="space-y-2 p-4">
-          <h1 className="font-display text-3xl text-teal">{record.species}</h1>
+          <h1 className="font-display text-3xl text-teal">
+            {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
+          </h1>
           <p className="text-ink-muted">{record.placeName || "Unnamed spot"}</p>
           <p className="text-sm">{formatCaughtAt(record.caughtAt)}</p>
           <p className="text-sm capitalize">
@@ -181,7 +184,7 @@ export function CatchDetail({ id }: { id: string }) {
           href={`/history?species=${encodeURIComponent(record.species)}`}
           className="inline-block text-sm font-semibold text-teal"
         >
-          Browse all {record.species}
+          Browse all {speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}
         </Link>
       </section>
     </article>

@@ -5,9 +5,11 @@ export function catchOf(
   partial: Partial<CatchRecord> & { id: string },
 ): CatchRecord {
   const species = partial.species ?? "Largemouth Bass";
+  const speciesList = partial.speciesList ?? [species];
   return {
     photoPath: null,
     species,
+    speciesList,
     speciesSuggested: null,
     speciesConfidence: null,
     speciesSource: "manual",

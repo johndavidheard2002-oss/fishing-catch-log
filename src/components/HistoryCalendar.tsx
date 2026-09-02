@@ -10,6 +10,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/calendar";
 import { photoSrc } from "@/lib/photo";
+import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import type { CatchRecord } from "@/lib/types";
 import Link from "next/link";
@@ -169,8 +170,8 @@ function DayThumbs({
             <Link
               key={record.id}
               href={`/catch/${record.id}`}
-              title={`${formatTimeOnly(record.caughtAt)} · ${record.species}`}
-              aria-label={`${record.species} at ${formatTimeOnly(record.caughtAt)}`}
+              title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)}`}
+              aria-label={`${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} at ${formatTimeOnly(record.caughtAt)}`}
               className={`relative ${size} overflow-hidden rounded-md border ${
                 selected ? "border-white/70" : "border-white"
               } bg-paper`}

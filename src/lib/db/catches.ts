@@ -1,6 +1,7 @@
 import { count, desc, eq } from "drizzle-orm";
 import { inferHabitat, isHabitat } from "../habitat";
 import { moonForDate } from "../moon";
+import { normalizeSpeciesList, parseSpeciesListJson, primarySpecies } from "../species";
 import { seasonFromDate, timeOfDayFromDate } from "../time";
 import type {
   CatchInput,
@@ -29,12 +30,17 @@ function mapRow(
   row: typeof catches.$inferSelect,
   ownerNameById: Map<string, string>,
 ): CatchRecord {
-  const species = row.species;
+  const speciesList = normalizeSpeciesList(
+    row.species,
+    parseSpeciesListJson(row.speciesList),
+  );
+  const species = primarySpecies(speciesList);
   const anglerId = row.anglerId || "unknown";
   return {
     id: row.id,
     photoPath: row.photoPath,
     species,
+    speciesList: speciesList.length ? speciesList : [species],
     speciesSuggested: row.speciesSuggested,
     speciesConfidence: row.speciesConfidence,
     speciesSource: row.speciesSource as SpeciesSource,
@@ -133,13 +139,15 @@ export function createCatch(input: CatchInput): CatchRecord {
   const id = crypto.randomUUID();
   const stamp = nowIso();
   const derived = withDerived(input);
-  const species = input.species.trim() || "Unknown";
+  const speciesList = normalizeSpeciesList(input.species, input.speciesList);
+  const species = primarySpecies(speciesList);
   const habitat = asHabitat(input.habitat, species);
   db.insert(catches)
     .values({
       id,
       photoPath: input.photoPath ?? null,
       species,
+      speciesList: JSON.stringify(speciesList.length ? speciesList : [species]),
       speciesSuggested: input.speciesSuggested ?? null,
       speciesConfidence: input.speciesConfidence ?? null,
       speciesSource: input.speciesSource ?? "manual",
@@ -179,7 +187,14 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
   if (!existing) return null;
   const db = getDb();
   const caughtAt = input.caughtAt ? new Date(input.caughtAt).toISOString() : existing.caughtAt;
-  const species = input.species?.trim() || existing.species;
+  const speciesList =
+    input.speciesList !== undefined || input.species !== undefined
+      ? normalizeSpeciesList(
+          input.species ?? existing.species,
+          input.speciesList === undefined ? existing.speciesList : input.speciesList,
+        )
+      : existing.speciesList;
+  const species = primarySpecies(speciesList);
   const derived = withDerived({
     species,
     caughtAt,
@@ -197,6 +212,7 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
     .set({
       photoPath: input.photoPath === undefined ? existing.photoPath : input.photoPath,
       species,
+      speciesList: JSON.stringify(speciesList.length ? speciesList : [species]),
       speciesSuggested:
         input.speciesSuggested === undefined
           ? existing.speciesSuggested

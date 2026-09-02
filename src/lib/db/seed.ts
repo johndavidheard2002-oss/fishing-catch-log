@@ -325,6 +325,9 @@ export function seedIfEmpty(db: BetterSQLite3Database<typeof schema>, ownerId: s
         id: crypto.randomUUID(),
         photoPath: item.photoPath ?? null,
         species: item.species,
+        speciesList: JSON.stringify(
+          item.speciesList?.length ? item.speciesList : [item.species],
+        ),
         speciesSuggested: item.speciesSuggested ?? null,
         speciesConfidence: item.speciesConfidence ?? null,
         speciesSource: item.speciesSource ?? "demo",

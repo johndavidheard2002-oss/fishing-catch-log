@@ -1,5 +1,5 @@
 import { habitatHintFromLocation, HABITAT_LABELS, isHabitat, SPECIES_CATALOG, type Habitat } from "../habitat";
-import { habitatForSuggestion, resolveSpeciesName } from "../species";
+import { habitatForSuggestion, normalizeSpeciesList, resolveSpeciesName } from "../species";
 import type { SpeciesSuggestion } from "../types";
 import type { VisionContext } from "./demo";
 
@@ -69,13 +69,14 @@ export async function identifyWithOpenAI(
           role: "system",
           content: `You identify fish in angler photos for a US fishing journal (Gulf, Atlantic, inland lakes).
 Return JSON only:
-{"species":"common name","confidence":0-1,"habitat":"freshwater"|"saltwater-inshore"|"saltwater-offshore","alternatives":[{"species":"","confidence":0-1}]}
+{"species":"common name","confidence":0-1,"speciesList":["common name"],"habitat":"freshwater"|"saltwater-inshore"|"saltwater-offshore","alternatives":[{"species":"","confidence":0-1}]}
 
 Rules:
 - Use the common name a US/Gulf angler would write in a log (Redfish not Red drum, Speckled Trout not Cynoscion nebulosus, Mahi-mahi not Dolphin).
 - Prefer names from this catalog when they fit:
 ${catalogBlock(hinted)}
-- If the fish is not clearly visible, species is "Unknown" and confidence is below 0.4.
+- If more than one fish species is visible, put every identifiable species in speciesList (most confident first). species is the top name. Do not invent fish that are not in the photo.
+- If the fish is not clearly visible, species is "Unknown", speciesList is [], and confidence is below 0.4.
 - Never invent a species you cannot see. If two species look alike, pick the more common one for the hinted region and lower confidence.
 - Habitat: freshwater vs saltwater inshore (bays, flats, surf) vs saltwater offshore (blue water, pelagics, reef).
 - Confidence: 0.85+ only when markings are clear; 0.5–0.7 if likely; below 0.5 if guessing.`,
@@ -85,7 +86,7 @@ ${catalogBlock(hinted)}
           content: [
             {
               type: "text",
-              text: `What fish species is in this photo? ${regionHint(context)} If unsure, say so with low confidence and list alternatives.`,
+              text: `What fish species are in this photo? List every species you can see. ${regionHint(context)} If unsure, say so with low confidence and list alternatives.`,
             },
             { type: "image_url", image_url: { url: dataUrl } },
           ],
@@ -104,6 +105,7 @@ ${catalogBlock(hinted)}
     species?: string;
     confidence?: number;
     habitat?: string;
+    speciesList?: string[];
     alternatives?: { species: string; confidence: number }[];
   };
   try {
@@ -113,6 +115,10 @@ ${catalogBlock(hinted)}
   }
 
   const mapped = resolveSpeciesName(parsed.species, hinted);
+  const speciesList = normalizeSpeciesList(
+    mapped,
+    (parsed.speciesList ?? []).map((s) => resolveSpeciesName(s, hinted)),
+  );
   const habitatGuess =
     (parsed.habitat && isHabitat(parsed.habitat) ? parsed.habitat : null) ??
     habitatForSuggestion(mapped, hinted);
@@ -122,12 +128,13 @@ ${catalogBlock(hinted)}
       species: resolveSpeciesName(a.species, hinted),
       confidence: clamp01(a.confidence),
     }))
-    .filter((a) => a.species && a.species !== mapped)
+    .filter((a) => a.species && !speciesList.some((s) => s.toLowerCase() === a.species.toLowerCase()))
     .slice(0, 3);
 
   return {
     species: mapped || "Unknown",
     confidence: clamp01(parsed.confidence ?? 0.4),
+    speciesList,
     habitat: habitatGuess,
     alternatives,
     source: "openai",

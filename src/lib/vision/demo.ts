@@ -51,10 +51,15 @@ export function demoIdentifySpecies(
     ? Number((0.22 + ((h % 12) / 100)).toFixed(2))
     : Number((0.34 + ((h % 14) / 100)).toFixed(2));
 
+  const extra = mixed ? null : pool[(h + 5) % pool.length];
+  const speciesList =
+    extra && extra !== species && h % 5 === 0 ? [species, extra] : [species];
+
   return {
     species,
     confidence,
     habitat: habitatForSuggestion(species, habitat),
+    speciesList,
     alternatives: [
       { species: alt1, confidence: Number(Math.max(0.12, confidence - 0.08).toFixed(2)) },
       { species: alt2, confidence: Number(Math.max(0.1, confidence - 0.14).toFixed(2)) },

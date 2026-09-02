@@ -7,6 +7,7 @@ import type {
   WeatherCondition,
 } from "./types";
 import { pressureTrendLabel } from "./pressure";
+import { speciesListsOverlap } from "./species";
 import { windDirectionDistance } from "./wind";
 
 const CONDITION_FAMILIES: Record<string, WeatherCondition[]> = {
@@ -213,13 +214,15 @@ export function scoreSimilarity(
   let score = overlap.score;
   const reasons = [...overlap.reasons];
 
-  if (
-    target.species &&
-    other.species &&
-    normalizeSpecies(target.species) === normalizeSpecies(other.species)
-  ) {
+  const targetList = target.speciesList?.length ? target.speciesList : [target.species];
+  const otherList = other.speciesList?.length ? other.speciesList : [other.species];
+  if (speciesListsOverlap(targetList, otherList)) {
     score += 25;
-    reasons.unshift("Same species");
+    reasons.unshift(
+      targetList.length === 1 && otherList.length === 1 && normalizeSpecies(targetList[0]) === normalizeSpecies(otherList[0])
+        ? "Same species"
+        : "Shared species",
+    );
   }
 
   if (target.placeName && other.placeName) {

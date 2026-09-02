@@ -159,3 +159,57 @@ export function habitatForSuggestion(
 }
 
 export const SPECIES_AUTO_FILL_MIN = 0.5;
+
+export function normalizeSpeciesList(
+  species?: string | null,
+  list?: string[] | null,
+): string[] {
+  const fromList = (list ?? []).map((s) => s.trim()).filter(Boolean);
+  const primary = species?.trim();
+  const merged = fromList.length ? fromList : primary ? [primary] : [];
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const name of merged) {
+    const k = name.toLowerCase();
+    if (seen.has(k) || k === "unknown") continue;
+    seen.add(k);
+    unique.push(name);
+  }
+  if (unique.length) return unique;
+  if (primary?.toLowerCase() === "unknown") return ["Unknown"];
+  return [];
+}
+
+export function primarySpecies(list: string[]): string {
+  return list[0] || "Unknown";
+}
+
+export function speciesLabel(list: string[] | string | null | undefined): string {
+  const names = Array.isArray(list) ? list.filter(Boolean) : list ? [list] : [];
+  if (!names.length) return "Unknown";
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} + ${names[1]}`;
+  return `${names[0]} + ${names.length - 1} more`;
+}
+
+export function speciesListMatchesQuery(list: string[], q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  return list.some((s) => s.toLowerCase().includes(needle));
+}
+
+export function speciesListsOverlap(a: string[], b: string[]): boolean {
+  const set = new Set(a.map((s) => s.trim().toLowerCase()).filter(Boolean));
+  return b.some((s) => set.has(s.trim().toLowerCase()));
+}
+
+export function parseSpeciesListJson(raw: string | null | undefined): string[] | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return null;
+    return parsed.filter((s): s is string => typeof s === "string" && s.trim().length > 0);
+  } catch {
+    return null;
+  }
+}

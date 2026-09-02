@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { habitatHintFromLocation, speciesForHabitat } from "./habitat";
-import { matchCatalogSpecies, resolveSpeciesName } from "./species";
+import { matchCatalogSpecies, normalizeSpeciesList, resolveSpeciesName, speciesListsOverlap } from "./species";
 import { demoIdentifySpecies } from "./vision/demo";
 
 describe("matchCatalogSpecies", () => {
@@ -14,6 +14,22 @@ describe("matchCatalogSpecies", () => {
   it("prefers the hinted habitat when names overlap", () => {
     expect(resolveSpeciesName("trout", "freshwater")).toBe("Rainbow Trout");
     expect(resolveSpeciesName("trout", "saltwater-inshore")).toBe("Speckled Trout");
+  });
+});
+
+describe("normalizeSpeciesList", () => {
+  it("dedupes and keeps order", () => {
+    expect(normalizeSpeciesList("Redfish", ["Redfish", "Speckled Trout", "redfish"])).toEqual([
+      "Redfish",
+      "Speckled Trout",
+    ]);
+  });
+});
+
+describe("speciesListsOverlap", () => {
+  it("matches if any tagged species is shared", () => {
+    expect(speciesListsOverlap(["Redfish", "Speckled Trout"], ["Flounder", "Redfish"])).toBe(true);
+    expect(speciesListsOverlap(["Redfish"], ["Speckled Trout"])).toBe(false);
   });
 });
 

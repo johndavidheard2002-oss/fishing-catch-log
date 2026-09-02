@@ -41,7 +41,7 @@ export function FilterPanel({
       <input
         value={filters.species ?? ""}
         onChange={(e) => onChange({ ...filters, species: e.target.value })}
-        placeholder="Species"
+        placeholder="Species (matches any tagged fish)"
         className="w-full rounded-xl border border-line bg-paper px-3 py-2"
       />
       <input
