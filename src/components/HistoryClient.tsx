@@ -7,6 +7,8 @@ import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyP
 import { localDateKey, parseYearMonth } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import type { CatchFilters, CatchRecord } from "@/lib/types";
+import { scanQueueCount } from "@/lib/scan-queue";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -107,6 +109,8 @@ export function HistoryClient() {
 
       <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
 
+      <LibraryScanBanner />
+
       {showFilters ? (
         <FilterPanel
           filters={filters}
@@ -206,6 +210,24 @@ export function HistoryClient() {
         </div>
       )}
     </div>
+  );
+}
+
+function LibraryScanBanner() {
+  const [left] = useState(() => scanQueueCount());
+  if (!left) return null;
+  return (
+    <Link
+      href="/log/scan"
+      className="block rounded-2xl border border-line bg-card px-3 py-3 text-sm"
+    >
+      <span className="font-semibold text-teal">
+        {left} more fishing photo{left === 1 ? "" : "s"} from your library
+      </span>
+      <span className="mt-0.5 block text-xs text-ink-muted">
+        Continue reviewing. Nothing else is added until you tap Yes.
+      </span>
+    </Link>
   );
 }
 

@@ -12,7 +12,9 @@ export async function POST(request: NextRequest) {
   }
   const buffer = Buffer.from(await file.arrayBuffer());
   const mimeType = file.type || "image/jpeg";
-  const detection = await detectFish(buffer, mimeType, file.name);
+  const fileName =
+    (typeof form.get("fileName") === "string" ? String(form.get("fileName")) : "") || file.name;
+  const detection = await detectFish(buffer, mimeType, fileName);
   const candidate = detection.isFish && detection.confidence >= FISH_DETECT_MIN;
   return Response.json({ detection, candidate });
 }

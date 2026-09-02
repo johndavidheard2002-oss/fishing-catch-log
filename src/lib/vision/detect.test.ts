@@ -6,5 +6,6 @@ describe("demoDetectFish", () => {
     const bytes = new Uint8Array([9, 8, 7, 6]);
     expect(demoDetectFish(bytes, "redfish-slot.jpg").isFish).toBe(true);
     expect(demoDetectFish(bytes, "screenshot.png").isFish).toBe(false);
+    expect(demoDetectFish(bytes, "screenshot_2024.jpg").isFish).toBe(false);
   });
 });

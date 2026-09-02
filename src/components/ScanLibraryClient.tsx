@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import { compressImage } from "@/lib/photo";
-import { datetimeLocalValue, formatCaughtAt } from "@/lib/time";
+import { datetimeLocalValue } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
+import { peekScanQueue, setScanQueue, type QueuedScanCandidate } from "@/lib/scan-queue";
 
 type Candidate = {
   id: string;
@@ -16,18 +17,55 @@ type Candidate = {
   note: string;
   confidence: number;
   demo: boolean;
+  photoTakenLatitude: number | null;
+  photoTakenLongitude: number | null;
 };
+
+function toQueued(c: Candidate): QueuedScanCandidate {
+  return {
+    file: c.file,
+    caughtAtIso: c.caughtAt.toISOString(),
+    note: c.note,
+    confidence: c.confidence,
+    demo: c.demo,
+    photoTakenLatitude: c.photoTakenLatitude,
+    photoTakenLongitude: c.photoTakenLongitude,
+  };
+}
+
+function fromQueued(item: QueuedScanCandidate, i: number): Candidate {
+  return {
+    id: `queued-${i}-${item.file.name}`,
+    file: item.file,
+    previewUrl: URL.createObjectURL(item.file),
+    caughtAt: new Date(item.caughtAtIso),
+    note: item.note,
+    confidence: item.confidence,
+    demo: item.demo,
+    photoTakenLatitude: item.photoTakenLatitude ?? null,
+    photoTakenLongitude: item.photoTakenLongitude ?? null,
+  };
+}
 
 export function ScanLibraryClient() {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const photosRef = useRef<HTMLInputElement>(null);
+  const folderRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>(() => {
+    const leftover = peekScanQueue();
+    setScanQueue([]);
+    return leftover.map(fromQueued);
+  });
   const [index, setIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    folderRef.current?.setAttribute("webkitdirectory", "true");
+  }, []);
 
   async function onFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -36,7 +74,8 @@ export function ScanLibraryClient() {
     setSkipped(0);
     setCandidates([]);
     setIndex(0);
-    const files = [...list];
+    setScanQueue([]);
+    const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name));
     const found: Candidate[] = [];
     let skip = 0;
     for (let i = 0; i < files.length; i++) {
@@ -47,18 +86,31 @@ export function ScanLibraryClient() {
         type: "image/jpeg",
       });
       let caughtAt = new Date();
+      let photoTakenLatitude: number | null = null;
+      let photoTakenLongitude: number | null = null;
       try {
         const exif = (await exifr.parse(original, {
-          pick: ["DateTimeOriginal", "CreateDate"],
-        })) as { DateTimeOriginal?: Date; CreateDate?: Date } | undefined;
+          gps: true,
+          pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
+        })) as {
+          DateTimeOriginal?: Date;
+          CreateDate?: Date;
+          latitude?: number;
+          longitude?: number;
+        } | undefined;
         const stamp = exif?.DateTimeOriginal ?? exif?.CreateDate;
         if (stamp instanceof Date && !Number.isNaN(stamp.getTime())) caughtAt = stamp;
+        if (exif?.latitude != null && exif.longitude != null) {
+          photoTakenLatitude = exif.latitude;
+          photoTakenLongitude = exif.longitude;
+        }
       } catch {
         /* EXIF optional */
       }
       try {
         const fd = new FormData();
         fd.set("photo", file);
+        fd.set("fileName", original.name);
         const res = await fetch("/api/assist/detect-fish", { method: "POST", body: fd });
         const data = (await res.json()) as {
           candidate?: boolean;
@@ -76,6 +128,8 @@ export function ScanLibraryClient() {
           note: data.detection?.note ?? "",
           confidence: data.detection?.confidence ?? 0,
           demo: data.detection?.source === "demo",
+          photoTakenLatitude,
+          photoTakenLongitude,
         });
       } catch {
         skip += 1;
@@ -94,6 +148,7 @@ export function ScanLibraryClient() {
     if (index + 1 >= candidates.length) {
       setCandidates([]);
       setIndex(0);
+      setScanQueue([]);
       return;
     }
     setIndex((i) => i + 1);
@@ -111,9 +166,16 @@ export function ScanLibraryClient() {
       if (!up.ok) throw new Error(data.error || "Photo upload failed");
       const at = current.caughtAt.toISOString();
       const day = localDateKeyFromDate(current.caughtAt);
+      const remaining = candidates.slice(index + 1);
+      setScanQueue(remaining.map(toQueued));
+      remaining.forEach((c) => URL.revokeObjectURL(c.previewUrl));
       URL.revokeObjectURL(current.previewUrl);
+      const gps =
+        current.photoTakenLatitude != null && current.photoTakenLongitude != null
+          ? `&plat=${encodeURIComponent(String(current.photoTakenLatitude))}&plon=${encodeURIComponent(String(current.photoTakenLongitude))}`
+          : "";
       router.push(
-        `/log?past=1&photo=${encodeURIComponent(data.photoPath)}&at=${encodeURIComponent(at)}&day=${day}&next=calendar`,
+        `/log?past=1&photo=${encodeURIComponent(data.photoPath)}&at=${encodeURIComponent(at)}&day=${day}&next=calendar${gps}`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not add that photo");
@@ -149,16 +211,34 @@ export function ScanLibraryClient() {
 
       <button
         type="button"
-        onClick={() => inputRef.current?.click()}
+        onClick={() => photosRef.current?.click()}
         disabled={busy}
         className="w-full rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
         {busy ? progress || "Checking photos…" : "Choose photos from this phone"}
       </button>
+      <button
+        type="button"
+        onClick={() => folderRef.current?.click()}
+        disabled={busy}
+        className="w-full rounded-2xl border border-line bg-card px-4 py-3 font-semibold disabled:opacity-60"
+      >
+        Choose a folder (computer)
+      </button>
       <input
-        ref={inputRef}
+        ref={photosRef}
         type="file"
         accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          void onFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={folderRef}
+        type="file"
         multiple
         className="hidden"
         onChange={(e) => {
@@ -187,9 +267,23 @@ export function ScanLibraryClient() {
             <p className="text-sm font-semibold">
               Candidate {index + 1} of {candidates.length}
             </p>
-            <p className="text-sm text-ink-muted">
-              Photo time: {formatCaughtAt(current.caughtAt.toISOString())} (
-              {datetimeLocalValue(current.caughtAt.toISOString()).replace("T", " ")})
+            <label className="block">
+              <span className="mb-1 block text-xs text-ink-muted">Catch date and time</span>
+              <input
+                type="datetime-local"
+                value={datetimeLocalValue(current.caughtAt.toISOString())}
+                onChange={(e) => {
+                  const next = new Date(e.target.value);
+                  if (Number.isNaN(next.getTime())) return;
+                  setCandidates((list) =>
+                    list.map((c, i) => (i === index ? { ...c, caughtAt: next } : c)),
+                  );
+                }}
+                className="w-full rounded-xl border border-line bg-card px-3 py-3"
+              />
+            </label>
+            <p className="text-xs text-ink-muted">
+              From the photo&apos;s EXIF time when it is there. Edit if the camera clock was wrong.
             </p>
             <p className="text-xs text-ink-muted">
               {Math.round(current.confidence * 100)}% · {current.note}
@@ -216,7 +310,8 @@ export function ScanLibraryClient() {
             </div>
             <p className="text-xs text-ink-muted">
               Yes opens the past-catch form with this photo and timestamp. You still pin the water
-              and tag species. After save, History opens on that day.
+              and tag species. After save, History opens on that day. Remaining photos stay queued
+              so you can finish the batch.
             </p>
           </div>
         </article>

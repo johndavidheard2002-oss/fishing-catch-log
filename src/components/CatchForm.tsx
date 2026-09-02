@@ -147,6 +147,8 @@ export function CatchForm({
   pastMode = false,
   importedPhotoPath = null,
   importedCaughtAt = null,
+  importedPhotoLat = null,
+  importedPhotoLon = null,
   afterSave = "detail",
 }: {
   mode: "create" | "edit";
@@ -154,12 +156,20 @@ export function CatchForm({
   pastMode?: boolean;
   importedPhotoPath?: string | null;
   importedCaughtAt?: string | null;
+  importedPhotoLat?: number | null;
+  importedPhotoLon?: number | null;
   afterSave?: "detail" | "calendar";
 }) {
   const router = useRouter();
-  const [form, setForm] = useState<FormState>(
-    initial ? fromRecord(initial) : emptyForm(pastMode, importedCaughtAt),
-  );
+  const [form, setForm] = useState<FormState>(() => {
+    const base = initial ? fromRecord(initial) : emptyForm(pastMode, importedCaughtAt);
+    if (importedPhotoLat == null || importedPhotoLon == null) return base;
+    return {
+      ...base,
+      photoTakenLatitude: String(importedPhotoLat),
+      photoTakenLongitude: String(importedPhotoLon),
+    };
+  });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initial

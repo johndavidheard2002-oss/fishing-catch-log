@@ -9,6 +9,8 @@ export function LogClient() {
   const past = params.get("past") === "1" || Boolean(params.get("photo"));
   const importedPhotoPath = params.get("photo");
   const importedCaughtAt = params.get("at");
+  const importedPhotoLat = numParam(params.get("plat"));
+  const importedPhotoLon = numParam(params.get("plon"));
   const afterSave = params.get("next") === "calendar" ? "calendar" : "detail";
 
   return (
@@ -58,8 +60,16 @@ export function LogClient() {
         pastMode={past}
         importedPhotoPath={importedPhotoPath}
         importedCaughtAt={importedCaughtAt}
+        importedPhotoLat={importedPhotoLat}
+        importedPhotoLon={importedPhotoLon}
         afterSave={afterSave}
       />
     </div>
   );
+}
+
+function numParam(value: string | null): number | null {
+  if (!value) return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
