@@ -124,11 +124,12 @@ export function ScanLibraryClient() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-display text-3xl text-teal">Find fish in Photos</h1>
+        <h1 className="font-display text-3xl text-teal">Find fishing photos in your library</h1>
         <p className="text-sm text-ink-muted">
-          A browser app cannot silently scan your whole camera roll. You pick the pictures; we
-          check which ones look like fish, then you confirm each one. Nothing is logged until you
-          say yes. A later native wrap could scan the library in the background.
+          Import old trips from this phone. You choose the pictures — Catch Compass does not browse
+          the rest of your library or anyone else&apos;s. We look for fish in what you picked, then
+          ask before anything is added. A later native app can offer a full-library scan; in the
+          browser you grant photos one batch at a time.
         </p>
       </div>
       <div className="journal-card grid grid-cols-3 overflow-hidden rounded-2xl p-1">
@@ -142,7 +143,7 @@ export function ScanLibraryClient() {
           Backfill
         </Link>
         <span className="rounded-xl bg-teal py-2 text-center text-xs font-semibold text-white">
-          Scan photos
+          Library
         </span>
       </div>
 
@@ -152,7 +153,7 @@ export function ScanLibraryClient() {
         disabled={busy}
         className="w-full rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
-        {busy ? progress || "Checking photos…" : "Choose photos from library"}
+        {busy ? progress || "Checking photos…" : "Choose photos from this phone"}
       </button>
       <input
         ref={inputRef}
@@ -222,7 +223,8 @@ export function ScanLibraryClient() {
       ) : null}
 
       <p className="text-xs text-ink-muted">
-        Only the photos you choose are sent for detection. We do not read the rest of your library.
+        Privacy: only photos you select on this device are sent for fish detection. They belong to
+        your journal. Nothing is added until you tap Yes.
       </p>
       <Link href="/log?past=1" className="inline-block text-sm font-semibold text-teal">
         Backfill one photo instead

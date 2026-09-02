@@ -21,7 +21,7 @@ npm run build && npm start
 
 Phone: add to home screen from the browser. The app is a PWA (standalone display, service worker for the shell). A later Capacitor/React Native wrap can reuse the same mobile-first routes.
 
-**Find fish in Photos** lets you multi-select from the camera roll. The browser cannot silently scan the whole library — you grant the pictures, we run fish detection, and you confirm each candidate. A native wrap could scan in the background later.
+**Find fishing photos in your library** is a first-class import for every angler: you choose pictures from *this* phone, Catch Compass looks for fish, and you confirm each one. The browser cannot silently scan the whole camera roll — a later native wrap can. Only the photos you grant are processed, and they stay in your journal.
 
 ## Where API keys go
 
@@ -42,7 +42,7 @@ The header shows **Demo APIs** when weather or vision is not live.
 ## What you can do
 
 - **Log** — camera or camera-roll upload, fast save. Pick **Freshwater / Saltwater**, then **Inshore / Offshore** for salt, so the species list stays short. **Tag every species in the photo** — one catch can have more than one fish. Weather, GPS, and place fill in when they can — including **moon phase**, **wind direction**, and **barometric pressure** (inHg and mb, with trend when we have it). Optional bait / tide / water / notes. **Share with linked buddies** is off unless you turn it on.
-- **Find fish in Photos** — pick trip pictures from the camera roll. We skip ones that do not look like fish, then ask **Add to log?** for each candidate. Photo time comes from EXIF when it is there. Nothing is added until you confirm.
+- **Find fishing photos in your library** — import old trips from this device. Skip shots that do not look like fish, then **Add to log?** for each candidate. Photo time comes from EXIF when it is there. Nothing is added until you confirm. Only your selected photos are processed.
 - **History** — grid, list, or **calendar** month view. Day cells show stacked catch photos (and +N). Tap a day for that day’s trips in time order. Filter by freshwater / saltwater / inshore / offshore, moon phase, wind direction, and pressure trend. Presets like “Cloudy 70–80°F” and “Full moon”. CSV export.
 - **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, wind (speed + direction), moon, and pressure, and says why.
 - **Plan** — upcoming 3/5/7-day windows vs days you actually caught fish. Photos on Plan cards are **only your logged trip photos** — no seed art or stock. Honest that this is a pattern match, not a guarantee.

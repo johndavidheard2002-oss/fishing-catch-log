@@ -52,7 +52,7 @@ export function HomeClient() {
         href="/log/scan"
         className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
       >
-        Find fish in Photos
+        Find fishing photos in your library
       </Link>
       <Link
         href="/plan"
