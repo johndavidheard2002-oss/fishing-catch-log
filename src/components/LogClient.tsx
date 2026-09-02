@@ -24,8 +24,8 @@ export function LogClient() {
       <div>
         <h1 className="font-display text-3xl text-teal">Log a catch</h1>
         <p className="text-sm text-ink-muted">
-          Photo, pin, species, count, save. GPS places the pin when the photo has it — drag if
-          that isn’t the water. Starts on inshore. Weather fills in from the pin and clock.
+          Photo, pick or name the area, species, save. GPS places the pin when the photo has it —
+          drag if that isn’t the water. Starts on inshore. Weather fills in from the pin and clock.
         </p>
       </div>
       <CatchForm mode="create" />

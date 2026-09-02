@@ -169,6 +169,9 @@ describe("migrate older journals", () => {
     const tables = getSqlite()
       .prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`)
       .all() as { name: string }[];
-    expect(tables.map((t) => t.name)).toContain("calendar_notes");
+    const names = tables.map((t) => t.name);
+    expect(names).toContain("calendar_notes");
+    expect(names).toContain("named_areas");
+    expect(names).toContain("bait_spots");
   });
 });

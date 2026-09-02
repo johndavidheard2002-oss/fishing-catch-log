@@ -68,3 +68,48 @@ export const calendarNotes = sqliteTable("calendar_notes", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** Reusable named fishing/bait areas the angler can pick from on Log. */
+export const namedAreas = sqliteTable("named_areas", {
+  id: text("id").primaryKey(),
+  anglerId: text("angler_id").notNull(),
+  name: text("name").notNull(),
+  nameKey: text("name_key").notNull(),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Where bait was collected — not a gamefish catch pin. */
+export const baitSpots = sqliteTable("bait_spots", {
+  id: text("id").primaryKey(),
+  photoPath: text("photo_path"),
+  placeName: text("place_name"),
+  baitTypes: text("bait_types"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  temperatureF: real("temperature_f"),
+  weatherCondition: text("weather_condition"),
+  windSpeedMph: real("wind_speed_mph"),
+  windDirection: text("wind_direction"),
+  precipitationIn: real("precipitation_in"),
+  humidity: integer("humidity"),
+  moonPhase: text("moon_phase"),
+  moonIllumination: real("moon_illumination"),
+  pressureInHg: real("pressure_in_hg"),
+  pressureMb: real("pressure_mb"),
+  pressureTrend: text("pressure_trend"),
+  loggedAt: text("logged_at").notNull(),
+  timeOfDay: text("time_of_day").notNull(),
+  season: text("season").notNull(),
+  notes: text("notes"),
+  tide: text("tide"),
+  tideHeightFt: real("tide_height_ft"),
+  tideDetail: text("tide_detail"),
+  habitat: text("habitat").notNull().default("saltwater-inshore"),
+  anglerId: text("angler_id").notNull(),
+  sharedWithLinked: integer("shared_with_linked").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

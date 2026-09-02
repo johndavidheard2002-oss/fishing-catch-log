@@ -83,6 +83,53 @@ CREATE TABLE IF NOT EXISTS calendar_notes (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_calendar_notes_angler_day ON calendar_notes(angler_id, day);
+
+CREATE TABLE IF NOT EXISTS named_areas (
+  id TEXT PRIMARY KEY,
+  angler_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  name_key TEXT NOT NULL,
+  latitude REAL,
+  longitude REAL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_named_areas_angler_key ON named_areas(angler_id, name_key);
+CREATE INDEX IF NOT EXISTS idx_named_areas_angler ON named_areas(angler_id);
+
+CREATE TABLE IF NOT EXISTS bait_spots (
+  id TEXT PRIMARY KEY,
+  photo_path TEXT,
+  place_name TEXT,
+  bait_types TEXT,
+  latitude REAL,
+  longitude REAL,
+  temperature_f REAL,
+  weather_condition TEXT,
+  wind_speed_mph REAL,
+  wind_direction TEXT,
+  precipitation_in REAL,
+  humidity INTEGER,
+  moon_phase TEXT,
+  moon_illumination REAL,
+  pressure_in_hg REAL,
+  pressure_mb REAL,
+  pressure_trend TEXT,
+  logged_at TEXT NOT NULL,
+  time_of_day TEXT NOT NULL,
+  season TEXT NOT NULL,
+  notes TEXT,
+  tide TEXT,
+  tide_height_ft REAL,
+  tide_detail TEXT,
+  habitat TEXT NOT NULL DEFAULT 'saltwater-inshore',
+  angler_id TEXT NOT NULL,
+  shared_with_linked INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bait_spots_angler ON bait_spots(angler_id);
+CREATE INDEX IF NOT EXISTS idx_bait_spots_logged_at ON bait_spots(logged_at);
 `;
 
 type DbHandle = {
@@ -312,6 +359,61 @@ function migrate(sqlite: Database.Database) {
       CREATE INDEX IF NOT EXISTS idx_calendar_notes_angler_day ON calendar_notes(angler_id, day);
     `);
     sqlite.pragma("user_version = 9");
+  }
+  if (version < 10) {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS named_areas (
+        id TEXT PRIMARY KEY,
+        angler_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        name_key TEXT NOT NULL,
+        latitude REAL,
+        longitude REAL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_named_areas_angler_key ON named_areas(angler_id, name_key);
+      CREATE INDEX IF NOT EXISTS idx_named_areas_angler ON named_areas(angler_id);
+    `);
+    sqlite.pragma("user_version = 10");
+  }
+  if (version < 11) {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS bait_spots (
+        id TEXT PRIMARY KEY,
+        photo_path TEXT,
+        place_name TEXT,
+        bait_types TEXT,
+        latitude REAL,
+        longitude REAL,
+        temperature_f REAL,
+        weather_condition TEXT,
+        wind_speed_mph REAL,
+        wind_direction TEXT,
+        precipitation_in REAL,
+        humidity INTEGER,
+        moon_phase TEXT,
+        moon_illumination REAL,
+        pressure_in_hg REAL,
+        pressure_mb REAL,
+        pressure_trend TEXT,
+        logged_at TEXT NOT NULL,
+        time_of_day TEXT NOT NULL,
+        season TEXT NOT NULL,
+        notes TEXT,
+        tide TEXT,
+        tide_height_ft REAL,
+        tide_detail TEXT,
+        habitat TEXT NOT NULL DEFAULT 'saltwater-inshore',
+        angler_id TEXT NOT NULL,
+        shared_with_linked INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_bait_spots_angler ON bait_spots(angler_id);
+      CREATE INDEX IF NOT EXISTS idx_bait_spots_logged_at ON bait_spots(logged_at);
+    `);
+    sqlite.pragma("user_version = 11");
   }
 }
 

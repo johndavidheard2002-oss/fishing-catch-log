@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { listBaitSpots } from "@/lib/db/bait";
 import { listCatches } from "@/lib/db/catches";
 import { buildPlan } from "@/lib/plan";
 import { includeSharedFrom, jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
@@ -10,9 +11,11 @@ export async function GET(request: NextRequest) {
   const viewerId = viewerIdFromRequest(request);
   const raw = Number(request.nextUrl.searchParams.get("days") ?? "5");
   const days = [3, 5, 7].includes(raw) ? raw : 5;
+  const includeShared = includeSharedFrom(request);
   const plan = await buildPlan(
-    listCatches({ viewerId, includeShared: includeSharedFrom(request) }),
+    listCatches({ viewerId, includeShared }),
     days,
+    listBaitSpots({ viewerId, includeShared }),
   );
   return jsonWithViewer(plan, viewerId);
 }

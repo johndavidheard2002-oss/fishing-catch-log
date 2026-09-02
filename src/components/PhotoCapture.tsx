@@ -8,11 +8,15 @@ export function PhotoCapture({
   onFile,
   busy,
   emphasis = "camera",
+  emptyTitle,
+  emptyHint,
 }: {
   previewUrl: string | null;
   onFile: (file: File) => void;
   busy?: boolean;
   emphasis?: "camera" | "library";
+  emptyTitle?: string;
+  emptyHint?: string;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
@@ -34,12 +38,14 @@ export function PhotoCapture({
                 <CameraIcon />
               </span>
               <p className="text-lg font-semibold">
-                {emphasis === "library" ? "Add a photo from your roll" : "Take a photo"}
+                {emptyTitle ??
+                  (emphasis === "library" ? "Add a photo from your roll" : "Take a photo")}
               </p>
               <p className="text-sm text-ink-muted">
-                {emphasis === "library"
-                  ? "Upload an old catch photo. We’ll pin from GPS when the picture has it — you can still move it."
-                  : "Camera first. We’ll try weather and a map pin from the photo’s GPS."}
+                {emptyHint ??
+                  (emphasis === "library"
+                    ? "Upload an old catch photo. We’ll pin from GPS when the picture has it — you can still move it."
+                    : "Camera first. We’ll try weather and a map pin from the photo’s GPS.")}
               </p>
             </div>
           )}

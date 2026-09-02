@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { groupSpots } from "./filters";
 import {
+  baitPlanHeadline,
   isPositiveCatch,
   planHeadline,
+  scoreWindowAgainstBait,
   scoreWindowAgainstCatch,
   suggestionStrength,
+  suggestBaitFromWindows,
   suggestFromWindows,
 } from "./plan";
 import { catchOf } from "./testing";
-import type { CatchRecord, ForecastWindow } from "./types";
+import type { BaitSpot, CatchRecord, ForecastWindow } from "./types";
 
 function pondCatch(partial: Partial<CatchRecord> & { id: string }): CatchRecord {
   return catchOf({
@@ -155,5 +158,88 @@ describe("planHeadline", () => {
     );
     expect(text).toContain("Farm Pond, OH");
     expect(text).toContain("Largemouth Bass");
+  });
+});
+
+describe("bait plan matches", () => {
+  it("scores a similar tide and sky against a logged shrimp hole", () => {
+    const shrimp: BaitSpot = {
+      id: "shrimp-1",
+      photoPath: null,
+      placeName: "Haulover Canal",
+      baitTypes: ["Shrimp"],
+      latitude: 28.735,
+      longitude: -80.754,
+      temperatureF: 82,
+      weatherCondition: "clear",
+      windSpeedMph: 8,
+      windDirection: "E",
+      precipitationIn: 0,
+      humidity: 70,
+      moonPhase: null,
+      moonIllumination: null,
+      pressureInHg: 30.05,
+      pressureMb: 1018,
+      pressureTrend: "steady",
+      loggedAt: "2026-08-02T14:00:00.000Z",
+      timeOfDay: "afternoon",
+      season: "summer",
+      notes: null,
+      tide: "incoming",
+      tideHeightFt: 1.2,
+      tideDetail: null,
+      habitat: "saltwater-inshore",
+      anglerId: "you",
+      sharedWithLinked: false,
+      ownerName: "You",
+      createdAt: "2026-08-02T14:00:00.000Z",
+      updatedAt: "2026-08-02T14:00:00.000Z",
+    };
+    const match = scoreWindowAgainstBait(
+      windowOf({
+        latitude: 28.735,
+        longitude: -80.754,
+        temperatureF: 81,
+        weatherCondition: "clear",
+        timeOfDay: "afternoon",
+        tide: "incoming",
+      }),
+      shrimp,
+    );
+    expect(match.score).toBeGreaterThanOrEqual(30);
+    expect(baitPlanHeadline(windowOf({ weatherCondition: "clear", timeOfDay: "afternoon" }), shrimp)).toMatch(
+      /shrimp at Haulover Canal/i,
+    );
+    const suggestions = suggestBaitFromWindows({
+      groups: [
+        {
+          key: "bait:28.735,-80.754",
+          placeName: "Haulover Canal",
+          latitude: 28.735,
+          longitude: -80.754,
+          visitCount: 1,
+          baitTypes: ["Shrimp"],
+          lastLoggedAt: shrimp.loggedAt,
+          typicalCondition: "clear",
+          typicalTime: "afternoon",
+          avgTempF: 82,
+          spots: [shrimp],
+        },
+      ],
+      windowsBySpotKey: {
+        "bait:28.735,-80.754": [
+          windowOf({
+            latitude: 28.735,
+            longitude: -80.754,
+            temperatureF: 81,
+            weatherCondition: "clear",
+            timeOfDay: "afternoon",
+            tide: "incoming",
+          }),
+        ],
+      },
+    });
+    expect(suggestions[0]?.placeName).toBe("Haulover Canal");
+    expect(suggestions[0]?.baitTypes).toEqual(["Shrimp"]);
   });
 });

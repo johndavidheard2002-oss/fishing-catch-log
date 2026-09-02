@@ -6,6 +6,7 @@ import exifr from "exifr";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
+import { AreaNamePicker } from "./AreaNamePicker";
 import { DEFAULT_HABITAT } from "@/lib/habitat";
 import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { MOON_PHASES, moonForDate } from "@/lib/moon";
@@ -29,7 +30,7 @@ import { localDateKey } from "@/lib/calendar";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
-import type { CatchRecord, Habitat, Season, TimeOfDay } from "@/lib/types";
+import type { CatchRecord, Habitat, NamedArea, Season, TimeOfDay } from "@/lib/types";
 
 type FormState = {
   speciesList: string[];
@@ -624,6 +625,16 @@ export function CatchForm({
         form={form}
         pinSource={pinSource}
         onPlace={(placeName) => patch({ placeName })}
+        onSelectArea={(area) => {
+          const hasPin = numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
+          const next: Partial<FormState> = { placeName: area.name };
+          if (!hasPin && area.latitude != null && area.longitude != null) {
+            next.latitude = String(area.latitude);
+            next.longitude = String(area.longitude);
+            setPinSource("manual");
+          }
+          patch(next);
+        }}
         onCoords={(lat, lng) => {
           patch({ latitude: lat, longitude: lng });
           const nextLat = numOrNull(lat);
@@ -659,7 +670,9 @@ export function CatchForm({
               body: JSON.stringify({ latitude: lat, longitude: lng }),
             });
             const data = await res.json();
-            if (data.place?.placeName) patch({ placeName: data.place.placeName });
+            if (data.place?.placeName) {
+              setForm((f) => (f.placeName.trim() ? f : { ...f, placeName: data.place.placeName }));
+            }
             const at = caughtDate(form.caughtAt);
             const weatherRes = await fetch("/api/assist/weather", {
               method: "POST",
@@ -1210,6 +1223,7 @@ function CatchLocationFields({
   form,
   pinSource,
   onPlace,
+  onSelectArea,
   onCoords,
   onUsePhotoGps,
   onMapPin,
@@ -1217,6 +1231,7 @@ function CatchLocationFields({
   form: FormState;
   pinSource: "photo" | "device" | "manual" | null;
   onPlace: (placeName: string) => void;
+  onSelectArea: (area: NamedArea) => void;
   onCoords: (lat: string, lng: string) => void;
   onUsePhotoGps: () => void;
   onMapPin: (lat: number, lng: number) => void;
@@ -1233,7 +1248,8 @@ function CatchLocationFields({
       <div>
         <p className="text-sm font-semibold">Catch location</p>
         <p className="text-xs text-ink-muted">
-          One pin for this catch. Drag if the photo GPS is the truck, not the water.
+          Pick or name the area, then drop one pin for this catch. Drag if the photo GPS is the
+          truck, not the water.
         </p>
       </div>
       {pinSource === "photo" && catchLat != null ? (
@@ -1277,15 +1293,13 @@ function CatchLocationFields({
           ) : null}
         </div>
       ) : null}
-      <label className="block">
-        <span className="mb-1 block text-sm font-semibold">Place name</span>
-        <input
-          value={form.placeName}
-          onChange={(e) => onPlace(e.target.value)}
-          placeholder="Bay, pass, or hole name"
-          className="w-full rounded-xl border border-line bg-card px-3 py-3"
-        />
-      </label>
+      <AreaNamePicker
+        value={form.placeName}
+        latitude={catchLat}
+        longitude={catchLon}
+        onChange={onPlace}
+        onPickArea={onSelectArea}
+      />
       <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} />
       <details className="app-more">
         <summary className="cursor-pointer text-sm font-semibold text-teal">Coordinates</summary>

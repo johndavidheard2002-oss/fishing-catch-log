@@ -266,6 +266,7 @@ export type PlanResult = {
   tideSource: "worldtides" | "demo";
   note: string;
   suggestions: PlanSuggestion[];
+  baitSuggestions: BaitPlanSuggestion[];
 };
 
 /** A personal planned trip / calendar note — not a logged catch. */
@@ -287,4 +288,117 @@ export type CalendarNoteInput = {
   notes?: string | null;
   placeName?: string | null;
   speciesTargets?: string[] | null;
+};
+
+export type NamedArea = {
+  id: string | null;
+  anglerId: string;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+  source: "saved" | "catch" | "bait";
+  updatedAt: string;
+};
+
+export type NamedAreaInput = {
+  name: string;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type BaitSpot = {
+  id: string;
+  photoPath: string | null;
+  placeName: string | null;
+  baitTypes: string[];
+  latitude: number | null;
+  longitude: number | null;
+  temperatureF: number | null;
+  weatherCondition: WeatherCondition | null;
+  windSpeedMph: number | null;
+  windDirection: string | null;
+  precipitationIn: number | null;
+  humidity: number | null;
+  moonPhase: string | null;
+  moonIllumination: number | null;
+  pressureInHg: number | null;
+  pressureMb: number | null;
+  pressureTrend: string | null;
+  loggedAt: string;
+  timeOfDay: TimeOfDay;
+  season: Season;
+  notes: string | null;
+  tide: string | null;
+  tideHeightFt: number | null;
+  tideDetail: string | null;
+  habitat: Habitat;
+  anglerId: string;
+  sharedWithLinked: boolean;
+  ownerName: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BaitSpotInput = {
+  photoPath?: string | null;
+  placeName?: string | null;
+  baitTypes?: string[] | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  temperatureF?: number | null;
+  weatherCondition?: WeatherCondition | null;
+  windSpeedMph?: number | null;
+  windDirection?: string | null;
+  precipitationIn?: number | null;
+  humidity?: number | null;
+  moonPhase?: string | null;
+  moonIllumination?: number | null;
+  pressureInHg?: number | null;
+  pressureMb?: number | null;
+  pressureTrend?: string | null;
+  loggedAt: string;
+  timeOfDay?: TimeOfDay;
+  season?: Season;
+  notes?: string | null;
+  tide?: string | null;
+  tideHeightFt?: number | null;
+  tideDetail?: string | null;
+  habitat?: Habitat | null;
+  anglerId?: string | null;
+  sharedWithLinked?: boolean;
+};
+
+export type BaitSpotGroup = {
+  key: string;
+  placeName: string;
+  latitude: number | null;
+  longitude: number | null;
+  visitCount: number;
+  baitTypes: string[];
+  lastLoggedAt: string;
+  typicalCondition: WeatherCondition | null;
+  typicalTime: TimeOfDay | null;
+  avgTempF: number | null;
+  spots: BaitSpot[];
+};
+
+export type BaitPlanMatch = {
+  baitSpot: BaitSpot;
+  score: number;
+  reasons: string[];
+};
+
+export type BaitPlanSuggestion = {
+  id: string;
+  spotKey: string;
+  placeName: string;
+  baitTypes: string[];
+  latitude: number | null;
+  longitude: number | null;
+  window: ForecastWindow;
+  score: number;
+  strength: "strong" | "good" | "lean";
+  headline: string;
+  reasons: string[];
+  matches: BaitPlanMatch[];
 };

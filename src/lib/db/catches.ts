@@ -20,6 +20,7 @@ import type {
 } from "../types";
 import { isCatchVisibleToViewer } from "../sharing";
 import { localDateKey } from "../calendar";
+import { rememberNamedArea } from "./areas";
 import { getAngler, linkedBuddyIds } from "./anglers";
 import { getDb } from "./index";
 import { catches } from "./schema";
@@ -210,6 +211,7 @@ export function createCatch(input: CatchInput): CatchRecord {
       updatedAt: stamp,
     })
     .run();
+  rememberNamedArea(input.anglerId, input.placeName, input.latitude, input.longitude);
   return getCatch(id)!;
 }
 
@@ -321,7 +323,11 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
     })
     .where(eq(catches.id, id))
     .run();
-  return getCatch(id);
+  const saved = getCatch(id);
+  if (saved) {
+    rememberNamedArea(saved.anglerId, saved.placeName, saved.latitude, saved.longitude);
+  }
+  return saved;
 }
 
 export function deleteCatch(id: string): boolean {

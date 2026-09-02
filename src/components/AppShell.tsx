@@ -39,6 +39,9 @@ function navIsActive(href: string, pathname: string) {
   if (href === "/calendar") {
     return pathname === "/calendar" || pathname === "/history" || pathname.startsWith("/calendar/");
   }
+  if (href === "/spots") {
+    return pathname === "/spots" || pathname.startsWith("/bait");
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

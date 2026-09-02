@@ -5,10 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
+import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel } from "@/lib/similar";
-import type { PlanResult, PlanSuggestion } from "@/lib/types";
+import type { BaitPlanSuggestion, PlanResult, PlanSuggestion } from "@/lib/types";
 
 export function PlanClient() {
   const [days, setDays] = useState<3 | 5 | 7>(5);
@@ -47,16 +48,33 @@ export function PlanClient() {
       list.push(s);
       map.set(s.window.date, list);
     }
-    return [...map.entries()];
+    return map;
   }, [plan]);
+
+  const baitByDay = useMemo(() => {
+    const map = new Map<string, BaitPlanSuggestion[]>();
+    for (const s of plan?.baitSuggestions ?? []) {
+      const list = map.get(s.window.date) ?? [];
+      list.push(s);
+      map.set(s.window.date, list);
+    }
+    return map;
+  }, [plan]);
+
+  const dayKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const date of byDay.keys()) keys.add(date);
+    for (const date of baitByDay.keys()) keys.add(date);
+    return [...keys].sort();
+  }, [byDay, baitByDay]);
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="font-display text-3xl text-teal">Plan</h1>
         <p className="text-sm text-ink-muted">
-          Upcoming windows matched to days you actually caught fish — not a guarantee, a pattern
-          match.
+          Upcoming windows matched to days you actually caught fish, plus bait spots that produced
+          under similar weather and tide.
         </p>
       </div>
 
@@ -86,7 +104,7 @@ export function PlanClient() {
           {plan.weatherSource === "openweather" ? " Weather: OpenWeather. " : null}
           {plan.tideSource === "worldtides" ? " Tides: WorldTides. " : null}
           Suggestions compare sky, temp, wind, time of day, and tide (where you logged it)
-          against productive trips.
+          against productive trips and bait spots.
         </p>
       ) : null}
 
@@ -94,19 +112,31 @@ export function PlanClient() {
         <p className="text-sm text-ink-muted">Matching upcoming days to your journal…</p>
       ) : error ? (
         <p className="text-sm text-copper">{error}</p>
-      ) : !plan?.suggestions.length ? (
+      ) : !(plan?.suggestions?.length || plan?.baitSuggestions?.length) ? (
         <p className="text-sm text-ink-muted">
-          No close matches in this window. Log more catches, or try a longer range.
+          No close matches in this window. Log more catches or bait spots, or try a longer range.
         </p>
       ) : (
-        byDay.map(([date, items]) => (
+        dayKeys.map((date) => {
+          const items = byDay.get(date) ?? [];
+          const baitItems = baitByDay.get(date) ?? [];
+          return (
           <section key={date} className="space-y-2">
             <h2 className="font-display text-xl text-teal">{formatWeekdayDate(date)}</h2>
             {items.map((s) => (
               <SuggestionCard key={s.id} suggestion={s} showOwner={includeShared} />
             ))}
+            {baitItems.length ? (
+              <>
+                <h3 className="pt-1 text-sm font-semibold text-copper">Bait under similar conditions</h3>
+                {baitItems.map((s) => (
+                  <BaitSuggestionCard key={s.id} suggestion={s} showOwner={includeShared} />
+                ))}
+              </>
+            ) : null}
           </section>
-        ))
+          );
+        })
       )}
       <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
     </div>
@@ -206,6 +236,63 @@ function SuggestionCard({
               ) : null}
               <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
             </div>
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function BaitSuggestionCard({
+  suggestion,
+  showOwner,
+}: {
+  suggestion: BaitPlanSuggestion;
+  showOwner: boolean;
+}) {
+  const w = suggestion.window;
+  const first = suggestion.matches[0]?.baitSpot;
+  const src = first ? personalPhotoSrc(first.photoPath) : null;
+  return (
+    <article className="journal-card overflow-hidden rounded-2xl">
+      <div className="flex gap-3 p-3">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
+          {src ? (
+            <Link href={`/bait/${first!.id}`} className="h-full w-full" aria-label="Bait spot photo">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt="" className="h-full w-full object-cover" />
+            </Link>
+          ) : (
+            <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">Bait</span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-semibold">{suggestion.placeName}</h3>
+            <StrengthBadge strength={suggestion.strength} />
+          </div>
+          <p className="text-sm text-ink-muted">
+            {baitTypesLabel(suggestion.baitTypes)} · {TIME_OF_DAY_LABELS[w.timeOfDay]}
+            {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
+            {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
+            {w.tide ? ` · ${w.tide} tide` : ""}
+          </p>
+        </div>
+      </div>
+      <p className="px-3 pb-2 text-sm">{suggestion.headline}</p>
+      <p className="px-3 text-xs text-ink-muted">
+        Why: {suggestion.reasons.slice(0, 5).join(" · ") || "pattern overlap"}
+      </p>
+      <ul className="space-y-2 px-3 py-3">
+        {suggestion.matches.map((m) => (
+          <li key={m.baitSpot.id}>
+            <Link href={`/bait/${m.baitSpot.id}`} className="text-sm font-semibold text-teal">
+              {baitTypesLabel(m.baitSpot.baitTypes)} · {formatDateOnly(m.baitSpot.loggedAt)}
+            </Link>
+            {showOwner ? (
+              <p className="text-[11px] font-semibold text-copper">{m.baitSpot.ownerName}</p>
+            ) : null}
+            <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
           </li>
         ))}
       </ul>
