@@ -21,6 +21,23 @@ export function catchPinFromPhotoGps(args: {
   return { latitude: String(args.photoLat), longitude: String(args.photoLon) };
 }
 
+/** Typing coords that still match the photo stamp is not a user move. */
+export function classifyCatchPinEdit(args: {
+  nextLat: number;
+  nextLon: number;
+  photoLat: number | null | undefined;
+  photoLon: number | null | undefined;
+}): "matches-photo" | "user-moved" {
+  if (
+    args.photoLat != null &&
+    args.photoLon != null &&
+    !coordsLookDifferent(args.nextLat, args.nextLon, args.photoLat, args.photoLon)
+  ) {
+    return "matches-photo";
+  }
+  return "user-moved";
+}
+
 export function coordsLookDifferent(
   aLat: number | null | undefined,
   aLon: number | null | undefined,

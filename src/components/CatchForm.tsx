@@ -12,7 +12,7 @@ import { inHgToMb, mbToInHg, PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/p
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
-import { catchPinFromPhotoGps, coordsLookDifferent, formatCoords, shouldApplyPhotoGpsToCatch } from "@/lib/location";
+import { catchPinFromPhotoGps, classifyCatchPinEdit, coordsLookDifferent, formatCoords, shouldApplyPhotoGpsToCatch } from "@/lib/location";
 import { SPECIES_AUTO_FILL_MIN, normalizeSpeciesList, primarySpecies } from "@/lib/species";
 import { clampFishCount } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
@@ -810,7 +810,7 @@ export function CatchForm({
           if (nextLat == null || nextLon == null) return;
           const photoLat = numOrNull(form.photoTakenLatitude);
           const photoLon = numOrNull(form.photoTakenLongitude);
-          if (photoLat != null && photoLon != null && !coordsLookDifferent(nextLat, nextLon, photoLat, photoLon)) {
+          if (classifyCatchPinEdit({ nextLat, nextLon, photoLat, photoLon }) === "matches-photo") {
             catchPinUserMovedRef.current = false;
             setCatchPinUserMoved(false);
             setPinSource("photo");

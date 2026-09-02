@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { catchPinFromPhotoGps, coordsLookDifferent, shouldApplyPhotoGpsToCatch } from "./location";
+import {
+  catchPinFromPhotoGps,
+  classifyCatchPinEdit,
+  coordsLookDifferent,
+  shouldApplyPhotoGpsToCatch,
+} from "./location";
 
 describe("shouldApplyPhotoGpsToCatch", () => {
   it("fills the catch pin from the photo until the angler moves it", () => {
@@ -47,6 +52,38 @@ describe("catchPinFromPhotoGps", () => {
         userMovedCatchPin: false,
       }),
     ).toBeNull();
+  });
+});
+
+describe("classifyCatchPinEdit", () => {
+  it("does not treat a tiny edit as moving off the photo stamp", () => {
+    expect(
+      classifyCatchPinEdit({
+        nextLat: 30.3935,
+        nextLon: -97.9242,
+        photoLat: 30.3935,
+        photoLon: -97.9242,
+      }),
+    ).toBe("matches-photo");
+    expect(
+      classifyCatchPinEdit({
+        nextLat: 30.3936,
+        nextLon: -97.9242,
+        photoLat: 30.3935,
+        photoLon: -97.9242,
+      }),
+    ).toBe("matches-photo");
+  });
+
+  it("marks a real coordinate change as a user-moved pin", () => {
+    expect(
+      classifyCatchPinEdit({
+        nextLat: 30.5,
+        nextLon: -97.9242,
+        photoLat: 30.3935,
+        photoLon: -97.9242,
+      }),
+    ).toBe("user-moved");
   });
 });
 
