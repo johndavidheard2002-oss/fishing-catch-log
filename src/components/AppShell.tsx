@@ -72,7 +72,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   } | null>(null);
   const animating = useRef(false);
   const pathnameRef = useRef(pathname);
-  pathnameRef.current = pathname;
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     fetch("/api/status")
@@ -105,12 +108,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     const root = shellRef.current;
     const pane = paneRef.current;
     if (!root || !pane) return;
+    const shell = root;
+    const track = pane;
 
     function setPaneX(x: number, withTransition: boolean) {
-      pane.style.transition = withTransition
+      track.style.transition = withTransition
         ? "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)"
         : "none";
-      pane.style.transform = `translate3d(${x}px,0,0)`;
+      track.style.transform = `translate3d(${x}px,0,0)`;
     }
 
     function rubber(dx: number, idx: number) {
@@ -165,7 +170,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       const dx = t.clientX - g.x;
       const dt = Math.max(1, Date.now() - g.at);
       const idx = navIndex(pathnameRef.current);
-      const width = root.getBoundingClientRect().width || 360;
+      const width = shell.getBoundingClientRect().width || 360;
       const next = dx < 0 ? idx + 1 : idx - 1;
       const canMove = next >= 0 && next < NAV.length;
       const farEnough = Math.abs(dx) > Math.max(56, width * 0.18);
@@ -190,15 +195,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       setPaneX(0, true);
     }
 
-    root.addEventListener("touchstart", onStart, { passive: true });
-    root.addEventListener("touchmove", onMove, { passive: false });
-    root.addEventListener("touchend", finish);
-    root.addEventListener("touchcancel", finish);
+    shell.addEventListener("touchstart", onStart, { passive: true });
+    shell.addEventListener("touchmove", onMove, { passive: false });
+    shell.addEventListener("touchend", finish);
+    shell.addEventListener("touchcancel", finish);
     return () => {
-      root.removeEventListener("touchstart", onStart);
-      root.removeEventListener("touchmove", onMove);
-      root.removeEventListener("touchend", finish);
-      root.removeEventListener("touchcancel", finish);
+      shell.removeEventListener("touchstart", onStart);
+      shell.removeEventListener("touchmove", onMove);
+      shell.removeEventListener("touchend", finish);
+      shell.removeEventListener("touchcancel", finish);
     };
   }, [router]);
 
