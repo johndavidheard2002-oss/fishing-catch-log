@@ -154,14 +154,15 @@ export function HistoryCalendar({
             return (
               <div
                 key={cell.date}
-                className={`flex min-h-[4.5rem] flex-col items-center rounded-xl px-0.5 py-1 text-xs ${
+                data-testid={isSelected ? "calendar-day-selected" : undefined}
+                className={`flex min-h-[4.5rem] flex-col items-center overflow-hidden rounded-xl px-0.5 py-1 text-xs text-ink ${
                   isSelected
-                    ? "bg-teal font-semibold text-white"
+                    ? "font-semibold ring-2 ring-inset ring-teal"
                     : isToday
-                      ? "ring-1 ring-copper"
+                      ? "ring-1 ring-inset ring-copper"
                       : ""
                 } ${cell.inMonth ? "" : "opacity-35"} ${
-                  !isSelected && hasActivity ? "bg-paper-deep" : ""
+                  hasActivity ? "bg-paper-deep" : ""
                 } ${!isSelected && planned && count === 0 && baitCount === 0 ? "border border-dashed border-copper/70" : ""}`}
               >
                 <button
@@ -173,16 +174,12 @@ export function HistoryCalendar({
                     planned ? `, ${dayNotes.length} planned trip${dayNotes.length === 1 ? "" : "s"}` : ""
                   }`}
                   aria-pressed={isSelected}
-                  className="flex w-full flex-1 flex-col items-center leading-none"
+                  className="flex w-full flex-1 flex-col items-center leading-none outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal"
                 >
                   <span>
                     {cell.day}
                     {otherYears && (count || baitCount) ? (
-                      <span
-                        className={`ml-0.5 text-[8px] font-bold ${
-                          isSelected ? "text-white/80" : "text-copper"
-                        }`}
-                      >
+                      <span className="ml-0.5 text-[8px] font-bold text-copper">
                         {yearCount}y
                       </span>
                     ) : null}
@@ -192,20 +189,14 @@ export function HistoryCalendar({
                       <DayThumbs records={dayCatches} selected={isSelected} />
                       {baitCount ? (
                         <span
-                          className={`absolute -left-1 -bottom-0.5 rounded-full px-1 text-[8px] font-bold ${
-                            isSelected ? "bg-white text-copper" : "bg-copper text-white"
-                          }`}
+                          className="absolute -bottom-0.5 -left-1 rounded-full bg-copper px-1 text-[8px] font-bold text-white"
                           data-testid="calendar-bait-badge"
                         >
                           B
                         </span>
                       ) : null}
                       {planned ? (
-                        <span
-                          className={`absolute -right-1 -bottom-0.5 rounded-full px-1 text-[8px] font-bold ${
-                            isSelected ? "bg-white text-copper" : "bg-copper text-white"
-                          }`}
-                        >
+                        <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
                           P
                         </span>
                       ) : null}
@@ -213,37 +204,23 @@ export function HistoryCalendar({
                   ) : baitCount ? (
                     <span className="relative">
                       <span
-                        className={`mt-1 rounded-full px-1.5 text-[9px] font-bold ${
-                          isSelected ? "bg-white text-copper" : "bg-copper text-white"
-                        }`}
+                        className="mt-1 rounded-full bg-copper px-1.5 text-[9px] font-bold text-white"
                         data-testid="calendar-bait-badge"
                       >
                         Bait
                       </span>
                       {planned ? (
-                        <span
-                          className={`absolute -right-1 -bottom-0.5 rounded-full px-1 text-[8px] font-bold ${
-                            isSelected ? "bg-white text-copper" : "bg-copper text-white"
-                          }`}
-                        >
+                        <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
                           P
                         </span>
                       ) : null}
                     </span>
                   ) : otherYears ? (
-                    <span
-                      className={`mt-1 rounded-full px-1 text-[9px] font-bold ${
-                        isSelected ? "bg-white text-teal" : "bg-copper text-white"
-                      }`}
-                    >
+                    <span className="mt-1 rounded-full bg-copper px-1 text-[9px] font-bold text-white">
                       {yearCount}y
                     </span>
                   ) : planned ? (
-                    <span
-                      className={`mt-1 rounded-full px-1.5 text-[9px] font-bold ${
-                        isSelected ? "bg-white text-copper" : "bg-copper text-white"
-                      }`}
-                    >
+                    <span className="mt-1 rounded-full bg-copper px-1.5 text-[9px] font-bold text-white">
                       Plan
                     </span>
                   ) : (
@@ -620,7 +597,7 @@ function DayThumbs({
               key={record.id}
               title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} · ${catchSpotLabel(record)}`}
               className={`relative ${size} overflow-hidden rounded-md border ${
-                selected ? "border-white/70" : "border-white"
+                selected ? "border-teal" : "border-white"
               } bg-paper`}
               style={{ marginLeft: i === 0 ? 0 : -7, zIndex: shown.length - i }}
             >
@@ -636,7 +613,7 @@ function DayThumbs({
         {extra > 0 ? (
           <span
             className={`relative -ml-1 rounded-full px-1 text-[9px] font-bold ${
-              selected ? "bg-white text-teal" : "bg-copper text-white"
+              selected ? "bg-teal text-white" : "bg-copper text-white"
             }`}
           >
             +{extra}
