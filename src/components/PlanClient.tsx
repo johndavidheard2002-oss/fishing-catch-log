@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
@@ -33,17 +32,15 @@ type PlanMapTarget = {
   baitSpots: BaitSpot[];
 };
 
-export function PlanClient() {
+export function PlanClient({ initialDate }: { initialDate: string | null }) {
   const now = new Date();
-  const searchParams = useSearchParams();
-  const dateParam = searchParams.get("date");
-  const selectedDay = parsePlanDate(dateParam) ? dateParam : null;
+  const selectedDay = parsePlanDate(initialDate) ? initialDate : null;
   const [year, setYear] = useState(() => {
-    const parsed = parsePlanDate(dateParam);
+    const parsed = parsePlanDate(initialDate);
     return parsed ? parsed.getFullYear() : now.getFullYear();
   });
   const [month, setMonth] = useState(() => {
-    const parsed = parsePlanDate(dateParam);
+    const parsed = parsePlanDate(initialDate);
     return parsed ? parsed.getMonth() : now.getMonth();
   });
   const [plan, setPlan] = useState<PlanResult | null>(null);
@@ -56,27 +53,25 @@ export function PlanClient() {
   const waiting = Boolean(requestKey) && loadedKey !== requestKey;
 
   useEffect(() => {
-    if (!selectedDay || !requestKey) return;
-    let cancelled = false;
-    const extra = sharedQuery(includeShared);
-    fetch(`/api/plan?date=${selectedDay}${extra ? `&${extra}` : ""}`)
-      .then((r) => r.json())
+    if (!selectedDay) return;
+    const day = selectedDay;
+    const shared = includeShared;
+    fetch(`/api/plan?date=${day}${sharedQuery(shared) ? `&${sharedQuery(shared)}` : ""}`)
+      .then((r) => {
+        if (!r.ok) throw new Error("plan failed");
+        return r.json();
+      })
       .then((data: PlanResult) => {
-        if (cancelled) return;
         setPlan(data);
         setError(null);
-        setLoadedKey(requestKey);
+        setLoadedKey(`${day}|${shared ? "1" : "0"}`);
       })
       .catch(() => {
-        if (cancelled) return;
         setError("Could not build a plan.");
         setPlan(null);
-        setLoadedKey(requestKey);
+        setLoadedKey(`${day}|${shared ? "1" : "0"}`);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedDay, includeShared, requestKey]);
+  }, [selectedDay, includeShared]);
 
   useEffect(() => {
     if (!selectedDay || waiting || !resultsRef.current) return;
