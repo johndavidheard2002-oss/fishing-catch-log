@@ -13,6 +13,7 @@ import { CONDITION_LABELS } from "@/lib/labels";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { coordsLookDifferent } from "@/lib/location";
 import { catchPhotoFilename, photoSrc, weatherLine } from "@/lib/photo";
+import { tidesApplyToHabitat, tideWeatherBits } from "@/lib/tides/snapshot";
 import { formatCaughtAt } from "@/lib/time";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
 
@@ -150,12 +151,24 @@ export function CatchDetail({ id }: { id: string }) {
           }
         />
         <Item
+          label="Tide"
+          value={
+            tidesApplyToHabitat(record.habitat)
+              ? tideWeatherBits({
+                  habitat: record.habitat,
+                  tide: record.tide,
+                  tideHeightFt: record.tideHeightFt,
+                  tideDetail: record.tideDetail,
+                }).join(" · ") || "—"
+              : "Does not apply"
+          }
+        />
+        <Item
           label="Precip"
           value={record.precipitationIn != null ? `${record.precipitationIn} in` : "—"}
         />
         <Item label="Habitat" value={habitatLabel(record.habitat)} />
         <Item label="Bait" value={record.bait || "—"} />
-        <Item label="Tide" value={record.tide || "—"} />
         <Item label="Water" value={record.waterClarity || "—"} />
         <Item
           label="Catch location"

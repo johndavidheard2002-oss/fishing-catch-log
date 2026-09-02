@@ -1,5 +1,13 @@
-import type { Tide } from "../types";
+import type { Habitat, Tide } from "../types";
 import { demoTide } from "./demo";
+import { fetchNoaaExtremes } from "./noaa";
+import {
+  emptyTideSnapshot,
+  snapshotFromExtremes,
+  tidesApplyToHabitat,
+  type TideExtreme,
+  type TideSnapshot,
+} from "./snapshot";
 import { fetchWorldTides, hasWorldTidesKey, tideAtTime } from "./worldtides";
 
 export async function getTideSeries(
@@ -40,4 +48,69 @@ export async function getTideSeries(
   };
 }
 
-export { hasWorldTidesKey };
+export async function getTideSnapshot(args: {
+  latitude: number | null | undefined;
+  longitude: number | null | undefined;
+  at: Date;
+  habitat?: Habitat | string | null;
+}): Promise<TideSnapshot> {
+  if (!tidesApplyToHabitat(args.habitat)) {
+    return emptyTideSnapshot(false, "Tides do not apply to this freshwater.");
+  }
+  if (args.latitude == null || args.longitude == null) {
+    return emptyTideSnapshot(true, "Pin the water to look up tide.");
+  }
+  if (Number.isNaN(args.at.getTime()) || args.at.getTime() <= 0) {
+    return emptyTideSnapshot(true, "Set the catch time to look up tide.");
+  }
+
+  const lat = args.latitude;
+  const lon = args.longitude;
+  const start = new Date(args.at.getTime() - 12 * 60 * 60 * 1000);
+
+  if (hasWorldTidesKey()) {
+    try {
+      const series = await fetchWorldTides(lat, lon, start, 2);
+      const extremes: TideExtreme[] = series
+        .filter((p) => p.tide === "high" || p.tide === "low")
+        .map((p) => ({ at: p.at, type: p.tide as "high" | "low", heightFt: p.heightFt }));
+      const snap = snapshotFromExtremes(extremes, args.at);
+      if (snap) {
+        return {
+          applies: true,
+          ...snap,
+          source: "worldtides",
+          note: "Tide from WorldTides at this pin and time.",
+        };
+      }
+    } catch {
+      /* try NOAA */
+    }
+  }
+
+  try {
+    const { extremes, stationName } = await fetchNoaaExtremes(lat, lon, args.at);
+    const snap = snapshotFromExtremes(extremes, args.at);
+    if (snap) {
+      return {
+        applies: true,
+        ...snap,
+        source: "noaa",
+        note: stationName
+          ? `Tide from NOAA ${stationName}.`
+          : "Tide from the nearest NOAA station.",
+        stationName,
+      };
+    }
+  } catch {
+    /* no invented fallback for inland or missing stations */
+  }
+
+  return emptyTideSnapshot(
+    true,
+    "No tide station for this pin. Enter the tide if you remember it.",
+  );
+}
+
+export { hasWorldTidesKey, tidesApplyToHabitat };
+export type { TideSnapshot };

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { catchPhotoFilename, isPersonalPhoto, isSampleCatchPhoto, personalPhotoSrc, photoSrc } from "./photo";
+import { catchOf } from "./testing";
+import { catchPhotoFilename, isPersonalPhoto, isSampleCatchPhoto, personalPhotoSrc, photoSrc, weatherLine } from "./photo";
 
 describe("isSampleCatchPhoto", () => {
   it("recognizes built-in sample art only", () => {
@@ -45,5 +46,40 @@ describe("catchPhotoFilename", () => {
         photoPath: "shot.JPEG",
       }),
     ).toBe("catch-compass-speckled-trout-redfish-2024-06-12.jpg");
+  });
+});
+
+describe("weatherLine", () => {
+  it("includes tide stage and next extremes on saltwater", () => {
+    const line = weatherLine(
+      catchOf({
+        id: "salt-1",
+        species: "Redfish",
+        habitat: "saltwater-inshore",
+        temperatureF: 84,
+        weatherCondition: "clear",
+        tide: "incoming",
+        tideHeightFt: 1.2,
+        tideDetail: "High 4:00 PM 2.8 ft · Low 10:00 PM 0.2 ft",
+      }),
+    );
+    expect(line).toContain("Incoming 1.2 ft");
+    expect(line).toContain("High 4:00 PM");
+  });
+
+  it("omits tide on freshwater even if a stage was stored", () => {
+    const line = weatherLine(
+      catchOf({
+        id: "fresh-1",
+        species: "Largemouth Bass",
+        habitat: "freshwater",
+        temperatureF: 80,
+        weatherCondition: "clear",
+        tide: "incoming",
+        tideHeightFt: 1.2,
+        tideDetail: "High 4:00 PM 2.8 ft",
+      }),
+    );
+    expect(line).not.toMatch(/tide|Incoming|High 4:00/i);
   });
 });

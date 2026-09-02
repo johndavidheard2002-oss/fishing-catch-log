@@ -30,6 +30,8 @@ export const catches = sqliteTable("catches", {
   notes: text("notes"),
   bait: text("bait"),
   tide: text("tide"),
+  tideHeightFt: real("tide_height_ft"),
+  tideDetail: text("tide_detail"),
   waterClarity: text("water_clarity"),
   habitat: text("habitat").notNull().default("freshwater"),
   fishCount: integer("fish_count").notNull().default(1),

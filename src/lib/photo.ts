@@ -1,3 +1,4 @@
+import { tideWeatherBits } from "./tides/snapshot";
 import type { CatchRecord } from "./types";
 
 const PHOTO_EXT = /\.(jpe?g|png|webp|gif|svg)(?:\?|#|$)/i;
@@ -65,7 +66,14 @@ export function catchPhotoFilename(args: {
 export function weatherLine(
   record: Pick<
     CatchRecord,
-    "temperatureF" | "weatherCondition" | "windSpeedMph" | "windDirection"
+    | "temperatureF"
+    | "weatherCondition"
+    | "windSpeedMph"
+    | "windDirection"
+    | "habitat"
+    | "tide"
+    | "tideHeightFt"
+    | "tideDetail"
   >,
 ): string {
   const bits: string[] = [];
@@ -78,6 +86,14 @@ export function weatherLine(
   } else if (record.windDirection) {
     bits.push(`${record.windDirection} wind`);
   }
+  bits.push(
+    ...tideWeatherBits({
+      habitat: record.habitat,
+      tide: record.tide,
+      tideHeightFt: record.tideHeightFt,
+      tideDetail: record.tideDetail,
+    }),
+  );
   return bits.join(" · ") || "Weather not logged";
 }
 

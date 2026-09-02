@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS catches (
   notes TEXT,
   bait TEXT,
   tide TEXT,
+  tide_height_ft REAL,
+  tide_detail TEXT,
   water_clarity TEXT,
   habitat TEXT NOT NULL DEFAULT 'freshwater',
   fish_count INTEGER NOT NULL DEFAULT 1,
@@ -121,6 +123,8 @@ function migrate(sqlite: Database.Database) {
     ["photo_taken_latitude", "REAL"],
     ["photo_taken_longitude", "REAL"],
     ["fish_count", "INTEGER NOT NULL DEFAULT 1"],
+    ["tide_height_ft", "REAL"],
+    ["tide_detail", "TEXT"],
   ];
   const latestCols = tableColumns(sqlite, "catches");
   for (const [name, type] of extra) {
@@ -273,6 +277,9 @@ function migrate(sqlite: Database.Database) {
          OR (species_source = 'demo' AND (photo_path IS NULL OR photo_path = ''))
     `);
     sqlite.pragma("user_version = 7");
+  }
+  if (version < 8) {
+    sqlite.pragma("user_version = 8");
   }
 }
 

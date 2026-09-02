@@ -35,6 +35,8 @@ export function catchOf(
     notes: null,
     bait: null,
     tide: null,
+    tideHeightFt: null,
+    tideDetail: null,
     waterClarity: null,
     habitat: inferHabitat(species),
     fishCount: 1,

@@ -81,6 +81,8 @@ export type CatchRecord = {
   notes: string | null;
   bait: string | null;
   tide: string | null;
+  tideHeightFt: number | null;
+  tideDetail: string | null;
   waterClarity: string | null;
   habitat: Habitat;
   fishCount: number;
@@ -120,6 +122,8 @@ export type CatchInput = {
   notes?: string | null;
   bait?: string | null;
   tide?: string | null;
+  tideHeightFt?: number | null;
+  tideDetail?: string | null;
   waterClarity?: string | null;
   habitat?: Habitat | null;
   fishCount?: number | null;
@@ -208,7 +212,7 @@ export type ProviderStatus = {
   vision: "openai" | "demo";
   geocode: "nominatim";
   forecast: "openweather" | "demo";
-  tides: "worldtides" | "demo";
+  tides: "worldtides" | "noaa" | "demo";
 };
 
 export type ForecastWindow = {

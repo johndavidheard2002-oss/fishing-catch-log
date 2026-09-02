@@ -67,6 +67,8 @@ function mapRow(
     notes: row.notes,
     bait: row.bait,
     tide: row.tide,
+    tideHeightFt: row.tideHeightFt,
+    tideDetail: row.tideDetail,
     waterClarity: row.waterClarity,
     habitat: asHabitat(row.habitat, species),
     fishCount: clampFishCount(row.fishCount, speciesList.length || 1),
@@ -178,6 +180,8 @@ export function createCatch(input: CatchInput): CatchRecord {
       notes: input.notes ?? null,
       bait: input.bait ?? null,
       tide: input.tide ?? null,
+      tideHeightFt: input.tideHeightFt ?? null,
+      tideDetail: input.tideDetail ?? null,
       waterClarity: input.waterClarity ?? null,
       habitat,
       fishCount,
@@ -274,6 +278,9 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
       notes: input.notes === undefined ? existing.notes : input.notes,
       bait: input.bait === undefined ? existing.bait : input.bait,
       tide: input.tide === undefined ? existing.tide : input.tide,
+      tideHeightFt:
+        input.tideHeightFt === undefined ? existing.tideHeightFt : input.tideHeightFt,
+      tideDetail: input.tideDetail === undefined ? existing.tideDetail : input.tideDetail,
       waterClarity:
         input.waterClarity === undefined ? existing.waterClarity : input.waterClarity,
       habitat,

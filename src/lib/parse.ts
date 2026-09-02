@@ -132,6 +132,8 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
     notes: asString(body.notes),
     bait: asString(body.bait),
     tide: asString(body.tide),
+    tideHeightFt: asNumber(body.tideHeightFt),
+    tideDetail: asString(body.tideDetail),
     waterClarity: asString(body.waterClarity),
     habitat: asHabitat(body.habitat, species),
     fishCount: clampFishCount(asNumber(body.fishCount), (asStringArray(body.speciesList) ?? [species]).length),

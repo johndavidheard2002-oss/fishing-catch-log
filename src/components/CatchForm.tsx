@@ -7,6 +7,7 @@ import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
 import { DEFAULT_HABITAT } from "@/lib/habitat";
+import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { MOON_PHASES, moonForDate } from "@/lib/moon";
 import { inHgToMb, mbToInHg, PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
@@ -17,7 +18,7 @@ import { primarySpecies } from "@/lib/species";
 import { clampFishCount, draftFishCountForSpecies, sanitizeFishCountDraft } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
 import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, seasonFromCaughtAtInput, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromCaughtAtInput, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
-import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
+import { SEASONS, TIDES, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
 import type {
   CatchRecord,
@@ -53,6 +54,8 @@ type FormState = {
   notes: string;
   bait: string;
   tide: string;
+  tideHeightFt: string;
+  tideDetail: string;
   waterClarity: string;
   habitat: Habitat;
   fishCount: string;
@@ -94,6 +97,8 @@ const emptyForm = (pastMode = false, caughtAtIso?: string | null): FormState => 
     notes: "",
     bait: "",
     tide: "",
+    tideHeightFt: "",
+    tideDetail: "",
     waterClarity: "",
     habitat: DEFAULT_HABITAT,
     fishCount: "1",
@@ -160,6 +165,8 @@ function fromRecord(record: CatchRecord): FormState {
     notes: record.notes ?? "",
     bait: record.bait ?? "",
     tide: record.tide ?? "",
+    tideHeightFt: record.tideHeightFt != null ? String(record.tideHeightFt) : "",
+    tideDetail: record.tideDetail ?? "",
     waterClarity: record.waterClarity ?? "",
     habitat: record.habitat,
     fishCount: String(record.fishCount ?? 1),
@@ -222,6 +229,7 @@ export function CatchForm({
   const [showMore, setShowMore] = useState(Boolean(initial?.notes || initial?.bait));
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
   const [moonLocked, setMoonLocked] = useState(false);
+  const [tideLocked, setTideLocked] = useState(false);
   const [timeOfDayLocked, setTimeOfDayLocked] = useState(false);
   const [catchPinUserMoved, setCatchPinUserMoved] = useState(
     Boolean(mode === "edit" && initial?.latitude != null && initial?.longitude != null),
@@ -271,7 +279,6 @@ export function CatchForm({
   const timeOfDay = timeOfDayLocked ? form.timeOfDay : derivedTimeOfDay;
 
   useEffect(() => {
-    if (!pastMode) return;
     const lat = numOrNull(form.latitude);
     const lon = numOrNull(form.longitude);
     const at = caughtDate(form.caughtAt);
@@ -280,22 +287,30 @@ export function CatchForm({
     fetch("/api/assist/weather", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ latitude: lat, longitude: lon, at: at.toISOString() }),
+      body: JSON.stringify({
+        latitude: lat,
+        longitude: lon,
+        at: at.toISOString(),
+        habitat: form.habitat,
+      }),
     })
       .then((r) => r.json())
       .then((data) => {
-        if (cancelled || !data.weather) return;
-        const w = data.weather;
+        if (cancelled) return;
+        if (!data.weather && !data.tide) return;
         setForm((f) => ({
           ...f,
-          ...weatherFields(w, { includeMoon: !moonLocked }),
+          ...(data.weather ? weatherFields(data.weather, { includeMoon: !moonLocked }) : {}),
+          ...tideFields(data.tide, tideLocked),
         }));
+        const notes = [data.weather?.note, data.tide?.note].filter(Boolean);
+        if (notes.length) setAssistNote(notes.join(" "));
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [pastMode, form.caughtAt, form.latitude, form.longitude, moonLocked]);
+  }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -402,14 +417,21 @@ export function CatchForm({
             const res = await fetch("/api/assist/weather", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ latitude: weatherLat, longitude: weatherLon, at: at.toISOString() }),
+              body: JSON.stringify({
+                latitude: weatherLat,
+                longitude: weatherLon,
+                at: at.toISOString(),
+                habitat: form.habitat,
+              }),
             });
             const data = await res.json();
             const w = data.weather;
-            if (w) {
-              patch(weatherFields(w, { includeMoon: !moonLocked }));
-              notes.push(w.note);
-            }
+            patch({
+              ...(w ? weatherFields(w, { includeMoon: !moonLocked }) : {}),
+              ...tideFields(data.tide, tideLocked),
+            });
+            if (w?.note) notes.push(w.note);
+            if (data.tide?.note) notes.push(data.tide.note);
           } catch {
             notes.push("Weather lookup failed. Fill it in if you remember.");
           }
@@ -507,6 +529,8 @@ export function CatchForm({
         notes: form.notes || null,
         bait: form.bait || null,
         tide: form.tide || null,
+        tideHeightFt: numOrNull(form.tideHeightFt),
+        tideDetail: form.tideDetail || null,
         waterClarity: form.waterClarity || null,
         habitat: form.habitat,
         fishCount: clampFishCount(form.fishCount, form.speciesList.length || 1),
@@ -608,15 +632,19 @@ export function CatchForm({
       <SpeciesPicker
         speciesList={form.speciesList}
         habitat={form.habitat}
-        onHabitat={(habitat) => patch({ habitat })}
-        onChange={(speciesList, habitat) =>
+        onHabitat={(habitat) => {
+          if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
+          patch(habitatPatch(habitat));
+        }}
+        onChange={(speciesList, habitat) => {
+          if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
           patch({
             speciesList,
-            habitat,
+            ...habitatPatch(habitat),
             fishCount: draftFishCountForSpecies(form.fishCount, speciesList.length || 1),
             speciesSource: "manual",
-          })
-        }
+          });
+        }}
       />
 
       <label className="block">
@@ -688,14 +716,17 @@ export function CatchForm({
                 latitude: lat,
                 longitude: lng,
                 at: Number.isNaN(at.getTime()) ? undefined : at.toISOString(),
+                habitat: form.habitat,
               }),
             });
             const weatherData = await weatherRes.json();
             const w = weatherData.weather;
-            if (w) {
-              patch(weatherFields(w, { includeMoon: !moonLocked }));
-              setAssistNote(w.note);
-            }
+            patch({
+              ...(w ? weatherFields(w, { includeMoon: !moonLocked }) : {}),
+              ...tideFields(weatherData.tide, tideLocked),
+            });
+            const notes = [w?.note, weatherData.tide?.note].filter(Boolean);
+            if (notes.length) setAssistNote(notes.join(" "));
           } catch {
             /* map geocode is optional */
           }
@@ -840,6 +871,46 @@ export function CatchForm({
             ))}
           </select>
         </label>
+        {tidesApplyToHabitat(form.habitat) ? (
+          <>
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold">Tide</span>
+              <select
+                value={form.tide}
+                onChange={(e) => {
+                  setTideLocked(true);
+                  patch({ tide: e.target.value });
+                }}
+                className="w-full rounded-xl border border-line bg-card px-3 py-3"
+              >
+                <option value="">Unknown</option>
+                {TIDES.map((t) => (
+                  <option key={t} value={t}>
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-semibold">Tide ft</span>
+              <input
+                inputMode="decimal"
+                value={form.tideHeightFt}
+                onChange={(e) => {
+                  setTideLocked(true);
+                  patch({ tideHeightFt: e.target.value });
+                }}
+                className="w-full rounded-xl border border-line bg-card px-3 py-3"
+              />
+            </label>
+            <p className="col-span-2 text-xs text-ink-muted">
+              {form.tideDetail ||
+                "Next high/low fills in from the pin and catch time when a station is nearby."}
+            </p>
+          </>
+        ) : (
+          <p className="col-span-2 text-xs text-ink-muted">Tide does not apply to freshwater.</p>
+        )}
       </div>
 
       {pastMode ? null : (
@@ -909,7 +980,7 @@ export function CatchForm({
         className="text-left text-sm font-semibold text-teal"
         onClick={() => setShowMore((v) => !v)}
       >
-        {showMore ? "Hide bait, tide, notes" : "Bait, tide, water, notes"}
+        {showMore ? "Hide bait, water, notes" : "Bait, water, notes"}
       </button>
 
       <label className="flex items-start gap-2 rounded-2xl border border-line bg-card px-3 py-3 text-sm">
@@ -938,20 +1009,12 @@ export function CatchForm({
             placeholder="Bait / lure / fly"
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
-          <div className="grid grid-cols-2 gap-3">
-            <input
-              value={form.tide}
-              onChange={(e) => patch({ tide: e.target.value })}
-              placeholder="Tide"
-              className="w-full rounded-xl border border-line bg-card px-3 py-3"
-            />
-            <input
-              value={form.waterClarity}
-              onChange={(e) => patch({ waterClarity: e.target.value })}
-              placeholder="Water clarity"
-              className="w-full rounded-xl border border-line bg-card px-3 py-3"
-            />
-          </div>
+          <input
+            value={form.waterClarity}
+            onChange={(e) => patch({ waterClarity: e.target.value })}
+            placeholder="Water clarity"
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          />
           <textarea
             value={form.notes}
             onChange={(e) => patch({ notes: e.target.value })}
@@ -1030,6 +1093,38 @@ function weatherFields(
     ...(mb != null ? { pressureMb: String(mb) } : {}),
     ...(w.pressureTrend ? { pressureTrend: w.pressureTrend } : {}),
   };
+}
+
+function tideFields(
+  t:
+    | {
+        applies?: boolean;
+        tide?: string | null;
+        heightFt?: number | null;
+        nextHighAt?: string | null;
+        nextHighFt?: number | null;
+        nextLowAt?: string | null;
+        nextLowFt?: number | null;
+      }
+    | null
+    | undefined,
+  locked: boolean,
+): Partial<FormState> {
+  if (locked || !t) return {};
+  if (t.applies === false) {
+    return { tide: "", tideHeightFt: "", tideDetail: "" };
+  }
+  const detail = formatTideDetail(t);
+  return {
+    ...(t.tide ? { tide: t.tide } : {}),
+    ...(t.heightFt != null ? { tideHeightFt: String(t.heightFt) } : {}),
+    ...(detail ? { tideDetail: detail } : {}),
+  };
+}
+
+function habitatPatch(habitat: Habitat): Partial<FormState> {
+  if (tidesApplyToHabitat(habitat)) return { habitat };
+  return { habitat, tide: "", tideHeightFt: "", tideDetail: "" };
 }
 
 function joinDateTime(date: string, time: string): string {

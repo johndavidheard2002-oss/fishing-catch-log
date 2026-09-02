@@ -12,7 +12,7 @@ export async function GET() {
     vision: hasOpenAiKey() ? "openai" : "demo",
     geocode: "nominatim",
     forecast: hasOpenWeatherKey() ? "openweather" : "demo",
-    tides: hasWorldTidesKey() ? "worldtides" : "demo",
+    tides: hasWorldTidesKey() ? "worldtides" : "noaa",
   };
   return Response.json(status);
 }
