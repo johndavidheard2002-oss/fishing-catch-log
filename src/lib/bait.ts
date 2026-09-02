@@ -186,6 +186,7 @@ export function parseBaitSpotInput(body: Record<string, unknown>): BaitSpotInput
     sharedWithLinked: body.sharedWithLinked === true || body.sharedWithLinked === 1,
   };
   if (!baitTypes.length) return null;
+  if (latitude == null || longitude == null) return null;
   if (!baitSpotHasContent(input)) return null;
   return input;
 }

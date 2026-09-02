@@ -128,7 +128,9 @@ export function PlanClient() {
             ))}
             {baitItems.length ? (
               <>
-                <h3 className="pt-1 text-sm font-semibold text-copper">Bait under similar conditions</h3>
+                <h3 className="pt-1 text-sm font-semibold text-copper" data-testid="bait-plan-heading">
+                  Bait under similar conditions
+                </h3>
                 {baitItems.map((s) => (
                   <BaitSuggestionCard key={s.id} suggestion={s} showOwner={includeShared} />
                 ))}

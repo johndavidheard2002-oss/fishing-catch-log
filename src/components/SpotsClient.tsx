@@ -115,6 +115,7 @@ export function SpotsClient() {
         <Link
           href="/spots?kind=bait"
           className={`rounded-xl py-2 text-center ${kind === "bait" ? "bg-teal text-white" : "text-ink-muted"}`}
+          data-testid="spots-bait-tab"
         >
           Bait
         </Link>
@@ -124,6 +125,7 @@ export function SpotsClient() {
         <Link
           href="/bait/new"
           className="flex items-center justify-center rounded-2xl bg-copper px-4 py-3 font-semibold text-white"
+          data-testid="log-bait-spot"
         >
           Log a bait spot
         </Link>

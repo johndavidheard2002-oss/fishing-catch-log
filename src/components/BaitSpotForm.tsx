@@ -201,6 +201,10 @@ export function BaitSpotForm({
       setError("Add at least one bait type.");
       return;
     }
+    if (numOrNull(form.latitude) == null || numOrNull(form.longitude) == null) {
+      setError("Tap the map to pin this bait hole.");
+      return;
+    }
     savingRef.current = true;
     setSaving(true);
     setError(null);
@@ -286,6 +290,11 @@ export function BaitSpotForm({
         onChange={(placeName) => patch({ placeName })}
         onPickArea={onPickArea}
       />
+      {catchLat == null ? (
+        <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
+          Tap the satellite map to pin where you got bait.
+        </div>
+      ) : null}
       <MapPicker
         latitude={catchLat}
         longitude={catchLon}
@@ -303,6 +312,7 @@ export function BaitSpotForm({
               <button
                 key={name}
                 type="button"
+                data-testid={`bait-type-${name.toLowerCase().replace(/\s+/g, "-")}`}
                 onClick={() => toggleBait(name)}
                 className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                   selected ? "bg-copper text-white" : "border border-line bg-card"
@@ -403,6 +413,7 @@ export function BaitSpotForm({
       <button
         type="submit"
         disabled={saving}
+        data-testid="save-bait-spot"
         className="rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
       >
         {saving ? "Saving…" : mode === "edit" ? "Save bait spot" : "Log bait spot"}

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   const input = parseBaitSpotInput(body);
   if (!input) {
     return jsonWithViewer(
-      { error: "Add at least one bait type — shrimp, mullet, crabs, or whatever you scooped." },
+      { error: "Add a bait type and tap the map to pin the hole." },
       viewerId,
       { status: 400 },
     );

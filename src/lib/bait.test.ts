@@ -48,8 +48,9 @@ describe("parseBaitTypes", () => {
 });
 
 describe("parseBaitSpotInput", () => {
-  it("requires at least one bait type", () => {
+  it("requires a bait type and a map pin", () => {
     expect(parseBaitSpotInput({ placeName: "The Point", latitude: 28.7, longitude: -80.7 })).toBeNull();
+    expect(parseBaitSpotInput({ baitTypes: ["Shrimp"], placeName: "The Point" })).toBeNull();
     const parsed = parseBaitSpotInput({
       baitTypes: ["Shrimp"],
       placeName: "  Haulover Canal  ",
@@ -59,6 +60,7 @@ describe("parseBaitSpotInput", () => {
     });
     expect(parsed?.baitTypes).toEqual(["Shrimp"]);
     expect(parsed?.placeName).toBe("Haulover Canal");
+    expect(parsed?.latitude).toBe(28.735);
   });
 });
 

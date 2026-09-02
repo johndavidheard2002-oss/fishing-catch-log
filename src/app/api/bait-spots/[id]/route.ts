@@ -30,10 +30,13 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     ...body,
     baitTypes: body.baitTypes ?? existing.baitTypes,
     loggedAt: body.loggedAt ?? existing.loggedAt,
+    latitude: body.latitude ?? existing.latitude,
+    longitude: body.longitude ?? existing.longitude,
+    placeName: body.placeName ?? existing.placeName,
   });
   if (!input) {
     return jsonWithViewer(
-      { error: "Add at least one bait type — shrimp, mullet, crabs, or whatever you scooped." },
+      { error: "Add a bait type and tap the map to pin the hole." },
       viewerId,
       { status: 400 },
     );
