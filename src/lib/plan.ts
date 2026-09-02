@@ -238,7 +238,7 @@ async function windowsForLocated(args: {
     args.days,
     args.times,
   );
-  let weatherSource: PlanResult["weatherSource"] = forecast.source === "demo" ? "demo" : "openweather";
+  const weatherSource: PlanResult["weatherSource"] = forecast.source === "demo" ? "demo" : "openweather";
   let tideSource: PlanResult["tideSource"] = hasWorldTidesKey() ? "worldtides" : "demo";
   let windows = forecast.windows;
 

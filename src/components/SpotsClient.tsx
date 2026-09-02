@@ -44,13 +44,15 @@ function baitGroupsToMapSpots(groups: BaitSpotGroup[]): SpotGroup[] {
 
 export function SpotsClient() {
   const params = useSearchParams();
-  const [kind, setKind] = useState<"catch" | "bait">(params.get("kind") === "bait" ? "bait" : "catch");
+  const kind = params.get("kind") === "bait" ? "bait" : "catch";
   const [spots, setSpots] = useState<SpotGroup[]>([]);
   const [baitGroups, setBaitGroups] = useState<BaitSpotGroup[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [viewerId, setViewerId] = useState<string | undefined>();
+  const requestKey = `${kind}:${includeShared ? 1 : 0}`;
+  const loading = loadedKey !== requestKey;
 
   useEffect(() => {
     fetch("/api/me")
@@ -59,14 +61,8 @@ export function SpotsClient() {
   }, []);
 
   useEffect(() => {
-    const next = params.get("kind") === "bait" ? "bait" : "catch";
-    setKind(next);
-  }, [params]);
-
-  useEffect(() => {
     let cancelled = false;
     const q = sharedQuery(includeShared);
-    setLoading(true);
     const url = kind === "bait" ? `/api/bait-spots${q ? `?${q}` : ""}` : `/api/spots${q ? `?${q}` : ""}`;
     fetch(url, { cache: "no-store" })
       .then((r) => r.json())
@@ -83,14 +79,15 @@ export function SpotsClient() {
           setBaitGroups([]);
           setSelected(list[0]?.key ?? null);
         }
+        setLoadedKey(requestKey);
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      .catch(() => {
+        if (!cancelled) setLoadedKey(requestKey);
       });
     return () => {
       cancelled = true;
     };
-  }, [includeShared, kind]);
+  }, [includeShared, kind, requestKey]);
 
   const onSelect = useCallback((key: string) => setSelected(key), []);
   const mapSpots = kind === "bait" ? baitGroupsToMapSpots(baitGroups) : spots;
