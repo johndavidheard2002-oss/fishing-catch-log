@@ -6,6 +6,14 @@ import "leaflet/dist/leaflet.css";
 const PIN_HTML =
   '<div style="width:18px;height:18px;border-radius:50%;background:#c45c26;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45)"></div>';
 
+type LeafletNs = typeof import("leaflet");
+type PinMarker = {
+  setLatLng: (ll: { lat: number; lng: number }) => void;
+  getLatLng: () => { lat: number; lng: number };
+  on: (ev: string, fn: () => void) => void;
+  remove: () => void;
+};
+
 export function MapPicker({
   latitude,
   longitude,
@@ -17,6 +25,15 @@ export function MapPicker({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
+  const coordsRef = useRef({ latitude, longitude });
+  const mapRef = useRef<{
+    setView: (ll: [number, number], zoom?: number) => void;
+    getZoom: () => number;
+    remove: () => void;
+    on: (ev: string, fn: (e: { latlng: { lat: number; lng: number } }) => void) => void;
+  } | null>(null);
+  const markerRef = useRef<PinMarker | null>(null);
+  const LRef = useRef<LeafletNs["default"] | null>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<
     { placeName: string; latitude: number; longitude: number }[]
@@ -29,72 +46,107 @@ export function MapPicker({
   }, [onChange]);
 
   useEffect(() => {
+    coordsRef.current = { latitude, longitude };
+  }, [latitude, longitude]);
+
+  useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let map: { remove: () => void } | null = null;
     let cancelled = false;
 
     (async () => {
-      const L = (await import("leaflet")).default;
+      const leaflet = (await import("leaflet")).default;
       if (cancelled || !el) return;
+      LRef.current = leaflet;
+      const current = coordsRef.current;
       const start: [number, number] =
-        latitude != null && longitude != null ? [latitude, longitude] : [28.5, -81.3];
-      const instance = L.map(el, { zoomControl: true }).setView(
+        current.latitude != null && current.longitude != null
+          ? [current.latitude, current.longitude]
+          : [28.5, -81.3];
+      const instance = leaflet.map(el, { zoomControl: true }).setView(
         start,
-        latitude != null && longitude != null ? 13 : 5,
+        current.latitude != null && current.longitude != null ? 13 : 5,
       );
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      leaflet.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap",
       }).addTo(instance);
+      mapRef.current = instance;
 
-      const pinIcon = L.divIcon({
+      const pinIcon = leaflet.divIcon({
         className: "catch-map-pin",
         html: PIN_HTML,
         iconSize: [18, 18],
         iconAnchor: [9, 9],
       });
 
-      type PinMarker = {
-        setLatLng: (ll: { lat: number; lng: number }) => void;
-        getLatLng: () => { lat: number; lng: number };
-        on: (ev: string, fn: () => void) => void;
-      };
-      let marker: PinMarker | null = null;
-
       const bindMarker = (next: PinMarker) => {
-        marker = next;
-        marker.on("dragend", () => {
-          const ll = marker!.getLatLng();
+        markerRef.current = next;
+        next.on("dragend", () => {
+          const ll = next.getLatLng();
           onChangeRef.current(ll.lat, ll.lng);
         });
       };
 
-      if (latitude != null && longitude != null) {
+      if (current.latitude != null && current.longitude != null) {
         bindMarker(
-          L.marker(start, { icon: pinIcon, draggable: true, autoPan: true }).addTo(instance),
+          leaflet.marker(start, { icon: pinIcon, draggable: true, autoPan: true }).addTo(instance),
         );
       }
 
       instance.on("click", (e: { latlng: { lat: number; lng: number } }) => {
-        if (!marker) {
+        const L = LRef.current;
+        const map = mapRef.current;
+        if (!L || !map) return;
+        if (!markerRef.current) {
           bindMarker(
             L.marker(e.latlng, { icon: pinIcon, draggable: true, autoPan: true }).addTo(instance),
           );
         } else {
-          marker.setLatLng(e.latlng);
+          markerRef.current.setLatLng(e.latlng);
         }
         onChangeRef.current(e.latlng.lat, e.latlng.lng);
       });
-      map = instance;
     })();
 
     return () => {
       cancelled = true;
-      map?.remove();
+      mapRef.current?.remove();
+      mapRef.current = null;
+      markerRef.current = null;
     };
-    // Recreate when coords jump from search/photo GPS, not on every keystroke.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latitude == null ? "" : latitude.toFixed(3), longitude == null ? "" : longitude.toFixed(3)]);
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const L = LRef.current;
+    if (!map || !L) return;
+    if (latitude == null || longitude == null) {
+      markerRef.current?.remove();
+      markerRef.current = null;
+      return;
+    }
+    const next = L.latLng(latitude, longitude);
+    const prev = markerRef.current?.getLatLng();
+    const jumped =
+      !prev || Math.abs(prev.lat - latitude) > 0.002 || Math.abs(prev.lng - longitude) > 0.002;
+    if (markerRef.current) {
+      markerRef.current.setLatLng(next);
+    } else {
+      const pinIcon = L.divIcon({
+        className: "catch-map-pin",
+        html: PIN_HTML,
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      });
+      const marker = L.marker(next, { icon: pinIcon, draggable: true, autoPan: true }).addTo(map);
+      markerRef.current = marker;
+      marker.on("dragend", () => {
+        const ll = marker.getLatLng();
+        onChangeRef.current(ll.lat, ll.lng);
+      });
+    }
+    if (jumped) map.setView([latitude, longitude], Math.max(map.getZoom(), 10));
+  }, [latitude, longitude]);
 
   async function search(e: React.FormEvent) {
     e.preventDefault();
