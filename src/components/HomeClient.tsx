@@ -50,9 +50,13 @@ export function HomeClient() {
       </Link>
       <Link
         href="/log/scan"
-        className="flex items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 font-semibold"
+        className="journal-card block rounded-2xl px-4 py-4"
       >
-        Find fishing photos in your library
+        <p className="font-semibold">Find fishing photos in your library</p>
+        <p className="mt-1 text-sm text-ink-muted">
+          Bring old trips onto your calendar. You choose pictures from this phone — Catch Compass
+          looks for fish and asks before anything is added. Only your photos. Only your journal.
+        </p>
       </Link>
       <Link
         href="/plan"

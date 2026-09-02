@@ -188,10 +188,9 @@ export function ScanLibraryClient() {
       <div>
         <h1 className="font-display text-3xl text-teal">Find fishing photos in your library</h1>
         <p className="text-sm text-ink-muted">
-          Import old trips from this phone. You choose the pictures — Catch Compass does not browse
-          the rest of your library or anyone else&apos;s. We look for fish in what you picked, then
-          ask before anything is added. A later native app can offer a full-library scan; in the
-          browser you grant photos one batch at a time.
+          Included with every Catch Compass journal. Choose pictures from this phone. We look for
+          fish, then ask before each one goes on your calendar at the photo&apos;s time. Only your
+          photos — not anyone else&apos;s roll, and never a public share.
         </p>
       </div>
       <div className="journal-card grid grid-cols-3 overflow-hidden rounded-2xl p-1">
@@ -205,7 +204,7 @@ export function ScanLibraryClient() {
           Backfill
         </Link>
         <span className="rounded-xl bg-teal py-2 text-center text-xs font-semibold text-white">
-          Library
+          Your photos
         </span>
       </div>
 
@@ -223,7 +222,7 @@ export function ScanLibraryClient() {
         disabled={busy}
         className="w-full rounded-2xl border border-line bg-card px-4 py-3 font-semibold disabled:opacity-60"
       >
-        Choose a folder (computer)
+        Choose a folder on this device
       </button>
       <input
         ref={photosRef}
@@ -265,7 +264,7 @@ export function ScanLibraryClient() {
           </div>
           <div className="space-y-2 p-4">
             <p className="text-sm font-semibold">
-              Candidate {index + 1} of {candidates.length}
+              Photo {index + 1} of {candidates.length}
             </p>
             <label className="block">
               <span className="mb-1 block text-xs text-ink-muted">Catch date and time</span>
@@ -283,7 +282,7 @@ export function ScanLibraryClient() {
               />
             </label>
             <p className="text-xs text-ink-muted">
-              From the photo&apos;s EXIF time when it is there. Edit if the camera clock was wrong.
+              Uses the time saved in the photo when it is there. Edit if the camera clock was wrong.
             </p>
             <p className="text-xs text-ink-muted">
               {Math.round(current.confidence * 100)}% · {current.note}
@@ -318,8 +317,9 @@ export function ScanLibraryClient() {
       ) : null}
 
       <p className="text-xs text-ink-muted">
-        Privacy: only photos you select on this device are sent for fish detection. They belong to
-        your journal. Nothing is added until you tap Yes.
+        Privacy: this is your journal on this phone. Only the pictures you pick are checked. They
+        stay in your Catch Compass log. Nothing is added until you tap Yes. We do not look at the
+        rest of your camera roll.
       </p>
       <Link href="/log?past=1" className="inline-block text-sm font-semibold text-teal">
         Backfill one photo instead

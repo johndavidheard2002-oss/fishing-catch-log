@@ -52,7 +52,7 @@ export function LogClient() {
           href="/log/scan"
           className="rounded-xl py-2 text-center text-xs font-semibold text-ink-muted"
         >
-          Library
+          Your photos
         </Link>
       </div>
       <CatchForm
