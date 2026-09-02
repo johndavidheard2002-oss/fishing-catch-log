@@ -40,6 +40,7 @@ export function HistoryCalendar({
   year,
   month,
   selectedDay,
+  autoOpenMapDay = null,
   onMonthChange,
   onSelectDay,
   onShareDay,
@@ -49,13 +50,14 @@ export function HistoryCalendar({
   year: number;
   month: number;
   selectedDay: string | null;
+  autoOpenMapDay?: string | null;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
   onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
   viewerId?: string;
 }) {
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
-  const [mapDay, setMapDay] = useState<string | null>(null);
+  const [mapDay, setMapDay] = useState<string | null>(autoOpenMapDay);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
   const cells = monthGrid(year, month);
@@ -83,6 +85,10 @@ export function HistoryCalendar({
     onSelectDay(date);
     setMapDay(date);
   }
+
+  useEffect(() => {
+    void import("./SpotMap");
+  }, []);
 
   useEffect(() => {
     if (!popupOpen) return;
@@ -386,7 +392,7 @@ function DayMapPopup({
   const title = thisYearOnly ? formatWeekdayDate(day) : monthDayLabel(day);
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/55 p-3 sm:items-center"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-ink/60 p-3"
       role="dialog"
       aria-modal="true"
       aria-label={`Map for ${title}`}

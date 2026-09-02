@@ -219,6 +219,7 @@ export function HistoryClient({
             year={monthCursor.year}
             month={monthCursor.month}
             selectedDay={displayDay}
+            autoOpenMapDay={queryDay}
             onMonthChange={setMonthOverride}
             onSelectDay={(day) => {
               setSelectedDay(day);
