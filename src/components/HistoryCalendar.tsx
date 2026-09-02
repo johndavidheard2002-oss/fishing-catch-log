@@ -19,6 +19,7 @@ import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { CatchRecord } from "@/lib/types";
 import Link from "next/link";
+import { useState } from "react";
 
 const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
   ssr: false,
@@ -36,6 +37,7 @@ export function HistoryCalendar({
   selectedDay,
   onMonthChange,
   onSelectDay,
+  onShareDay,
   viewerId,
 }: {
   catches: CatchRecord[];
@@ -44,6 +46,7 @@ export function HistoryCalendar({
   selectedDay: string | null;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
+  onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
   viewerId?: string;
 }) {
   const byDate = groupCatchesByDate(catches);
@@ -53,9 +56,6 @@ export function HistoryCalendar({
   const selectedSpots = uniqueSpotLabels(selected);
   const selectedSpotGroups = groupSpots(selected);
   const mappedSpots = selectedSpotGroups.filter((s) => s.latitude != null && s.longitude != null);
-  const monthCount = cells
-    .filter((c) => c.inMonth)
-    .reduce((n, c) => n + (byDate.get(c.date)?.length ?? 0), 0);
 
   return (
     <div className="space-y-3">
@@ -71,9 +71,6 @@ export function HistoryCalendar({
           </button>
           <div className="text-center">
             <p className="font-display text-xl text-teal">{monthLabel(year, month)}</p>
-            <p className="text-xs text-ink-muted">
-              {monthCount} {monthCount === 1 ? "catch" : "catches"} this month
-            </p>
           </div>
           <button
             type="button"
@@ -135,17 +132,7 @@ export function HistoryCalendar({
       {selectedDay ? (
         <section className="space-y-2">
           <h2 className="font-display text-xl text-teal">{formatWeekdayDate(selectedDay)}</h2>
-          <p className="text-xs text-ink-muted">
-            {selected.length} {selected.length === 1 ? "catch" : "catches"}
-            {` · ${fishCountLabel(selected.reduce((n, c) => n + (c.fishCount || 1), 0))}`}
-            {selectedSpots.length > 1
-              ? ` · ${selectedSpots.length} spots`
-              : selectedSpots[0]
-                ? ` · ${selectedSpots[0]}`
-                : ""}
-            . Earliest first, each with its own pin.
-          </p>
-          {selectedSpotGroups.length > 1 ? (
+          {selectedSpots.length > 1 ? (
             <p className="text-xs text-ink-muted">
               {selectedSpotGroups
                 .slice()
@@ -161,6 +148,16 @@ export function HistoryCalendar({
                 .map((spot) => `${spot.placeName} · ${fishCountLabel(spot.fishCount)}`)
                 .join(" · ")}
             </p>
+          ) : selectedSpots[0] ? (
+            <p className="text-xs text-ink-muted">{selectedSpots[0]}</p>
+          ) : null}
+          {onShareDay ? (
+            <DayShareToggle
+              day={selectedDay}
+              records={selected}
+              viewerId={viewerId}
+              onShareDay={onShareDay}
+            />
           ) : null}
           {mappedSpots.length > 1 ? (
             <SpotMap
@@ -183,6 +180,53 @@ export function HistoryCalendar({
         </p>
       )}
     </div>
+  );
+}
+
+function DayShareToggle({
+  day,
+  records,
+  viewerId,
+  onShareDay,
+}: {
+  day: string;
+  records: CatchRecord[];
+  viewerId?: string;
+  onShareDay: (day: string, shared: boolean) => void | Promise<void>;
+}) {
+  const mine = records.filter((r) => !viewerId || r.anglerId === viewerId);
+  const [busy, setBusy] = useState(false);
+  if (!mine.length) return null;
+  const allShared = mine.every((r) => r.sharedWithLinked);
+  const someShared = mine.some((r) => r.sharedWithLinked);
+
+  return (
+    <label className="flex items-start gap-2 rounded-2xl border border-line bg-card px-3 py-2 text-sm">
+      <input
+        type="checkbox"
+        checked={allShared}
+        disabled={busy}
+        onChange={async (e) => {
+          setBusy(true);
+          try {
+            await onShareDay(day, e.target.checked);
+          } finally {
+            setBusy(false);
+          }
+        }}
+        className="mt-1"
+      />
+      <span>
+        <span className="font-semibold">Share this day with linked buddies</span>
+        <span className="mt-0.5 block text-xs text-ink-muted">
+          {allShared
+            ? "Linked buddies can see this day’s trips. Uncheck to keep the day private."
+            : someShared
+              ? "Some trips on this day are already shared. Turn on to share the whole day."
+              : "Off until you choose. Linking a buddy does not share this day."}
+        </span>
+      </span>
+    </label>
   );
 }
 

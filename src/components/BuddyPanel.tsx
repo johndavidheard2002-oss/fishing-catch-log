@@ -1,6 +1,8 @@
 "use client";
 
 import { PRIVACY_DETAIL, PRIVACY_LINE } from "@/lib/privacy";
+import { formatWeekdayDate } from "@/lib/time";
+import { localDateKey } from "@/lib/calendar";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 type Angler = { id: string; name: string; inviteCode: string };
@@ -222,6 +224,8 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
         )}
       </ul>
 
+      {buddies.length ? <SharedDaysList ownerId={me?.id} /> : null}
+
       {profiles.length > 1 ? (
         <div>
           <p className="mb-1 text-sm font-semibold">Switch profile on this journal</p>
@@ -275,6 +279,69 @@ export function PrivacyBanner() {
     <div className="rounded-2xl border border-line bg-paper-deep px-3 py-2 text-sm">
       <p className="font-semibold">{PRIVACY_LINE}</p>
       <p className="mt-1 text-xs text-ink-muted">{PRIVACY_DETAIL}</p>
+    </div>
+  );
+}
+
+function SharedDaysList({ ownerId }: { ownerId?: string }) {
+  const [days, setDays] = useState<string[]>([]);
+  const [busyDay, setBusyDay] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/catches", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        const records = Array.isArray(data.catches) ? data.catches : [];
+        const keys = new Set<string>();
+        for (const record of records) {
+          if (!record?.sharedWithLinked) continue;
+          if (ownerId && record.anglerId && record.anglerId !== ownerId) continue;
+          if (typeof record.caughtAt === "string") keys.add(localDateKey(record.caughtAt));
+        }
+        setDays([...keys].sort().reverse());
+      })
+      .catch(() => {});
+  }, [ownerId]);
+
+  async function unshare(day: string) {
+    setBusyDay(day);
+    try {
+      await fetch("/api/catches/share-day", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ day, shared: false }),
+      });
+      setDays((current) => current.filter((key) => key !== day));
+    } finally {
+      setBusyDay(null);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Days you shared</p>
+      <p className="text-xs text-ink-muted">
+        Pick days on Calendar Log. Unshared days stay private even to linked buddies.
+      </p>
+      {days.length === 0 ? (
+        <p className="text-sm text-ink-muted">None yet — open a day on Calendar Log to share it.</p>
+      ) : (
+        <ul className="space-y-2">
+          {days.map((day) => (
+            <li key={day} className="flex items-center justify-between gap-2 text-sm">
+              <span>{formatWeekdayDate(day)}</span>
+              <button
+                type="button"
+                className="text-copper disabled:opacity-60"
+                disabled={busyDay === day}
+                onClick={() => void unshare(day)}
+              >
+                Unshare
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

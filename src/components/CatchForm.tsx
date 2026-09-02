@@ -1044,7 +1044,8 @@ export function CatchForm({
             <span>
               <span className="font-semibold">Share with linked buddies</span>
               <span className="mt-0.5 block text-xs text-ink-muted">
-                Off by default. {PRIVACY_LINE} Never public.
+                Off by default. Linking a buddy does not share this trip. {PRIVACY_LINE} Never
+                public.
                 {buddyNames.length
                   ? ` This trip would go to: ${buddyNames.join(", ")}.`
                   : " You have no linked buddies yet, so nobody else can see this."}

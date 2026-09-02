@@ -19,6 +19,7 @@ import type {
   WeatherCondition,
 } from "../types";
 import { isCatchVisibleToViewer } from "../sharing";
+import { localDateKey } from "../calendar";
 import { getAngler, linkedBuddyIds } from "./anglers";
 import { getDb } from "./index";
 import { catches } from "./schema";
@@ -327,6 +328,28 @@ export function deleteCatch(id: string): boolean {
   const db = getDb();
   const result = db.delete(catches).where(eq(catches.id, id)).run();
   return result.changes > 0;
+}
+
+const CALENDAR_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isCalendarDayKey(value: string): boolean {
+  return CALENDAR_DAY_RE.test(value);
+}
+
+/** Share or unshare every catch the angler logged on a local calendar day. */
+export function setSharedForDay(args: {
+  anglerId: string;
+  day: string;
+  shared: boolean;
+}): { updated: number } {
+  if (!isCalendarDayKey(args.day)) return { updated: 0 };
+  const mine = listCatches({ viewerId: args.anglerId }).filter(
+    (record) => record.anglerId === args.anglerId && localDateKey(record.caughtAt) === args.day,
+  );
+  for (const record of mine) {
+    updateCatch(record.id, { sharedWithLinked: args.shared });
+  }
+  return { updated: mine.length };
 }
 
 export function countCatches(): number {

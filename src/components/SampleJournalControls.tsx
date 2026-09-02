@@ -10,7 +10,6 @@ export function SampleJournalControls({
   compact?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
-  const [count, setCount] = useState(0);
   const [busy, setBusy] = useState(false);
 
   function refresh() {
@@ -18,7 +17,6 @@ export function SampleJournalControls({
       .then((r) => r.json())
       .then((data) => {
         setLoaded(Boolean(data.loaded));
-        setCount(Number(data.count) || 0);
       })
       .catch(() => {});
   }
@@ -38,7 +36,6 @@ export function SampleJournalControls({
       });
       const data = await res.json();
       setLoaded(Boolean(data.loaded));
-      setCount(Number(data.count) || 0);
       onChanged?.();
     } finally {
       setBusy(false);
@@ -53,7 +50,7 @@ export function SampleJournalControls({
         onClick={() => void run("remove")}
         className="text-sm font-semibold text-ink-muted disabled:opacity-60"
       >
-        {busy ? "Removing…" : `Remove ${count} sample ${count === 1 ? "catch" : "catches"}`}
+        {busy ? "Removing…" : "Remove sample catches"}
       </button>
     );
   }
@@ -66,7 +63,7 @@ export function SampleJournalControls({
         onClick={() => void run("load")}
         className="w-full rounded-2xl border border-line bg-card px-4 py-3 font-semibold disabled:opacity-60"
       >
-        {busy && !loaded ? "Loading…" : loaded ? `${count} sample catches loaded` : "Load sample catches"}
+        {busy && !loaded ? "Loading…" : loaded ? "Sample catches loaded" : "Load sample catches"}
       </button>
       {loaded ? (
         <button

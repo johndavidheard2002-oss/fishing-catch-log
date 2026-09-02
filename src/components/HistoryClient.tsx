@@ -39,6 +39,7 @@ export function HistoryClient() {
   const [loading, setLoading] = useState(true);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [viewerId, setViewerId] = useState<string | undefined>();
+  const [shareEpoch, setShareEpoch] = useState(0);
   const queryDay = searchParams.get("day");
   const [monthOverride, setMonthOverride] = useState<{ year: number; month: number } | null>(
     queryDay ? parseYearMonth(queryDay) : null,
@@ -73,7 +74,7 @@ export function HistoryClient() {
     return () => {
       cancelled = true;
     };
-  }, [includeShared]);
+  }, [includeShared, shareEpoch]);
 
   function clearFilters() {
     setFilters({});
@@ -110,9 +111,6 @@ export function HistoryClient() {
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="font-display text-3xl text-teal">Calendar Log</h1>
-          <p className="text-sm text-ink-muted">
-            {filtered.length} of {catches.length} catches
-          </p>
         </div>
         <button
           type="button"
@@ -219,6 +217,14 @@ export function HistoryClient() {
             onSelectDay={(day) => {
               setSelectedDay(day);
               setMonthOverride(parseYearMonth(day));
+            }}
+            onShareDay={async (day, shared) => {
+              await fetch("/api/catches/share-day", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ day, shared }),
+              });
+              setShareEpoch((n) => n + 1);
             }}
             viewerId={viewerId}
           />

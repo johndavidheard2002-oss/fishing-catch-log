@@ -1,41 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { BuddyPanel } from "@/components/BuddyPanel";
 import { SampleJournalControls } from "@/components/SampleJournalControls";
-import { groupSpots } from "@/lib/filters";
-import type { CatchRecord } from "@/lib/types";
 
 export function HomeClient() {
-  const [catches, setCatches] = useState<CatchRecord[]>([]);
-
-  function loadJournal() {
-    fetch("/api/catches", { cache: "no-store" })
-      .then(async (r) => {
-        if (!r.ok) throw new Error("bad status");
-        return r.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data.catches)) setCatches(data.catches);
-      })
-      .catch(() => {});
-  }
-
-  useEffect(() => {
-    loadJournal();
-  }, []);
-
-  const species = new Set(
-    catches.flatMap((c) => (c.speciesList?.length ? c.speciesList : [c.species])),
-  ).size;
-  const spots = groupSpots(catches).length;
-
   return (
     <div className="space-y-6">
       <section>
-        <p className="text-sm tracking-wide text-ink-muted uppercase">Automatic Logbook</p>
-        <h1 className="font-display mt-1 text-4xl leading-tight text-teal">
+        <h1 className="font-display text-4xl leading-tight text-teal">
           Remember the trip. Find the pattern later.
         </h1>
         <p className="mt-2 text-ink-muted">
@@ -76,26 +49,6 @@ export function HomeClient() {
         </Link>
       </div>
 
-      <section className="space-y-2">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold text-ink-muted">Your journal</h2>
-          <Link href="/calendar" className="text-sm font-semibold text-teal">
-            Open Calendar Log
-          </Link>
-        </div>
-        <dl className="grid grid-cols-3 gap-2">
-          <Stat label="Catches" value={catches.length} />
-          <Stat label="Species" value={species} />
-          <Stat label="Spots" value={spots} />
-        </dl>
-        {catches.length === 0 ? (
-          <p className="text-sm text-ink-muted">
-            Empty until you log or backfill a catch. One photo becomes one pin — nothing is
-            pre-filled from sample trips.
-          </p>
-        ) : null}
-      </section>
-
       <details className="app-more journal-card rounded-2xl">
         <summary className="cursor-pointer px-4 py-3">
           <span>
@@ -106,19 +59,10 @@ export function HomeClient() {
           </span>
         </summary>
         <div className="space-y-3 px-4 pt-1">
-          <SampleJournalControls onChanged={loadJournal} />
+          <SampleJournalControls />
         </div>
         <BuddyPanel embedded />
       </details>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="journal-card rounded-2xl px-3 py-3 text-center">
-      <dt className="text-xs text-ink-muted">{label}</dt>
-      <dd className="font-display text-2xl text-teal">{value}</dd>
     </div>
   );
 }
