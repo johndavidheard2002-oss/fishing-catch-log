@@ -127,6 +127,17 @@ export function formatTimeOnly(iso: string): string {
   }).format(new Date(iso));
 }
 
+/** Date + clock, e.g. "Jul 12, 2025 · 6:42 AM". */
+export function formatCatchWhen(iso: string): string {
+  return `${formatDateOnly(iso)} · ${formatTimeOnly(iso)}`;
+}
+
+/** Wall-clock datetime-local from a Date already in local time. */
+export function datetimeLocalFromDate(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export function formatDateOnly(iso: string): string {
   const date = new Date(iso);
   return new Intl.DateTimeFormat("en-US", {
@@ -158,9 +169,7 @@ export function isoFromDatetimeLocal(value: string): string {
 }
 
 export function datetimeLocalValue(iso: string): string {
-  const date = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return datetimeLocalFromDate(new Date(iso));
 }
 
 export function fromDatetimeLocal(value: string): string {
@@ -208,9 +217,9 @@ export const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = {
   night: "Night",
 };
 
-export const SEASON_LABELS: Record<Season, string> = {
-  spring: "Spring",
-  summer: "Summer",
-  fall: "Fall",
-  winter: "Winter",
-};
+/** Read camera EXIF as the printed clock, not a UTC Date. */
+export const PHOTO_EXIF_OPTIONS = {
+  gps: true,
+  reviveValues: false,
+  pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
+} as const;

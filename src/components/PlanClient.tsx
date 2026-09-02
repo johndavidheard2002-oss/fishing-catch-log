@@ -85,7 +85,7 @@ export function PlanClient() {
             : "Live forecast"}
           {plan.weatherSource === "openweather" ? " Weather: OpenWeather. " : null}
           {plan.tideSource === "worldtides" ? " Tides: WorldTides. " : null}
-          Suggestions compare sky, temp, wind, time of day, season, and tide (where you logged it)
+          Suggestions compare sky, temp, wind, time of day, and tide (where you logged it)
           against productive trips.
         </p>
       ) : null}

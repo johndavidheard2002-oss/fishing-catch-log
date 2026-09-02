@@ -17,15 +17,10 @@ import { catchPinFromPhotoGps, classifyCatchPinEdit, coordsLookDifferent, format
 import { primarySpecies } from "@/lib/species";
 import { clampFishCount, draftFishCountForSpecies, sanitizeFishCountDraft } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
-import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, seasonFromCaughtAtInput, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromCaughtAtInput, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
-import { SEASONS, TIDES, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
+import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
+import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
-import type {
-  CatchRecord,
-  Habitat,
-  Season,
-  TimeOfDay,
-} from "@/lib/types";
+import type { CatchRecord, Habitat, Season, TimeOfDay } from "@/lib/types";
 
 type FormState = {
   speciesList: string[];
@@ -230,7 +225,6 @@ export function CatchForm({
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
   const [moonLocked, setMoonLocked] = useState(false);
   const [tideLocked, setTideLocked] = useState(false);
-  const [timeOfDayLocked, setTimeOfDayLocked] = useState(false);
   const [catchPinUserMoved, setCatchPinUserMoved] = useState(
     Boolean(mode === "edit" && initial?.latitude != null && initial?.longitude != null),
   );
@@ -273,10 +267,6 @@ export function CatchForm({
     setPinSource("manual");
     patch(partial);
   }
-
-  const derivedTimeOfDay =
-    timeOfDayFromCaughtAtInput(form.caughtAt) ?? form.timeOfDay;
-  const timeOfDay = timeOfDayLocked ? form.timeOfDay : derivedTimeOfDay;
 
   useEffect(() => {
     const lat = numOrNull(form.latitude);
@@ -330,14 +320,11 @@ export function CatchForm({
       formWhen && !Number.isNaN(formWhen.getTime()) ? formWhen : pastMode ? new Date(0) : new Date();
 
     try {
-      const exif = (await exifr.parse(file, {
-        gps: true,
-        pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
-      })) as {
+      const exif = (await exifr.parse(file, PHOTO_EXIF_OPTIONS)) as {
         latitude?: number;
         longitude?: number;
-        DateTimeOriginal?: Date;
-        CreateDate?: Date;
+        DateTimeOriginal?: string | Date;
+        CreateDate?: string | Date;
       } | undefined;
       if (exif?.latitude != null && exif.longitude != null) {
         photoLat = exif.latitude;
@@ -346,12 +333,9 @@ export function CatchForm({
       const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
       if (stamp) {
         at = stamp;
-        const caughtAt = datetimeLocalValue(stamp.toISOString());
-        setTimeOfDayLocked(false);
+        const caughtAt = datetimeLocalFromDate(stamp);
         patch({
-          caughtAt,
-          timeOfDay: timeOfDayFromCaughtAtInput(caughtAt) ?? timeOfDayFromDate(stamp),
-          season: seasonFromCaughtAtInput(caughtAt) ?? seasonFromDate(stamp),
+          ...clockFromCaughtAt(caughtAt),
           ...moonFields(stamp, moonLocked),
         });
       }
@@ -524,8 +508,7 @@ export function CatchForm({
         pressureMb: numOrNull(form.pressureMb),
         pressureTrend: form.pressureTrend || null,
         caughtAt: isoFromDatetimeLocal(form.caughtAt),
-        timeOfDay,
-        season: form.season,
+        ...clockFromCaughtAt(form.caughtAt),
         notes: form.notes || null,
         bait: form.bait || null,
         tide: form.tide || null,
@@ -587,11 +570,8 @@ export function CatchForm({
                   onChange={(e) => {
                     const next = joinDateTime(e.target.value, form.caughtAt.slice(11, 16) || "12:00");
                     const d = caughtDate(next);
-                    setTimeOfDayLocked(false);
                     patch({
-                      caughtAt: next,
-                      timeOfDay: timeOfDayFromCaughtAtInput(next) ?? form.timeOfDay,
-                      season: seasonFromCaughtAtInput(next) ?? form.season,
+                      ...clockFromCaughtAt(next),
                       ...moonFields(d, moonLocked),
                     });
                   }}
@@ -609,11 +589,8 @@ export function CatchForm({
                     if (!day) return;
                     const next = joinDateTime(day, e.target.value);
                     const d = caughtDate(next);
-                    setTimeOfDayLocked(false);
                     patch({
-                      caughtAt: next,
-                      timeOfDay: timeOfDayFromCaughtAtInput(next) ?? form.timeOfDay,
-                      season: seasonFromCaughtAtInput(next) ?? form.season,
+                      ...clockFromCaughtAt(next),
                       ...moonFields(d, moonLocked),
                     });
                   }}
@@ -924,56 +901,19 @@ export function CatchForm({
           onChange={(e) => {
             const value = e.target.value;
             const d = caughtDate(value);
-            setTimeOfDayLocked(false);
             patch({
-              caughtAt: value,
-              timeOfDay: timeOfDayFromCaughtAtInput(value) ?? form.timeOfDay,
-              season: seasonFromCaughtAtInput(value) ?? form.season,
+              ...clockFromCaughtAt(value),
               ...moonFields(d, moonLocked),
             });
           }}
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
           required
         />
+        <span className="mt-1 block text-xs text-ink-muted">
+          History shows this clock. A photo with a time stamp fills it in.
+        </span>
       </label>
       )}
-
-      <div className="grid grid-cols-2 gap-3">
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">Time of day</span>
-          <select
-            value={timeOfDay}
-            onChange={(e) => {
-              setTimeOfDayLocked(true);
-              patch({ timeOfDay: e.target.value as TimeOfDay });
-            }}
-            className="w-full rounded-xl border border-line bg-card px-3 py-3"
-          >
-            {TIME_OF_DAY.map((t) => (
-              <option key={t} value={t}>
-                {TIME_OF_DAY_LABELS[t]}
-              </option>
-            ))}
-          </select>
-          <span className="mt-1 block text-xs text-ink-muted">
-            Follows the catch clock (photo time when we have it) unless you change it.
-          </span>
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-semibold">Season</span>
-          <select
-            value={form.season}
-            onChange={(e) => patch({ season: e.target.value as Season })}
-            className="w-full rounded-xl border border-line bg-card px-3 py-3"
-          >
-            {SEASONS.map((s) => (
-              <option key={s} value={s}>
-                {SEASON_LABELS[s]}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
 
       <button
         type="button"
@@ -1048,6 +988,15 @@ function moonFields(d: Date, locked: boolean): Partial<FormState> {
   if (locked || Number.isNaN(d.getTime())) return {};
   const moon = moonForDate(d);
   return { moonPhase: moon.phase, moonIllumination: String(moon.illumination) };
+}
+
+function clockFromCaughtAt(value: string): Pick<FormState, "caughtAt" | "timeOfDay" | "season"> {
+  const d = caughtDate(value);
+  return {
+    caughtAt: value,
+    timeOfDay: timeOfDayFromCaughtAtInput(value) ?? (Number.isNaN(d.getTime()) ? "afternoon" : timeOfDayFromDate(d)),
+    season: seasonFromCaughtAtInput(value) ?? (Number.isNaN(d.getTime()) ? "summer" : seasonFromDate(d)),
+  };
 }
 
 function weatherFields(

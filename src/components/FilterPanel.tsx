@@ -4,10 +4,10 @@ import { HABITAT_LABELS, WATER_TYPE_LABELS, habitatsForWaterType } from "@/lib/h
 import { CONDITION_LABELS } from "@/lib/labels";
 import { MOON_PHASES } from "@/lib/moon";
 import { PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/pressure";
-import { SEASON_LABELS, TIME_OF_DAY_LABELS } from "@/lib/time";
-import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
+import { TIME_OF_DAY_LABELS } from "@/lib/time";
+import { TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_CARDINALS } from "@/lib/wind";
-import type { CatchFilters, Habitat, Season, TimeOfDay, WeatherCondition } from "@/lib/types";
+import type { CatchFilters, Habitat, TimeOfDay, WeatherCondition } from "@/lib/types";
 
 export function FilterPanel({
   filters,
@@ -19,7 +19,7 @@ export function FilterPanel({
   onClear: () => void;
 }) {
   function toggle<T extends string>(
-    key: "seasons" | "timesOfDay" | "conditions" | "moonPhases" | "pressureTrends" | "windDirections",
+    key: "timesOfDay" | "conditions" | "moonPhases" | "pressureTrends" | "windDirections",
     value: T,
   ) {
     const current = (filters[key] ?? []) as T[];
@@ -70,12 +70,6 @@ export function FilterPanel({
           />
         </label>
       </div>
-      <ChipRow
-        label="Season"
-        options={SEASONS.map((s) => ({ value: s, label: SEASON_LABELS[s] }))}
-        selected={filters.seasons ?? []}
-        onToggle={(v) => toggle("seasons", v as Season)}
-      />
       <ChipRow
         label="Time of day"
         options={TIME_OF_DAY.map((s) => ({ value: s, label: TIME_OF_DAY_LABELS[s] }))}

@@ -94,9 +94,8 @@ export function CatchDetail({ id }: { id: string }) {
             {fishCountLabel(record.fishCount)} · {record.placeName || "Unnamed spot"}
           </p>
           <p className="text-sm">{formatCaughtAt(record.caughtAt)}</p>
-          <p className="text-sm capitalize">
-            {habitatLabel(record.habitat)} · {record.season} · {record.timeOfDay} ·{" "}
-            {weatherLine(record)}
+          <p className="text-sm">
+            {habitatLabel(record.habitat)} · {weatherLine(record)}
           </p>
           {record.sharedWithLinked ? (
             <p className="text-xs text-ink-muted">
@@ -244,7 +243,7 @@ export function CatchDetail({ id }: { id: string }) {
       <section id="similar" className="space-y-3">
         <h2 className="font-display text-2xl text-teal">Similar to this catch</h2>
         <p className="text-sm text-ink-muted">
-          Past logs that match weather, season, time of day, species, or spot.
+          Past logs that match weather, clock time, species, or spot.
         </p>
         <SimilarList matches={matches} />
         <Link

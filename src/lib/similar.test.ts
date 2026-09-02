@@ -3,7 +3,7 @@ import { findSimilar, scoreSimilarity } from "./similar";
 import { catchOf } from "./testing";
 
 describe("scoreSimilarity", () => {
-  it("scores same species, spot, season, and weather highly", () => {
+  it("scores same species, spot, time of day, and weather highly", () => {
     const a = catchOf({ id: "a" });
     const b = catchOf({
       id: "b",
@@ -12,10 +12,11 @@ describe("scoreSimilarity", () => {
       weatherCondition: "clear",
     });
     const match = scoreSimilarity(a, b);
-    expect(match.score).toBeGreaterThan(70);
+    expect(match.score).toBeGreaterThan(55);
     expect(match.reasons).toContain("Same species");
     expect(match.reasons).toContain("Same spot");
-    expect(match.reasons).toContain("Summer");
+    expect(match.reasons).toContain("Same time of day");
+    expect(match.reasons).not.toContain("Summer");
   });
 
   it("does not treat a distant winter trout as similar to a summer bass", () => {

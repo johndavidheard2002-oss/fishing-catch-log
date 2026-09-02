@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import { compressImage } from "@/lib/photo";
-import { dateFromDatetimeLocal, datetimeLocalValue, parseExifStamp } from "@/lib/time";
+import { dateFromDatetimeLocal, datetimeLocalFromDate, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import { formatCoords } from "@/lib/location";
 import { peekScanQueue, setScanQueue, type QueuedScanCandidate } from "@/lib/scan-queue";
@@ -91,12 +91,9 @@ export function ScanLibraryClient() {
         let photoTakenLatitude: number | null = null;
         let photoTakenLongitude: number | null = null;
         try {
-          const exif = (await exifr.parse(original, {
-            gps: true,
-            pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
-          })) as {
-            DateTimeOriginal?: Date;
-            CreateDate?: Date;
+          const exif = (await exifr.parse(original, PHOTO_EXIF_OPTIONS)) as {
+            DateTimeOriginal?: string | Date;
+            CreateDate?: string | Date;
             latitude?: number;
             longitude?: number;
           } | undefined;
@@ -256,7 +253,7 @@ export function ScanLibraryClient() {
               <span className="mb-1 block text-xs text-ink-muted">Catch date and time</span>
               <input
                 type="datetime-local"
-                value={datetimeLocalValue(current.caughtAt.toISOString())}
+                value={datetimeLocalFromDate(current.caughtAt)}
                 onChange={(e) => {
                   const next = dateFromDatetimeLocal(e.target.value);
                   if (!next) return;

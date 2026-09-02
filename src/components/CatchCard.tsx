@@ -3,7 +3,7 @@ import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel } from "@/lib/calendar";
 import { speciesLabel } from "@/lib/species";
-import { formatDateOnly, formatTimeOnly } from "@/lib/time";
+import { formatCatchWhen, formatTimeOnly } from "@/lib/time";
 import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
 import type { CatchRecord } from "@/lib/types";
 
@@ -48,8 +48,8 @@ export function CatchCard({
           </p>
           <p className="truncate text-sm text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-1 truncate text-xs text-ink-muted">
-            {showTime ? formatTimeOnly(record.caughtAt) : formatDateOnly(record.caughtAt)} ·{" "}
-            {record.timeOfDay} · {weatherLine(record)}
+            {showTime ? formatTimeOnly(record.caughtAt) : formatCatchWhen(record.caughtAt)} ·{" "}
+            {weatherLine(record)}
           </p>
           <p className="mt-1 flex flex-wrap gap-1">
             <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
@@ -97,7 +97,7 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
           </p>
           <p className="truncate text-xs text-ink-muted">{catchSpotLabel(record)}</p>
           <p className="mt-0.5 text-[10px] text-ink-muted">
-            {habitatLabel(record.habitat)}
+            {formatCatchWhen(record.caughtAt)} · {habitatLabel(record.habitat)}
             {isSampleCatchPhoto(record.photoPath) ? " · Sample" : ""}
           </p>
         </div>

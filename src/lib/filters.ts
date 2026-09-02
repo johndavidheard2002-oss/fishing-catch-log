@@ -28,10 +28,6 @@ export function matchesFilters(record: CatchRecord, filters: CatchFilters): bool
     if (record.caughtAt > end) return false;
   }
 
-  if (filters.seasons?.length && !filters.seasons.includes(record.season)) {
-    return false;
-  }
-
   if (filters.timesOfDay?.length && !filters.timesOfDay.includes(record.timeOfDay)) {
     return false;
   }
@@ -106,7 +102,6 @@ export function parseFilters(searchParams: URLSearchParams): CatchFilters {
     place: searchParams.get("place") || undefined,
     from: searchParams.get("from") || undefined,
     to: searchParams.get("to") || undefined,
-    seasons: csv("season") as CatchFilters["seasons"],
     timesOfDay: csv("time") as CatchFilters["timesOfDay"],
     conditions: csv("condition") as CatchFilters["conditions"],
     tempMin: num("tempMin"),
@@ -191,7 +186,6 @@ export function groupSpots(records: CatchRecord[]): SpotGroup[] {
             .map((c) => c.weatherCondition)
             .filter((v): v is NonNullable<typeof v> => v != null),
         ),
-        typicalSeason: mostCommon(catches.map((c) => c.season)),
         typicalTime: mostCommon(catches.map((c) => c.timeOfDay)),
         avgTempF: (() => {
           const temps = catches.map((c) => c.temperatureF).filter((n): n is number => n != null);
@@ -237,7 +231,6 @@ export function hasActiveFilters(filters: CatchFilters): boolean {
       filters.place ||
       filters.from ||
       filters.to ||
-      filters.seasons?.length ||
       filters.timesOfDay?.length ||
       filters.conditions?.length ||
       filters.tempMin != null ||

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "./BuddyPanel";
 import { CatchCard } from "./CatchCard";
 import { CONDITION_LABELS } from "@/lib/labels";
-import { formatDateOnly } from "@/lib/time";
+import { formatCatchWhen } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { SpotGroup } from "@/lib/types";
 
@@ -95,9 +95,7 @@ export function SpotsClient() {
                       : ""}
                   </p>
                   <p className="text-xs text-ink-muted">
-                    Last {formatDateOnly(spot.lastCaughtAt)}
-                    {spot.typicalSeason ? ` · ${spot.typicalSeason}` : ""}
-                    {spot.typicalTime ? ` · ${spot.typicalTime}` : ""}
+                    Last {formatCatchWhen(spot.lastCaughtAt)}
                   </p>
                 </button>
               </li>
@@ -115,14 +113,15 @@ export function SpotsClient() {
                   : ""}
                 .
               </p>
-              <p className="text-sm text-ink-muted">
-                Revisit when the pattern matches: {current.typicalSeason},{" "}
-                {current.typicalTime}
-                {current.typicalCondition
-                  ? `, ${CONDITION_LABELS[current.typicalCondition]}`
-                  : ""}
-                .
-              </p>
+              {current.typicalCondition || current.avgTempF != null ? (
+                <p className="text-sm text-ink-muted">
+                  Revisit when the pattern matches
+                  {current.typicalCondition
+                    ? `: ${CONDITION_LABELS[current.typicalCondition]}`
+                    : ""}
+                  {current.avgTempF != null ? ` · ~${current.avgTempF}°F` : ""}.
+                </p>
+              ) : null}
               {current.catches.map((record) => (
                 <CatchCard key={record.id} record={record} compact viewerId={viewerId} />
               ))}

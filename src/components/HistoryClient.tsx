@@ -154,13 +154,6 @@ export function HistoryClient() {
           }}
         />
         <Preset
-          label="Summer"
-          onClick={() => {
-            setFilters({ seasons: ["summer"] });
-            setShowFilters(true);
-          }}
-        />
-        <Preset
           label="Bass"
           onClick={() => {
             setFilters({ species: "Bass" });

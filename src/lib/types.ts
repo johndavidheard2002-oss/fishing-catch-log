@@ -136,7 +136,6 @@ export type CatchFilters = {
   place?: string;
   from?: string;
   to?: string;
-  seasons?: Season[];
   timesOfDay?: TimeOfDay[];
   conditions?: WeatherCondition[];
   tempMin?: number;
@@ -169,7 +168,6 @@ export type SpotGroup = {
   speciesCounts: { species: string; count: number }[];
   lastCaughtAt: string;
   typicalCondition: WeatherCondition | null;
-  typicalSeason: Season | null;
   typicalTime: TimeOfDay | null;
   avgTempF: number | null;
   catches: CatchRecord[];

@@ -18,10 +18,10 @@ describe("matchesFilters", () => {
     expect(matchesFilters(bass, filters)).toBe(false);
   });
 
-  it("filters by species substring and season", () => {
-    expect(matchesFilters(bass, { species: "bass", seasons: ["summer"] })).toBe(true);
+  it("filters by species substring and derived time of day", () => {
+    expect(matchesFilters(bass, { species: "bass", timesOfDay: ["afternoon"] })).toBe(true);
     expect(matchesFilters(bass, { species: "trout" })).toBe(false);
-    expect(matchesFilters(bass, { seasons: ["spring"] })).toBe(false);
+    expect(matchesFilters(bass, { timesOfDay: ["dawn"] })).toBe(false);
   });
 
   it("matches any tagged species on a multi-fish catch", () => {

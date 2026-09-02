@@ -71,7 +71,7 @@ export type ConditionSlice = {
   pressureTrend?: string | null;
 };
 
-/** Weather / time / season / tide overlap — used for similar catches and Plan. */
+/** Weather / time / tide overlap — used for similar catches and Plan. */
 export function scoreConditionOverlap(
   a: ConditionSlice,
   b: ConditionSlice,
@@ -79,18 +79,13 @@ export function scoreConditionOverlap(
   let score = 0;
   const reasons: string[] = [];
 
-  if (a.season && b.season && a.season === b.season) {
-    score += 15;
-    reasons.push(capitalize(a.season));
-  }
-
   if (a.timeOfDay && b.timeOfDay) {
     if (a.timeOfDay === b.timeOfDay) {
       score += 12;
-      reasons.push(capitalize(a.timeOfDay));
+      reasons.push("Same time of day");
     } else if (adjacentTimes(a.timeOfDay as TimeOfDay).includes(b.timeOfDay)) {
       score += 5;
-      reasons.push(`Near ${a.timeOfDay}`);
+      reasons.push("Nearby time of day");
     }
   }
 

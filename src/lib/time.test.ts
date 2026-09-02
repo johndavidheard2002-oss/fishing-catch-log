@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  datetimeLocalFromDate,
   datetimeLocalValue,
+  formatTimeOnly,
   isoFromDatetimeLocal,
   parseExifStamp,
   seasonFromDate,
@@ -67,6 +69,19 @@ describe("isoFromDatetimeLocal", () => {
     const iso = isoFromDatetimeLocal("2025-07-12T06:10");
     expect(datetimeLocalValue(iso).startsWith("2025-07-12T06:10")).toBe(true);
     expect(timeOfDayFromCaughtAtInput("2025-07-12T06:10")).toBe("dawn");
+    expect(formatTimeOnly(iso)).toMatch(/6:10/);
+  });
+});
+
+describe("EXIF clock display", () => {
+  it("shows the camera wall clock, not a UTC-shifted morning/afternoon label", () => {
+    const stamp = parseExifStamp("2025:07:12 06:10:00");
+    expect(stamp).toBeInstanceOf(Date);
+    const local = datetimeLocalFromDate(stamp!);
+    expect(local).toBe("2025-07-12T06:10");
+    const iso = isoFromDatetimeLocal(local);
+    expect(formatTimeOnly(iso)).toMatch(/6:10/);
+    expect(timeOfDayFromCaughtAtInput(local)).toBe("dawn");
   });
 });
 

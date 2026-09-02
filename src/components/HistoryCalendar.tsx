@@ -15,7 +15,7 @@ import {
 import { groupSpots } from "@/lib/filters";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
-import { formatTimeOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
+import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { CatchRecord } from "@/lib/types";
 import Link from "next/link";
@@ -172,20 +172,9 @@ export function HistoryCalendar({
           {selected.length === 0 ? (
             <p className="text-sm text-ink-muted">No matching catches on this day.</p>
           ) : (
-            selected.map((record, index) => {
-              const prev = selected[index - 1];
-              const showBucket = !prev || prev.timeOfDay !== record.timeOfDay;
-              return (
-                <div key={record.id} className="space-y-1.5">
-                  {showBucket ? (
-                    <p className="text-xs font-semibold text-ink-muted">
-                      {TIME_OF_DAY_LABELS[record.timeOfDay]}
-                    </p>
-                  ) : null}
-                  <CatchCard record={record} compact showTime viewerId={viewerId} />
-                </div>
-              );
-            })
+            selected.map((record) => (
+              <CatchCard key={record.id} record={record} compact showTime viewerId={viewerId} />
+            ))
           )}
         </section>
       ) : (
