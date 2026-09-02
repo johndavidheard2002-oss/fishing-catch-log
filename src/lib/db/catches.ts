@@ -1,5 +1,6 @@
 import { count, desc, eq } from "drizzle-orm";
 import { inferHabitat, isHabitat } from "../habitat";
+import { moonForDate } from "../moon";
 import { seasonFromDate, timeOfDayFromDate } from "../time";
 import type {
   CatchInput,
@@ -43,8 +44,14 @@ function mapRow(
     temperatureF: row.temperatureF,
     weatherCondition: row.weatherCondition as WeatherCondition | null,
     windSpeedMph: row.windSpeedMph,
+    windDirection: row.windDirection,
     precipitationIn: row.precipitationIn,
     humidity: row.humidity,
+    moonPhase: row.moonPhase,
+    moonIllumination: row.moonIllumination,
+    pressureInHg: row.pressureInHg,
+    pressureMb: row.pressureMb,
+    pressureTrend: row.pressureTrend,
     caughtAt: row.caughtAt,
     timeOfDay: row.timeOfDay as TimeOfDay,
     season: row.season as Season,
@@ -72,9 +79,12 @@ function ownerNames(ids: string[]): Map<string, string> {
 
 function withDerived(input: CatchInput) {
   const caught = new Date(input.caughtAt);
+  const moon = Number.isNaN(caught.getTime()) ? null : moonForDate(caught);
   return {
     timeOfDay: input.timeOfDay ?? timeOfDayFromDate(caught),
     season: input.season ?? seasonFromDate(caught),
+    moonPhase: input.moonPhase ?? moon?.phase ?? null,
+    moonIllumination: input.moonIllumination ?? moon?.illumination ?? null,
   };
 }
 
@@ -139,8 +149,14 @@ export function createCatch(input: CatchInput): CatchRecord {
       temperatureF: input.temperatureF ?? null,
       weatherCondition: input.weatherCondition ?? null,
       windSpeedMph: input.windSpeedMph ?? null,
+      windDirection: input.windDirection ?? null,
       precipitationIn: input.precipitationIn ?? null,
       humidity: input.humidity ?? null,
+      moonPhase: derived.moonPhase,
+      moonIllumination: derived.moonIllumination,
+      pressureInHg: input.pressureInHg ?? null,
+      pressureMb: input.pressureMb ?? null,
+      pressureTrend: input.pressureTrend ?? null,
       caughtAt: new Date(input.caughtAt).toISOString(),
       timeOfDay: derived.timeOfDay,
       season: derived.season,
@@ -169,6 +185,11 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
     caughtAt,
     timeOfDay: input.timeOfDay,
     season: input.season,
+    moonPhase: input.moonPhase === undefined ? existing.moonPhase : input.moonPhase,
+    moonIllumination:
+      input.moonIllumination === undefined
+        ? existing.moonIllumination
+        : input.moonIllumination,
   });
   const habitat =
     input.habitat === undefined ? existing.habitat : asHabitat(input.habitat, species);
@@ -196,11 +217,21 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
           : input.weatherCondition,
       windSpeedMph:
         input.windSpeedMph === undefined ? existing.windSpeedMph : input.windSpeedMph,
+      windDirection:
+        input.windDirection === undefined ? existing.windDirection : input.windDirection,
       precipitationIn:
         input.precipitationIn === undefined
           ? existing.precipitationIn
           : input.precipitationIn,
       humidity: input.humidity === undefined ? existing.humidity : input.humidity,
+      moonPhase: derived.moonPhase,
+      moonIllumination: derived.moonIllumination,
+      pressureInHg:
+        input.pressureInHg === undefined ? existing.pressureInHg : input.pressureInHg,
+      pressureMb:
+        input.pressureMb === undefined ? existing.pressureMb : input.pressureMb,
+      pressureTrend:
+        input.pressureTrend === undefined ? existing.pressureTrend : input.pressureTrend,
       caughtAt,
       timeOfDay: derived.timeOfDay,
       season: derived.season,

@@ -1,5 +1,8 @@
 import type { WeatherSnapshot } from "../types";
+import { moonForDate } from "../moon";
+import { inHgToMb } from "../pressure";
 import { seasonFromDate } from "../time";
+import { WIND_DIRECTIONS } from "../wind";
 
 function hash(lat: number, lon: number, day: string): number {
   const s = `${lat.toFixed(2)},${lon.toFixed(2)},${day}`;
@@ -35,6 +38,7 @@ export function demoWeather(lat: number, lon: number, at: Date): WeatherSnapshot
   else weatherCondition = "clear";
 
   const windSpeedMph = Math.round(4 + (h % 14));
+  const windDirection = WIND_DIRECTIONS[h % WIND_DIRECTIONS.length];
   const precipitationIn =
     weatherCondition === "rain" || weatherCondition === "storm"
       ? Number((0.1 + (h % 6) / 20).toFixed(2))
@@ -42,14 +46,24 @@ export function demoWeather(lat: number, lon: number, at: Date): WeatherSnapshot
         ? 0.05
         : 0;
   const humidity = Math.min(95, 45 + (h % 40) + (precipitationIn > 0 ? 10 : 0));
+  const pressureInHg = Number((29.72 + ((h % 41) - 20) / 100).toFixed(2));
+  const pressureMb = inHgToMb(pressureInHg);
+  const pressureTrend = (["rising", "falling", "steady"] as const)[h % 3];
+  const moon = moonForDate(at);
 
   return {
     temperatureF,
     weatherCondition,
     windSpeedMph,
+    windDirection,
     precipitationIn,
     humidity,
+    moonPhase: moon.phase,
+    moonIllumination: moon.illumination,
+    pressureInHg,
+    pressureMb,
+    pressureTrend,
     source: "demo",
-    note: "Demo weather (no OpenWeather key). Edit if it looks off.",
+    note: "Demo weather (no OpenWeather key). Sky, wind, and pressure are simulated. Moon phase is from the date. Edit if it looks off.",
   };
 }

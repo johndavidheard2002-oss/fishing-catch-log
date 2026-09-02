@@ -36,6 +36,14 @@ describe("matchesFilters", () => {
       matchesFilters(redfish, { habitats: ["saltwater-inshore", "saltwater-offshore"] }),
     ).toBe(true);
   });
+
+  it("filters by moon phase and pressure trend", () => {
+    const full = catchOf({ id: "f", moonPhase: "Full", pressureTrend: "falling" });
+    expect(matchesFilters(full, { moonPhases: ["Full"] })).toBe(true);
+    expect(matchesFilters(full, { moonPhases: ["New"] })).toBe(false);
+    expect(matchesFilters(full, { pressureTrends: ["falling"] })).toBe(true);
+    expect(matchesFilters(bass, { moonPhases: ["Full"] })).toBe(false);
+  });
 });
 
 describe("groupSpots", () => {

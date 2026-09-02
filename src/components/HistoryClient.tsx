@@ -159,9 +159,9 @@ export function HistoryClient() {
           }}
         />
         <Preset
-          label="Offshore"
+          label="Full moon"
           onClick={() => {
-            setFilters({ habitats: ["saltwater-offshore"] });
+            setFilters({ moonPhases: ["Full"] });
             setShowFilters(true);
           }}
         />

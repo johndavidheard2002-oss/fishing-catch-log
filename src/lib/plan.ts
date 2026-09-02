@@ -151,8 +151,14 @@ export async function buildPlan(
         temperatureF: echoCatch.temperatureF,
         weatherCondition: echoCatch.weatherCondition,
         windSpeedMph: echoCatch.windSpeedMph,
+        windDirection: echoCatch.windDirection,
         precipitationIn: echoCatch.precipitationIn,
         humidity: echoCatch.humidity,
+        moonPhase: echoCatch.moonPhase,
+        moonIllumination: echoCatch.moonIllumination,
+        pressureInHg: echoCatch.pressureInHg,
+        pressureMb: echoCatch.pressureMb,
+        pressureTrend: echoCatch.pressureTrend,
       });
       windows = [
         ...windows.filter(

@@ -100,7 +100,37 @@ export function CatchDetail({ id }: { id: string }) {
         />
         <Item
           label="Wind"
-          value={record.windSpeedMph != null ? `${record.windSpeedMph} mph` : "—"}
+          value={
+            record.windSpeedMph != null && record.windDirection
+              ? `${record.windDirection} ${record.windSpeedMph} mph`
+              : record.windSpeedMph != null
+                ? `${record.windSpeedMph} mph`
+                : record.windDirection || "—"
+          }
+        />
+        <Item
+          label="Moon"
+          value={
+            record.moonPhase
+              ? `${record.moonPhase}${
+                  record.moonIllumination != null ? ` · ${Math.round(record.moonIllumination)}%` : ""
+                }`
+              : "—"
+          }
+        />
+        <Item
+          label="Pressure"
+          value={
+            record.pressureInHg != null || record.pressureMb != null
+              ? [
+                  record.pressureInHg != null ? `${record.pressureInHg.toFixed(2)} inHg` : null,
+                  record.pressureMb != null ? `${record.pressureMb} mb` : null,
+                  record.pressureTrend,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "—"
+          }
         />
         <Item
           label="Precip"

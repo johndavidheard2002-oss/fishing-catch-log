@@ -153,7 +153,13 @@ function SuggestionCard({
             {TIME_OF_DAY_LABELS[w.timeOfDay]}
             {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
             {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
-            {w.windSpeedMph != null ? ` · ${Math.round(w.windSpeedMph)} mph` : ""}
+            {w.windSpeedMph != null
+              ? ` · ${w.windDirection ? `${w.windDirection} ` : ""}${Math.round(w.windSpeedMph)} mph`
+              : w.windDirection
+                ? ` · ${w.windDirection}`
+                : ""}
+            {w.moonPhase ? ` · ${w.moonPhase}` : ""}
+            {w.pressureInHg != null ? ` · ${w.pressureInHg.toFixed(2)} inHg` : ""}
             {w.tide ? ` · ${w.tide} tide` : ""}
           </p>
         </div>

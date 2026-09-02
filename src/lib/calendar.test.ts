@@ -1,37 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { groupCatchesByDate, localDateKey, monthGrid, shiftMonth } from "./calendar";
+import { catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
 function catchOn(local: Date, id: string): CatchRecord {
-  return {
+  return catchOf({
     id,
-    photoPath: null,
-    species: "Largemouth Bass",
-    speciesSuggested: null,
-    speciesConfidence: null,
-    speciesSource: "manual",
-    latitude: 30.388,
-    longitude: -97.975,
-    placeName: "Lake Travis, TX",
-    temperatureF: 80,
-    weatherCondition: "clear",
-    windSpeedMph: 6,
-    precipitationIn: 0,
-    humidity: 50,
     caughtAt: local.toISOString(),
-    timeOfDay: "afternoon",
-    season: "summer",
-    notes: null,
-    bait: null,
-    tide: null,
-    waterClarity: null,
-    habitat: "freshwater",
-    anglerId: "you",
-    sharedWithLinked: false,
-    ownerName: "You",
     createdAt: local.toISOString(),
     updatedAt: local.toISOString(),
-  };
+  });
 }
 
 describe("localDateKey", () => {

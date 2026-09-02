@@ -6,12 +6,16 @@ import exifr from "exifr";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
-import { inferHabitat } from "@/lib/habitat";
+import { inferHabitat, isHabitat } from "@/lib/habitat";
+import { MOON_PHASES, moonForDate } from "@/lib/moon";
+import { inHgToMb, mbToInHg, PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
+import { SPECIES_AUTO_FILL_MIN } from "@/lib/species";
 import { datetimeLocalValue, seasonFromDate, TIME_OF_DAY_LABELS, timeOfDayFromDate, SEASON_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
+import { WIND_DIRECTIONS } from "@/lib/wind";
 import type {
   CatchRecord,
   Habitat,
@@ -31,8 +35,14 @@ type FormState = {
   temperatureF: string;
   weatherCondition: string;
   windSpeedMph: string;
+  windDirection: string;
   precipitationIn: string;
   humidity: string;
+  moonPhase: string;
+  moonIllumination: string;
+  pressureInHg: string;
+  pressureMb: string;
+  pressureTrend: string;
   caughtAt: string;
   timeOfDay: TimeOfDay;
   season: Season;
@@ -42,10 +52,12 @@ type FormState = {
   waterClarity: string;
   habitat: Habitat;
   sharedWithLinked: boolean;
+  speciesAlternatives: { species: string; confidence: number }[];
 };
 
 const emptyForm = (pastMode = false): FormState => {
   const now = new Date();
+  const moon = moonForDate(now);
   return {
     species: "",
     speciesSuggested: "",
@@ -57,8 +69,14 @@ const emptyForm = (pastMode = false): FormState => {
     temperatureF: "",
     weatherCondition: "",
     windSpeedMph: "",
+    windDirection: "",
     precipitationIn: "",
     humidity: "",
+    moonPhase: pastMode ? "" : moon.phase,
+    moonIllumination: pastMode ? "" : String(moon.illumination),
+    pressureInHg: "",
+    pressureMb: "",
+    pressureTrend: "",
     caughtAt: pastMode ? "" : datetimeLocalValue(now.toISOString()),
     timeOfDay: timeOfDayFromDate(now),
     season: seasonFromDate(now),
@@ -68,6 +86,7 @@ const emptyForm = (pastMode = false): FormState => {
     waterClarity: "",
     habitat: "freshwater",
     sharedWithLinked: false,
+    speciesAlternatives: [],
   };
 };
 
@@ -83,8 +102,14 @@ function fromRecord(record: CatchRecord): FormState {
     temperatureF: record.temperatureF != null ? String(record.temperatureF) : "",
     weatherCondition: record.weatherCondition ?? "",
     windSpeedMph: record.windSpeedMph != null ? String(record.windSpeedMph) : "",
+    windDirection: record.windDirection ?? "",
     precipitationIn: record.precipitationIn != null ? String(record.precipitationIn) : "",
     humidity: record.humidity != null ? String(record.humidity) : "",
+    moonPhase: record.moonPhase ?? "",
+    moonIllumination: record.moonIllumination != null ? String(record.moonIllumination) : "",
+    pressureInHg: record.pressureInHg != null ? String(record.pressureInHg) : "",
+    pressureMb: record.pressureMb != null ? String(record.pressureMb) : "",
+    pressureTrend: record.pressureTrend ?? "",
     caughtAt: datetimeLocalValue(record.caughtAt),
     timeOfDay: record.timeOfDay,
     season: record.season,
@@ -94,6 +119,7 @@ function fromRecord(record: CatchRecord): FormState {
     waterClarity: record.waterClarity ?? "",
     habitat: record.habitat,
     sharedWithLinked: record.sharedWithLinked,
+    speciesAlternatives: [],
   };
 }
 
@@ -121,6 +147,7 @@ export function CatchForm({
   const [showMore, setShowMore] = useState(Boolean(initial?.notes || initial?.bait));
   const [showMap, setShowMap] = useState(pastMode || Boolean(initial?.latitude));
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
+  const [moonLocked, setMoonLocked] = useState(false);
 
   useEffect(() => {
     fetch("/api/buddies")
@@ -168,18 +195,14 @@ export function CatchForm({
         const w = data.weather;
         setForm((f) => ({
           ...f,
-          temperatureF: w.temperatureF != null ? String(w.temperatureF) : f.temperatureF,
-          weatherCondition: w.weatherCondition ?? f.weatherCondition,
-          windSpeedMph: w.windSpeedMph != null ? String(w.windSpeedMph) : f.windSpeedMph,
-          precipitationIn: w.precipitationIn != null ? String(w.precipitationIn) : f.precipitationIn,
-          humidity: w.humidity != null ? String(w.humidity) : f.humidity,
+          ...weatherFields(w, { includeMoon: !moonLocked }),
         }));
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [pastMode, form.caughtAt, form.latitude, form.longitude]);
+  }, [pastMode, form.caughtAt, form.latitude, form.longitude, moonLocked]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -219,6 +242,7 @@ export function CatchForm({
           caughtAt: datetimeLocalValue(stamp.toISOString()),
           timeOfDay: timeOfDayFromDate(stamp),
           season: seasonFromDate(stamp),
+          ...moonFields(stamp, moonLocked),
         });
       }
     } catch {
@@ -244,19 +268,35 @@ export function CatchForm({
       (async () => {
         const fd = new FormData();
         fd.set("photo", nextFile);
+        if (form.habitat) fd.set("habitat", form.habitat);
+        if (lat != null) fd.set("latitude", String(lat));
+        if (lon != null) fd.set("longitude", String(lon));
+        if (form.placeName) fd.set("placeName", form.placeName);
         try {
           const res = await fetch("/api/assist/vision", { method: "POST", body: fd });
           const data = (await res.json()) as { suggestion?: SpeciesSuggestion; error?: string };
           if (data.suggestion) {
             setForm((f) => {
-              const nextSpecies = f.species.trim() ? f.species : data.suggestion!.species;
+              const guess = data.suggestion!;
+              const autoFill =
+                !f.species.trim() &&
+                guess.species !== "Unknown" &&
+                guess.confidence >= SPECIES_AUTO_FILL_MIN;
+              const nextSpecies = autoFill ? guess.species : f.species;
+              const nextHabitat =
+                autoFill && guess.habitat && isHabitat(guess.habitat)
+                  ? guess.habitat
+                  : autoFill
+                    ? inferHabitat(nextSpecies, f.habitat)
+                    : f.habitat;
               return {
                 ...f,
                 species: nextSpecies,
-                speciesSuggested: data.suggestion!.species,
-                speciesConfidence: data.suggestion!.confidence,
-                speciesSource: data.suggestion!.source === "openai" ? "vision" : "demo",
-                habitat: f.species.trim() ? f.habitat : inferHabitat(nextSpecies, f.habitat),
+                speciesSuggested: guess.species,
+                speciesConfidence: guess.confidence,
+                speciesSource: guess.source === "openai" ? "vision" : "demo",
+                speciesAlternatives: guess.alternatives ?? [],
+                habitat: nextHabitat,
               };
             });
             notes.push(data.suggestion.note);
@@ -280,13 +320,7 @@ export function CatchForm({
             const data = await res.json();
             const w = data.weather;
             if (w) {
-              patch({
-                temperatureF: w.temperatureF != null ? String(w.temperatureF) : "",
-                weatherCondition: w.weatherCondition ?? "",
-                windSpeedMph: w.windSpeedMph != null ? String(w.windSpeedMph) : "",
-                precipitationIn: w.precipitationIn != null ? String(w.precipitationIn) : "",
-                humidity: w.humidity != null ? String(w.humidity) : "",
-              });
+              patch(weatherFields(w, { includeMoon: !moonLocked }));
               notes.push(w.note);
             }
           } catch {
@@ -356,8 +390,14 @@ export function CatchForm({
         temperatureF: numOrNull(form.temperatureF),
         weatherCondition: form.weatherCondition || null,
         windSpeedMph: numOrNull(form.windSpeedMph),
+        windDirection: form.windDirection || null,
         precipitationIn: numOrNull(form.precipitationIn),
         humidity: numOrNull(form.humidity),
+        moonPhase: form.moonPhase || null,
+        moonIllumination: numOrNull(form.moonIllumination),
+        pressureInHg: numOrNull(form.pressureInHg),
+        pressureMb: numOrNull(form.pressureMb),
+        pressureTrend: form.pressureTrend || null,
         caughtAt: new Date(form.caughtAt).toISOString(),
         timeOfDay: form.timeOfDay,
         season: form.season,
@@ -418,6 +458,7 @@ export function CatchForm({
                       caughtAt: next,
                       timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
                       season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+                      ...moonFields(d, moonLocked),
                     });
                   }}
                   className="w-full rounded-xl border border-line bg-card px-3 py-3"
@@ -438,6 +479,7 @@ export function CatchForm({
                       caughtAt: next,
                       timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
                       season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+                      ...moonFields(d, moonLocked),
                     });
                   }}
                   className="w-full rounded-xl border border-line bg-card px-3 py-3"
@@ -494,26 +536,58 @@ export function CatchForm({
       />
 
       {suggestion?.species ? (
-        <div className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="rounded-full bg-paper-deep px-3 py-1 text-ink-muted">
-            Assist: {suggestion.species}
-            {suggestion.confidence != null
-              ? ` · ${Math.round(suggestion.confidence * 100)}%`
-              : ""}
-          </span>
-          <button
-            type="button"
-            className="font-semibold text-teal"
-            onClick={() =>
-              patch({
-                species: suggestion.species,
-                speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
-              })
-            }
-          >
-            Use suggestion
-          </button>
-          <p className="w-full text-xs text-ink-muted">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="rounded-full bg-paper-deep px-3 py-1 text-ink-muted">
+              Assist: {suggestion.species}
+              {suggestion.confidence != null
+                ? ` · ${Math.round(suggestion.confidence * 100)}%`
+                : ""}
+              {form.speciesSource === "demo" ? " · demo" : ""}
+            </span>
+            {form.species !== suggestion.species ? (
+              <button
+                type="button"
+                className="font-semibold text-teal"
+                onClick={() =>
+                  patch({
+                    species: suggestion.species,
+                    habitat: inferHabitat(suggestion.species, form.habitat),
+                    speciesSource: form.speciesSource === "demo" ? "demo" : "vision",
+                  })
+                }
+              >
+                Use suggestion
+              </button>
+            ) : null}
+          </div>
+          {(suggestion.confidence ?? 1) < SPECIES_AUTO_FILL_MIN ? (
+            <p className="text-xs text-copper">
+              Low confidence — pick a chip or type the species. The field stays editable.
+            </p>
+          ) : null}
+          {form.speciesAlternatives.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {form.speciesAlternatives.map((alt) => (
+                <button
+                  key={alt.species}
+                  type="button"
+                  className="rounded-full border border-line bg-card px-2.5 py-1 text-xs font-semibold"
+                  onClick={() =>
+                    patch({
+                      species: alt.species,
+                      habitat: inferHabitat(alt.species, form.habitat),
+                      speciesSource: "edited",
+                    })
+                  }
+                >
+                  {alt.species}
+                  {alt.confidence != null ? ` ${Math.round(alt.confidence * 100)}%` : ""}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="text-xs text-ink-muted">
             Species ID is an assist, not a guarantee. Edit anytime.
           </p>
         </div>
@@ -571,13 +645,7 @@ export function CatchForm({
               const weatherData = await weatherRes.json();
               const w = weatherData.weather;
               if (w) {
-                patch({
-                  temperatureF: w.temperatureF != null ? String(w.temperatureF) : "",
-                  weatherCondition: w.weatherCondition ?? "",
-                  windSpeedMph: w.windSpeedMph != null ? String(w.windSpeedMph) : "",
-                  precipitationIn: w.precipitationIn != null ? String(w.precipitationIn) : "",
-                  humidity: w.humidity != null ? String(w.humidity) : "",
-                });
+                patch(weatherFields(w, { includeMoon: !moonLocked }));
                 setAssistNote(w.note);
               }
             } catch {
@@ -643,6 +711,21 @@ export function CatchForm({
           />
         </label>
         <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Wind dir</span>
+          <select
+            value={form.windDirection}
+            onChange={(e) => patch({ windDirection: e.target.value })}
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          >
+            <option value="">Unknown</option>
+            {WIND_DIRECTIONS.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
           <span className="mb-1 block text-sm font-semibold">Precip in</span>
           <input
             inputMode="decimal"
@@ -650,6 +733,86 @@ export function CatchForm({
             onChange={(e) => patch({ precipitationIn: e.target.value })}
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Moon</span>
+          <select
+            value={form.moonPhase}
+            onChange={(e) => {
+              setMoonLocked(true);
+              patch({ moonPhase: e.target.value });
+            }}
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          >
+            <option value="">Unknown</option>
+            {MOON_PHASES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Moon %</span>
+          <input
+            inputMode="decimal"
+            value={form.moonIllumination}
+            onChange={(e) => {
+              setMoonLocked(true);
+              patch({ moonIllumination: e.target.value });
+            }}
+            placeholder="Illumination"
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Pressure inHg</span>
+          <input
+            inputMode="decimal"
+            value={form.pressureInHg}
+            onChange={(e) => {
+              const value = e.target.value;
+              const n = Number(value);
+              patch({
+                pressureInHg: value,
+                pressureMb:
+                  value.trim() && Number.isFinite(n) ? String(inHgToMb(n)) : form.pressureMb,
+              });
+            }}
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Pressure mb</span>
+          <input
+            inputMode="decimal"
+            value={form.pressureMb}
+            onChange={(e) => {
+              const value = e.target.value;
+              const n = Number(value);
+              patch({
+                pressureMb: value,
+                pressureInHg:
+                  value.trim() && Number.isFinite(n) ? String(mbToInHg(n)) : form.pressureInHg,
+              });
+            }}
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold">Pressure trend</span>
+          <select
+            value={form.pressureTrend}
+            onChange={(e) => patch({ pressureTrend: e.target.value })}
+            className="w-full rounded-xl border border-line bg-card px-3 py-3"
+          >
+            <option value="">Unknown</option>
+            {PRESSURE_TRENDS.map((t) => (
+              <option key={t} value={t}>
+                {pressureTrendLabel(t)}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
 
@@ -668,6 +831,7 @@ export function CatchForm({
               caughtAt: value,
               timeOfDay: Number.isNaN(d.getTime()) ? form.timeOfDay : timeOfDayFromDate(d),
               season: Number.isNaN(d.getTime()) ? form.season : seasonFromDate(d),
+              ...moonFields(d, moonLocked),
             });
           }}
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
@@ -782,6 +946,57 @@ export function CatchForm({
       </button>
     </form>
   );
+}
+
+function moonFields(d: Date, locked: boolean): Partial<FormState> {
+  if (locked || Number.isNaN(d.getTime())) return {};
+  const moon = moonForDate(d);
+  return { moonPhase: moon.phase, moonIllumination: String(moon.illumination) };
+}
+
+function weatherFields(
+  w: {
+    temperatureF?: number | null;
+    weatherCondition?: string | null;
+    windSpeedMph?: number | null;
+    windDirection?: string | null;
+    precipitationIn?: number | null;
+    humidity?: number | null;
+    moonPhase?: string | null;
+    moonIllumination?: number | null;
+    pressureInHg?: number | null;
+    pressureMb?: number | null;
+    pressureTrend?: string | null;
+  },
+  opts?: { includeMoon?: boolean },
+): Partial<FormState> {
+  const inHg =
+    w.pressureInHg != null
+      ? w.pressureInHg
+      : w.pressureMb != null
+        ? mbToInHg(w.pressureMb)
+        : null;
+  const mb =
+    w.pressureMb != null
+      ? w.pressureMb
+      : w.pressureInHg != null
+        ? inHgToMb(w.pressureInHg)
+        : null;
+  return {
+    ...(w.temperatureF != null ? { temperatureF: String(w.temperatureF) } : {}),
+    ...(w.weatherCondition ? { weatherCondition: w.weatherCondition } : {}),
+    ...(w.windSpeedMph != null ? { windSpeedMph: String(w.windSpeedMph) } : {}),
+    ...(w.windDirection ? { windDirection: w.windDirection } : {}),
+    ...(w.precipitationIn != null ? { precipitationIn: String(w.precipitationIn) } : {}),
+    ...(w.humidity != null ? { humidity: String(w.humidity) } : {}),
+    ...(opts?.includeMoon !== false && w.moonPhase ? { moonPhase: w.moonPhase } : {}),
+    ...(opts?.includeMoon !== false && w.moonIllumination != null
+      ? { moonIllumination: String(w.moonIllumination) }
+      : {}),
+    ...(inHg != null ? { pressureInHg: String(inHg) } : {}),
+    ...(mb != null ? { pressureMb: String(mb) } : {}),
+    ...(w.pressureTrend ? { pressureTrend: w.pressureTrend } : {}),
+  };
 }
 
 function joinDateTime(date: string, time: string): string {

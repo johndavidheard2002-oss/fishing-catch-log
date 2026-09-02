@@ -1,4 +1,6 @@
 import { conditionFromOpenWeather } from "../labels";
+import { moonForDate } from "../moon";
+import { pressureFromMb, pressureTrendFromDeltaMb } from "../pressure";
 import {
   dateKeyLocal,
   localTimeOfDay,
@@ -6,15 +8,16 @@ import {
   TIME_OF_DAY_HOURS,
 } from "../time";
 import type { ForecastWindow, TimeOfDay, WeatherCondition } from "../types";
+import { degreesToWindDirection } from "../wind";
 import { demoWeather } from "./demo";
 import { hasOpenWeatherKey } from "./openweather";
 
 type OpenWeatherForecast = {
   list?: {
     dt: number;
-    main?: { temp: number; humidity: number };
+    main?: { temp: number; humidity: number; pressure?: number };
     weather?: { main: string; description: string }[];
-    wind?: { speed: number };
+    wind?: { speed: number; deg?: number };
     clouds?: { all: number };
     rain?: { "3h"?: number };
     snow?: { "3h"?: number };
@@ -36,10 +39,17 @@ function windowFromSnapshot(args: {
   temperatureF: number | null;
   weatherCondition: WeatherCondition | null;
   windSpeedMph: number | null;
+  windDirection?: string | null;
   precipitationIn: number | null;
   humidity: number | null;
+  moonPhase?: string | null;
+  moonIllumination?: number | null;
+  pressureInHg?: number | null;
+  pressureMb?: number | null;
+  pressureTrend?: string | null;
   weatherSource: "openweather" | "demo";
 }): ForecastWindow {
+  const moon = moonForDate(args.at);
   return {
     at: args.at.toISOString(),
     date: dateKeyLocal(args.at, args.lon),
@@ -50,8 +60,14 @@ function windowFromSnapshot(args: {
     temperatureF: args.temperatureF,
     weatherCondition: args.weatherCondition,
     windSpeedMph: args.windSpeedMph,
+    windDirection: args.windDirection ?? null,
     precipitationIn: args.precipitationIn,
     humidity: args.humidity,
+    moonPhase: args.moonPhase ?? moon.phase,
+    moonIllumination: args.moonIllumination ?? moon.illumination,
+    pressureInHg: args.pressureInHg ?? null,
+    pressureMb: args.pressureMb ?? null,
+    pressureTrend: args.pressureTrend ?? null,
     tide: null,
     tideHeightFt: null,
     weatherSource: args.weatherSource,
@@ -91,8 +107,14 @@ export function demoForecastWindows(
           temperatureF: temp,
           weatherCondition: condition,
           windSpeedMph: snap.windSpeedMph,
+          windDirection: snap.windDirection,
           precipitationIn: snap.precipitationIn,
           humidity: snap.humidity,
+          moonPhase: snap.moonPhase,
+          moonIllumination: snap.moonIllumination,
+          pressureInHg: snap.pressureInHg,
+          pressureMb: snap.pressureMb,
+          pressureTrend: snap.pressureTrend,
           weatherSource: "demo",
         }),
       );
@@ -111,8 +133,14 @@ export function echoPastWindow(
     temperatureF: number | null;
     weatherCondition: WeatherCondition | null;
     windSpeedMph: number | null;
+    windDirection?: string | null;
     precipitationIn: number | null;
     humidity: number | null;
+    moonPhase?: string | null;
+    moonIllumination?: number | null;
+    pressureInHg?: number | null;
+    pressureMb?: number | null;
+    pressureTrend?: string | null;
   },
 ): ForecastWindow {
   const at = dateAtHour(day, TIME_OF_DAY_HOURS[echo.timeOfDay], lon);
@@ -125,8 +153,14 @@ export function echoPastWindow(
       echo.temperatureF != null ? echo.temperatureF + jitter : null,
     weatherCondition: echo.weatherCondition,
     windSpeedMph: echo.windSpeedMph,
+    windDirection: echo.windDirection ?? null,
     precipitationIn: echo.precipitationIn,
     humidity: echo.humidity,
+    moonPhase: echo.moonPhase,
+    moonIllumination: echo.moonIllumination,
+    pressureInHg: echo.pressureInHg,
+    pressureMb: echo.pressureMb,
+    pressureTrend: echo.pressureTrend,
     weatherSource: "demo",
   });
 }
@@ -164,7 +198,9 @@ export async function fetchOpenWeatherForecast(
   const data = (await res.json()) as OpenWeatherForecast;
 
   const buckets = new Map<string, { window: ForecastWindow; dist: number }>();
-  for (const item of data.list ?? []) {
+  const list = data.list ?? [];
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i];
     const at = new Date(item.dt * 1000);
     const tod = localTimeOfDay(at, lon);
     const date = dateKeyLocal(at, lon);
@@ -174,6 +210,12 @@ export async function fetchOpenWeatherForecast(
     const dist = Math.abs(localHour - center);
     const w = item.weather?.[0];
     const rainIn = (item.rain?.["3h"] ?? item.snow?.["3h"] ?? 0) / 25.4;
+    const pressure = pressureFromMb(item.main?.pressure);
+    const earlier = list[i - 1];
+    const trend =
+      earlier?.main?.pressure != null && item.main?.pressure != null
+        ? pressureTrendFromDeltaMb(item.main.pressure - earlier.main.pressure)
+        : null;
     const window = windowFromSnapshot({
       at,
       lat,
@@ -183,8 +225,13 @@ export async function fetchOpenWeatherForecast(
         ? conditionFromOpenWeather(w.main, w.description, item.clouds?.all)
         : null,
       windSpeedMph: item.wind?.speed != null ? Math.round(item.wind.speed) : null,
+      windDirection:
+        item.wind?.deg != null ? degreesToWindDirection(item.wind.deg) : null,
       precipitationIn: rainIn ? Number(rainIn.toFixed(2)) : 0,
       humidity: item.main?.humidity ?? null,
+      pressureInHg: pressure.pressureInHg,
+      pressureMb: pressure.pressureMb,
+      pressureTrend: trend,
       weatherSource: "openweather",
     });
     const keyB = `${date}|${tod}`;

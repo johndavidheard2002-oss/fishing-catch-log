@@ -23,11 +23,22 @@ export function personalPhotoSrc(photoPath: string | null): string | null {
   return isPersonalPhoto(photoPath) ? photoSrc(photoPath) : null;
 }
 
-export function weatherLine(record: Pick<CatchRecord, "temperatureF" | "weatherCondition" | "windSpeedMph">): string {
+export function weatherLine(
+  record: Pick<
+    CatchRecord,
+    "temperatureF" | "weatherCondition" | "windSpeedMph" | "windDirection"
+  >,
+): string {
   const bits: string[] = [];
   if (record.temperatureF != null) bits.push(`${Math.round(record.temperatureF)}°F`);
   if (record.weatherCondition) bits.push(record.weatherCondition.replace("-", " "));
-  if (record.windSpeedMph != null) bits.push(`${Math.round(record.windSpeedMph)} mph wind`);
+  if (record.windSpeedMph != null && record.windDirection) {
+    bits.push(`${record.windDirection} ${Math.round(record.windSpeedMph)} mph`);
+  } else if (record.windSpeedMph != null) {
+    bits.push(`${Math.round(record.windSpeedMph)} mph wind`);
+  } else if (record.windDirection) {
+    bits.push(`${record.windDirection} wind`);
+  }
   return bits.join(" · ") || "Weather not logged";
 }
 

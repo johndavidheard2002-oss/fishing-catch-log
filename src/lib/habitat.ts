@@ -204,3 +204,56 @@ export function matchesHabitatFilters(
   if (!selected?.length) return true;
   return selected.includes(habitat);
 }
+
+/**
+ * Rough US/Gulf hint from coordinates or a place name so species assist
+ * prefers freshwater vs inshore vs offshore when the photo is ambiguous.
+ */
+export function habitatHintFromLocation(
+  lat?: number | null,
+  lon?: number | null,
+  placeName?: string | null,
+): Habitat | null {
+  const place = (placeName ?? "").toLowerCase();
+  if (place) {
+    if (/\b(gulf stream|offshore|canyon|weed.?line|blue water)\b/.test(place)) {
+      return "saltwater-offshore";
+    }
+    if (
+      /\b(gulf|lagoon|bay|inshore|flats|marsh|jetty|pass|sound|inlet|beach)\b/.test(
+        place,
+      )
+    ) {
+      return "saltwater-inshore";
+    }
+    if (/\b(lake|pond|river|creek|reservoir|tailwater|farm pond)\b/.test(place)) {
+      return "freshwater";
+    }
+  }
+
+  if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+    return null;
+  }
+
+  // Gulf of Mexico shelf / Florida west coast / TX–LA–MS–AL inshore.
+  if (lat >= 24 && lat <= 31.4 && lon >= -97.9 && lon <= -80.8) {
+    return "saltwater-inshore";
+  }
+  // SE Florida / Gulf Stream.
+  if (lat >= 24 && lat <= 28.4 && lon > -80.8 && lon <= -78.8) {
+    return "saltwater-offshore";
+  }
+  // US Atlantic inshore (Carolinas through Mid-Atlantic).
+  if (lat >= 25 && lat <= 42 && lon >= -81.6 && lon <= -69.5) {
+    return "saltwater-inshore";
+  }
+  // US Pacific coast.
+  if (lat >= 32 && lat <= 49 && lon >= -125.5 && lon <= -116.8) {
+    return "saltwater-inshore";
+  }
+  // Interior Lower 48 — lakes and rivers.
+  if (lat >= 24.5 && lat <= 49.5 && lon >= -125 && lon <= -67) {
+    return "freshwater";
+  }
+  return null;
+}

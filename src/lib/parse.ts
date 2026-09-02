@@ -1,4 +1,6 @@
 import { inferHabitat, isHabitat } from "./habitat";
+import { isMoonPhase } from "./moon";
+import { isPressureTrend } from "./pressure";
 import { normalizeCondition } from "./labels";
 import { seasonFromDate, timeOfDayFromDate } from "./time";
 import type {
@@ -10,6 +12,7 @@ import type {
   WeatherCondition,
 } from "./types";
 import { SEASONS, SPECIES_SOURCES, TIME_OF_DAY, WEATHER_CONDITIONS } from "./types";
+import { isWindDirection } from "./wind";
 
 function asString(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -57,6 +60,26 @@ function asCondition(value: unknown): WeatherCondition | null {
   return normalizeCondition(value);
 }
 
+function asWindDirection(value: unknown): string | null {
+  const s = asString(value);
+  if (!s) return null;
+  const upper = s.toUpperCase();
+  return isWindDirection(upper) ? upper : s;
+}
+
+function asMoonPhase(value: unknown): string | null {
+  const s = asString(value);
+  if (!s) return null;
+  return isMoonPhase(s) ? s : s;
+}
+
+function asPressureTrend(value: unknown): string | null {
+  const s = asString(value);
+  if (!s) return null;
+  const lower = s.toLowerCase();
+  return isPressureTrend(lower) ? lower : s;
+}
+
 export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput {
   const caughtRaw = asString(body.caughtAt) ?? new Date().toISOString();
   const caught = new Date(caughtRaw);
@@ -75,8 +98,14 @@ export function catchInputFromUnknown(body: Record<string, unknown>): CatchInput
     temperatureF: asNumber(body.temperatureF),
     weatherCondition: asCondition(body.weatherCondition),
     windSpeedMph: asNumber(body.windSpeedMph),
+    windDirection: asWindDirection(body.windDirection),
     precipitationIn: asNumber(body.precipitationIn),
     humidity: asNumber(body.humidity),
+    moonPhase: asMoonPhase(body.moonPhase),
+    moonIllumination: asNumber(body.moonIllumination),
+    pressureInHg: asNumber(body.pressureInHg),
+    pressureMb: asNumber(body.pressureMb),
+    pressureTrend: asPressureTrend(body.pressureTrend),
     caughtAt: caughtAt.toISOString(),
     timeOfDay: asTime(body.timeOfDay, caughtAt),
     season: asSeason(body.season, caughtAt),

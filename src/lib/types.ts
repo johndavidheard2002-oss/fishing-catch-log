@@ -1,7 +1,13 @@
 import type { Habitat, WaterType } from "./habitat";
+import type { MoonPhase } from "./moon";
+import type { PressureTrend } from "./pressure";
+import type { WindDirection } from "./wind";
 
-export type { Habitat, WaterType };
+export type { Habitat, WaterType, MoonPhase, PressureTrend, WindDirection };
 export { HABITATS, WATER_TYPES } from "./habitat";
+export { MOON_PHASES } from "./moon";
+export { PRESSURE_TRENDS } from "./pressure";
+export { WIND_DIRECTIONS } from "./wind";
 
 export const TIME_OF_DAY = [
   "dawn",
@@ -58,8 +64,14 @@ export type CatchRecord = {
   temperatureF: number | null;
   weatherCondition: WeatherCondition | null;
   windSpeedMph: number | null;
+  windDirection: string | null;
   precipitationIn: number | null;
   humidity: number | null;
+  moonPhase: string | null;
+  moonIllumination: number | null;
+  pressureInHg: number | null;
+  pressureMb: number | null;
+  pressureTrend: string | null;
   caughtAt: string;
   timeOfDay: TimeOfDay;
   season: Season;
@@ -87,8 +99,14 @@ export type CatchInput = {
   temperatureF?: number | null;
   weatherCondition?: WeatherCondition | null;
   windSpeedMph?: number | null;
+  windDirection?: string | null;
   precipitationIn?: number | null;
   humidity?: number | null;
+  moonPhase?: string | null;
+  moonIllumination?: number | null;
+  pressureInHg?: number | null;
+  pressureMb?: number | null;
+  pressureTrend?: string | null;
   caughtAt: string;
   timeOfDay?: TimeOfDay;
   season?: Season;
@@ -113,6 +131,9 @@ export type CatchFilters = {
   tempMax?: number;
   windMin?: number;
   windMax?: number;
+  windDirections?: string[];
+  moonPhases?: string[];
+  pressureTrends?: string[];
   lat?: number;
   lng?: number;
   radiusKm?: number;
@@ -144,8 +165,14 @@ export type WeatherSnapshot = {
   temperatureF: number | null;
   weatherCondition: WeatherCondition | null;
   windSpeedMph: number | null;
+  windDirection: string | null;
   precipitationIn: number | null;
   humidity: number | null;
+  moonPhase: string | null;
+  moonIllumination: number | null;
+  pressureInHg: number | null;
+  pressureMb: number | null;
+  pressureTrend: string | null;
   source: "openweather" | "open-meteo" | "demo";
   note: string;
 };
@@ -154,6 +181,7 @@ export type SpeciesSuggestion = {
   species: string;
   confidence: number;
   alternatives: { species: string; confidence: number }[];
+  habitat?: Habitat | null;
   source: "openai" | "demo";
   note: string;
 };
@@ -182,8 +210,14 @@ export type ForecastWindow = {
   temperatureF: number | null;
   weatherCondition: WeatherCondition | null;
   windSpeedMph: number | null;
+  windDirection: string | null;
   precipitationIn: number | null;
   humidity: number | null;
+  moonPhase: string | null;
+  moonIllumination: number | null;
+  pressureInHg: number | null;
+  pressureMb: number | null;
+  pressureTrend: string | null;
   tide: Tide | null;
   tideHeightFt: number | null;
   weatherSource: "openweather" | "demo";

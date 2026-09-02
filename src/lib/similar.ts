@@ -6,6 +6,8 @@ import type {
   TimeOfDay,
   WeatherCondition,
 } from "./types";
+import { pressureTrendLabel } from "./pressure";
+import { windDirectionDistance } from "./wind";
 
 const CONDITION_FAMILIES: Record<string, WeatherCondition[]> = {
   bright: ["clear", "partly-cloudy"],
@@ -60,8 +62,12 @@ export type ConditionSlice = {
   weatherCondition?: WeatherCondition | null;
   temperatureF?: number | null;
   windSpeedMph?: number | null;
+  windDirection?: string | null;
   precipitationIn?: number | null;
   tide?: string | null;
+  moonPhase?: string | null;
+  pressureInHg?: number | null;
+  pressureTrend?: string | null;
 };
 
 /** Weather / time / season / tide overlap — used for similar catches and Plan. */
@@ -118,6 +124,37 @@ export function scoreConditionOverlap(
       reasons.push("Similar wind");
     } else if (delta <= 8) {
       score += 3;
+    }
+  }
+
+  if (a.windDirection && b.windDirection) {
+    const dist = windDirectionDistance(a.windDirection, b.windDirection);
+    if (dist === 0) {
+      score += 4;
+      reasons.push(`${a.windDirection} wind`);
+    } else if (dist != null && dist <= 1) {
+      score += 3;
+      reasons.push("Nearby wind direction");
+    }
+  }
+
+  if (a.moonPhase && b.moonPhase && a.moonPhase === b.moonPhase) {
+    score += 6;
+    reasons.push(`${a.moonPhase} moon`);
+  }
+
+  if (a.pressureTrend && b.pressureTrend && a.pressureTrend === b.pressureTrend) {
+    score += 4;
+    reasons.push(`${pressureTrendLabel(a.pressureTrend as "rising" | "falling" | "steady")} pressure`);
+  }
+
+  if (a.pressureInHg != null && b.pressureInHg != null) {
+    const delta = Math.abs(a.pressureInHg - b.pressureInHg);
+    if (delta <= 0.1) {
+      score += 3;
+      if (!reasons.some((r) => r.toLowerCase().includes("pressure"))) {
+        reasons.push("Similar pressure");
+      }
     }
   }
 

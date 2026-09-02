@@ -2,6 +2,16 @@ import type { WeatherSnapshot } from "../types";
 import { demoWeather } from "./demo";
 import { fetchArchiveWeather } from "./historical";
 import { fetchOpenWeather, hasOpenWeatherKey } from "./openweather";
+import { moonForDate } from "../moon";
+
+export function withMoon(snap: WeatherSnapshot, at: Date): WeatherSnapshot {
+  const moon = moonForDate(at);
+  return {
+    ...snap,
+    moonPhase: moon.phase,
+    moonIllumination: moon.illumination,
+  };
+}
 
 export async function getWeather(
   lat: number,
@@ -14,11 +24,11 @@ export async function getWeather(
 
   if (hasOpenWeatherKey() && recent) {
     try {
-      return await fetchOpenWeather(lat, lon);
+      return withMoon(await fetchOpenWeather(lat, lon, at), at);
     } catch {
       const fallback = demoWeather(lat, lon, at);
       return {
-        ...fallback,
+        ...withMoon(fallback, at),
         note: "OpenWeather failed — using demo weather. Everything is editable.",
       };
     }
@@ -27,7 +37,7 @@ export async function getWeather(
   if (inPast) {
     try {
       const archived = await fetchArchiveWeather(lat, lon, at);
-      if (archived) return archived;
+      if (archived) return withMoon(archived, at);
     } catch {
       /* fall through */
     }
@@ -36,12 +46,12 @@ export async function getWeather(
   if (hasOpenWeatherKey() && !recent) {
     const fallback = demoWeather(lat, lon, at);
     return {
-      ...fallback,
+      ...withMoon(fallback, at),
       note: "Could not load archive weather for that date. Demo weather filled in — edit if you remember it.",
     };
   }
 
-  return demoWeather(lat, lon, at);
+  return withMoon(demoWeather(lat, lon, at), at);
 }
 
 export { hasOpenWeatherKey };

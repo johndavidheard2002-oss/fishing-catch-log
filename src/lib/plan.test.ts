@@ -7,38 +7,25 @@ import {
   suggestionStrength,
   suggestFromWindows,
 } from "./plan";
+import { catchOf } from "./testing";
 import type { CatchRecord, ForecastWindow } from "./types";
 
-function catchOf(partial: Partial<CatchRecord> & { id: string }): CatchRecord {
-  return {
-    photoPath: null,
-    species: "Largemouth Bass",
-    speciesSuggested: null,
-    speciesConfidence: null,
-    speciesSource: "manual",
+function pondCatch(partial: Partial<CatchRecord> & { id: string }): CatchRecord {
+  return catchOf({
     latitude: 40.212,
     longitude: -82.891,
     placeName: "Farm Pond, OH",
     temperatureF: 76,
     weatherCondition: "cloudy",
     windSpeedMph: 5,
-    precipitationIn: 0,
     humidity: 61,
-    caughtAt: "2025-06-22T19:05:00.000Z",
-    timeOfDay: "afternoon",
-    season: "summer",
-    notes: null,
     bait: "Senko",
-    tide: null,
     waterClarity: "clear",
-    habitat: "freshwater",
-    anglerId: "you",
-    sharedWithLinked: false,
-    ownerName: "You",
+    caughtAt: "2025-06-22T19:05:00.000Z",
     createdAt: "2025-06-22T19:05:00.000Z",
     updatedAt: "2025-06-22T19:05:00.000Z",
     ...partial,
-  };
+  });
 }
 
 function windowOf(partial: Partial<ForecastWindow>): ForecastWindow {
@@ -52,8 +39,14 @@ function windowOf(partial: Partial<ForecastWindow>): ForecastWindow {
     temperatureF: 74,
     weatherCondition: "cloudy",
     windSpeedMph: 6,
+    windDirection: "SW",
     precipitationIn: 0,
     humidity: 60,
+    moonPhase: "Waxing gibbous",
+    moonIllumination: 70,
+    pressureInHg: 29.96,
+    pressureMb: 1014.5,
+    pressureTrend: "steady",
     tide: null,
     tideHeightFt: null,
     weatherSource: "demo",
@@ -64,9 +57,9 @@ function windowOf(partial: Partial<ForecastWindow>): ForecastWindow {
 
 describe("isPositiveCatch", () => {
   it("keeps logged fish and drops empty labels", () => {
-    expect(isPositiveCatch(catchOf({ id: "1" }))).toBe(true);
-    expect(isPositiveCatch(catchOf({ id: "2", species: "Unknown" }))).toBe(false);
-    expect(isPositiveCatch(catchOf({ id: "3", species: "skunk" }))).toBe(false);
+    expect(isPositiveCatch(pondCatch({ id: "1" }))).toBe(true);
+    expect(isPositiveCatch(pondCatch({ id: "2", species: "Unknown" }))).toBe(false);
+    expect(isPositiveCatch(pondCatch({ id: "3", species: "skunk" }))).toBe(false);
   });
 });
 
@@ -74,7 +67,7 @@ describe("scoreWindowAgainstCatch", () => {
   it("scores cloudy + ~72°F + afternoon like the Farm Pond bass", () => {
     const match = scoreWindowAgainstCatch(
       windowOf({ temperatureF: 72, weatherCondition: "cloudy", timeOfDay: "afternoon" }),
-      catchOf({ id: "bass" }),
+      pondCatch({ id: "bass" }),
     );
     expect(match.score).toBeGreaterThanOrEqual(30);
     expect(match.reasons).toEqual(
@@ -117,7 +110,7 @@ describe("scoreWindowAgainstCatch", () => {
 
 describe("suggestFromWindows", () => {
   it("ranks the matching spot and points at the past catch", () => {
-    const bass = catchOf({ id: "bass" });
+    const bass = pondCatch({ id: "bass" });
     const trout = catchOf({
       id: "trout",
       species: "Rainbow Trout",
@@ -158,7 +151,7 @@ describe("planHeadline", () => {
   it("names the past trip that drove the match", () => {
     const text = planHeadline(
       windowOf({ temperatureF: 72, weatherCondition: "cloudy", timeOfDay: "morning" }),
-      catchOf({ id: "x" }),
+      pondCatch({ id: "x" }),
     );
     expect(text).toContain("Farm Pond, OH");
     expect(text).toContain("Largemouth Bass");

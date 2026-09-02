@@ -1,5 +1,8 @@
 import { conditionFromOpenWeather } from "../labels";
+import { moonForDate } from "../moon";
+import { pressureFromMb, pressureTrendFromDeltaMb } from "../pressure";
 import type { WeatherCondition, WeatherSnapshot } from "../types";
+import { degreesToWindDirection } from "../wind";
 
 const WMO_TO_OW: Record<number, { main: string; description: string }> = {
   0: { main: "Clear", description: "clear sky" },
@@ -43,7 +46,7 @@ export async function fetchArchiveWeather(
   url.searchParams.set("end_date", day);
   url.searchParams.set(
     "hourly",
-    "temperature_2m,weathercode,windspeed_10m,precipitation,relativehumidity_2m",
+    "temperature_2m,weathercode,windspeed_10m,winddirection_10m,precipitation,relativehumidity_2m,surface_pressure",
   );
   url.searchParams.set("temperature_unit", "fahrenheit");
   url.searchParams.set("windspeed_unit", "mph");
@@ -58,8 +61,10 @@ export async function fetchArchiveWeather(
       temperature_2m?: Array<number | null>;
       weathercode?: Array<number | null>;
       windspeed_10m?: Array<number | null>;
+      winddirection_10m?: Array<number | null>;
       precipitation?: Array<number | null>;
       relativehumidity_2m?: Array<number | null>;
+      surface_pressure?: Array<number | null>;
     };
   };
   const times = data.hourly?.time ?? [];
@@ -76,13 +81,27 @@ export async function fetchArchiveWeather(
   }
 
   const code = data.hourly?.weathercode?.[best] ?? 2;
+  const deg = data.hourly?.winddirection_10m?.[best];
+  const mb = data.hourly?.surface_pressure?.[best];
+  const prevIdx = Math.max(0, best - 3);
+  const prevMb = data.hourly?.surface_pressure?.[prevIdx];
+  const pressure = pressureFromMb(mb ?? null);
+  const moon = moonForDate(at);
+
   return {
     temperatureF: data.hourly?.temperature_2m?.[best] ?? null,
     weatherCondition: conditionFromWmo(code ?? 2),
     windSpeedMph: data.hourly?.windspeed_10m?.[best] ?? null,
+    windDirection: deg != null ? degreesToWindDirection(deg) : null,
     precipitationIn: data.hourly?.precipitation?.[best] ?? null,
     humidity: data.hourly?.relativehumidity_2m?.[best] ?? null,
+    moonPhase: moon.phase,
+    moonIllumination: moon.illumination,
+    pressureInHg: pressure.pressureInHg,
+    pressureMb: pressure.pressureMb,
+    pressureTrend:
+      prevIdx !== best ? pressureTrendFromDeltaMb((mb ?? 0) - (prevMb ?? mb ?? 0)) : "steady",
     source: "open-meteo",
-    note: "Weather for that date from Open-Meteo archive. Edit if you remember it differently.",
+    note: "Weather for that date from Open-Meteo archive. Moon phase is from the date. Edit if you remember it differently.",
   };
 }

@@ -27,9 +27,9 @@ Copy `.env.example` to `.env.local` in the project root:
 
 | Variable | What it does | If missing |
 | --- | --- | --- |
-| `OPENWEATHER_API_KEY` | Current weather at the catch **and** 5-day forecast on Plan, from [OpenWeather](https://openweathermap.org/api) | Deterministic demo weather/forecast from date + coordinates. Labeled demo. |
-| `OPENAI_API_KEY` | Fish species assist from the photo (OpenAI vision) | Demo guess from a species list, clearly labeled. Editable. |
-| `OPENAI_VISION_MODEL` | Optional model name (default `gpt-4o-mini`) | — |
+| `OPENWEATHER_API_KEY` | Current weather at the catch **and** 5-day forecast on Plan, from [OpenWeather](https://openweathermap.org/api): sky, temp, **wind speed + direction**, **barometric pressure**. Past dates use Open-Meteo archive (no key) including wind dir, pressure, and a 3-hour pressure trend when possible. Moon phase is always computed from the catch date. | Deterministic demo sky/wind/pressure from date + coordinates, labeled demo. Moon phase is still real from the date. Everything is editable. |
+| `OPENAI_API_KEY` | **Real** fish species assist from the photo (OpenAI vision). Uses `gpt-4o` by default, the US/Gulf catalog, and habitat/location hints. Shows confidence; auto-fills the species field only at ≥50% confidence. Always editable. | Demo guess from the **habitat-filtered** catalog (not a mixed FW+salt list). Clearly labeled demo, usually low confidence so it does not overwrite the species field. Pick a chip or type the name. |
+| `OPENAI_VISION_MODEL` | Optional model override (default `gpt-4o`). `gpt-4o-mini` is cheaper and faster but weaker on similar inshore species. | — |
 | `WORLDTIDES_API_KEY` | Tide extremes for coastal spots on Plan ([WorldTides](https://www.worldtides.info/)) | Synthetic semidiurnal tide series, labeled demo. Inland spots skip tides unless you logged a tide on a catch there. |
 | `DATABASE_PATH` | Optional SQLite file path | `./data/cast-log.sqlite` |
 
@@ -39,10 +39,10 @@ The header shows **Demo APIs** when weather or vision is not live.
 
 ## What you can do
 
-- **Log** — camera or camera-roll upload, fast save. Pick **Freshwater / Saltwater**, then **Inshore / Offshore** for salt, so the species list stays short. Weather, GPS, and place fill in when they can. Optional bait / tide / water / notes. **Share with linked buddies** is off unless you turn it on.
-- **Add a past catch** — backfill from an old photo: set the date/time, drop a map pin, search a place, and we try archive weather for that day.
-- **History** — grid, list, or **calendar** month view. Day cells show stacked catch photos (and +N). Tap a day for that day’s trips in time order. Filter by freshwater / saltwater / inshore / offshore. Presets like “Cloudy 70–80°F”. CSV export.
-- **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, and wind, and says why.
+- **Log** — camera or camera-roll upload, fast save. Pick **Freshwater / Saltwater**, then **Inshore / Offshore** for salt, so the species list stays short. Weather, GPS, and place fill in when they can — including **moon phase**, **wind direction**, and **barometric pressure** (inHg and mb, with trend when we have it). Optional bait / tide / water / notes. **Share with linked buddies** is off unless you turn it on.
+- **Add a past catch** — backfill from an old photo: set the date/time, drop a map pin, search a place, and we try archive weather for that day (moon from the date, wind dir and pressure from the archive when available).
+- **History** — grid, list, or **calendar** month view. Day cells show stacked catch photos (and +N). Tap a day for that day’s trips in time order. Filter by freshwater / saltwater / inshore / offshore, moon phase, wind direction, and pressure trend. Presets like “Cloudy 70–80°F” and “Full moon”. CSV export.
+- **Similar to this catch** — ranks past logs by species, spot, season, time of day, sky, temperature, wind (speed + direction), moon, and pressure, and says why.
 - **Plan** — upcoming 3/5/7-day windows vs days you actually caught fish. Photos on Plan cards are **only your logged trip photos** — no seed art or stock. Honest that this is a pattern match, not a guarantee.
 - **Spots** — map + grouped list so you can revisit water that produced under similar conditions.
 - **Linked buddies** — invite code pairing (or a household profile on this journal). Combined History / Plan / Spots can include trips a buddy **explicitly shared**, labeled with whose catch it is. **Only shared with people you’ve linked.** Never public: no feed, no discoverable profile, no share-with-everyone. Unapproved people see nothing. Unlink anytime. Entire histories are never auto-shared.

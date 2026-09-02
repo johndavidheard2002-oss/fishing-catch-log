@@ -3,6 +3,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { inferHabitat } from "../habitat";
+import { moonForDate } from "../moon";
 import { ensureDefaultAngler } from "./anglers";
 import { seedIfEmpty } from "./seed";
 import * as schema from "./schema";
@@ -21,8 +22,14 @@ CREATE TABLE IF NOT EXISTS catches (
   temperature_f REAL,
   weather_condition TEXT,
   wind_speed_mph REAL,
+  wind_direction TEXT,
   precipitation_in REAL,
   humidity INTEGER,
+  moon_phase TEXT,
+  moon_illumination REAL,
+  pressure_in_hg REAL,
+  pressure_mb REAL,
+  pressure_trend TEXT,
   caught_at TEXT NOT NULL,
   time_of_day TEXT NOT NULL,
   season TEXT NOT NULL,
@@ -101,6 +108,21 @@ function migrate(sqlite: Database.Database) {
   sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_catches_habitat ON catches(habitat)`);
   sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_catches_angler ON catches(angler_id)`);
 
+  const extra: [string, string][] = [
+    ["wind_direction", "TEXT"],
+    ["moon_phase", "TEXT"],
+    ["moon_illumination", "REAL"],
+    ["pressure_in_hg", "REAL"],
+    ["pressure_mb", "REAL"],
+    ["pressure_trend", "TEXT"],
+  ];
+  const latestCols = tableColumns(sqlite, "catches");
+  for (const [name, type] of extra) {
+    if (!latestCols.includes(name)) {
+      sqlite.exec(`ALTER TABLE catches ADD COLUMN ${name} ${type}`);
+    }
+  }
+
   const version = Number(sqlite.pragma("user_version", { simple: true }) ?? 0);
   if (version < 2) {
     const rows = sqlite.prepare("SELECT id, species FROM catches").all() as {
@@ -112,6 +134,24 @@ function migrate(sqlite: Database.Database) {
       update.run(inferHabitat(row.species), row.id);
     }
     sqlite.pragma("user_version = 2");
+  }
+  if (version < 3) {
+    const rows = sqlite.prepare("SELECT id, caught_at, moon_phase FROM catches").all() as {
+      id: string;
+      caught_at: string;
+      moon_phase: string | null;
+    }[];
+    const update = sqlite.prepare(
+      "UPDATE catches SET moon_phase = ?, moon_illumination = ? WHERE id = ?",
+    );
+    for (const row of rows) {
+      if (row.moon_phase) continue;
+      const at = new Date(row.caught_at);
+      if (Number.isNaN(at.getTime())) continue;
+      const moon = moonForDate(at);
+      update.run(moon.phase, moon.illumination, row.id);
+    }
+    sqlite.pragma("user_version = 3");
   }
 }
 

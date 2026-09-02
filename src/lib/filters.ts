@@ -1,6 +1,9 @@
 import { isHabitat, matchesHabitatFilters } from "./habitat";
+import { isMoonPhase } from "./moon";
+import { isPressureTrend } from "./pressure";
 import { haversineKm } from "./similar";
 import type { CatchFilters, CatchRecord, Habitat, SpotGroup } from "./types";
+import { windMatchesCardinal } from "./wind";
 
 export function matchesFilters(record: CatchRecord, filters: CatchFilters): boolean {
   if (!matchesHabitatFilters(record.habitat, filters.habitats)) return false;
@@ -50,6 +53,25 @@ export function matchesFilters(record: CatchRecord, filters: CatchFilters): bool
     return false;
   }
 
+  if (filters.windDirections?.length) {
+    if (!record.windDirection) return false;
+    const hit = filters.windDirections.some(
+      (dir) =>
+        record.windDirection === dir || windMatchesCardinal(record.windDirection, dir),
+    );
+    if (!hit) return false;
+  }
+
+  if (filters.moonPhases?.length) {
+    if (!record.moonPhase || !filters.moonPhases.includes(record.moonPhase)) return false;
+  }
+
+  if (filters.pressureTrends?.length) {
+    if (!record.pressureTrend || !filters.pressureTrends.includes(record.pressureTrend)) {
+      return false;
+    }
+  }
+
   if (
     filters.lat != null &&
     filters.lng != null &&
@@ -88,6 +110,9 @@ export function parseFilters(searchParams: URLSearchParams): CatchFilters {
     tempMax: num("tempMax"),
     windMin: num("windMin"),
     windMax: num("windMax"),
+    windDirections: csv("windDir"),
+    moonPhases: csv("moon")?.filter(isMoonPhase),
+    pressureTrends: csv("pressureTrend")?.filter(isPressureTrend),
     lat: num("lat"),
     lng: num("lng"),
     radiusKm: num("radiusKm"),
@@ -168,6 +193,9 @@ export function hasActiveFilters(filters: CatchFilters): boolean {
       filters.tempMax != null ||
       filters.windMin != null ||
       filters.windMax != null ||
+      filters.windDirections?.length ||
+      filters.moonPhases?.length ||
+      filters.pressureTrends?.length ||
       filters.radiusKm != null ||
       filters.habitats?.length,
   );

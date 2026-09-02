@@ -1,38 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findSimilar, scoreSimilarity } from "./similar";
-import type { CatchRecord } from "./types";
-
-function catchOf(partial: Partial<CatchRecord> & { id: string }): CatchRecord {
-  return {
-    photoPath: null,
-    species: "Largemouth Bass",
-    speciesSuggested: null,
-    speciesConfidence: null,
-    speciesSource: "manual",
-    latitude: 30.388,
-    longitude: -97.975,
-    placeName: "Lake Travis, TX",
-    temperatureF: 80,
-    weatherCondition: "clear",
-    windSpeedMph: 6,
-    precipitationIn: 0,
-    humidity: 50,
-    caughtAt: "2025-07-12T20:00:00.000Z",
-    timeOfDay: "afternoon",
-    season: "summer",
-    notes: null,
-    bait: null,
-    tide: null,
-    waterClarity: null,
-    habitat: "freshwater",
-    anglerId: "you",
-    sharedWithLinked: false,
-    ownerName: "You",
-    createdAt: "2025-07-12T20:00:00.000Z",
-    updatedAt: "2025-07-12T20:00:00.000Z",
-    ...partial,
-  };
-}
+import { catchOf } from "./testing";
 
 describe("scoreSimilarity", () => {
   it("scores same species, spot, season, and weather highly", () => {
@@ -65,6 +33,38 @@ describe("scoreSimilarity", () => {
     });
     const match = scoreSimilarity(bass, trout);
     expect(match.score).toBeLessThan(20);
+  });
+
+  it("boosts overlapping moon, wind direction, and pressure", () => {
+    const a = catchOf({
+      id: "a",
+      moonPhase: "Full",
+      windDirection: "SE",
+      pressureTrend: "falling",
+      pressureInHg: 29.84,
+    });
+    const b = catchOf({
+      id: "b",
+      moonPhase: "Full",
+      windDirection: "ESE",
+      pressureTrend: "falling",
+      pressureInHg: 29.88,
+    });
+    const match = scoreSimilarity(a, b);
+    expect(match.reasons).toEqual(
+      expect.arrayContaining(["Full moon", "Nearby wind direction", "Falling pressure"]),
+    );
+    const unmatched = scoreSimilarity(
+      a,
+      catchOf({
+        id: "c",
+        moonPhase: "New",
+        windDirection: "N",
+        pressureTrend: "rising",
+        pressureInHg: 30.2,
+      }),
+    );
+    expect(match.score).toBeGreaterThan(unmatched.score);
   });
 });
 

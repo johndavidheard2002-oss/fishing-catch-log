@@ -2,8 +2,11 @@
 
 import { HABITAT_LABELS, WATER_TYPE_LABELS, habitatsForWaterType } from "@/lib/habitat";
 import { CONDITION_LABELS } from "@/lib/labels";
+import { MOON_PHASES } from "@/lib/moon";
+import { PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/pressure";
 import { SEASON_LABELS, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { SEASONS, TIME_OF_DAY, WEATHER_CONDITIONS } from "@/lib/types";
+import { WIND_CARDINALS } from "@/lib/wind";
 import type { CatchFilters, Habitat, Season, TimeOfDay, WeatherCondition } from "@/lib/types";
 
 export function FilterPanel({
@@ -15,7 +18,10 @@ export function FilterPanel({
   onChange: (next: CatchFilters) => void;
   onClear: () => void;
 }) {
-  function toggle<T extends string>(key: "seasons" | "timesOfDay" | "conditions", value: T) {
+  function toggle<T extends string>(
+    key: "seasons" | "timesOfDay" | "conditions" | "moonPhases" | "pressureTrends" | "windDirections",
+    value: T,
+  ) {
     const current = (filters[key] ?? []) as T[];
     const next = current.includes(value)
       ? current.filter((v) => v !== value)
@@ -81,6 +87,24 @@ export function FilterPanel({
         options={WEATHER_CONDITIONS.map((s) => ({ value: s, label: CONDITION_LABELS[s] }))}
         selected={filters.conditions ?? []}
         onToggle={(v) => toggle("conditions", v as WeatherCondition)}
+      />
+      <ChipRow
+        label="Moon"
+        options={MOON_PHASES.map((s) => ({ value: s, label: s }))}
+        selected={filters.moonPhases ?? []}
+        onToggle={(v) => toggle("moonPhases", v)}
+      />
+      <ChipRow
+        label="Wind dir"
+        options={WIND_CARDINALS.map((s) => ({ value: s, label: s }))}
+        selected={filters.windDirections ?? []}
+        onToggle={(v) => toggle("windDirections", v)}
+      />
+      <ChipRow
+        label="Pressure trend"
+        options={PRESSURE_TRENDS.map((s) => ({ value: s, label: pressureTrendLabel(s) }))}
+        selected={filters.pressureTrends ?? []}
+        onToggle={(v) => toggle("pressureTrends", v)}
       />
       <div className="grid grid-cols-2 gap-2">
         <NumberField
