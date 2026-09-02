@@ -2,7 +2,7 @@ import Link from "next/link";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel, yearFromDateKey } from "@/lib/calendar";
-import { formatCatchWhen, formatTimeOnly } from "@/lib/time";
+import { formatCatchWhen, formatTimeOnly, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { catchSpeciesTitle } from "@/lib/count";
 import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
 import type { CatchRecord } from "@/lib/types";
@@ -66,6 +66,16 @@ export function CatchCard({
             <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
               {habitatLabel(record.habitat)}
             </span>
+            {record.timeOfDay ? (
+              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
+                {TIME_OF_DAY_LABELS[record.timeOfDay]}
+              </span>
+            ) : null}
+            {record.moonPhase ? (
+              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
+                {record.moonPhase}
+              </span>
+            ) : null}
             {isSampleCatchPhoto(record.photoPath) ? (
               <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold text-ink-muted">
                 Sample

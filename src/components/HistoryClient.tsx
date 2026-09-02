@@ -190,51 +190,6 @@ export function HistoryClient({
         />
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        <Preset
-          label="Cloudy 70–80°F"
-          onClick={() => {
-            setFilters({ conditions: ["cloudy"], tempMin: 70, tempMax: 80 });
-            setShowFilters(true);
-          }}
-        />
-        <Preset
-          label="Dawn"
-          onClick={() => {
-            setFilters({ timesOfDay: ["dawn"] });
-            setShowFilters(true);
-          }}
-        />
-        <Preset
-          label="Redfish"
-          onClick={() => {
-            setFilters({ species: "Redfish" });
-            setShowFilters(true);
-          }}
-        />
-        <Preset
-          label="Inshore"
-          onClick={() => {
-            setFilters({ habitats: ["saltwater-inshore"] });
-            setShowFilters(true);
-          }}
-        />
-        <Preset
-          label="Offshore"
-          onClick={() => {
-            setFilters({ habitats: ["saltwater-offshore"] });
-            setShowFilters(true);
-          }}
-        />
-        <Preset
-          label="Full moon"
-          onClick={() => {
-            setFilters({ moonPhases: ["Full"] });
-            setShowFilters(true);
-          }}
-        />
-      </div>
-
       {loadError ? <p className="on-wash-chip text-sm text-copper">{loadError}</p> : null}
 
       {loading && catches.length === 0 ? (
@@ -350,17 +305,5 @@ function LibraryScanBanner() {
         Continue reviewing. Nothing else is added until you tap Yes.
       </span>
     </Link>
-  );
-}
-
-function Preset({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="rounded-full border border-line bg-card px-3 py-1.5 text-xs font-semibold"
-    >
-      {label}
-    </button>
   );
 }

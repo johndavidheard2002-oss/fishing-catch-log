@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { baitTypesLabel } from "@/lib/bait";
+import { habitatLabel } from "@/lib/habitat";
 import { baitSpotLabel, yearFromDateKey } from "@/lib/calendar";
-import { formatCatchWhen, formatTimeOnly } from "@/lib/time";
-import { photoSrc } from "@/lib/photo";
+import { formatCatchWhen, formatTimeOnly, TIME_OF_DAY_LABELS } from "@/lib/time";
+import { photoSrc, weatherLine } from "@/lib/photo";
 import type { BaitSpot } from "@/lib/types";
 
 export function BaitSpotCard({
@@ -37,7 +38,8 @@ export function BaitSpotCard({
           <p className="truncate font-semibold text-ink">{baitTypesLabel(spot.baitTypes)}</p>
           <p className="truncate text-sm text-ink-muted">{baitSpotLabel(spot)}</p>
           <p className="mt-1 truncate text-xs text-ink-muted">
-            {showTime ? formatTimeOnly(spot.loggedAt) : formatCatchWhen(spot.loggedAt)}
+            {showTime ? formatTimeOnly(spot.loggedAt) : formatCatchWhen(spot.loggedAt)} ·{" "}
+            {weatherLine(spot)}
           </p>
           <p className="mt-1 flex flex-wrap gap-1">
             {showYear ? (
@@ -48,6 +50,21 @@ export function BaitSpotCard({
             <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
               Bait
             </span>
+            {spot.habitat ? (
+              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
+                {habitatLabel(spot.habitat)}
+              </span>
+            ) : null}
+            {spot.timeOfDay ? (
+              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
+                {TIME_OF_DAY_LABELS[spot.timeOfDay]}
+              </span>
+            ) : null}
+            {spot.moonPhase ? (
+              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
+                {spot.moonPhase}
+              </span>
+            ) : null}
             {theirs ? (
               <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
                 {spot.ownerName}

@@ -250,7 +250,7 @@ export function HistoryCalendar({
       </div>
 
       {selectedDay ? (
-        <section id="day-detail" className="space-y-3">
+        <section id="day-detail" data-testid="calendar-day-detail" className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
               {hasOtherYears && !thisYearOnly

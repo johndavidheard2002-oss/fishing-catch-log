@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import type { ProviderStatus } from "@/lib/types";
 
 const NAV: {
@@ -26,13 +26,13 @@ const NAV: {
     ariaLabel: "Calendar Log",
     icon: CalendarIcon,
   },
-  { href: "/backfill", label: "Backfill", icon: PastIcon },
   { href: "/spots", label: (
       <>
         Spots
         <span className="block">Bait</span>
       </>
     ), ariaLabel: "Spots and bait", icon: MapIcon },
+  { href: "/backfill", label: "Backfill", icon: PastIcon },
 ];
 
 function navIsActive(href: string, pathname: string) {
@@ -52,7 +52,9 @@ function navIsActive(href: string, pathname: string) {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [status, setStatus] = useState<ProviderStatus | null>(null);
+  const swipeStart = useRef<{ x: number; y: number; at: number } | null>(null);
 
   useEffect(() => {
     fetch("/api/status")
@@ -73,10 +75,45 @@ export function AppShell({ children }: { children: ReactNode }) {
       status.forecast === "demo" ||
       status.tides === "demo");
 
+  function onTouchStart(e: TouchEvent<HTMLDivElement>) {
+    if (e.touches.length !== 1) {
+      swipeStart.current = null;
+      return;
+    }
+    const el = e.target as HTMLElement | null;
+    if (el?.closest(".leaflet-container, input, textarea, select, [data-no-tab-swipe]")) {
+      swipeStart.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    swipeStart.current = { x: t.clientX, y: t.clientY, at: Date.now() };
+  }
+
+  function onTouchEnd(e: TouchEvent<HTMLDivElement>) {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start || e.changedTouches.length !== 1) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dx) < 64) return;
+    if (Math.abs(dx) < Math.abs(dy) * 1.4) return;
+    if (Date.now() - start.at > 700) return;
+    const idx = NAV.findIndex((item) => navIsActive(item.href, pathname));
+    if (idx < 0) return;
+    const next = dx < 0 ? idx + 1 : idx - 1;
+    if (next < 0 || next >= NAV.length) return;
+    router.push(NAV[next].href);
+  }
+
   return (
     <>
     <div className="trout-wash-bg" aria-hidden="true" />
-    <div className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4">
+    <div
+      className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col px-4 pb-28 pt-4"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       <header className="journal-card mb-4 flex items-center justify-between gap-3 rounded-2xl px-3 py-2">
         <Link href="/" className="flex min-w-0 items-center gap-2 text-teal">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -101,7 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </header>
       <main className="flex-1">{children}</main>
-      <nav className="bottom-nav journal-card fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl">
+      <nav className="bottom-nav fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl" data-no-tab-swipe>
         <ul className="grid grid-cols-6 px-0.5 pt-2">
           {NAV.map((item) => {
             const active = navIsActive(item.href, pathname);

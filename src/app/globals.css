@@ -232,7 +232,17 @@ main a.home-plan-cta {
 
 .bottom-nav {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-  background: rgb(247 252 255 / 0.96);
+  background-color: #cbb889;
+  background-image:
+    linear-gradient(rgb(247 252 255 / 0.46), rgb(247 252 255 / 0.58)),
+    url("/brand/soft-trout-wash-bg.png");
+  background-repeat: no-repeat;
+  background-position: center 42%;
+  background-size: cover;
+  border: 1px solid rgb(255 255 255 / 0.72);
+  box-shadow: 0 -10px 28px rgb(8 18 22 / 0.3);
+  color: var(--ink);
+  text-shadow: none;
 }
 
 .app-more > summary {
