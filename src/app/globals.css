@@ -200,10 +200,14 @@ select,
 }
 
 .journal-card .text-ink-muted,
+.journal-card.text-ink-muted,
 .page-intro .text-ink-muted,
 .bg-card .text-ink-muted,
+.bg-card.text-ink-muted,
 .bg-paper .text-ink-muted,
+.bg-paper.text-ink-muted,
 .bg-paper-deep .text-ink-muted,
+.bg-paper-deep.text-ink-muted,
 .bottom-nav .text-ink-muted,
 .on-wash-chip .text-ink-muted {
   color: var(--ink-muted);

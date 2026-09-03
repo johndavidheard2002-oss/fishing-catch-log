@@ -272,7 +272,7 @@ export function BaitSpotForm({
         emptyHint="Not required. Pin the hole and tag what you scooped."
       />
       {assistNote ? (
-        <p className="rounded-2xl border border-line bg-card px-3 py-2 text-sm text-ink-muted">
+        <p className="rounded-2xl border border-copper bg-paper-deep px-3 py-2 text-sm font-medium text-ink">
           {assistNote}
         </p>
       ) : null}

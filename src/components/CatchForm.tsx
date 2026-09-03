@@ -593,14 +593,14 @@ export function CatchForm({
       {pinHint ? (
         <p
           data-testid="catch-pin-hint"
-          className="rounded-2xl border border-line bg-card px-3 py-2 text-sm text-ink-muted"
+          className="rounded-2xl border border-copper bg-paper-deep px-3 py-2 text-sm font-medium text-ink"
         >
           {pinHint}
         </p>
       ) : null}
 
       {assistNote && !pastMode ? (
-        <p className="rounded-2xl border border-line bg-card px-3 py-2 text-sm text-ink-muted">
+        <p className="rounded-2xl border border-copper bg-paper-deep px-3 py-2 text-sm font-medium text-ink">
           {assistNote}
         </p>
       ) : null}
