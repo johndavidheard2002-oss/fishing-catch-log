@@ -1,7 +1,7 @@
 export function OptionThumb({
   src,
   kind,
-  size = 44,
+  size = 40,
 }: {
   src: string | null;
   kind: "catch" | "bait";
@@ -9,14 +9,21 @@ export function OptionThumb({
 }) {
   return (
     <span
-      className="relative shrink-0 overflow-hidden rounded-xl bg-paper-deep"
-      style={{ width: size, height: size }}
+      className="relative block shrink-0 overflow-hidden rounded-xl bg-paper-deep"
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        minHeight: size,
+        maxWidth: size,
+        maxHeight: size,
+      }}
       data-testid="spot-option-thumb"
       aria-hidden
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="h-full w-full object-cover" />
+        <img src={src} alt="" className="block h-full w-full max-h-full max-w-full object-cover" />
       ) : kind === "bait" ? (
         <BaitMark />
       ) : (
