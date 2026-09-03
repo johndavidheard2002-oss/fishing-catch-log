@@ -297,10 +297,6 @@ export function CatchForm({
     const saved = readSavedLiveLocation();
     const savedStatus = readSavedLiveLocationStatus();
     if (saved) rememberLiveGpsRef.current(saved);
-    else if (savedStatus === "allowed") {
-      locationStatusRef.current = "ready";
-      setLocationStatus("ready");
-    }
     let cancelled = false;
     const pending = refreshLiveLocationIfGranted({ savedStatus });
     liveGpsRequestRef.current = pending;
