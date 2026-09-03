@@ -34,7 +34,6 @@ import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
 import { fishCountLabel } from "@/lib/count";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchRecord, SpotGroup } from "@/lib/types";
-import Link from "next/link";
 import { useState } from "react";
 
 export function HistoryCalendar({
