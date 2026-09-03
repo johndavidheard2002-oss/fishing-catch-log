@@ -24,8 +24,14 @@ export function DayShareSpots({
   onShareDay: (day: string, shared: boolean) => void | Promise<void>;
 }) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  if (!viewerId) return null;
-  const rows = dayShareSpots({ catches, baitSpots, viewerId });
+  const owners = new Set(
+    [...catches.map((record) => record.anglerId), ...baitSpots.map((spot) => spot.anglerId)].filter(
+      Boolean,
+    ),
+  );
+  const ownerId = viewerId ?? (owners.size === 1 ? [...owners][0] : undefined);
+  if (!ownerId) return null;
+  const rows = dayShareSpots({ catches, baitSpots, viewerId: ownerId });
   if (!rows.length) return null;
   const allShared = rows.every((row) => row.shared);
 
@@ -52,10 +58,12 @@ export function DayShareSpots({
   }
 
   return (
-    <section className="space-y-2 rounded-2xl border border-line bg-card px-3 py-3" data-testid="select-spots-to-share">
+    <section className="space-y-2 rounded-2xl border-2 border-teal/40 bg-card px-3 py-3" data-testid="select-spots-to-share">
       <div>
-        <p className="text-sm font-semibold">Select spots to share</p>
-        <p className="mt-0.5 text-xs text-ink-muted">
+        <p className="w-fit rounded-full bg-teal px-3 py-1 text-sm font-semibold text-white">
+          Select spots to share
+        </p>
+        <p className="mt-1.5 text-xs text-ink-muted">
           Linked buddies can see these spots. Off until you choose.
         </p>
       </div>

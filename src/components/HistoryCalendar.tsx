@@ -296,6 +296,24 @@ export function HistoryCalendar({
               </div>
             </div>
           ) : null}
+          {onShareDay && onShareSpots ? (
+            <DayShareSpots
+              day={selectedDay}
+              catches={thisYearSelected}
+              baitSpots={thisYearBait}
+              viewerId={viewerId}
+              onShareSpots={onShareSpots}
+              onShareDay={onShareDay}
+            />
+          ) : onShareDay ? (
+            <DayShareToggle
+              day={selectedDay}
+              records={thisYearSelected}
+              viewerId={viewerId}
+              onShareDay={onShareDay}
+              selectedYearOnly={hasOtherYears}
+            />
+          ) : null}
           {thisYearSelected.length === 0 && thisYearBait.length === 0 && !showPriorYears ? (
             <>
               {onCreateNote && onUpdateNote && onDeleteNote ? (
@@ -377,24 +395,6 @@ export function HistoryCalendar({
                   onCreate={onCreateNote}
                   onUpdate={onUpdateNote}
                   onDelete={onDeleteNote}
-                />
-              ) : null}
-              {onShareDay && onShareSpots ? (
-                <DayShareSpots
-                  day={selectedDay}
-                  catches={thisYearSelected}
-                  baitSpots={thisYearBait}
-                  viewerId={viewerId}
-                  onShareSpots={onShareSpots}
-                  onShareDay={onShareDay}
-                />
-              ) : onShareDay ? (
-                <DayShareToggle
-                  day={selectedDay}
-                  records={thisYearSelected}
-                  viewerId={viewerId}
-                  onShareDay={onShareDay}
-                  selectedYearOnly={hasOtherYears}
                 />
               ) : null}
               {showPriorYears ? (
