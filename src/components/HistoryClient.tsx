@@ -7,10 +7,14 @@ import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyP
 import { parseYearMonth } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
-import { scanQueueCount } from "@/lib/scan-queue";
+import {
+  getScanQueueCountServerSnapshot,
+  scanQueueCount,
+  subscribeScanQueue,
+} from "@/lib/scan-queue";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 type LogView = "calendar" | "list" | "grid";
 
@@ -299,10 +303,11 @@ export function HistoryClient({
 }
 
 function LibraryScanBanner() {
-  const [left, setLeft] = useState(0);
-  useEffect(() => {
-    setLeft(scanQueueCount());
-  }, []);
+  const left = useSyncExternalStore(
+    subscribeScanQueue,
+    scanQueueCount,
+    getScanQueueCountServerSnapshot,
+  );
   if (!left) return null;
   return (
     <Link

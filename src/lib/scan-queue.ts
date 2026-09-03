@@ -97,10 +97,38 @@ export function forgetScanQueueMemory() {
   loaded = false;
 }
 
+const SCAN_QUEUE_CHANGE_EVENT = "cast-log-scan-queue";
+const EMPTY_QUEUE: QueuedScanCandidate[] = [];
+
+function notifyScanQueueListeners() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(SCAN_QUEUE_CHANGE_EVENT));
+}
+
+export function subscribeScanQueue(onStoreChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const onChange = () => onStoreChange();
+  window.addEventListener(SCAN_QUEUE_CHANGE_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(SCAN_QUEUE_CHANGE_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+export function getScanQueueServerSnapshot(): QueuedScanCandidate[] {
+  return EMPTY_QUEUE;
+}
+
+export function getScanQueueCountServerSnapshot() {
+  return 0;
+}
+
 export function setScanQueue(items: QueuedScanCandidate[]) {
   loaded = true;
   queue = items;
   persist(items);
+  notifyScanQueueListeners();
 }
 
 export function peekScanQueue(): QueuedScanCandidate[] {

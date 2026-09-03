@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { CatchForm } from "@/components/CatchForm";
-import { scanQueueCount } from "@/lib/scan-queue";
+import {
+  getScanQueueCountServerSnapshot,
+  scanQueueCount,
+  subscribeScanQueue,
+} from "@/lib/scan-queue";
 
 export function BackfillClient() {
   const params = useSearchParams();
@@ -13,10 +17,11 @@ export function BackfillClient() {
   const importedPhotoLat = numParam(params.get("plat"));
   const importedPhotoLon = numParam(params.get("plon"));
   const afterSave = params.get("next") === "calendar" ? "calendar" : "detail";
-  const [leftover, setLeftover] = useState(0);
-  useEffect(() => {
-    setLeftover(scanQueueCount());
-  }, [importedPhotoPath]);
+  const leftover = useSyncExternalStore(
+    subscribeScanQueue,
+    scanQueueCount,
+    getScanQueueCountServerSnapshot,
+  );
 
   return (
     <div className="space-y-4">

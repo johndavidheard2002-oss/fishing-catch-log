@@ -1,15 +1,17 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import exifr from "exifr";
 import { compressImage, photoSrc } from "@/lib/photo";
 import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import {
-  hydrateScanQueue,
+  getScanQueueServerSnapshot,
+  peekScanQueue,
   setScanQueue,
   sortScanReviewList,
+  subscribeScanQueue,
   type QueuedScanCandidate,
 } from "@/lib/scan-queue";
 
@@ -61,8 +63,12 @@ export function ScanLibraryClient() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [ready, setReady] = useState(false);
+  const queued = useSyncExternalStore(
+    subscribeScanQueue,
+    peekScanQueue,
+    getScanQueueServerSnapshot,
+  );
+  const candidates = queued.map(fromQueued);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -70,17 +76,11 @@ export function ScanLibraryClient() {
     folderRef.current?.setAttribute("webkitdirectory", "true");
   }, []);
 
-  useEffect(() => {
-    setCandidates(hydrateScanQueue().map(fromQueued));
-    setReady(true);
-  }, []);
-
   async function onFiles(list: FileList | null) {
     if (!list?.length) return;
     setError(null);
     setBusy(true);
     setSkipped(0);
-    setCandidates([]);
     setScanQueue([]);
     const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name));
     const found: Candidate[] = [];
@@ -136,25 +136,19 @@ export function ScanLibraryClient() {
       }
     }
     setSkipped(skip);
-    const reviewed = sortScanReviewList(found);
-    setCandidates(reviewed);
-    setScanQueue(reviewed.map(toQueued));
+    setScanQueue(sortScanReviewList(found).map(toQueued));
     setBusy(false);
     setProgress("");
   }
 
   function dismiss(i: number) {
-    const next = candidates.filter((_, j) => j !== i);
-    setCandidates(next);
-    setScanQueue(next.map(toQueued));
+    setScanQueue(queued.filter((_, j) => j !== i));
   }
 
   function openCandidate(item: Candidate) {
     setAdding(item.id);
     setError(null);
-    const remaining = candidates.filter((c) => c.id !== item.id);
-    setCandidates(remaining);
-    setScanQueue(remaining.map(toQueued));
+    setScanQueue(queued.filter((c) => c.photoPath !== item.photoPath));
     const at = item.caughtAt.toISOString();
     const day = localDateKeyFromDate(item.caughtAt);
     const gps =
@@ -218,7 +212,7 @@ export function ScanLibraryClient() {
 
       {error ? <p className="on-wash-chip text-sm text-copper">{error}</p> : null}
 
-      {ready && !busy && candidates.length === 0 ? (
+      {!busy && candidates.length === 0 ? (
         <p className="on-wash-chip text-sm">
           {skipped
             ? `Could not open ${skipped}. Try a different batch.`
