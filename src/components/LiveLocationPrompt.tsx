@@ -25,7 +25,7 @@ export function LiveLocationPrompt({
       className="rounded-2xl border border-line bg-card px-3 py-3"
     >
       <p className="text-[15px] font-semibold text-ink">{copy.title}</p>
-      <p className="mt-1 text-sm text-ink-muted">{copy.body}</p>
+      <p className="mt-1.5 text-[15px] leading-snug text-ink">{copy.body}</p>
       {status === "ready" ? null : (
         <div className="mt-2.5 grid grid-cols-2 gap-2">
           <button

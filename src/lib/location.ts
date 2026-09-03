@@ -78,7 +78,7 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
   }
   return {
     title: "Allow location",
-    body: "iPhone asks on this tap — before Camera. A live photo can then drop the pin. Skip and you can still log a catch and pin it by hand.",
+    body: "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
   };
 }
 

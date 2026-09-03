@@ -72,8 +72,9 @@ describe("liveLocationPromptCopy", () => {
   it("asks for location after sign-in, not from Camera, and never says buddy", () => {
     const prompt = liveLocationPromptCopy("prompt");
     expect(prompt.title).toBe("Allow location");
-    expect(prompt.body).toContain("before Camera");
     expect(prompt.body).toContain("live photo");
+    expect(prompt.body).toContain("pin on the water");
+    expect(prompt.body).toContain("You can still move the pin");
     expect(prompt.body.toLowerCase()).not.toContain("buddy");
     expect(ALLOW_LOCATION_LABEL).toBe("Allow location");
     expect(SKIP_LOCATION_LABEL).toBe("Not now");
