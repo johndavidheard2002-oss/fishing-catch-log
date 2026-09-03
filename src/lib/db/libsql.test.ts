@@ -104,6 +104,61 @@ describe("LibSQL / Turso path (local file: smoke)", () => {
     client.close();
   });
 
+  it("adds email columns on a pre-auth anglers table and keeps existing rows", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-libsql-old-anglers-"));
+    tmpDirs.push(dir);
+    const client = createClient({ url: `file:${path.join(dir, "journal.db")}` });
+    await client.execute(`
+      CREATE TABLE anglers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        invite_code TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL
+      )
+    `);
+    await client.execute(`
+      CREATE TABLE schema_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
+    await client.execute({
+      sql: "INSERT INTO schema_meta (key, value) VALUES (?, ?)",
+      args: ["schema_version", "12"],
+    });
+    await client.execute({
+      sql: "INSERT INTO anglers (id, name, invite_code, created_at) VALUES (?, ?, ?, ?)",
+      args: ["angler-1", "Pat", "CAST-OLD1", "2026-08-01T12:00:00.000Z"],
+    });
+
+    await migrateLibsql(client);
+
+    const cols = await client.execute("PRAGMA table_info(anglers)");
+    const names = cols.rows.map((r) => String((r as unknown as Record<string, unknown>).name ?? r[1]));
+    expect(names).toEqual(expect.arrayContaining(["email", "password_hash"]));
+
+    const rows = await client.execute("SELECT id, name, email, password_hash FROM anglers");
+    expect(rows.rows).toHaveLength(1);
+    const row = rows.rows[0] as unknown as Record<string, unknown>;
+    expect(String(row.id ?? row[0])).toBe("angler-1");
+    expect(String(row.name ?? row[1])).toBe("Pat");
+    expect(row.email ?? row[2] ?? null).toBeNull();
+    expect(row.password_hash ?? row[3] ?? null).toBeNull();
+
+    const indexes = await client.execute(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_anglers_email'",
+    );
+    expect(indexes.rows).toHaveLength(1);
+
+    const version = await client.execute({
+      sql: "SELECT value FROM schema_meta WHERE key = ?",
+      args: ["schema_version"],
+    });
+    const versionRow = version.rows[0] as unknown as Record<string, unknown> | undefined;
+    expect(String(versionRow?.value ?? versionRow?.[0] ?? "")).toBe(String(SCHEMA_VERSION));
+    client.close();
+  });
+
   it("purges sample /seed/ rows when schema_meta is already 11", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-libsql-v12-"));
     tmpDirs.push(dir);

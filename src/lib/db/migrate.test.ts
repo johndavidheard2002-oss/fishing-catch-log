@@ -160,6 +160,46 @@ describe("migrate older journals", () => {
     expect(records[0].photoPath).toBe("real-catch.jpg");
   });
 
+  it("adds email and password hash on a pre-auth anglers table and keeps rows", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    const file = path.join(dir, "old-anglers.sqlite");
+    const sqlite = new Database(file);
+    sqlite.exec(`
+      CREATE TABLE anglers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        invite_code TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL
+      );
+    `);
+    sqlite
+      .prepare("INSERT INTO anglers (id, name, invite_code, created_at) VALUES (?, ?, ?, ?)")
+      .run("angler-1", "Pat", "CAST-OLD1", "2026-08-01T12:00:00.000Z");
+    sqlite.close();
+
+    process.env.DATABASE_PATH = file;
+    resetDbForTests();
+    getDb();
+    const cols = getSqlite()
+      .prepare(`PRAGMA table_info(anglers)`)
+      .all() as { name: string }[];
+    const names = cols.map((c) => c.name);
+    expect(names).toContain("email");
+    expect(names).toContain("password_hash");
+    const row = getSqlite()
+      .prepare("SELECT id, name, email, password_hash FROM anglers WHERE id = ?")
+      .get("angler-1") as { id: string; name: string; email: string | null; password_hash: string | null };
+    expect(row.name).toBe("Pat");
+    expect(row.email).toBeNull();
+    expect(row.password_hash).toBeNull();
+    const indexes = getSqlite()
+      .prepare(`SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_anglers_email'`)
+      .all();
+    expect(indexes).toHaveLength(1);
+    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
+  });
+
   it("adds email and password hash columns on anglers", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
     tmpDirs.push(dir);
