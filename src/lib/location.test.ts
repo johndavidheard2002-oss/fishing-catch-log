@@ -1,14 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  awaitLiveLocationThenOpenCamera,
+  ALLOW_LOCATION_LABEL,
+  SKIP_LOCATION_LABEL,
   catchPinFromPhotoGps,
   classifyCatchPinEdit,
   coordsLookDifferent,
+  liveLocationPromptCopy,
+  queryGeolocationPermission,
   requestDeviceGps,
+  requestLiveLocationFromGesture,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
   shouldApplyPhotoGpsToCatch,
   shouldAutoPlaceCatchPin,
+  startLiveLocationOnLogOpen,
 } from "./location";
 
 describe("shouldApplyPhotoGpsToCatch", () => {
@@ -59,75 +64,101 @@ describe("requestDeviceGps", () => {
   });
 });
 
-describe("awaitLiveLocationThenOpenCamera", () => {
-  it("waits for location, then opens the camera", async () => {
-    const order: string[] = [];
-    await awaitLiveLocationThenOpenCamera({
-      requestLocation: async () => {
-        order.push("location");
+describe("liveLocationPromptCopy", () => {
+  it("asks for location on its own tap, not from Camera, and never says buddy", () => {
+    const prompt = liveLocationPromptCopy("prompt");
+    expect(prompt.title).toBe("Pin this catch");
+    expect(prompt.body).toContain("Allow location");
+    expect(prompt.body).toContain("before Camera");
+    expect(prompt.body.toLowerCase()).not.toContain("buddy");
+    expect(ALLOW_LOCATION_LABEL).toBe("Allow location");
+    expect(SKIP_LOCATION_LABEL).toBe("Not now");
+    expect(liveLocationPromptCopy("ready").title).toBe("Location on");
+    expect(liveLocationPromptCopy("unavailable").body).toContain("Camera still works");
+  });
+});
+
+describe("queryGeolocationPermission", () => {
+  it("returns granted, prompt, denied, or unknown", async () => {
+    await expect(
+      queryGeolocationPermission({ query: async () => ({ state: "granted" }) }),
+    ).resolves.toBe("granted");
+    await expect(
+      queryGeolocationPermission({ query: async () => ({ state: "prompt" }) }),
+    ).resolves.toBe("prompt");
+    await expect(
+      queryGeolocationPermission({ query: async () => ({ state: "denied" }) }),
+    ).resolves.toBe("denied");
+    await expect(queryGeolocationPermission(null)).resolves.toBe("unknown");
+    await expect(
+      queryGeolocationPermission({
+        query: async () => {
+          throw new Error("unsupported");
+        },
+      }),
+    ).resolves.toBe("unknown");
+  });
+});
+
+describe("startLiveLocationOnLogOpen", () => {
+  it("starts GPS on mount only when location was already allowed", async () => {
+    const getCurrentPosition = vi.fn(
+      (success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
       },
-      openCamera: () => {
-        order.push("camera");
-      },
-    });
-    expect(order).toEqual(["location", "camera"]);
+    );
+    await expect(
+      startLiveLocationOnLogOpen({
+        geolocation: { getCurrentPosition },
+        permissions: { query: async () => ({ state: "granted" }) },
+      }),
+    ).resolves.toEqual({ latitude: 29.15, longitude: -96.88 });
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
   });
 
-  it("still opens the camera when location is denied or times out", async () => {
-    const openCamera = vi.fn();
-    await awaitLiveLocationThenOpenCamera({
-      requestLocation: async () => null,
-      openCamera,
-    });
-    expect(openCamera).toHaveBeenCalledOnce();
-
-    openCamera.mockClear();
-    await awaitLiveLocationThenOpenCamera({
-      requestLocation: async () => {
-        throw new Error("timeout");
-      },
-      openCamera,
-    });
-    expect(openCamera).toHaveBeenCalledOnce();
+  it("does not call getCurrentPosition while iPhone still needs a tap", async () => {
+    const getCurrentPosition = vi.fn();
+    await expect(
+      startLiveLocationOnLogOpen({
+        geolocation: { getCurrentPosition },
+        permissions: { query: async () => ({ state: "prompt" }) },
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      startLiveLocationOnLogOpen({
+        geolocation: { getCurrentPosition },
+        permissions: { query: async () => ({ state: "denied" }) },
+      }),
+    ).resolves.toBeNull();
+    await expect(
+      startLiveLocationOnLogOpen({
+        geolocation: { getCurrentPosition },
+        permissions: null,
+      }),
+    ).resolves.toBeNull();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
+});
 
-  it("opens the camera when there is no live location hook (camera roll / bait)", async () => {
-    const openCamera = vi.fn();
-    await awaitLiveLocationThenOpenCamera({ openCamera });
-    expect(openCamera).toHaveBeenCalledOnce();
-  });
-
-  it("opens the camera in the same tap after location was already asked", async () => {
-    const requestLocation = vi.fn();
-    const openCamera = vi.fn();
-    await awaitLiveLocationThenOpenCamera({
-      alreadyAsked: true,
-      requestLocation,
-      openCamera,
-    });
-    expect(requestLocation).not.toHaveBeenCalled();
-    expect(openCamera).toHaveBeenCalledOnce();
-  });
-
-  it("starts the location request in the same turn as the tap, before the camera", async () => {
+describe("requestLiveLocationFromGesture", () => {
+  it("starts getCurrentPosition in the same turn as the Allow location tap", async () => {
     let started = false;
-    let release!: () => void;
-    const held = new Promise<void>((resolve) => {
+    let release!: (gps: { coords: { latitude: number; longitude: number } }) => void;
+    const held = new Promise<{ coords: { latitude: number; longitude: number } }>((resolve) => {
       release = resolve;
     });
-    const openCamera = vi.fn();
-    const pending = awaitLiveLocationThenOpenCamera({
-      requestLocation: () => {
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+      ) {
         started = true;
-        return held;
+        void held.then(success);
       },
-      openCamera,
-    });
+    };
+    const pending = requestLiveLocationFromGesture(geo);
     expect(started).toBe(true);
-    expect(openCamera).not.toHaveBeenCalled();
-    release();
-    await pending;
-    expect(openCamera).toHaveBeenCalledOnce();
+    release({ coords: { latitude: 29.15, longitude: -96.88 } });
+    await expect(pending).resolves.toEqual({ latitude: 29.15, longitude: -96.88 });
   });
 });
 

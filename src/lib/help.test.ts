@@ -17,7 +17,9 @@ describe("HELP_SECTIONS", () => {
     ]);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
-        step.includes("this phone’s location") && step.includes("allow"),
+        step.includes("Allow location") &&
+        step.includes("this phone’s location") &&
+        step.includes("Then tap Camera"),
       ),
     ).toBe(true);
     expect(
@@ -49,6 +51,7 @@ describe("HELP_SECTIONS", () => {
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);
       expect(section.steps.every((step) => step.length < 160)).toBe(true);
+      expect(`${section.title} ${section.steps.join(" ")}`.toLowerCase()).not.toContain("buddy");
     }
   });
 });

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
+import { LiveLocationPrompt } from "./LiveLocationPrompt";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture, type PhotoSource } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
@@ -20,8 +21,11 @@ import {
   DROP_CATCH_PIN_HINT,
   formatCoords,
   requestDeviceGps,
+  requestLiveLocationFromGesture,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
+  startLiveLocationOnLogOpen,
+  type LiveLocationStatus,
 } from "@/lib/location";
 import { primarySpecies } from "@/lib/species";
 import {
@@ -262,10 +266,32 @@ export function CatchForm({
     null,
   );
   const liveGpsSettledRef = useRef(false);
+  const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>("prompt");
+  const locationStatusRef = useRef<LiveLocationStatus>("prompt");
+  const rememberLiveGpsRef = useRef<(gps: { latitude: number; longitude: number } | null) => void>(
+    () => {},
+  );
+  const askLiveLocation = mode === "create" && !pastMode;
 
   useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
   }, [catchPinUserMoved]);
+
+  useEffect(() => {
+    locationStatusRef.current = locationStatus;
+  }, [locationStatus]);
+
+  useEffect(() => {
+    if (!askLiveLocation) return;
+    let cancelled = false;
+    void startLiveLocationOnLogOpen().then((gps) => {
+      if (cancelled || !gps) return;
+      rememberLiveGpsRef.current(gps);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [askLiveLocation]);
 
   useEffect(() => {
     if (!importedPhotoPath) return;
@@ -338,24 +364,43 @@ export function CatchForm({
     };
   }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked]);
 
-  function requestLiveGps() {
-    if (pastMode) return Promise.resolve(null);
-    // A later Camera tap must not wait again — iPhone may need that same
-    // gesture to open the camera if the first post-permission click was ignored.
-    if (liveGpsSettledRef.current) return Promise.resolve(pendingLiveGpsRef.current);
-    if (!liveGpsRequestRef.current) {
-      liveGpsRequestRef.current = requestDeviceGps().then((gps) => {
-        pendingLiveGpsRef.current = gps;
-        liveGpsSettledRef.current = true;
-        const next = resolveLiveCameraCatchPin({
-          userMovedCatchPin: catchPinUserMovedRef.current,
-          deviceGps: gps,
-        });
-        if (next) void applyResolvedPin(next);
-        return gps;
+  function rememberLiveGps(gps: { latitude: number; longitude: number } | null) {
+    pendingLiveGpsRef.current = gps;
+    liveGpsSettledRef.current = true;
+    if (gps) {
+      locationStatusRef.current = "ready";
+      setLocationStatus("ready");
+      const next = resolveLiveCameraCatchPin({
+        userMovedCatchPin: catchPinUserMovedRef.current,
+        deviceGps: gps,
       });
+      if (next) void applyResolvedPin(next);
+      return;
     }
-    return liveGpsRequestRef.current;
+    if (locationStatusRef.current !== "ready") {
+      locationStatusRef.current = "unavailable";
+      setLocationStatus("unavailable");
+    }
+  }
+  rememberLiveGpsRef.current = rememberLiveGps;
+
+  function allowLiveLocation() {
+    if (!askLiveLocation || pendingLiveGpsRef.current) return;
+    locationStatusRef.current = "asking";
+    setLocationStatus("asking");
+    liveGpsSettledRef.current = false;
+    const pending = requestLiveLocationFromGesture();
+    liveGpsRequestRef.current = pending;
+    void pending.then((gps) => {
+      rememberLiveGps(gps);
+    });
+  }
+
+  function skipLiveLocation() {
+    if (liveGpsSettledRef.current && pendingLiveGpsRef.current) return;
+    liveGpsSettledRef.current = true;
+    locationStatusRef.current = "unavailable";
+    setLocationStatus("unavailable");
   }
 
   async function applyResolvedPin(next: {
@@ -436,8 +481,7 @@ export function CatchForm({
     if (!pastMode && source === "camera") {
       const deviceGps =
         pendingLiveGpsRef.current ??
-        (liveGpsRequestRef.current ? await liveGpsRequestRef.current : null) ??
-        (await requestDeviceGps());
+        (liveGpsRequestRef.current ? await liveGpsRequestRef.current : null);
       pendingLiveGpsRef.current = deviceGps;
       const next = resolveLiveCameraCatchPin({
         userMovedCatchPin: catchPinUserMovedRef.current,
@@ -449,8 +493,10 @@ export function CatchForm({
         setPinHint(
           "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
         );
-      } else {
+      } else if (locationStatusRef.current === "unavailable") {
         setPinHint("Location was off. Tap the map to pin this catch.");
+      } else {
+        setPinHint("No location yet. Tap Allow location, or drop a pin on the map.");
       }
     }
 
@@ -601,18 +647,27 @@ export function CatchForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      {askLiveLocation ? (
+        <LiveLocationPrompt
+          status={locationStatus}
+          onAllow={allowLiveLocation}
+          onSkip={skipLiveLocation}
+        />
+      ) : null}
+
       <PhotoCapture
         previewUrl={previewUrl}
         onFile={handleFile}
-        onLiveCapture={pastMode ? undefined : requestLiveGps}
         busy={busy}
         emphasis={pastMode ? "library" : "camera"}
         libraryOnly={pastMode}
         compactPreview={pastMode && Boolean(previewUrl)}
         locationReason={
-          pastMode
-            ? undefined
-            : "Camera uses this phone’s location to pin the catch on the map. Allow location when asked — you can still move the pin."
+          askLiveLocation && locationStatus === "ready"
+            ? "Location on. Camera only opens the camera — the pin fills from the location you already allowed."
+            : askLiveLocation && locationStatus === "unavailable"
+              ? "Location is off. Camera still works — drop a pin on the map."
+              : undefined
         }
       />
 

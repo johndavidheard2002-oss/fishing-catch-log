@@ -25,8 +25,8 @@ export function LogClient() {
       <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Log a catch</h1>
         <p className="text-sm text-ink-muted">
-          Photo, pick or name the area, save. GPS places the pin when the photo has it — drag if
-          that isn’t the water. Weather fills in from the pin and clock.
+          Allow location first so a live photo can drop the pin — Camera only opens the camera.
+          Pick or name the area, save. Weather fills in from the pin and clock.
         </p>
         <p className="mt-2 text-sm">
           <Link href="/bait/new" className="font-semibold text-teal">

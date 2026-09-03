@@ -6,12 +6,17 @@ export type PhotoGps = { latitude: number; longitude: number };
 
 export const DROP_CATCH_PIN_HINT = "Drop a pin on the map for where you caught it.";
 
-/** Used by live Log Camera so iPhone can show the location dialog before the camera sheet. */
+/** Live Log GPS — asked on Log a catch open, never inside the Camera tap. */
 export const LIVE_GPS_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
   timeout: 8000,
   maximumAge: 60_000,
 };
+
+export type LiveLocationStatus = "prompt" | "asking" | "ready" | "unavailable";
+
+export const ALLOW_LOCATION_LABEL = "Allow location";
+export const SKIP_LOCATION_LABEL = "Not now";
 
 export type DeviceGeolocation = {
   getCurrentPosition: (
@@ -20,6 +25,12 @@ export type DeviceGeolocation = {
     options?: PositionOptions,
   ) => void;
 };
+
+export type DevicePermissions = {
+  query: (desc: { name: string }) => Promise<{ state: string }>;
+};
+
+export type GeolocationPermissionState = "granted" | "prompt" | "denied" | "unknown";
 
 /**
  * One-shot GPS. Errors, timeouts, and missing geolocation all resolve null
@@ -41,36 +52,78 @@ export function requestDeviceGps(
   });
 }
 
-/**
- * Start this tap’s location request in the same turn (so iPhone shows the
- * system dialog), then open the camera after Allow / Deny / timeout.
- * Must not be an `async` function: Safari can drop user-activation if the
- * click handler is async, and the camera sheet then buries the dialog.
- */
-export function awaitLiveLocationThenOpenCamera(args: {
-  requestLocation?: () => void | Promise<unknown>;
-  openCamera: () => void;
-  alreadyAsked?: boolean;
-}): Promise<void> {
-  if (args.alreadyAsked || !args.requestLocation) {
-    args.openCamera();
-    return Promise.resolve();
+export function liveLocationPromptCopy(status: LiveLocationStatus): {
+  title: string;
+  body: string;
+} {
+  if (status === "ready") {
+    return {
+      title: "Location on",
+      body: "A live photo will pin this catch. You can still move the pin.",
+    };
   }
-  let pending: Promise<unknown>;
+  if (status === "unavailable") {
+    return {
+      title: "Location off",
+      body: "Camera still works. Drop a pin on the map for where you caught it.",
+    };
+  }
+  if (status === "asking") {
+    return {
+      title: "Pin this catch",
+      body: "Waiting for this phone’s location…",
+    };
+  }
+  return {
+    title: "Pin this catch",
+    body: "Allow location so this phone can drop the pin. iPhone asks on that tap — before Camera. Skip and you can still take a photo and pin it by hand.",
+  };
+}
+
+export async function queryGeolocationPermission(
+  permissions: DevicePermissions | null | undefined =
+    typeof navigator !== "undefined"
+      ? (navigator.permissions as DevicePermissions | undefined)
+      : undefined,
+): Promise<GeolocationPermissionState> {
+  if (!permissions?.query) return "unknown";
   try {
-    pending = Promise.resolve(args.requestLocation());
+    const result = await permissions.query({ name: "geolocation" });
+    if (result.state === "granted" || result.state === "prompt" || result.state === "denied") {
+      return result.state;
+    }
+    return "unknown";
   } catch {
-    args.openCamera();
-    return Promise.resolve();
+    return "unknown";
   }
-  return pending.then(
-    () => {
-      args.openCamera();
-    },
-    () => {
-      args.openCamera();
-    },
-  );
+}
+
+/**
+ * On Log a catch mount: start GPS only when the phone already allowed it.
+ * Do not call getCurrentPosition while the permission is still a prompt —
+ * iPhone will not show the dialog without a tap, and a no-gesture call can
+ * swallow the later Allow location tap.
+ */
+export async function startLiveLocationOnLogOpen(args?: {
+  geolocation?: DeviceGeolocation | null;
+  permissions?: DevicePermissions | null;
+}): Promise<PhotoGps | null> {
+  const state = await queryGeolocationPermission(args?.permissions);
+  if (state !== "granted") return null;
+  return requestDeviceGps(args?.geolocation);
+}
+
+/**
+ * Start GPS from the Allow location tap. Must not be awaited before
+ * getCurrentPosition — iPhone needs that call in the same user gesture.
+ * Camera must never call this.
+ */
+export function requestLiveLocationFromGesture(
+  geolocation: DeviceGeolocation | null | undefined = typeof navigator !== "undefined"
+    ? navigator.geolocation
+    : undefined,
+): Promise<PhotoGps | null> {
+  return requestDeviceGps(geolocation);
 }
 
 /** Auto-place from the photo unless the angler already moved this catch’s pin. */
