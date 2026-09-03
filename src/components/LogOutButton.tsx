@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { clearSavedLiveLocation } from "@/lib/location";
 import { notifyAuthChange } from "@/lib/tour";
 
 export function LogOutButton({
@@ -18,6 +19,7 @@ export function LogOutButton({
     setBusy(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      clearSavedLiveLocation();
       notifyAuthChange();
       router.replace("/signin");
       router.refresh();

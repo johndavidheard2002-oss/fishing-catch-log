@@ -12,7 +12,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Log a catch",
     steps: [
       "Tap Log, then take or pick one photo.",
-      "On Log a catch, tap Allow location so this phone’s location dialog appears. Then tap Camera. Camera-roll photos still ask Yes or No before a pin.",
+      "After sign-in, tap Allow location so this phone’s location dialog appears. Then tap Camera. Camera-roll photos still ask Yes or No before a pin.",
       "Drop the pin on the water you fished.",
       "Name the area if you want — leave it blank if the map already named it.",
       "Save. One photo is one trip at one pin.",
@@ -47,6 +47,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Your journal",
     steps: [
       "Sign in or create an account with email and a password to open your journal.",
+      "After you sign in, tap Allow location so this phone can pin a live photo. Skip and the journal still works.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
     ],
   },

@@ -5,15 +5,19 @@ import {
   catchPinFromPhotoGps,
   classifyCatchPinEdit,
   coordsLookDifferent,
+  clearSavedLiveLocation,
   liveLocationPromptCopy,
   queryGeolocationPermission,
+  readSavedLiveLocation,
+  readSavedLiveLocationStatus,
+  refreshLiveLocationIfGranted,
   requestDeviceGps,
   requestLiveLocationFromGesture,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
   shouldApplyPhotoGpsToCatch,
   shouldAutoPlaceCatchPin,
-  startLiveLocationOnLogOpen,
+  writeSavedLiveLocation,
 } from "./location";
 
 describe("shouldApplyPhotoGpsToCatch", () => {
@@ -65,11 +69,11 @@ describe("requestDeviceGps", () => {
 });
 
 describe("liveLocationPromptCopy", () => {
-  it("asks for location on its own tap, not from Camera, and never says buddy", () => {
+  it("asks for location after sign-in, not from Camera, and never says buddy", () => {
     const prompt = liveLocationPromptCopy("prompt");
-    expect(prompt.title).toBe("Pin this catch");
-    expect(prompt.body).toContain("Allow location");
+    expect(prompt.title).toBe("Allow location");
     expect(prompt.body).toContain("before Camera");
+    expect(prompt.body).toContain("live photo");
     expect(prompt.body.toLowerCase()).not.toContain("buddy");
     expect(ALLOW_LOCATION_LABEL).toBe("Allow location");
     expect(SKIP_LOCATION_LABEL).toBe("Not now");
@@ -100,15 +104,15 @@ describe("queryGeolocationPermission", () => {
   });
 });
 
-describe("startLiveLocationOnLogOpen", () => {
-  it("starts GPS on mount only when location was already allowed", async () => {
+describe("refreshLiveLocationIfGranted", () => {
+  it("refreshes GPS only when location was already allowed", async () => {
     const getCurrentPosition = vi.fn(
       (success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
         success({ coords: { latitude: 29.15, longitude: -96.88 } });
       },
     );
     await expect(
-      startLiveLocationOnLogOpen({
+      refreshLiveLocationIfGranted({
         geolocation: { getCurrentPosition },
         permissions: { query: async () => ({ state: "granted" }) },
       }),
@@ -119,24 +123,52 @@ describe("startLiveLocationOnLogOpen", () => {
   it("does not call getCurrentPosition while iPhone still needs a tap", async () => {
     const getCurrentPosition = vi.fn();
     await expect(
-      startLiveLocationOnLogOpen({
+      refreshLiveLocationIfGranted({
         geolocation: { getCurrentPosition },
         permissions: { query: async () => ({ state: "prompt" }) },
       }),
     ).resolves.toBeNull();
     await expect(
-      startLiveLocationOnLogOpen({
+      refreshLiveLocationIfGranted({
         geolocation: { getCurrentPosition },
         permissions: { query: async () => ({ state: "denied" }) },
       }),
     ).resolves.toBeNull();
     await expect(
-      startLiveLocationOnLogOpen({
+      refreshLiveLocationIfGranted({
         geolocation: { getCurrentPosition },
         permissions: null,
       }),
     ).resolves.toBeNull();
     expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+});
+
+describe("saved live location", () => {
+  it("remembers sign-in GPS for later Camera pins, or skip", () => {
+    const memory = new Map<string, string>();
+    const storage = {
+      getItem(key: string) {
+        return memory.has(key) ? memory.get(key)! : null;
+      },
+      setItem(key: string, value: string) {
+        memory.set(key, value);
+      },
+      removeItem(key: string) {
+        memory.delete(key);
+      },
+    } as Storage;
+
+    expect(readSavedLiveLocation(storage)).toBeNull();
+    expect(readSavedLiveLocationStatus(storage)).toBeNull();
+    writeSavedLiveLocation({ latitude: 29.15, longitude: -96.88 }, storage);
+    expect(readSavedLiveLocation(storage)).toEqual({ latitude: 29.15, longitude: -96.88 });
+    expect(readSavedLiveLocationStatus(storage)).toBe("ready");
+    writeSavedLiveLocation(null, storage);
+    expect(readSavedLiveLocation(storage)).toBeNull();
+    expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
+    clearSavedLiveLocation(storage);
+    expect(readSavedLiveLocationStatus(storage)).toBeNull();
   });
 });
 

@@ -6,12 +6,14 @@ export type PhotoGps = { latitude: number; longitude: number };
 
 export const DROP_CATCH_PIN_HINT = "Drop a pin on the map for where you caught it.";
 
-/** Live Log GPS — asked on Log a catch open, never inside the Camera tap. */
+/** Live Log GPS — asked after sign-in, never inside the Camera tap. */
 export const LIVE_GPS_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
   timeout: 8000,
   maximumAge: 60_000,
 };
+
+export const LIVE_LOCATION_STORAGE_KEY = "cast-log-live-gps";
 
 export type LiveLocationStatus = "prompt" | "asking" | "ready" | "unavailable";
 
@@ -70,13 +72,13 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
   }
   if (status === "asking") {
     return {
-      title: "Pin this catch",
+      title: "Allow location",
       body: "Waiting for this phone’s location…",
     };
   }
   return {
-    title: "Pin this catch",
-    body: "Allow location so this phone can drop the pin. iPhone asks on that tap — before Camera. Skip and you can still take a photo and pin it by hand.",
+    title: "Allow location",
+    body: "iPhone asks on this tap — before Camera. A live photo can then drop the pin. Skip and you can still log a catch and pin it by hand.",
   };
 }
 
@@ -99,18 +101,91 @@ export async function queryGeolocationPermission(
 }
 
 /**
- * On Log a catch mount: start GPS only when the phone already allowed it.
- * Do not call getCurrentPosition while the permission is still a prompt —
- * iPhone will not show the dialog without a tap, and a no-gesture call can
- * swallow the later Allow location tap.
+ * Refresh GPS only when the phone already allowed it (no iPhone dialog).
+ * Do not call this to ask for permission — that tap belongs on sign-in.
  */
-export async function startLiveLocationOnLogOpen(args?: {
+export async function refreshLiveLocationIfGranted(args?: {
   geolocation?: DeviceGeolocation | null;
   permissions?: DevicePermissions | null;
 }): Promise<PhotoGps | null> {
   const state = await queryGeolocationPermission(args?.permissions);
   if (state !== "granted") return null;
   return requestDeviceGps(args?.geolocation);
+}
+
+function sessionStore(): Storage | null {
+  try {
+    return typeof sessionStorage === "undefined" ? null : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function readSavedLiveLocation(
+  storage: Storage | null | undefined = sessionStore(),
+): PhotoGps | null {
+  const parsed = readSavedLiveLocationRecord(storage);
+  if (parsed?.status !== "ready") return null;
+  return { latitude: parsed.latitude, longitude: parsed.longitude };
+}
+
+export function readSavedLiveLocationStatus(
+  storage: Storage | null | undefined = sessionStore(),
+): "ready" | "unavailable" | null {
+  return readSavedLiveLocationRecord(storage)?.status ?? null;
+}
+
+function readSavedLiveLocationRecord(
+  storage: Storage | null | undefined,
+):
+  | { status: "ready"; latitude: number; longitude: number }
+  | { status: "unavailable" }
+  | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(LIVE_LOCATION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      status?: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    if (parsed.status === "unavailable") return { status: "unavailable" };
+    if (
+      parsed.status === "ready" &&
+      typeof parsed.latitude === "number" &&
+      typeof parsed.longitude === "number" &&
+      Number.isFinite(parsed.latitude) &&
+      Number.isFinite(parsed.longitude)
+    ) {
+      return { status: "ready", latitude: parsed.latitude, longitude: parsed.longitude };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Persist the sign-in GPS so later Camera taps can pin without asking again. */
+export function writeSavedLiveLocation(
+  gps: PhotoGps | null,
+  storage: Storage | null | undefined = sessionStore(),
+): void {
+  if (!storage) return;
+  if (gps) {
+    storage.setItem(
+      LIVE_LOCATION_STORAGE_KEY,
+      JSON.stringify({ status: "ready", latitude: gps.latitude, longitude: gps.longitude }),
+    );
+  } else {
+    storage.setItem(LIVE_LOCATION_STORAGE_KEY, JSON.stringify({ status: "unavailable" }));
+  }
+}
+
+export function clearSavedLiveLocation(
+  storage: Storage | null | undefined = sessionStore(),
+): void {
+  storage?.removeItem(LIVE_LOCATION_STORAGE_KEY);
 }
 
 /**

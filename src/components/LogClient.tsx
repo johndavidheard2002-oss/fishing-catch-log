@@ -25,7 +25,7 @@ export function LogClient() {
       <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Log a catch</h1>
         <p className="text-sm text-ink-muted">
-          Allow location first so a live photo can drop the pin — Camera only opens the camera.
+          Camera only opens the camera. A live photo uses the location you allowed at sign-in.
           Pick or name the area, save. Weather fills in from the pin and clock.
         </p>
         <p className="mt-2 text-sm">

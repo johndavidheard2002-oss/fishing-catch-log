@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
-import { LiveLocationPrompt } from "./LiveLocationPrompt";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture, type PhotoSource } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
@@ -20,11 +19,13 @@ import {
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
   formatCoords,
+  readSavedLiveLocation,
+  readSavedLiveLocationStatus,
+  refreshLiveLocationIfGranted,
   requestDeviceGps,
-  requestLiveLocationFromGesture,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
-  startLiveLocationOnLogOpen,
+  writeSavedLiveLocation,
   type LiveLocationStatus,
 } from "@/lib/location";
 import { primarySpecies } from "@/lib/species";
@@ -261,17 +262,24 @@ export function CatchForm({
   const [pinSource, setPinSource] = useState<"photo" | "device" | "manual" | null>(() =>
     initialPinSource(initial),
   );
-  const pendingLiveGpsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const pendingLiveGpsRef = useRef<{ latitude: number; longitude: number } | null>(
+    mode === "create" && !pastMode ? readSavedLiveLocation() : null,
+  );
   const liveGpsRequestRef = useRef<Promise<{ latitude: number; longitude: number } | null> | null>(
     null,
   );
-  const liveGpsSettledRef = useRef(false);
-  const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>("prompt");
-  const locationStatusRef = useRef<LiveLocationStatus>("prompt");
+  const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>(() => {
+    if (mode !== "create" || pastMode) return "unavailable";
+    const saved = readSavedLiveLocationStatus();
+    if (saved === "ready") return "ready";
+    if (saved === "unavailable") return "unavailable";
+    return "prompt";
+  });
+  const locationStatusRef = useRef<LiveLocationStatus>(locationStatus);
   const rememberLiveGpsRef = useRef<(gps: { latitude: number; longitude: number } | null) => void>(
     () => {},
   );
-  const askLiveLocation = mode === "create" && !pastMode;
+  const useLiveGps = mode === "create" && !pastMode;
 
   useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
@@ -282,16 +290,21 @@ export function CatchForm({
   }, [locationStatus]);
 
   useEffect(() => {
-    if (!askLiveLocation) return;
+    if (!useLiveGps) return;
+    const saved = readSavedLiveLocation();
+    if (saved) rememberLiveGpsRef.current(saved);
     let cancelled = false;
-    void startLiveLocationOnLogOpen().then((gps) => {
+    const pending = refreshLiveLocationIfGranted();
+    liveGpsRequestRef.current = pending;
+    void pending.then((gps) => {
       if (cancelled || !gps) return;
+      writeSavedLiveLocation(gps);
       rememberLiveGpsRef.current(gps);
     });
     return () => {
       cancelled = true;
     };
-  }, [askLiveLocation]);
+  }, [useLiveGps]);
 
   useEffect(() => {
     if (!importedPhotoPath) return;
@@ -366,7 +379,6 @@ export function CatchForm({
 
   function rememberLiveGps(gps: { latitude: number; longitude: number } | null) {
     pendingLiveGpsRef.current = gps;
-    liveGpsSettledRef.current = true;
     if (gps) {
       locationStatusRef.current = "ready";
       setLocationStatus("ready");
@@ -383,25 +395,6 @@ export function CatchForm({
     }
   }
   rememberLiveGpsRef.current = rememberLiveGps;
-
-  function allowLiveLocation() {
-    if (!askLiveLocation || pendingLiveGpsRef.current) return;
-    locationStatusRef.current = "asking";
-    setLocationStatus("asking");
-    liveGpsSettledRef.current = false;
-    const pending = requestLiveLocationFromGesture();
-    liveGpsRequestRef.current = pending;
-    void pending.then((gps) => {
-      rememberLiveGps(gps);
-    });
-  }
-
-  function skipLiveLocation() {
-    if (liveGpsSettledRef.current && pendingLiveGpsRef.current) return;
-    liveGpsSettledRef.current = true;
-    locationStatusRef.current = "unavailable";
-    setLocationStatus("unavailable");
-  }
 
   async function applyResolvedPin(next: {
     latitude: number;
@@ -493,10 +486,8 @@ export function CatchForm({
         setPinHint(
           "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
         );
-      } else if (locationStatusRef.current === "unavailable") {
-        setPinHint("Location was off. Tap the map to pin this catch.");
       } else {
-        setPinHint("No location yet. Tap Allow location, or drop a pin on the map.");
+        setPinHint("Location was off. Tap the map to pin this catch.");
       }
     }
 
@@ -647,14 +638,6 @@ export function CatchForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      {askLiveLocation ? (
-        <LiveLocationPrompt
-          status={locationStatus}
-          onAllow={allowLiveLocation}
-          onSkip={skipLiveLocation}
-        />
-      ) : null}
-
       <PhotoCapture
         previewUrl={previewUrl}
         onFile={handleFile}
@@ -663,9 +646,9 @@ export function CatchForm({
         libraryOnly={pastMode}
         compactPreview={pastMode && Boolean(previewUrl)}
         locationReason={
-          askLiveLocation && locationStatus === "ready"
-            ? "Location on. Camera only opens the camera — the pin fills from the location you already allowed."
-            : askLiveLocation && locationStatus === "unavailable"
+          useLiveGps && locationStatus === "ready"
+            ? "A live photo pins from the location you allowed at sign-in. You can still move the pin."
+            : useLiveGps && locationStatus === "unavailable"
               ? "Location is off. Camera still works — drop a pin on the map."
               : undefined
         }

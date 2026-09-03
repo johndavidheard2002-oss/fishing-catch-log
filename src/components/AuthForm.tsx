@@ -2,6 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { LiveLocationPrompt } from "@/components/LiveLocationPrompt";
+import {
+  requestLiveLocationFromGesture,
+  writeSavedLiveLocation,
+  type LiveLocationStatus,
+} from "@/lib/location";
 import { AUTH_PRIVACY_LINE } from "@/lib/privacy";
 import { notifyAuthChange } from "@/lib/tour";
 
@@ -10,11 +16,13 @@ export function AuthForm({
   nextPath = "/",
   defaultMode = "signin",
   onSignedIn,
+  onPhaseChange,
 }: {
   defaultName?: string;
   nextPath?: string;
   defaultMode?: "create" | "signin";
   onSignedIn?: (name: string) => void;
+  onPhaseChange?: (phase: "form" | "location") => void;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<"create" | "signin">(defaultMode);
@@ -24,6 +32,8 @@ export function AuthForm({
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<"form" | "location">("form");
+  const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>("prompt");
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -45,13 +55,46 @@ export function AuthForm({
       }
       onSignedIn?.(typeof (data as { me?: { name?: string } }).me?.name === "string" ? (data as { me: { name: string } }).me.name : name);
       notifyAuthChange();
-      router.replace(nextPath);
-      router.refresh();
+      setPhase("location");
+      onPhaseChange?.("location");
     } catch {
       setError("Could not reach the journal. Try again.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function enterJournal() {
+    router.replace(nextPath);
+    router.refresh();
+  }
+
+  function allowLocation() {
+    setLocationStatus("asking");
+    const pending = requestLiveLocationFromGesture();
+    void pending.then((gps) => {
+      writeSavedLiveLocation(gps);
+      setLocationStatus(gps ? "ready" : "unavailable");
+      enterJournal();
+    });
+  }
+
+  function skipLocation() {
+    writeSavedLiveLocation(null);
+    setLocationStatus("unavailable");
+    enterJournal();
+  }
+
+  if (phase === "location") {
+    return (
+      <section className="journal-card space-y-3 rounded-2xl p-4" data-testid="signin-location">
+        <LiveLocationPrompt
+          status={locationStatus}
+          onAllow={allowLocation}
+          onSkip={skipLocation}
+        />
+      </section>
+    );
   }
 
   return (

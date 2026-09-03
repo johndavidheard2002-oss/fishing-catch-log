@@ -41,7 +41,7 @@ export function PhotoCapture({
     emptyHint === undefined
       ? libraryOnly || emphasis === "library"
         ? "Pick an old catch photo from your camera roll. We’ll ask if it was taken where you caught the fish before dropping a pin."
-        : "Camera opens on this tap. Allow location first if you want the pin filled in."
+        : "Camera opens on this tap. Location from sign-in pins the catch if you allowed it."
       : emptyHint;
 
   return (

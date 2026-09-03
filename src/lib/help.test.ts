@@ -17,6 +17,7 @@ describe("HELP_SECTIONS", () => {
     ]);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
+        step.includes("After sign-in") &&
         step.includes("Allow location") &&
         step.includes("this phone’s location") &&
         step.includes("Then tap Camera"),
@@ -39,6 +40,7 @@ describe("HELP_SECTIONS", () => {
     ).toBe(true);
     const journal = HELP_SECTIONS.find((section) => section.title === "Your journal")?.steps ?? [];
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
+    expect(journal.some((step) => step.includes("Allow location"))).toBe(true);
     expect(journal.some((step) => step.includes("Log out"))).toBe(true);
     const share = HELP_SECTIONS.find((section) => section.title === "Share with a friend")?.steps ?? [];
     expect(share.some((step) => step.includes("More") && step.includes("Linked friends") && step.includes("Link"))).toBe(
