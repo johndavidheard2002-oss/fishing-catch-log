@@ -35,7 +35,7 @@ export function PhotoCapture({
   const locationAskedRef = useRef(false);
   const [locating, setLocating] = useState(false);
 
-  async function openCamera() {
+  function openCamera() {
     if (openingRef.current) return;
     const alreadyAsked = !onLiveCapture || locationAskedRef.current;
     if (alreadyAsked) {
@@ -44,21 +44,19 @@ export function PhotoCapture({
     }
     openingRef.current = true;
     setLocating(true);
-    try {
-      await awaitLiveLocationThenOpenCamera({
-        requestLocation: onLiveCapture,
-        openCamera: () => cameraRef.current?.click(),
-      });
+    void awaitLiveLocationThenOpenCamera({
+      requestLocation: onLiveCapture,
+      openCamera: () => cameraRef.current?.click(),
+    }).finally(() => {
       locationAskedRef.current = true;
-    } finally {
       setLocating(false);
       openingRef.current = false;
-    }
+    });
   }
 
   const pick = () => {
     if (libraryOnly) libraryRef.current?.click();
-    else void openCamera();
+    else openCamera();
   };
   const hint =
     emptyHint === undefined
@@ -129,7 +127,7 @@ export function PhotoCapture({
             className={`rounded-xl px-3 py-3 text-sm font-semibold ${
               emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
             }`}
-            onClick={() => void openCamera()}
+            onClick={openCamera}
           >
             {locating ? "Locating…" : "Camera"}
           </button>

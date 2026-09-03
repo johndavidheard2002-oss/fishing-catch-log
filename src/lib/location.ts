@@ -42,25 +42,35 @@ export function requestDeviceGps(
 }
 
 /**
- * Await this tap’s location request, then open the camera.
- * On iPhone Safari the camera sheet steals the same gesture if both start together,
- * so the system location dialog never appears.
+ * Start this tap’s location request in the same turn (so iPhone shows the
+ * system dialog), then open the camera after Allow / Deny / timeout.
+ * Must not be an `async` function: Safari can drop user-activation if the
+ * click handler is async, and the camera sheet then buries the dialog.
  */
-export async function awaitLiveLocationThenOpenCamera(args: {
+export function awaitLiveLocationThenOpenCamera(args: {
   requestLocation?: () => void | Promise<unknown>;
   openCamera: () => void;
   alreadyAsked?: boolean;
 }): Promise<void> {
   if (args.alreadyAsked || !args.requestLocation) {
     args.openCamera();
-    return;
+    return Promise.resolve();
   }
+  let pending: Promise<unknown>;
   try {
-    await args.requestLocation();
+    pending = Promise.resolve(args.requestLocation());
   } catch {
-    /* deny / timeout / unsupported — still open the camera */
+    args.openCamera();
+    return Promise.resolve();
   }
-  args.openCamera();
+  return pending.then(
+    () => {
+      args.openCamera();
+    },
+    () => {
+      args.openCamera();
+    },
+  );
 }
 
 /** Auto-place from the photo unless the angler already moved this catch’s pin. */

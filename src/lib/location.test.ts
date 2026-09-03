@@ -108,6 +108,27 @@ describe("awaitLiveLocationThenOpenCamera", () => {
     expect(requestLocation).not.toHaveBeenCalled();
     expect(openCamera).toHaveBeenCalledOnce();
   });
+
+  it("starts the location request in the same turn as the tap, before the camera", async () => {
+    let started = false;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const openCamera = vi.fn();
+    const pending = awaitLiveLocationThenOpenCamera({
+      requestLocation: () => {
+        started = true;
+        return held;
+      },
+      openCamera,
+    });
+    expect(started).toBe(true);
+    expect(openCamera).not.toHaveBeenCalled();
+    release();
+    await pending;
+    expect(openCamera).toHaveBeenCalledOnce();
+  });
 });
 
 describe("resolveLiveCameraCatchPin", () => {
