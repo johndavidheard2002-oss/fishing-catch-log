@@ -33,3 +33,13 @@ export function subscribeSetup(onChange: () => void) {
 export function openSetup() {
   window.dispatchEvent(new Event(SETUP_OPEN_EVENT));
 }
+
+/** Hide until client has read localStorage; then show if unseen or Help forced it. */
+export function shouldShowFirstRun(args: {
+  ready: boolean;
+  seen: boolean;
+  forced: boolean;
+}): boolean {
+  if (!args.ready) return false;
+  return args.forced || !args.seen;
+}

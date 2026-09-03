@@ -112,7 +112,7 @@ export function HelpGuide() {
 }
 
 export function FirstHelpTip() {
-  const setupDone = useSyncExternalStore(subscribeSetup, setupSeen, () => true);
+  const setupDone = useSyncExternalStore(subscribeSetup, setupSeen, () => false);
   const unseen = useSyncExternalStore(subscribeHelpTip, () => !helpTipSeen(), () => false);
   if (!setupDone || !unseen) return null;
 

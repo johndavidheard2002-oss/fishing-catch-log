@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { SETUP_KEY, markSetupSeen, setupSeen } from "./setup";
+import { SETUP_KEY, markSetupSeen, setupSeen, shouldShowFirstRun } from "./setup";
 
 const memory = new Map<string, string>();
 
@@ -35,5 +35,12 @@ describe("setup seen flag", () => {
     markSetupSeen();
     expect(setupSeen()).toBe(true);
     expect(memory.get(SETUP_KEY)).toBe("1");
+  });
+
+  it("shows the first-run dialog only after client read, when unseen or forced", () => {
+    expect(shouldShowFirstRun({ ready: false, seen: false, forced: false })).toBe(false);
+    expect(shouldShowFirstRun({ ready: true, seen: false, forced: false })).toBe(true);
+    expect(shouldShowFirstRun({ ready: true, seen: true, forced: false })).toBe(false);
+    expect(shouldShowFirstRun({ ready: true, seen: true, forced: true })).toBe(true);
   });
 });

@@ -2,13 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { markHelpTipSeen } from "@/lib/help";
-import { markSetupSeen, SETUP_OPEN_EVENT, setupSeen, subscribeSetup } from "@/lib/setup";
+import { markSetupSeen, SETUP_OPEN_EVENT, setupSeen, shouldShowFirstRun, subscribeSetup } from "@/lib/setup";
 import { APP_DISPLAY_NAME, APP_SUBTITLE } from "@/lib/brand";
+
+function subscribeNever() {
+  return () => {};
+}
 
 export function FirstRunSetup() {
   const router = useRouter();
-  const seen = useSyncExternalStore(subscribeSetup, setupSeen, () => true);
+  const ready = useSyncExternalStore(subscribeNever, () => true, () => false);
+  const seen = useSyncExternalStore(subscribeSetup, setupSeen, () => false);
   const [forced, setForced] = useState(false);
 
   useEffect(() => {
@@ -19,11 +23,10 @@ export function FirstRunSetup() {
     return () => window.removeEventListener(SETUP_OPEN_EVENT, onOpen);
   }, []);
 
-  if (seen && !forced) return null;
+  if (!shouldShowFirstRun({ ready, seen, forced })) return null;
 
   function finish() {
     markSetupSeen();
-    markHelpTipSeen();
     setForced(false);
   }
 
@@ -35,6 +38,11 @@ export function FirstRunSetup() {
   function goOne() {
     finish();
     router.push("/backfill");
+  }
+
+  function goLog() {
+    finish();
+    router.push("/log");
   }
 
   return (
@@ -56,7 +64,7 @@ export function FirstRunSetup() {
           </h2>
           <p className="text-sm text-ink">
             Pull old trip photos off this phone — or any files — and put each catch on its date. Your
-            journal can be going before you log the next one.
+            journal can be going before you log the next one. Today’s catch: use Log.
           </p>
           <ol className="list-decimal space-y-1 pl-4 text-sm text-ink">
             <li>Pick a batch from the camera roll, files, or a folder — not the whole phone.</li>
@@ -78,6 +86,14 @@ export function FirstRunSetup() {
             className="w-full rounded-2xl bg-teal px-4 py-3 font-semibold text-white"
           >
             Add one photo
+          </button>
+          <button
+            type="button"
+            data-testid="setup-log-catch"
+            onClick={goLog}
+            className="w-full rounded-2xl border-2 border-teal bg-card px-4 py-3 font-semibold text-teal"
+          >
+            Log a new catch
           </button>
           <button
             type="button"
