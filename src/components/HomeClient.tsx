@@ -4,7 +4,6 @@ import Link from "next/link";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { BuddyPanel } from "@/components/BuddyPanel";
 import { FirstHelpTip } from "@/components/HelpGuide";
-import { SampleJournalControls } from "@/components/SampleJournalControls";
 
 export function HomeClient() {
   return (
@@ -57,13 +56,10 @@ export function HomeClient() {
           <span>
             <span className="block font-semibold">More</span>
             <span className="mt-0.5 block text-sm font-normal text-ink-muted">
-              Link a buddy, sample catches, invite code
+              Link a buddy or share an invite code
             </span>
           </span>
         </summary>
-        <div className="space-y-3 px-4 pt-1">
-          <SampleJournalControls />
-        </div>
         <BuddyPanel embedded />
       </details>
     </div>

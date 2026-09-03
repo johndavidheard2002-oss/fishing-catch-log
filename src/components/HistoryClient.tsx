@@ -302,7 +302,7 @@ function LibraryScanBanner() {
         {left} more fishing photo{left === 1 ? "" : "s"} from your library
       </span>
       <span className="mt-0.5 block text-xs text-ink-muted">
-        Continue reviewing. Nothing else is added until you tap Yes.
+        Continue reviewing. Nothing is added until you finish the trip form.
       </span>
     </Link>
   );

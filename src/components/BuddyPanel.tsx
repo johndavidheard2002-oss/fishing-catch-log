@@ -189,10 +189,9 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
       </form>
 
       <form onSubmit={createBuddy} className="space-y-2">
-        <p className="text-sm font-semibold">Household / demo profile</p>
+        <p className="text-sm font-semibold">Add someone on this phone</p>
         <p className="text-xs text-ink-muted">
-          Creates a second angler on this journal so you can try linking on one phone. Production
-          auth (magic link / accounts) would replace profile switching.
+          A second name on this journal — link with their invite code like anyone else.
         </p>
         <div className="flex gap-2">
           <input
@@ -228,7 +227,7 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
 
       {profiles.length > 1 ? (
         <div>
-          <p className="mb-1 text-sm font-semibold">Switch profile on this journal</p>
+          <p className="mb-1 text-sm font-semibold">Who is logging</p>
           <div className="flex flex-wrap gap-2">
             {profiles.map((p) => (
               <button

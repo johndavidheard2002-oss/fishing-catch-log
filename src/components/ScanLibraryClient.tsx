@@ -62,7 +62,6 @@ export function ScanLibraryClient() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
-  const [heuristic, setHeuristic] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[]>(() =>
     hydrateScanQueue().map(fromQueued),
   );
@@ -82,13 +81,11 @@ export function ScanLibraryClient() {
     setError(null);
     setBusy(true);
     setSkipped(0);
-    setHeuristic(false);
     setCandidates([]);
     setScanQueue([]);
     const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name));
     const found: Candidate[] = [];
     let skip = 0;
-    let usedHeuristic = false;
     for (let i = 0; i < files.length; i++) {
       setProgress(`Opening ${i + 1} of ${files.length}…`);
       const original = files[i];
@@ -98,7 +95,6 @@ export function ScanLibraryClient() {
           type: "image/jpeg",
         });
         const detection = await detectFishPhoto(file, original.name);
-        if (detection.demo) usedHeuristic = true;
         let caughtAt = new Date();
         let photoTakenLatitude: number | null = null;
         let photoTakenLongitude: number | null = null;
@@ -135,7 +131,6 @@ export function ScanLibraryClient() {
       }
     }
     setSkipped(skip);
-    setHeuristic(usedHeuristic);
     setCandidates(sortScanReviewList(found));
     setBusy(false);
     setProgress("");
@@ -243,7 +238,6 @@ export function ScanLibraryClient() {
           <p className="on-wash-chip w-fit text-sm">
             {candidates.length} photo{candidates.length === 1 ? "" : "s"} from this batch. Likely
             fish are first — tap one to pin it and finish the trip.
-            {heuristic ? " Fish pick is a heuristic unless vision is on." : ""}
             {skipped ? ` Could not open ${skipped}.` : ""}
           </p>
           {candidates.map((item, i) => (

@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { FirstRunSetup } from "@/components/FirstRunSetup";
 import { HelpButton, HelpGuide } from "@/components/HelpGuide";
 import { APP_LOGO_SRC } from "@/lib/brand";
-import type { ProviderStatus } from "@/lib/types";
 
 const NAV: {
   href: string;
@@ -65,7 +64,6 @@ function prefersReducedMotion() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [status, setStatus] = useState<ProviderStatus | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<{
@@ -80,13 +78,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
-
-  useEffect(() => {
-    fetch("/api/status")
-      .then((r) => r.json())
-      .then(setStatus)
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
@@ -211,12 +202,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     };
   }, [router]);
 
-  const demo =
-    status &&
-    (status.weather === "demo" ||
-      status.forecast === "demo" ||
-      status.tides === "demo");
-
   return (
     <>
     <div className="trout-wash-bg" aria-hidden="true" />
@@ -239,11 +224,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <HelpButton />
-            {demo && !pathname.startsWith("/plan") ? (
-              <span className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink-muted">
-                Demo APIs
-              </span>
-            ) : null}
           </div>
         </header>
         <main className="flex-1">{children}</main>
