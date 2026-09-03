@@ -551,8 +551,7 @@ export function CatchForm({
         onFile={handleFile}
         busy={busy}
         emphasis={pastMode ? "library" : "camera"}
-        emptyTitle={pastMode ? "Photo" : undefined}
-        emptyHint={pastMode ? "" : undefined}
+        libraryOnly={pastMode}
         keepVisible={pastMode && Boolean(previewUrl)}
         compactPreview={pastMode && Boolean(previewUrl)}
       />

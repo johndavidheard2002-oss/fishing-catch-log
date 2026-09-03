@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
@@ -298,9 +297,6 @@ export function ScanLibraryClient() {
         Privacy: only the batch you pick is checked. We do not read the rest of the camera roll.
         Dates come from the photo when EXIF is there. Nothing is added until you finish the trip form.
       </p>
-      <Link href="/backfill" className="on-wash-chip inline-block text-sm font-semibold text-teal">
-        One past trip
-      </Link>
     </div>
   );
 }

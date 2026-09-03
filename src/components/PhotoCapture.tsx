@@ -12,6 +12,7 @@ export function PhotoCapture({
   emptyHint,
   keepVisible = false,
   compactPreview = false,
+  libraryOnly = false,
 }: {
   previewUrl: string | null;
   onFile: (file: File) => void;
@@ -21,13 +22,15 @@ export function PhotoCapture({
   emptyHint?: string;
   keepVisible?: boolean;
   compactPreview?: boolean;
+  libraryOnly?: boolean;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
+  const pick = () => (libraryOnly ? libraryRef : cameraRef).current?.click();
   const hint =
     emptyHint === undefined
-      ? emphasis === "library"
-        ? "Upload an old catch photo. We’ll ask if it was taken where you caught the fish before dropping a pin."
+      ? libraryOnly || emphasis === "library"
+        ? "Pick an old catch photo from your camera roll. We’ll ask if it was taken where you caught the fish before dropping a pin."
         : "Camera first. We’ll ask if this photo was taken where you caught the fish before dropping a pin."
       : emptyHint;
 
@@ -46,7 +49,7 @@ export function PhotoCapture({
       >
         <button
           type="button"
-          onClick={() => cameraRef.current?.click()}
+          onClick={pick}
           className="block h-full w-full"
         >
           {previewUrl ? (
@@ -56,7 +59,9 @@ export function PhotoCapture({
             <div className="flex h-full flex-col items-center justify-end gap-2 bg-gradient-to-t from-ink/75 via-ink/25 to-transparent px-6 pb-5 pt-16 text-center">
               <p className="text-lg font-semibold text-white">
                 {emptyTitle ??
-                  (emphasis === "library" ? "Add a photo from your roll" : "Take a photo")}
+                  (libraryOnly || emphasis === "library"
+                    ? "Pick a photo from your camera roll"
+                    : "Take a photo")}
               </p>
               {hint ? <p className="text-sm text-white/90">{hint}</p> : null}
             </div>
@@ -79,38 +84,42 @@ export function PhotoCapture({
           </div>
         ) : null}
       </div>
-      <div className="grid grid-cols-2 gap-2 p-3">
+      <div className={`grid gap-2 p-3 ${libraryOnly ? "grid-cols-1" : "grid-cols-2"}`}>
+        {libraryOnly ? null : (
+          <button
+            type="button"
+            className={`rounded-xl px-3 py-3 text-sm font-semibold ${
+              emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
+            }`}
+            onClick={() => cameraRef.current?.click()}
+          >
+            Camera
+          </button>
+        )}
         <button
           type="button"
           className={`rounded-xl px-3 py-3 text-sm font-semibold ${
-            emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
-          }`}
-          onClick={() => cameraRef.current?.click()}
-        >
-          Camera
-        </button>
-        <button
-          type="button"
-          className={`rounded-xl px-3 py-3 text-sm font-semibold ${
-            emphasis === "library" ? "bg-teal text-white" : "border border-line bg-card"
+            libraryOnly || emphasis === "library" ? "bg-teal text-white" : "border border-line bg-card"
           }`}
           onClick={() => libraryRef.current?.click()}
         >
           Camera roll
         </button>
       </div>
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onFile(file);
-          e.target.value = "";
-        }}
-      />
+      {libraryOnly ? null : (
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onFile(file);
+            e.target.value = "";
+          }}
+        />
+      )}
       <input
         ref={libraryRef}
         type="file"
