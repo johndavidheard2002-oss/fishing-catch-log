@@ -25,8 +25,8 @@ export function LogClient() {
       <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Log a catch</h1>
         <p className="text-sm text-ink-muted">
-          Take a photo. Species fills in from the picture — tap the name only if it&apos;s wrong.
-          A live photo uses the location you allowed at sign-in. Pick or name the area, save.
+          Take a photo. Pick the saltwater species — tap a name or type one. A live photo uses the
+          location you allowed at sign-in. Pick or name the area, save.
         </p>
         <p className="mt-2 text-sm">
           <Link href="/bait/new" className="font-semibold text-teal">

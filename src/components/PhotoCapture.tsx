@@ -15,6 +15,7 @@ export function PhotoCapture({
   compactPreview = false,
   libraryOnly = false,
   locationReason,
+  onLiveCamera,
 }: {
   previewUrl: string | null;
   onFile: (file: File, source: PhotoSource) => void;
@@ -25,11 +26,13 @@ export function PhotoCapture({
   compactPreview?: boolean;
   libraryOnly?: boolean;
   locationReason?: string;
+  onLiveCamera?: () => void;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
 
   function openCamera() {
+    onLiveCamera?.();
     cameraRef.current?.click();
   }
 

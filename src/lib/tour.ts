@@ -17,7 +17,7 @@ export const TOUR_SCREENS: TourScreen[] = [
   {
     id: "log",
     title: "Log a catch",
-    body: "After sign-in, allow location if you want a live photo to drop the pin. Then tap Log, take a photo, and save. Species fills in — tap the name only if it's wrong.",
+    body: "After sign-in, allow location if you want a live photo to drop the pin. Then tap Log, take a photo, pick the saltwater species, and save.",
   },
   {
     id: "calendar",

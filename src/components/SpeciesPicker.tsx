@@ -22,18 +22,14 @@ export function SpeciesPicker({
   onChange,
   onHabitat,
   hideHints = false,
-  identifying = false,
 }: {
   speciesList: string[];
   habitat: Habitat;
   onChange: (speciesList: string[], habitat: Habitat) => void;
   onHabitat: (habitat: Habitat) => void;
   hideHints?: boolean;
-  identifying?: boolean;
 }) {
   const selected = normalizeSpeciesList(null, speciesList);
-  const filled = selected.find((name) => name.toLowerCase() !== "unknown") ?? "";
-  const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState("");
   const listHabitat = pickerHabitat(habitat);
   const catalog = speciesForHabitat(listHabitat);
@@ -60,7 +56,6 @@ export function SpeciesPicker({
     }
     if (selected.length <= 1) {
       onChange([mapped], nextHabitatFor(mapped));
-      setEditing(false);
       setQuery("");
       return;
     }
@@ -87,46 +82,8 @@ export function SpeciesPicker({
     );
   }
 
-  if (!editing) {
-    return (
-      <div className="space-y-1.5">
-        <p className="on-wash-chip w-fit text-sm font-semibold">Species</p>
-        <button
-          type="button"
-          data-testid="species-field"
-          disabled={identifying}
-          onClick={() => setEditing(true)}
-          className={`w-full rounded-xl border px-3 py-3 text-left text-base font-semibold disabled:opacity-70 ${
-            filled ? "border-teal bg-card text-ink" : "border-line bg-card text-ink-muted"
-          }`}
-        >
-          {identifying ? "Identifying…" : filled || "Unknown"}
-        </button>
-        <p className="on-wash-chip text-xs">
-          {identifying
-            ? "Reading the photo…"
-            : filled
-              ? "Tap the name only if it's wrong."
-              : "Tap to pick or type a saltwater species."}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="on-wash-chip w-fit text-sm font-semibold">Species</p>
-        <button
-          type="button"
-          data-testid="species-done"
-          onClick={() => setEditing(false)}
-          className="text-sm font-semibold text-teal"
-        >
-          Done
-        </button>
-      </div>
-
       <div>
         <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Water</p>
         <div className="grid grid-cols-2 gap-2">
@@ -151,6 +108,12 @@ export function SpeciesPicker({
       </div>
 
       <div>
+        <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">Species in this photo</p>
+        {hideHints ? null : (
+          <p className="on-wash-chip mb-2 text-xs">
+            Tag every fish you can see. Tap chips to add or remove — more than one is fine.
+          </p>
+        )}
         {selected.length ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {selected.map((name) => (
@@ -219,6 +182,12 @@ export function SpeciesPicker({
           })
         )}
       </div>
+      {hideHints ? null : (
+        <p className="on-wash-chip text-xs">
+          Inshore or offshore first so the list stays short. One picture can hold more than one
+          species.
+        </p>
+      )}
     </div>
   );
 }

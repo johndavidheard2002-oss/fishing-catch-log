@@ -6,6 +6,7 @@ import { LiveLocationPrompt } from "@/components/LiveLocationPrompt";
 import {
   requestLiveLocationFromGesture,
   writeSavedLiveLocation,
+  writeSavedLiveLocationAllowed,
   type LiveLocationStatus,
 } from "@/lib/location";
 import { AUTH_PRIVACY_LINE } from "@/lib/privacy";
@@ -71,10 +72,11 @@ export function AuthForm({
 
   function allowLocation() {
     setLocationStatus("asking");
+    writeSavedLiveLocationAllowed();
     const pending = requestLiveLocationFromGesture();
     void pending.then((gps) => {
-      writeSavedLiveLocation(gps);
-      setLocationStatus(gps ? "ready" : "unavailable");
+      if (gps) writeSavedLiveLocation(gps);
+      setLocationStatus("ready");
       enterJournal();
     });
   }
