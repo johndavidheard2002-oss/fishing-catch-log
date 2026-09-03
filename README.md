@@ -41,7 +41,7 @@ Place names use OpenStreetMap Nominatim (no key). GPS comes from the browser, or
 
 The header shows **Demo APIs** when weather, forecast, or tides are not live.
 
-**Hosted deploy:** see [docs/SHIPPING.md](docs/SHIPPING.md) for Turso env vars, why Vercel serverless is a poor fit for file SQLite, and how photos work (local disk on the same host, or `http(s)` URLs). The PWA already registers `/sw.js`.
+**Hosted deploy (when you are ready to share):** follow the ~10-minute [Turso + Render/Railway checklist](docs/SHIPPING.md). Cloudflare quick tunnel is demo-only. Vercel serverless is a poor fit for photo uploads.
 
 ## What you can do
 
