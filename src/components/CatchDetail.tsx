@@ -1,21 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
 import { SimilarList } from "@/components/SimilarList";
+import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
 import { catchFishLabel, catchSpeciesTitle } from "@/lib/count";
 import { speciesLabel } from "@/lib/species";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
-import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { coordsLookDifferent } from "@/lib/location";
 import { catchPhotoFilename, photoSrc, weatherLine } from "@/lib/photo";
 import { tidesApplyToHabitat, tideWeatherBits } from "@/lib/tides/snapshot";
 import { formatCaughtAt } from "@/lib/time";
+import { groupSpots } from "@/lib/filters";
+import { hasSavedPin } from "@/lib/location-map";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
+
+const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 items-center justify-center rounded-2xl border border-line bg-paper-deep text-sm text-ink-muted">
+      Loading map…
+    </div>
+  ),
+});
 
 export function CatchDetail({ id }: { id: string }) {
   const router = useRouter();
@@ -107,6 +119,8 @@ export function CatchDetail({ id }: { id: string }) {
           <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
         </div>
       </div>
+
+      <CatchLocationMap record={record} />
 
       <dl className="journal-card grid grid-cols-2 gap-3 rounded-2xl p-4 text-sm">
         <Item label="Fish" value={catchFishLabel(record)} />
@@ -254,6 +268,30 @@ export function CatchDetail({ id }: { id: string }) {
         </Link>
       </section>
     </article>
+  );
+}
+
+function CatchLocationMap({ record }: { record: CatchRecord }) {
+  const hasPin = hasSavedPin(record.latitude, record.longitude);
+  const spots = hasPin ? groupSpots([record]) : [];
+  return (
+    <section className="space-y-1" data-testid="catch-location-map">
+      <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">Location</p>
+      {hasPin ? (
+        <SpotMap
+          spots={spots}
+          selectedKey={spots[0]?.key ?? null}
+          className="h-64 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
+        />
+      ) : (
+        <p
+          className="journal-card rounded-2xl px-3 py-6 text-sm text-ink-muted"
+          data-testid="catch-location-map-empty"
+        >
+          This catch has no saved pin. Tap Edit spot to drop one on the map.
+        </p>
+      )}
+    </section>
   );
 }
 

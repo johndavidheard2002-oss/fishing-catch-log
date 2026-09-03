@@ -1,9 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BaitSpotForm } from "./BaitSpotForm";
+import { hasSavedPin } from "@/lib/location-map";
+
+const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-64 items-center justify-center rounded-2xl border border-line bg-paper-deep text-sm text-ink-muted">
+      Loading map…
+    </div>
+  ),
+});
 import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
 import { CONDITION_LABELS } from "@/lib/labels";
@@ -89,6 +100,21 @@ export function BaitSpotDetail({ id }: { id: string }) {
           ? ` · ${record.windDirection ? `${record.windDirection} ` : ""}${Math.round(record.windSpeedMph)} mph`
           : ""}
       </p>
+      <section className="space-y-1" data-testid="bait-location-map">
+        <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">Location</p>
+        {hasSavedPin(record.latitude, record.longitude) ? (
+          <SpotMap
+            spots={[]}
+            baitSpots={[record]}
+            selectedKey={null}
+            className="h-64 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
+          />
+        ) : (
+          <p className="journal-card rounded-2xl px-3 py-6 text-sm text-ink-muted">
+            This bait hole has no saved pin. Edit it to drop one on the map.
+          </p>
+        )}
+      </section>
       {record.notes ? <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm">{record.notes}</p> : null}
       <p className="on-wash-chip text-xs">{PRIVACY_LINE}</p>
       <div className="flex gap-2">

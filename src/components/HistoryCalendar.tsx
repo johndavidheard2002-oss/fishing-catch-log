@@ -3,9 +3,8 @@
 import { BaitSpotCard } from "@/components/BaitSpotCard";
 import { CatchCard } from "@/components/CatchCard";
 import { DayNotes } from "@/components/CalendarNotes";
-import { LocationMapSheet, targetFromBait, targetFromCatch } from "@/components/LocationMapSheet";
 import { SpotMap } from "@/components/SpotMap";
-import type { LocationMapTarget } from "@/lib/location-map";
+import Link from "next/link";
 import {
   baitSpotLabel,
   baitSpotsOnMonthDay,
@@ -68,7 +67,6 @@ export function HistoryCalendar({
   viewerId?: string;
 }) {
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
-  const [mapTarget, setMapTarget] = useState<LocationMapTarget | null>(null);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
   const byBaitDate = groupBaitSpotsByDate(baitSpots);
@@ -190,14 +188,7 @@ export function HistoryCalendar({
                 </button>
                 {count ? (
                   <span className="relative">
-                    <DayThumbs
-                      records={dayCatches}
-                      selected={isSelected}
-                      onOpenRecord={(record) => {
-                        openDay(cell.date);
-                        setMapTarget(targetFromCatch(record));
-                      }}
-                    />
+                    <DayThumbs records={dayCatches} selected={isSelected} />
                     {baitCount ? (
                       <span
                         className="absolute -bottom-0.5 -left-1 rounded-full bg-copper px-1 text-[8px] font-bold text-white"
@@ -213,12 +204,8 @@ export function HistoryCalendar({
                     ) : null}
                   </span>
                 ) : baitCount ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      openDay(cell.date);
-                      if (dayBait[0]) setMapTarget(targetFromBait(dayBait[0]));
-                    }}
+                  <Link
+                    href={dayBait[0] ? `/bait/${dayBait[0].id}` : "/spots?kind=bait"}
                     className="relative outline-none [-webkit-tap-highlight-color:transparent]"
                     aria-label={`${cell.date}, ${baitCount} bait spot${baitCount === 1 ? "" : "s"}`}
                   >
@@ -233,7 +220,7 @@ export function HistoryCalendar({
                         P
                       </span>
                     ) : null}
-                  </button>
+                  </Link>
                 ) : otherYears ? (
                   <button
                     type="button"
@@ -447,7 +434,6 @@ export function HistoryCalendar({
           needed for future days.
         </p>
       )}
-      <LocationMapSheet target={mapTarget} onClose={() => setMapTarget(null)} />
     </div>
   );
 }
@@ -554,11 +540,9 @@ function PinSummary({ spots, baitSpots = [] }: { spots: SpotGroup[]; baitSpots?:
 function DayThumbs({
   records,
   selected,
-  onOpenRecord,
 }: {
   records: CatchRecord[];
   selected: boolean;
-  onOpenRecord: (record: CatchRecord) => void;
 }) {
   if (!records.length) return <span className="mt-1 h-7" />;
   const shown = records.slice(0, 2);
@@ -571,12 +555,11 @@ function DayThumbs({
           const src = photoSrc(record.photoPath);
           const size = large ? "h-7 w-7" : "h-6 w-6";
           return (
-            <button
+            <Link
               key={record.id}
-              type="button"
-              onClick={() => onOpenRecord(record)}
+              href={`/catch/${record.id}`}
               title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} · ${catchSpotLabel(record)}`}
-              aria-label={`Open map for ${catchSpotLabel(record)}`}
+              aria-label={`Open catch at ${catchSpotLabel(record)}`}
               data-testid="calendar-day-photo"
               className={`relative ${size} overflow-hidden rounded-md border ${
                 selected ? "border-teal" : "border-white"
@@ -589,7 +572,7 @@ function DayThumbs({
               ) : (
                 <span className="block h-full w-full bg-copper/40" />
               )}
-            </button>
+            </Link>
           );
         })}
         {extra > 0 ? (
