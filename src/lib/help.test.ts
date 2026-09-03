@@ -25,6 +25,11 @@ describe("HELP_SECTIONS", () => {
         step.includes("keep the whole batch"),
       ),
     ).toBe(true);
+    expect(
+      HELP_SECTIONS.find((section) => section.title === "Backfill")?.steps.some((step) =>
+        step.includes("How this works"),
+      ),
+    ).toBe(true);
     const journal = HELP_SECTIONS.find((section) => section.title === "Your journal")?.steps ?? [];
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
     expect(journal.some((step) => step.includes("Log out"))).toBe(true);

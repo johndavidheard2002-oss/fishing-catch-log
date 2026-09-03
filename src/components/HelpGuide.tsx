@@ -8,7 +8,7 @@ import {
   markHelpTipSeen,
   subscribeHelpTip,
 } from "@/lib/help";
-import { openSetup, setupSeen, subscribeSetup } from "@/lib/setup";
+import { AUTH_CHANGE_EVENT, openTour, subscribeTour, tourSeen } from "@/lib/tour";
 import { APP_DISPLAY_NAME } from "@/lib/brand";
 
 export function HelpButton() {
@@ -89,20 +89,22 @@ export function HelpGuide() {
             </section>
           ))}
           <div className="rounded-2xl border border-line bg-card px-3 py-3">
-            <p className="font-semibold text-ink">Find fish photos</p>
+            <p className="font-semibold text-ink">How this works</p>
             <p className="mt-0.5 text-sm text-ink-muted">
-              Run setup again — pick a batch, we keep them all, put likely fish first, and use the photo’s time.
+              Replay the short tour — Log, Calendar Log, Plan, Backfill, and sharing with a friend.
             </p>
             <button
               type="button"
-              data-testid="help-open-setup"
+              data-testid="help-open-tour"
+              data-help-open-setup="help-open-setup"
+              id="help-open-setup"
               onClick={() => {
                 setOpen(false);
-                openSetup();
+                openTour();
               }}
               className="mt-2 w-full rounded-2xl bg-copper px-4 py-2.5 font-semibold text-white"
             >
-              Setup again
+              Show how this works
             </button>
           </div>
         </div>
@@ -114,20 +116,25 @@ export function HelpGuide() {
 export function FirstHelpTip() {
   const [anglerId, setAnglerId] = useState("");
   useEffect(() => {
-    fetch("/api/me", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (typeof data.me?.id === "string") setAnglerId(data.me.id);
-      })
-      .catch(() => {});
+    function loadMe() {
+      fetch("/api/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((data) => {
+          if (typeof data.me?.id === "string") setAnglerId(data.me.id);
+        })
+        .catch(() => {});
+    }
+    loadMe();
+    window.addEventListener(AUTH_CHANGE_EVENT, loadMe);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, loadMe);
   }, []);
-  const setupDone = useSyncExternalStore(
-    subscribeSetup,
-    () => (anglerId ? setupSeen(anglerId) : false),
+  const tourDone = useSyncExternalStore(
+    subscribeTour,
+    () => (anglerId ? tourSeen(anglerId) : false),
     () => false,
   );
   const unseen = useSyncExternalStore(subscribeHelpTip, () => !helpTipSeen(), () => false);
-  if (!setupDone || !unseen) return null;
+  if (!tourDone || !unseen) return null;
 
   return (
     <div className="journal-card flex items-center justify-between gap-2 rounded-2xl px-3 py-2" data-testid="help-first-tip">

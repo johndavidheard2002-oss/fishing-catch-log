@@ -74,7 +74,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "Add one past catch, or tap Find fish photos and pick a batch.",
       "We keep the whole batch, put likely fish first, and use the photo’s time when EXIF is there.",
-      "Confirm, pin the water, and save. Help → Setup again opens the same path.",
+      "Confirm, pin the water, and save. Help → How this works replays the short tour.",
     ],
   },
   {

@@ -1,6 +1,7 @@
 "use client";
 
 import { PRIVACY_DETAIL, PRIVACY_LINE } from "@/lib/privacy";
+import { notifyAuthChange } from "@/lib/tour";
 import { formatWeekdayDate } from "@/lib/time";
 import { localDateKey } from "@/lib/calendar";
 import { useRouter } from "next/navigation";
@@ -141,6 +142,7 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
     setLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      notifyAuthChange();
       router.replace("/signin");
       router.refresh();
     } finally {

@@ -1,58 +1,84 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { markSetupSeen, SETUP_OPEN_EVENT, setupSeen, shouldShowFirstRun, subscribeSetup } from "@/lib/setup";
+import { markHelpTipSeen } from "@/lib/help";
+import { SETUP_OPEN_EVENT } from "@/lib/setup";
 import { APP_DISPLAY_NAME, APP_SUBTITLE } from "@/lib/brand";
+import {
+  AUTH_CHANGE_EVENT,
+  TOUR_OPEN_EVENT,
+  TOUR_SCREENS,
+  markTourSeen,
+  shouldShowTour,
+  subscribeTour,
+  tourSeen,
+} from "@/lib/tour";
 
 function subscribeNever() {
   return () => {};
 }
 
 export function FirstRunSetup() {
-  const router = useRouter();
   const ready = useSyncExternalStore(subscribeNever, () => true, () => false);
-  const [anglerId, setAnglerId] = useState<string>("");
-  const seen = useSyncExternalStore(subscribeSetup, () => (anglerId ? setupSeen(anglerId) : true), () => true);
+  const [anglerId, setAnglerId] = useState("");
+  const [signedIn, setSignedIn] = useState(false);
+  const seen = useSyncExternalStore(
+    subscribeTour,
+    () => (anglerId ? tourSeen(anglerId) : true),
+    () => true,
+  );
   const [forced, setForced] = useState(false);
+  const [step, setStep] = useState(0);
+  const [pendingSeen, setPendingSeen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/me", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (typeof data.me?.id === "string") setAnglerId(data.me.id);
-      })
-      .catch(() => {});
+    function loadMe() {
+      fetch("/api/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then((data) => {
+          setAnglerId(typeof data.me?.id === "string" ? data.me.id : "");
+          setSignedIn(Boolean(data.signedIn));
+        })
+        .catch(() => {
+          setAnglerId("");
+          setSignedIn(false);
+        });
+    }
+    loadMe();
+    window.addEventListener(AUTH_CHANGE_EVENT, loadMe);
+    return () => window.removeEventListener(AUTH_CHANGE_EVENT, loadMe);
   }, []);
 
   useEffect(() => {
     function onOpen() {
+      setStep(0);
       setForced(true);
     }
+    window.addEventListener(TOUR_OPEN_EVENT, onOpen);
     window.addEventListener(SETUP_OPEN_EVENT, onOpen);
-    return () => window.removeEventListener(SETUP_OPEN_EVENT, onOpen);
+    return () => {
+      window.removeEventListener(TOUR_OPEN_EVENT, onOpen);
+      window.removeEventListener(SETUP_OPEN_EVENT, onOpen);
+    };
   }, []);
 
-  if (!shouldShowFirstRun({ ready, seen, forced, hasJournal: Boolean(anglerId) })) return null;
+  useEffect(() => {
+    if (!pendingSeen || !anglerId || !signedIn) return;
+    markTourSeen(anglerId);
+    setPendingSeen(false);
+  }, [pendingSeen, anglerId, signedIn]);
+
+  if (!shouldShowTour({ ready, seen, forced, signedIn })) return null;
+
+  const screen = TOUR_SCREENS[step] ?? TOUR_SCREENS[0];
+  const last = step >= TOUR_SCREENS.length - 1;
 
   function finish() {
-    markSetupSeen(anglerId);
+    if (signedIn && anglerId) markTourSeen(anglerId);
+    else if (signedIn) setPendingSeen(true);
+    markHelpTipSeen();
     setForced(false);
-  }
-
-  function goPhotos() {
-    finish();
-    router.push("/log/scan");
-  }
-
-  function goOne() {
-    finish();
-    router.push("/backfill");
-  }
-
-  function goLog() {
-    finish();
-    router.push("/log");
+    setStep(0);
   }
 
   return (
@@ -69,42 +95,50 @@ export function FirstRunSetup() {
           <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
             {APP_DISPLAY_NAME} · {APP_SUBTITLE}
           </p>
-          <h2 id="first-run-title" className="font-display text-3xl text-teal">
-            Start with photos you already have
-          </h2>
-          <p className="text-sm text-ink">
-            Pull old trip photos off this phone — or any files — and put each catch on its date. Your
-            journal can be going before you log the next one. Today’s catch: use Log.
+          <p className="text-xs font-semibold text-ink-muted" data-testid="tour-progress">
+            {step + 1} of {TOUR_SCREENS.length}
           </p>
-          <ol className="list-decimal space-y-1 pl-4 text-sm text-ink">
-            <li>Pick a batch from the camera roll, files, or a folder — not the whole phone.</li>
-            <li>We keep every photo you pick, put likely fish first, and read the date when it is there.</li>
-            <li>Confirm each one, pin the water, and save. One photo is one trip.</li>
-          </ol>
-          <button
-            type="button"
-            data-testid="setup-import-photos"
-            onClick={goPhotos}
-            className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white"
-          >
-            Find fish photos
-          </button>
-          <button
-            type="button"
-            data-testid="setup-one-photo"
-            onClick={goOne}
-            className="w-full rounded-2xl bg-teal px-4 py-3 font-semibold text-white"
-          >
-            Add one photo
-          </button>
-          <button
-            type="button"
-            data-testid="setup-log-catch"
-            onClick={goLog}
-            className="w-full rounded-2xl border-2 border-teal bg-card px-4 py-3 font-semibold text-teal"
-          >
-            Log a new catch
-          </button>
+          <h2 id="first-run-title" className="font-display text-3xl text-teal">
+            {screen.title}
+          </h2>
+          <p className="text-sm text-ink">{screen.body}</p>
+          <div className="flex justify-center gap-1.5 pt-1" aria-hidden>
+            {TOUR_SCREENS.map((item, index) => (
+              <span
+                key={item.id}
+                className={`h-2 w-2 rounded-full ${index === step ? "bg-teal" : "bg-line"}`}
+              />
+            ))}
+          </div>
+          {last ? (
+            <button
+              type="button"
+              data-testid="tour-done"
+              onClick={finish}
+              className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white"
+            >
+              Got it
+            </button>
+          ) : (
+            <button
+              type="button"
+              data-testid="tour-next"
+              onClick={() => setStep((current) => Math.min(current + 1, TOUR_SCREENS.length - 1))}
+              className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white"
+            >
+              Next
+            </button>
+          )}
+          {step > 0 ? (
+            <button
+              type="button"
+              data-testid="tour-back"
+              onClick={() => setStep((current) => Math.max(current - 1, 0))}
+              className="w-full rounded-2xl border-2 border-line bg-card px-4 py-3 font-semibold text-ink"
+            >
+              Back
+            </button>
+          ) : null}
           <button
             type="button"
             data-testid="setup-skip"
@@ -114,8 +148,7 @@ export function FirstRunSetup() {
             Skip / Do later
           </button>
           <p className="text-center text-xs text-ink-muted">
-            No photos required. Skipping leaves an empty journal and will not ask again. Open Help
-            anytime to import later.
+            Open Help anytime to see this again.
           </p>
         </div>
       </div>
