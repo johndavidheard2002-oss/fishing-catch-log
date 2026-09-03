@@ -28,8 +28,15 @@ export function BaitSpotDetail({ id }: { id: string }) {
   const [record, setRecord] = useState<BaitSpot | null>(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewerId, setViewerId] = useState<string | undefined>();
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => setViewerId(data.me?.id))
+      .catch(() => {});
     fetch(`/api/bait-spots/${id}`)
       .then(async (r) => {
         if (!r.ok) throw new Error("missing");
@@ -46,6 +53,29 @@ export function BaitSpotDetail({ id }: { id: string }) {
     if (!confirm("Delete this bait spot?")) return;
     await fetch(`/api/bait-spots/${id}`, { method: "DELETE" });
     router.push("/spots?kind=bait");
+  }
+
+  async function onShare(shared: boolean) {
+    if (!record) return;
+    setShareBusy(true);
+    setShareError(null);
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ baitSpotIds: [record.id], shared }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { baitUpdated?: number };
+      if (!res.ok || data.baitUpdated === 0) {
+        setShareError("Could not update sharing.");
+        return;
+      }
+      setRecord({ ...record, sharedWithLinked: shared });
+    } catch {
+      setShareError("Could not update sharing.");
+    } finally {
+      setShareBusy(false);
+    }
   }
 
   if (error) {
@@ -75,6 +105,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
   }
 
   const src = photoSrc(record.photoPath);
+  const isOwner = !viewerId || record.anglerId === viewerId;
   return (
     <div className="space-y-4">
       <Link href="/spots?kind=bait" className="on-wash-chip w-fit text-sm font-semibold text-teal">
@@ -116,22 +147,50 @@ export function BaitSpotDetail({ id }: { id: string }) {
         )}
       </section>
       {record.notes ? <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm">{record.notes}</p> : null}
-      <p className="on-wash-chip text-xs">{PRIVACY_LINE}</p>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
-        >
-          Delete
-        </button>
+      <p className="on-wash-chip text-xs">
+        {record.sharedWithLinked
+          ? `${PRIVACY_LINE} Never public. No feed.`
+          : "Private to you. Not shared with anyone."}
+      </p>
+      <div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
+          >
+            Edit
+          </button>
+          {isOwner ? (
+            <button
+              type="button"
+              disabled={shareBusy}
+              aria-pressed={record.sharedWithLinked}
+              data-testid="bait-share"
+              onClick={() => void onShare(!record.sharedWithLinked)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                record.sharedWithLinked
+                  ? "border-2 border-teal bg-teal/15 text-teal"
+                  : "bg-teal text-white"
+              } disabled:opacity-50`}
+            >
+              {record.sharedWithLinked ? "Shared" : "Share"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
+          >
+            Delete
+          </button>
+        </div>
+        {isOwner ? (
+          <p className="mt-1.5 text-xs text-ink-muted">
+            Linked buddies can see this spot. Off until you choose.
+          </p>
+        ) : null}
+        {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>
     </div>
   );

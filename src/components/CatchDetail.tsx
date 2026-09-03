@@ -38,8 +38,15 @@ export function CatchDetail({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [focusSpot, setFocusSpot] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewerId, setViewerId] = useState<string | undefined>();
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   useEffect(() => {
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => setViewerId(data.me?.id))
+      .catch(() => {});
     fetch(`/api/catches/${id}`)
       .then(async (r) => {
         if (!r.ok) throw new Error("missing");
@@ -62,8 +69,33 @@ export function CatchDetail({ id }: { id: string }) {
     router.push("/calendar");
   }
 
+  async function onShare(shared: boolean) {
+    if (!record) return;
+    setShareBusy(true);
+    setShareError(null);
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ catchIds: [record.id], shared }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { catchUpdated?: number };
+      if (!res.ok || data.catchUpdated === 0) {
+        setShareError("Could not update sharing.");
+        return;
+      }
+      setRecord({ ...record, sharedWithLinked: shared });
+    } catch {
+      setShareError("Could not update sharing.");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
   if (error) return <p className="on-wash-chip text-ink">{error}</p>;
   if (!record) return <p className="on-wash-chip">Opening the page…</p>;
+
+  const isOwner = !viewerId || record.anglerId === viewerId;
 
   const src = photoSrc(record.photoPath);
 
@@ -252,31 +284,55 @@ export function CatchDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="flex-1 rounded-xl bg-teal py-3 font-semibold text-white"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setFocusSpot(true);
-            setEditing(true);
-          }}
-          className="rounded-xl border border-line px-4 py-3 font-semibold"
-        >
-          Edit spot
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="rounded-xl border border-line px-4 py-3 font-semibold"
-        >
-          Delete
-        </button>
+      <div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="min-w-[5.5rem] flex-1 rounded-xl bg-teal py-3 font-semibold text-white"
+          >
+            Edit
+          </button>
+          {isOwner ? (
+            <button
+              type="button"
+              disabled={shareBusy}
+              aria-pressed={record.sharedWithLinked}
+              data-testid="catch-share"
+              onClick={() => void onShare(!record.sharedWithLinked)}
+              className={`rounded-xl px-5 py-3 font-semibold ${
+                record.sharedWithLinked
+                  ? "border-2 border-teal bg-teal/15 text-teal"
+                  : "bg-teal text-white"
+              } disabled:opacity-50`}
+            >
+              {record.sharedWithLinked ? "Shared" : "Share"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setFocusSpot(true);
+              setEditing(true);
+            }}
+            className="rounded-xl border border-line px-4 py-3 font-semibold"
+          >
+            Edit spot
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="rounded-xl border border-line px-4 py-3 font-semibold"
+          >
+            Delete
+          </button>
+        </div>
+        {isOwner ? (
+          <p className="mt-1.5 text-xs text-ink-muted">
+            Linked buddies can see this spot. Off until you choose.
+          </p>
+        ) : null}
+        {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>
 
       <section id="similar" className="space-y-3">
