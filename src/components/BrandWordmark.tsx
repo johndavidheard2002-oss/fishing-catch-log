@@ -1,9 +1,11 @@
+import { APP_DISPLAY_NAME, APP_SUBTITLE } from "@/lib/brand";
+
 type BrandWordmarkProps = {
   as?: "h1" | "span";
   size: "header" | "home";
 };
 
-/** Catch Compass on top, Saltwater Logbook on one nowrap line underneath. */
+/** Display name on top, Saltwater Logbook on one nowrap line underneath. */
 export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
   const home = size === "home";
   return (
@@ -18,7 +20,7 @@ export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
             : "block whitespace-nowrap font-display text-2xl leading-tight tracking-tight"
         }
       >
-        Catch Compass
+        {APP_DISPLAY_NAME}
       </span>
       <span
         className={
@@ -27,7 +29,7 @@ export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
             : "block whitespace-nowrap font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase"
         }
       >
-        Saltwater Logbook
+        {APP_SUBTITLE}
       </span>
     </Tag>
   );
