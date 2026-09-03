@@ -39,8 +39,18 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Calendar Log",
     steps: [
       "Tap a day to open that date’s map, notes, and trips.",
-      "Select spots to share with a linked buddy. Off until you choose.",
+      "Open a day and use Select spots to share for several pins at once. Off until you choose.",
       "Same date across years stays grouped so you can compare.",
+    ],
+  },
+  {
+    title: "Share with a buddy",
+    steps: [
+      "On Home, open More. Under Linked buddies, enter their invite code or copy yours.",
+      "Linking shares nothing by itself. Only shared with people you’ve linked. Never public. No feed.",
+      "Open a catch photo and tap Share next to Edit. It becomes Shared — that spot is what buddies can see.",
+      "On Calendar Log you can also open a day and use Select spots to share for several pins at once.",
+      "Your buddy turns on Include shared from linked buddies to see the spots you shared.",
     ],
   },
   {
