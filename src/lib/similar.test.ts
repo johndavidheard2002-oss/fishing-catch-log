@@ -4,6 +4,8 @@ import {
   scoreConditionOverlap,
   scoreSimilarity,
   suggestionStrength,
+  veryStrongMatchChip,
+  veryStrongMatchLabel,
   VERY_STRONG_MATCH_CHIP,
   VERY_STRONG_MATCH_LABEL,
 } from "./similar";
@@ -128,6 +130,11 @@ describe("tide and time ranking", () => {
   it("locks the very-strong copy", () => {
     expect(VERY_STRONG_MATCH_LABEL).toBe("Very strong matches with matching tides");
     expect(VERY_STRONG_MATCH_CHIP).toBe("Very strong · matching tides");
+    const at = "2026-08-02T11:42:00.000Z";
+    const clock = formatTimeOnly(at);
+    expect(veryStrongMatchLabel(at)).toBe(`Very strong · conditions match around ${clock}`);
+    expect(veryStrongMatchChip(at)).toBe(`Very strong · ${clock}`);
+    expect(veryStrongMatchLabel()).toBe(VERY_STRONG_MATCH_LABEL);
   });
 
   it("weights exact tide stage, height, and clock above weather-only overlap", () => {

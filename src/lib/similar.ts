@@ -90,6 +90,26 @@ export type ConditionOverlap = {
 export const VERY_STRONG_MATCH_LABEL = "Very strong matches with matching tides";
 export const VERY_STRONG_MATCH_CHIP = "Very strong · matching tides";
 
+function clockTimeFromIso(atIso?: string | null): string {
+  if (!atIso) return "";
+  const date = new Date(atIso);
+  if (Number.isNaN(date.getTime())) return "";
+  return formatTimeOnly(atIso);
+}
+
+/** Very strong line with the forecast slot clock when we have one. */
+export function veryStrongMatchLabel(atIso?: string | null): string {
+  const clock = clockTimeFromIso(atIso);
+  if (!clock) return VERY_STRONG_MATCH_LABEL;
+  return `Very strong · conditions match around ${clock}`;
+}
+
+export function veryStrongMatchChip(atIso?: string | null): string {
+  const clock = clockTimeFromIso(atIso);
+  if (!clock) return VERY_STRONG_MATCH_CHIP;
+  return `Very strong · ${clock}`;
+}
+
 const CLOCK_CLOSE_MINUTES = 45;
 const CLOCK_NEAR_MINUTES = 120;
 const TIDE_HEIGHT_SIMILAR_FT = 0.4;

@@ -1,7 +1,7 @@
 import { groupBaitSpots, baitTypesLabel } from "./bait";
 import { groupSpots, spotKey } from "./filters";
 import { speciesLabel } from "./species";
-import { formatDateOnly, TIME_OF_DAY_LABELS } from "./time";
+import { formatDateOnly, formatTimeOnly, TIME_OF_DAY_LABELS } from "./time";
 import { conditionLabel, scoreConditionOverlap, suggestionStrength } from "./similar";
 import { getTideSeries, hasWorldTidesKey } from "./tides";
 import type {
@@ -43,6 +43,18 @@ export function planHeadline(window: ForecastWindow, match: CatchRecord): string
   return `${bits.join(" + ")} like your ${speciesLabel(match.speciesList?.length ? match.speciesList : match.species)} at ${place} on ${formatDateOnly(match.caughtAt)}`;
 }
 
+/** Time-of-day bucket, plus the forecast clock on very-strong windows. */
+export function forecastWindowWhenLabel(
+  window: ForecastWindow,
+  strength: MatchStrength,
+): string {
+  const tod = TIME_OF_DAY_LABELS[window.timeOfDay];
+  if (strength !== "very-strong" || !window.at) return tod;
+  const date = new Date(window.at);
+  if (Number.isNaN(date.getTime())) return tod;
+  return `${tod} · ${formatTimeOnly(window.at)}`;
+}
+
 /** 1–3 short why chips for Strong / Very strong Plan cards. */
 export function planWhyChips(args: {
   reasons: string[];
@@ -50,6 +62,7 @@ export function planWhyChips(args: {
   placeName?: string | null;
   species?: string | null;
   timeOfDay?: TimeOfDay | null;
+  windowAt?: string | null;
 }): string[] {
   if (args.strength !== "strong" && args.strength !== "very-strong") {
     return args.reasons.filter(Boolean).slice(0, 3);
@@ -61,9 +74,18 @@ export function planWhyChips(args: {
   const tide = take((reason) => /tide/i.test(reason));
   if (tide) chips.push(prettyPlanWhy(tide, args.timeOfDay));
 
+  const clock =
+    args.strength === "very-strong" && args.windowAt && !Number.isNaN(new Date(args.windowAt).getTime())
+      ? formatTimeOnly(args.windowAt)
+      : "";
+  const chipsHaveClock = Boolean(clock) && chips.some((chip) => chip.includes(clock));
+  if (clock && !chipsHaveClock) {
+    chips.push(`Around ${clock}`);
+  }
+
   const tideAlreadyHasTime = Boolean(tide && /AM|PM|dawn|dusk|morning|afternoon|night/i.test(tide));
   const time = take((reason) => /time of day/i.test(reason) || /^~/i.test(reason));
-  if (time && !tideAlreadyHasTime) chips.push(prettyPlanWhy(time, args.timeOfDay));
+  if (time && !tideAlreadyHasTime && !clock) chips.push(prettyPlanWhy(time, args.timeOfDay));
 
   const weather = take((reason) =>
     /sky|clear|cloud|overcast|fog|drizzle|rain|storm|snow|wet weather/i.test(reason),

@@ -11,9 +11,9 @@ import { speciesLabel } from "@/lib/species";
 import { PlanDayNotes } from "@/components/CalendarNotes";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
 import { groupNotesByDay } from "@/lib/notes";
-import { parsePlanDate, planLookupFailureNote, planWhyChips } from "@/lib/plan";
-import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
-import { conditionLabel, VERY_STRONG_MATCH_CHIP, VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
+import { parsePlanDate, planLookupFailureNote, planWhyChips, forecastWindowWhenLabel } from "@/lib/plan";
+import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
+import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
 import type {
   BaitPlanSuggestion,
   BaitSpot,
@@ -41,6 +41,7 @@ type PlanMapTarget = {
   kind: "catch" | "bait";
   strength: PlanSuggestion["strength"];
   reasons: string[];
+  windowAt?: string;
   spots: SpotGroup[];
   baitSpots: BaitSpot[];
 };
@@ -392,10 +393,10 @@ function SuggestionCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <span className="font-semibold">{suggestion.placeName}</span>
-              <StrengthBadge strength={suggestion.strength} />
+              <StrengthBadge strength={suggestion.strength} atIso={w.at} />
             </div>
             <p className="text-sm text-ink-muted">
-              {TIME_OF_DAY_LABELS[w.timeOfDay]}
+              {forecastWindowWhenLabel(w, suggestion.strength)}
               {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
               {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
               {w.windSpeedMph != null
@@ -411,7 +412,7 @@ function SuggestionCard({
         </div>
         <p className="pt-2 text-sm">{suggestion.headline}</p>
         {suggestion.strength === "very-strong" ? (
-          <p className="pt-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+          <p className="pt-1 text-[11px] font-semibold text-teal">{veryStrongMatchLabel(w.at)}</p>
         ) : null}
         <div className="pt-1">
           <MatchWhy
@@ -420,6 +421,7 @@ function SuggestionCard({
             placeName={suggestion.placeName}
             species={primary.species}
             timeOfDay={w.timeOfDay}
+            windowAt={w.at}
           />
         </div>
       </Link>
@@ -516,10 +518,10 @@ function BaitSuggestionCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <span className="font-semibold">{suggestion.placeName}</span>
-              <StrengthBadge strength={suggestion.strength} />
+              <StrengthBadge strength={suggestion.strength} atIso={w.at} />
             </div>
             <p className="text-sm text-ink-muted">
-              {baitTypesLabel(suggestion.baitTypes)} · {TIME_OF_DAY_LABELS[w.timeOfDay]}
+              {baitTypesLabel(suggestion.baitTypes)} · {forecastWindowWhenLabel(w, suggestion.strength)}
               {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
               {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
               {w.tide ? ` · ${w.tide} tide` : ""}
@@ -528,7 +530,7 @@ function BaitSuggestionCard({
         </div>
         <p className="pt-2 text-sm">{suggestion.headline}</p>
         {suggestion.strength === "very-strong" ? (
-          <p className="pt-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+          <p className="pt-1 text-[11px] font-semibold text-teal">{veryStrongMatchLabel(w.at)}</p>
         ) : null}
         <div className="pt-1">
           <MatchWhy
@@ -537,6 +539,7 @@ function BaitSuggestionCard({
             placeName={suggestion.placeName}
             species={baitTypesLabel(suggestion.baitTypes)}
             timeOfDay={w.timeOfDay}
+            windowAt={w.at}
           />
         </div>
       </Link>
@@ -598,14 +601,16 @@ function MatchWhy({
   placeName,
   species,
   timeOfDay,
+  windowAt,
 }: {
   reasons: string[];
   strength: PlanSuggestion["strength"];
   placeName?: string | null;
   species?: string | null;
   timeOfDay?: PlanSuggestion["window"]["timeOfDay"] | null;
+  windowAt?: string | null;
 }) {
-  const bits = planWhyChips({ reasons, strength, placeName, species, timeOfDay });
+  const bits = planWhyChips({ reasons, strength, placeName, species, timeOfDay, windowAt });
   if ((strength === "strong" || strength === "very-strong") && bits.length) {
     return (
       <ul className="flex flex-wrap gap-1" data-testid="plan-match-why">
@@ -627,11 +632,17 @@ function MatchWhy({
   );
 }
 
-function StrengthBadge({ strength }: { strength: PlanSuggestion["strength"] }) {
+function StrengthBadge({
+  strength,
+  atIso,
+}: {
+  strength: PlanSuggestion["strength"];
+  atIso?: string;
+}) {
   if (strength === "very-strong") {
     return (
-      <span className="max-w-[9.5rem] rounded-full bg-good px-2 py-0.5 text-right text-[10px] font-semibold leading-snug text-white">
-        {VERY_STRONG_MATCH_CHIP}
+      <span className="max-w-[11rem] rounded-full bg-good px-2 py-0.5 text-right text-[10px] font-semibold leading-snug text-white">
+        {veryStrongMatchChip(atIso)}
       </span>
     );
   }
@@ -652,6 +663,7 @@ function mapTargetFromCatch(suggestion: PlanSuggestion): PlanMapTarget | null {
     kind: "catch",
     strength: suggestion.strength,
     reasons: suggestion.reasons,
+    windowAt: suggestion.window.at,
     spots: [
       {
         key: suggestion.spotKey,
@@ -682,6 +694,7 @@ function mapTargetFromBait(suggestion: BaitPlanSuggestion): PlanMapTarget | null
     kind: "bait",
     strength: suggestion.strength,
     reasons: suggestion.reasons,
+    windowAt: suggestion.window.at,
     spots: [],
     baitSpots: pinned.length
       ? pinned
@@ -736,7 +749,9 @@ function PlanSpotSheet({
               {target.title}
             </h3>
             {target.strength === "very-strong" ? (
-              <p className="mt-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+              <p className="mt-1 text-[11px] font-semibold text-teal">
+                {veryStrongMatchLabel(target.windowAt)}
+              </p>
             ) : null}
             <p className="mt-1 text-xs text-ink-muted">
               {target.reasons.slice(0, 3).join(" · ") || "Matched to a logged trip"}

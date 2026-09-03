@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { groupSpots } from "./filters";
 import {
   baitPlanHeadline,
+  forecastWindowWhenLabel,
   isPositiveCatch,
   parsePlanDate,
   planHeadline,
@@ -14,6 +15,7 @@ import {
   suggestFromWindows,
 } from "./plan";
 import { catchOf } from "./testing";
+import { formatTimeOnly } from "./time";
 import type { BaitSpot, CatchRecord, ForecastWindow } from "./types";
 
 function pondCatch(partial: Partial<CatchRecord> & { id: string }): CatchRecord {
@@ -316,6 +318,46 @@ describe("planWhyChips", () => {
         timeOfDay: "afternoon",
       }),
     ).toEqual(["Same afternoon", "Cloudy skies", "Speckled Trout at Matagorda Bay"]);
+  });
+
+  it("adds the forecast clock on a very-strong window", () => {
+    const windowAt = "2026-08-02T11:42:00.000Z";
+    const clock = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(
+      new Date(windowAt),
+    );
+    const chips = planWhyChips({
+      reasons: ["Same time of day", "Partly cloudy"],
+      strength: "very-strong",
+      placeName: "Galveston Bay, TX",
+      species: "Redfish",
+      timeOfDay: "morning",
+      windowAt,
+    });
+    expect(chips[0]).toBe(`Around ${clock}`);
+    expect(chips).toContain("Partly cloudy skies");
+  });
+
+  it("does not duplicate the clock when the tide reason already has it", () => {
+    const windowAt = "2026-08-02T11:42:00.000Z";
+    const clock = formatTimeOnly(windowAt);
+    const chips = planWhyChips({
+      reasons: [`same rising tide ~1.2 ft, ~${clock}`, "Partly cloudy"],
+      strength: "very-strong",
+      placeName: "Galveston Bay, TX",
+      species: "Redfish",
+      timeOfDay: "dawn",
+      windowAt,
+    });
+    expect(chips.filter((chip) => chip.startsWith("Around "))).toEqual([]);
+    expect(chips[0]).toContain(clock);
+  });
+
+  it("puts the forecast clock on the very-strong when line", () => {
+    const windowAt = "2026-08-02T11:42:00.000Z";
+    expect(forecastWindowWhenLabel(windowOf({ at: windowAt, timeOfDay: "morning" }), "very-strong")).toBe(
+      `Morning · ${formatTimeOnly(windowAt)}`,
+    );
+    expect(forecastWindowWhenLabel(windowOf({ at: windowAt, timeOfDay: "morning" }), "strong")).toBe("Morning");
   });
 
   it("leaves lean and good matches as the raw reason list", () => {
