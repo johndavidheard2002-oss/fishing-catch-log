@@ -138,7 +138,16 @@ CREATE TABLE IF NOT EXISTS bait_spots (
 );
 CREATE INDEX IF NOT EXISTS idx_bait_spots_angler ON bait_spots(angler_id);
 CREATE INDEX IF NOT EXISTS idx_bait_spots_logged_at ON bait_spots(logged_at);
+
+CREATE TABLE IF NOT EXISTS schema_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 `;
+
+/** File SQLite uses PRAGMA user_version. LibSQL/Turso stores the same number in schema_meta. */
+export const SCHEMA_VERSION = 11;
+const SCHEMA_META_KEY = "schema_version";
 
 type FileHandle = {
   kind: "file";
@@ -441,13 +450,30 @@ async function libsqlColumns(client: Client, table: string): Promise<string[]> {
   }).filter(Boolean);
 }
 
-async function libsqlUserVersion(client: Client): Promise<number> {
-  const result = await client.execute("PRAGMA user_version");
+async function libsqlSchemaVersion(client: Client): Promise<number> {
+  await client.execute(
+    `CREATE TABLE IF NOT EXISTS schema_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )`,
+  );
+  const result = await client.execute({
+    sql: "SELECT value FROM schema_meta WHERE key = ?",
+    args: [SCHEMA_META_KEY],
+  });
   const row = result.rows[0] as unknown as Record<string, unknown> | undefined;
-  return Number(row?.user_version ?? row?.[0] ?? 0);
+  return Number(row?.value ?? row?.[0] ?? 0);
 }
 
-async function migrateLibsql(client: Client) {
+async function libsqlSetSchemaVersion(client: Client, version: number) {
+  await client.execute({
+    sql: "INSERT OR REPLACE INTO schema_meta (key, value) VALUES (?, ?)",
+    args: [SCHEMA_META_KEY, String(version)],
+  });
+}
+
+/** Turso rejects PRAGMA user_version writes — version lives in schema_meta instead. */
+export async function migrateLibsql(client: Client) {
   await client.executeMultiple(CREATE_SQL);
   const cols = await libsqlColumns(client, "catches");
   const extra: [string, string][] = [
@@ -473,7 +499,10 @@ async function migrateLibsql(client: Client) {
       await client.execute(`ALTER TABLE catches ADD COLUMN ${name} ${type}`);
     }
   }
-  const version = await libsqlUserVersion(client);
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_catches_habitat ON catches(habitat)");
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_catches_angler ON catches(angler_id)");
+
+  const version = await libsqlSchemaVersion(client);
   if (version < 7) {
     await client.execute(
       `DELETE FROM catches
@@ -481,8 +510,8 @@ async function migrateLibsql(client: Client) {
           OR (species_source = 'demo' AND (photo_path IS NULL OR photo_path = ''))`,
     );
   }
-  if (version < 11) {
-    await client.execute("PRAGMA user_version = 11");
+  if (version < SCHEMA_VERSION) {
+    await libsqlSetSchemaVersion(client, SCHEMA_VERSION);
   }
 }
 

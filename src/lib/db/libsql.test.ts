@@ -1,11 +1,16 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createClient, type InStatement } from "@libsql/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { createCatch, getCatch, listCatches } from "./catches";
-import { ensureDb, resetDbForTests } from "./index";
+import { ensureDb, migrateLibsql, resetDbForTests, SCHEMA_VERSION } from "./index";
 import { seedDefaultAngler } from "./anglers";
 import { databaseConfig } from "./config";
+
+function statementSql(stmt: InStatement | string): string {
+  return typeof stmt === "string" ? stmt : stmt.sql;
+}
 
 describe("LibSQL / Turso path (local file: smoke)", () => {
   const previous = {
@@ -60,5 +65,42 @@ describe("LibSQL / Turso path (local file: smoke)", () => {
     expect(listed).toHaveLength(1);
     expect(listed[0].placeName).toBe("Mosquito Lagoon");
     expect((await getCatch(created.id))?.species).toBe("Redfish");
+  });
+
+  it("migrates via schema_meta and never writes PRAGMA user_version", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-libsql-mig-"));
+    tmpDirs.push(dir);
+    const client = createClient({ url: `file:${path.join(dir, "journal.db")}` });
+    const sqls: string[] = [];
+    const execute = client.execute.bind(client);
+    const executeMultiple = client.executeMultiple.bind(client);
+    client.execute = ((stmt: InStatement | string) => {
+      sqls.push(statementSql(stmt));
+      return execute(stmt);
+    }) as typeof client.execute;
+    client.executeMultiple = ((sql: string) => {
+      sqls.push(sql);
+      return executeMultiple(sql);
+    }) as typeof client.executeMultiple;
+
+    await migrateLibsql(client);
+    await migrateLibsql(client);
+
+    expect(sqls.some((sql) => /PRAGMA\s+user_version\s*=/i.test(sql))).toBe(false);
+    expect(sqls.some((sql) => /CREATE TABLE IF NOT EXISTS schema_meta/i.test(sql))).toBe(true);
+
+    const version = await execute({
+      sql: "SELECT value FROM schema_meta WHERE key = ?",
+      args: ["schema_version"],
+    });
+    const row = version.rows[0] as unknown as Record<string, unknown> | undefined;
+    expect(String(row?.value ?? row?.[0] ?? "")).toBe(String(SCHEMA_VERSION));
+
+    const tables = await execute(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('catches', 'anglers', 'bait_spots', 'schema_meta')",
+    );
+    const names = tables.rows.map((r) => String((r as unknown as Record<string, unknown>).name ?? r[0]));
+    expect(names).toEqual(expect.arrayContaining(["catches", "anglers", "bait_spots", "schema_meta"]));
+    client.close();
   });
 });
