@@ -1,19 +1,21 @@
 import { NextRequest } from "next/server";
 import { listNamedAreas, upsertNamedArea } from "@/lib/db/areas";
 import { parseNamedAreaInput } from "@/lib/areas";
-import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const areas = await listNamedAreas(viewerId);
   return jsonWithViewer({ areas }, viewerId);
 }
 
 export async function POST(request: NextRequest) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const input = parseNamedAreaInput(body);
   if (!input) {

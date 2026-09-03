@@ -1,11 +1,14 @@
-import { AuthForm } from "@/components/AuthForm";
+import { SignInClient } from "@/components/SignInClient";
 
 export const metadata = { title: "Sign in" };
 
-export default function SignInPage() {
-  return (
-    <div className="space-y-4">
-      <AuthForm nextPath="/" />
-    </div>
-  );
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const raw = params.next;
+  const nextPath = typeof raw === "string" && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  return <SignInClient nextPath={nextPath} />;
 }

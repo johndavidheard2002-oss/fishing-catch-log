@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { canViewBaitSpot, deleteBaitSpot, getBaitSpot, updateBaitSpot } from "@/lib/db/bait";
 import { parseBaitSpotInput } from "@/lib/bait";
-import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, ctx: Ctx) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const { id } = await ctx.params;
   const record = await getBaitSpot(id);
   if (!record || !(await canViewBaitSpot(record, viewerId))) {
@@ -19,7 +20,8 @@ export async function GET(request: NextRequest, ctx: Ctx) {
 }
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const { id } = await ctx.params;
   const existing = await getBaitSpot(id);
   if (!existing || existing.anglerId !== viewerId) {
@@ -47,7 +49,8 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const { id } = await ctx.params;
   const existing = await getBaitSpot(id);
   if (!existing || existing.anglerId !== viewerId) {

@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { isHabitat } from "@/lib/habitat";
+import { requireViewerId, signInRequired } from "@/lib/viewer";
 import { identifySpecies } from "@/lib/vision";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  if (!(await requireViewerId(request))) return signInRequired();
   const form = await request.formData();
   const file = form.get("photo");
   if (!(file instanceof File)) {

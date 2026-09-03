@@ -46,9 +46,8 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: "Your journal",
     steps: [
-      "On Home, create a journal with your name, email, and a password — or sign in.",
-      "If this phone already has trips, Create saves that same journal. You will not start over.",
-      "Home → More → Log out. The next person sees sign-in, not your trips.",
+      "Sign in or create an account with email and a password to open your journal.",
+      "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
     ],
   },
   {

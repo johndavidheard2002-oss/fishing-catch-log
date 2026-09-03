@@ -1,12 +1,12 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { publicAngler, registerJournal } from "@/lib/auth";
-import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { jsonWithViewer, viewerFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  const viewerId = await viewerIdFromRequest(request);
+  const { id: viewerId } = await viewerFromRequest(request);
   const body = (await request.json()) as {
     name?: string;
     email?: string;
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     confirm: typeof body.confirm === "string" ? body.confirm : "",
   });
   if (!result.ok) {
-    return jsonWithViewer({ error: result.error }, viewerId, { status: result.status });
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
   return jsonWithViewer({ me: publicAngler(result.angler), signedIn: true }, result.angler.id, undefined, true);
 }

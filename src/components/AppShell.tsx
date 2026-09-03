@@ -64,6 +64,7 @@ function prefersReducedMotion() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const onSignIn = pathname === "/signin" || pathname.startsWith("/signin/");
   const shellRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<{
@@ -86,6 +87,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (onSignIn) return;
+    let cancelled = false;
+    fetch("/api/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && !data.signedIn) router.replace("/signin");
+      })
+      .catch(() => {
+        if (!cancelled) router.replace("/signin");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [onSignIn, pathname, router]);
+
+  useEffect(() => {
     const idx = navIndex(pathname);
     if (idx > 0) router.prefetch(NAV[idx - 1].href);
     if (idx >= 0 && idx < NAV.length - 1) router.prefetch(NAV[idx + 1].href);
@@ -100,6 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
+    if (onSignIn) return;
     const root = shellRef.current;
     const pane = paneRef.current;
     if (!root || !pane) return;
@@ -200,14 +218,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       shell.removeEventListener("touchend", finish);
       shell.removeEventListener("touchcancel", finish);
     };
-  }, [router]);
+  }, [router, onSignIn]);
 
   return (
     <>
     <div className="trout-wash-bg" aria-hidden="true" />
     <div
       ref={shellRef}
-      className="relative z-[1] mx-auto flex min-h-full max-w-lg flex-col overflow-x-clip px-4 pb-36 pt-4"
+      className={`relative z-[1] mx-auto flex min-h-full max-w-lg flex-col overflow-x-clip px-4 pt-4 ${
+        onSignIn ? "pb-8" : "pb-36"
+      }`}
     >
       <div ref={paneRef} className="tab-swipe-pane flex min-h-0 flex-1 flex-col">
         <header className="journal-card mb-4 flex items-center justify-between gap-2 rounded-2xl px-3 py-2">
@@ -222,12 +242,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
             <BrandWordmark size="header" />
           </Link>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <HelpButton />
-          </div>
+          {onSignIn ? null : (
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <HelpButton />
+            </div>
+          )}
         </header>
         <main className="flex-1">{children}</main>
       </div>
+      {onSignIn ? null : (
       <nav className="bottom-nav fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl" data-no-tab-swipe>
         <ul className="grid grid-cols-6 px-0.5 pt-2.5">
           {NAV.map((item) => {
@@ -255,9 +278,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </ul>
       </nav>
+      )}
     </div>
-    <HelpGuide />
-    <FirstRunSetup />
+    {onSignIn ? null : <HelpGuide />}
+    {onSignIn ? null : <FirstRunSetup />}
     </>
   );
 }

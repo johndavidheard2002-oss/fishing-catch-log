@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { deleteNamedArea, getNamedArea, updateNamedArea } from "@/lib/db/areas";
 import { parseNamedAreaInput } from "@/lib/areas";
-import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const { id } = await ctx.params;
   const existing = await getNamedArea(id);
   if (!existing || existing.anglerId !== viewerId) {
@@ -28,7 +29,8 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const { id } = await ctx.params;
   const ok = await deleteNamedArea(id, viewerId);
   if (!ok) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });

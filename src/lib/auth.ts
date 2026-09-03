@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import {
   createAngler,
@@ -8,26 +8,19 @@ import {
   setAnglerCredentials,
   type AnglerRecord,
 } from "./db/anglers";
+import { SESSION_COOKIE_OPTS, readSession, sessionSecret, signSession } from "./session-token";
 
 const scrypt = promisify(scryptCb);
 const KEYLEN = 64;
-const SESSION_MAX_AGE = 60 * 60 * 24 * 365;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 8;
 
 export const SESSION_COOKIE = "cast-log-session";
 export { AUTH_PRIVACY_LINE } from "./privacy";
+export { SESSION_COOKIE_OPTS, readSession, sessionSecret, signSession };
 export const AUTH_WRONG = "Email or password is wrong.";
 
 const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-
-export function sessionSecret(): string {
-  return (
-    process.env.SESSION_SECRET?.trim() ||
-    process.env.TURSO_AUTH_TOKEN?.trim() ||
-    "cast-log-dev-session"
-  );
-}
 
 export function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
@@ -57,35 +50,6 @@ export async function verifyPassword(password: string, stored: string): Promise<
     return false;
   }
 }
-
-export function signSession(anglerId: string): string {
-  const exp = String(Math.floor(Date.now() / 1000) + SESSION_MAX_AGE);
-  const payload = `${anglerId}.${exp}`;
-  const sig = createHmac("sha256", sessionSecret()).update(payload).digest("base64url");
-  return `${payload}.${sig}`;
-}
-
-export function readSession(token?: string | null): string | null {
-  if (!token) return null;
-  const parts = token.split(".");
-  if (parts.length !== 3) return null;
-  const [id, exp, sig] = parts;
-  if (!id || !exp || !sig) return null;
-  if (Number(exp) * 1000 < Date.now()) return null;
-  const expected = createHmac("sha256", sessionSecret()).update(`${id}.${exp}`).digest("base64url");
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  return id;
-}
-
-export const SESSION_COOKIE_OPTS = {
-  path: "/",
-  maxAge: SESSION_MAX_AGE,
-  sameSite: "lax" as const,
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-};
 
 function loginKey(ip: string, email: string): string {
   return `${ip}|${normalizeEmail(email)}`;
@@ -126,7 +90,7 @@ export async function registerJournal(args: {
     return { ok: false, error: "That email already has a journal. Sign in.", status: 409 };
   }
   const hash = await hashPassword(args.password);
-  const current = await getAngler(args.viewerId);
+  const current = args.viewerId ? await getAngler(args.viewerId) : null;
   const targetId = current && !current.claimed ? current.id : (await createAngler(args.name.trim() || "You")).id;
   const saved = await setAnglerCredentials(targetId, {
     name: args.name.trim() || current?.name || "You",

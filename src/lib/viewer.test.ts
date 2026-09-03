@@ -4,12 +4,12 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { signSession } from "./auth";
-import { createAngler, linkAnglers, listHouseholdProfiles, seedDefaultAngler } from "./db/anglers";
+import { createAngler, linkAnglers, listAnglers, listHouseholdProfiles, seedDefaultAngler } from "./db/anglers";
 import { getDb, resetDbForTests } from "./db/index";
 import { registerJournal } from "./auth";
-import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerId, viewerIdFromRequest } from "./viewer";
+import { ANGLER_COOKIE, SESSION_COOKIE, requireViewerId, resolveViewerId, viewerIdFromRequest } from "./viewer";
 
-describe("viewer identity is per browser", () => {
+describe("viewer identity requires a signed-in session", () => {
   const previousPath = process.env.DATABASE_PATH;
   const tmpDirs: string[] = [];
 
@@ -35,37 +35,43 @@ describe("viewer identity is per browser", () => {
     return new NextRequest("http://localhost/api/me", { headers });
   }
 
-  it("does not reuse the first/default angler for a request without a cookie", async () => {
+  it("does not mint a journal for a request without a cookie", async () => {
     freshJournal();
     const first = await seedDefaultAngler();
+    const before = (await listAnglers()).length;
     const unknown = await viewerIdFromRequest(requestWithCookie());
-    expect(unknown).not.toBe(first.id);
-    expect(await resolveViewerId(undefined)).not.toBe(first.id);
+    expect(unknown).toBe("");
+    expect(await requireViewerId(requestWithCookie())).toBeNull();
+    expect(await resolveViewerId(undefined)).toBe("");
+    expect((await listAnglers()).length).toBe(before);
+    expect(first.id).toBeTruthy();
   });
 
-  it("gives two sequential no-cookie requests different journals", async () => {
+  it("gives two sequential no-cookie requests no journal", async () => {
     freshJournal();
     await seedDefaultAngler();
     const a = await viewerIdFromRequest(requestWithCookie());
     const b = await viewerIdFromRequest(requestWithCookie());
-    expect(a).not.toBe(b);
+    expect(a).toBe("");
+    expect(b).toBe("");
   });
 
-  it("keeps a valid cookie on the same browser", async () => {
+  it("keeps an unclaimed leftover cookie so Create account can claim that journal", async () => {
     freshJournal();
     const mine = await createAngler("Pat");
-    const again = await viewerIdFromRequest(requestWithCookie(mine.id));
+    const again = await resolveViewerId(mine.id);
     expect(again).toBe(mine.id);
-    expect(await resolveViewerId(mine.id)).toBe(mine.id);
+    expect(await requireViewerId(requestWithCookie(mine.id))).toBeNull();
   });
 
-  it("claims a minted cookie id instead of falling back to the first angler", async () => {
+  it("does not create an angler from a minted cookie id", async () => {
     freshJournal();
     const first = await seedDefaultAngler();
     const minted = crypto.randomUUID();
-    const claimed = await resolveViewerId(minted);
-    expect(claimed).toBe(minted);
-    expect(claimed).not.toBe(first.id);
+    const before = (await listAnglers()).length;
+    expect(await resolveViewerId(minted)).toBe("");
+    expect((await listAnglers()).length).toBe(before);
+    expect(minted).not.toBe(first.id);
   });
 
   it("does not reuse a claimed journal from an anonymous cookie", async () => {
@@ -79,8 +85,9 @@ describe("viewer identity is per browser", () => {
       confirm: "password1",
     });
     expect(claimed.ok).toBe(true);
-    const next = await viewerIdFromRequest(requestWithCookie(pat.id));
-    expect(next).not.toBe(pat.id);
+    const next = await resolveViewerId(pat.id);
+    expect(next).toBe("");
+    expect(await viewerIdFromRequest(requestWithCookie(pat.id))).toBe("");
   });
 
   it("prefers a signed session over the anonymous cookie", async () => {
@@ -98,6 +105,7 @@ describe("viewer identity is per browser", () => {
     headers.set("cookie", `${ANGLER_COOKIE}=${other.id}; ${SESSION_COOKIE}=${signSession(pat.id)}`);
     const id = await viewerIdFromRequest(new NextRequest("http://localhost/api/me", { headers }));
     expect(id).toBe(pat.id);
+    expect(await requireViewerId(new NextRequest("http://localhost/api/me", { headers }))).toBe(pat.id);
   });
 
   it("lists only this journal plus linked friends, not every angler", async () => {

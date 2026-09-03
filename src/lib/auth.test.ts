@@ -159,4 +159,19 @@ describe("email + password journals", () => {
     expect(bList).toHaveLength(0);
     expect((await getAngler(regA.angler.id, { includeEmail: true }))?.email).toBe("a@gulf.com");
   });
+
+  it("creates a new claimed journal when there is no leftover unclaimed cookie", async () => {
+    freshJournal();
+    const result = await registerJournal({
+      viewerId: "",
+      name: "Pat",
+      email: "pat@gulf.com",
+      password: "password1",
+      confirm: "password1",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.angler.email).toBe("pat@gulf.com");
+    expect(result.angler.claimed).toBe(true);
+  });
 });

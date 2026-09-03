@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, SESSION_COOKIE_OPTS, readSession, signSession } from "./auth";
-import { createAngler, getAngler } from "./db/anglers";
+import { getAngler } from "./db/anglers";
 import { ANGLER_COOKIE, VIEWER_COOKIE } from "./viewer-cookie";
 
 export { ANGLER_COOKIE, SESSION_COOKIE, VIEWER_COOKIE };
 
-/** Anonymous journal for this browser. Claimed accounts are not reused without a session. */
+export const SIGN_IN_REQUIRED = "Sign in required.";
+
+/** Existing unclaimed journal from a leftover cookie. Never mints a new anonymous angler. */
 export async function resolveViewerId(cookieValue?: string | null): Promise<string> {
   const fromCookie = cookieValue?.trim();
-  if (fromCookie) {
-    const existing = await getAngler(fromCookie);
-    if (existing && !existing.claimed) return existing.id;
-    if (!existing) {
-      const created = await createAngler("You", fromCookie);
-      if (created.id === fromCookie && !created.claimed) return created.id;
-    }
-  }
-  return (await createAngler("You")).id;
+  if (!fromCookie) return "";
+  const existing = await getAngler(fromCookie);
+  if (existing && !existing.claimed) return existing.id;
+  return "";
 }
 
 export async function resolveViewerFromCookies(
@@ -39,8 +36,18 @@ export async function viewerFromRequest(
   );
 }
 
+export function signInRequired(): NextResponse {
+  return NextResponse.json({ error: SIGN_IN_REQUIRED }, { status: 401 });
+}
+
+export async function requireViewerId(request: NextRequest): Promise<string | null> {
+  const { id, signedIn } = await viewerFromRequest(request);
+  return signedIn && id ? id : null;
+}
+
+/** Signed-in journal id, or empty when the request has no valid session. */
 export async function viewerIdFromRequest(request: NextRequest): Promise<string> {
-  return (await viewerFromRequest(request)).id;
+  return (await requireViewerId(request)) ?? "";
 }
 
 export function applyViewerCookie(res: NextResponse, viewerId: string): NextResponse {
@@ -67,8 +74,8 @@ export function jsonWithViewer(
   signedIn = false,
 ): NextResponse {
   const res = NextResponse.json(data, init);
-  if (signedIn) return applySessionCookie(res, viewerId);
-  return applyViewerCookie(res, viewerId);
+  if (signedIn && viewerId) return applySessionCookie(res, viewerId);
+  return res;
 }
 
 export function includeSharedFrom(request: NextRequest): boolean {
