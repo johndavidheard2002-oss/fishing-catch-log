@@ -30,8 +30,8 @@ export function BackfillClient() {
           {importedPhotoPath ? "Finish this catch" : "Backfill a past catch"}
         </h1>
         <p className="text-sm text-ink-muted">
-          Pick a photo from your camera roll. Choose the saltwater species yourself — tap a name
-          or type one. No camera on Backfill.
+          Pick a photo from your camera roll. Choose a saltwater species or save and add it later.
+          No camera on Backfill.
         </p>
       </div>
       {leftover > 0 ? (

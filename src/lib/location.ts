@@ -227,7 +227,7 @@ export function writeSavedLiveLocation(
 
 /**
  * They tapped Allow. Keep that even if this GPS reading times out so a later
- * Camera tap can use current/saved coords and must not say Location was off.
+ * Camera tap can still request current GPS and drop the pin.
  */
 export function writeSavedLiveLocationAllowed(storage?: Storage | null): void {
   if (readSavedLiveLocation(storage)) return;
@@ -252,33 +252,21 @@ export function liveLocationWasAllowed(
 
 /**
  * Live Camera: current GPS if the phone will share it, else the saved sign-in pin.
- * Denied / skipped location returns allowed: false so the tap-the-map banner can show.
+ * Skipped / denied location with no saved pin returns null so the existing
+ * tap-the-map banner can still show.
  */
 export async function resolveLiveCameraDeviceGps(args: {
   savedGps: PhotoGps | null;
   savedStatus: SavedLiveLocationStatus | null;
   geolocation?: DeviceGeolocation | null;
   permissions?: DevicePermissions | null;
-}): Promise<{ gps: PhotoGps | null; allowed: boolean }> {
+}): Promise<PhotoGps | null> {
   const permission = await queryGeolocationPermission(args.permissions);
-  const allowed =
+  const canUsePhone =
     liveLocationWasAllowed(args.savedStatus, permission) || Boolean(args.savedGps);
-  if (!allowed) return { gps: null, allowed: false };
+  if (!canUsePhone) return args.savedGps;
   const current = await requestDeviceGps(args.geolocation);
-  return { gps: current ?? args.savedGps, allowed: true };
-}
-
-export function liveCameraMissingPinHint(args: {
-  userMovedCatchPin: boolean;
-  locationAllowed: boolean;
-}): string {
-  if (args.userMovedCatchPin) {
-    return "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.";
-  }
-  if (args.locationAllowed) {
-    return "Still getting this phone’s location. Tap the map if you want to pin it now.";
-  }
-  return LOCATION_OFF_PIN_HINT;
+  return current ?? args.savedGps;
 }
 
 /**

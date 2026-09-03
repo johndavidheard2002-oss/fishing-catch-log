@@ -21,6 +21,21 @@ describe("catchInputFromUnknown time of day", () => {
   });
 });
 
+describe("catchInputFromUnknown without a species", () => {
+  it("keeps a photo and pin when species is omitted", () => {
+    const input = catchInputFromUnknown({
+      photoPath: "uploads/live.jpg",
+      latitude: 29.15,
+      longitude: -96.88,
+      caughtAt: "2025-07-12T11:10:00.000Z",
+    });
+    expect(input.species).toBe("Unknown");
+    expect(input.photoPath).toBe("uploads/live.jpg");
+    expect(input.latitude).toBe(29.15);
+    expect(input.longitude).toBe(-96.88);
+  });
+});
+
 describe("catchInputFromUnknown species counts", () => {
   it("keeps a distinct count per tagged species", () => {
     const input = catchInputFromUnknown({

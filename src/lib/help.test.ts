@@ -25,7 +25,7 @@ describe("HELP_SECTIONS", () => {
     ).toBe(true);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
-        step.includes("Pick the saltwater species") && step.includes("chip"),
+        step.includes("Pick a saltwater species") && step.includes("later"),
       ),
     ).toBe(true);
     expect(

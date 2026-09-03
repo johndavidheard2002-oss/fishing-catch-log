@@ -6,7 +6,6 @@ import {
   classifyCatchPinEdit,
   coordsLookDifferent,
   clearSavedLiveLocation,
-  liveCameraMissingPinHint,
   liveLocationPromptCopy,
   LOCATION_OFF_PIN_HINT,
   queryGeolocationPermission,
@@ -265,7 +264,7 @@ describe("resolveLiveCameraDeviceGps", () => {
         geolocation: geo,
         permissions: { query: async () => ({ state: "prompt" }) },
       }),
-    ).resolves.toEqual({ gps: { latitude: 28.4, longitude: -96.4 }, allowed: true });
+    ).resolves.toEqual({ latitude: 28.4, longitude: -96.4 });
   });
 
   it("falls back to the saved sign-in pin when current GPS is missing", async () => {
@@ -284,7 +283,7 @@ describe("resolveLiveCameraDeviceGps", () => {
         geolocation: geo,
         permissions: null,
       }),
-    ).resolves.toEqual({ gps: savedGps, allowed: true });
+    ).resolves.toEqual(savedGps);
   });
 
   it("uses a saved pin even when the phone cannot report permission", async () => {
@@ -303,7 +302,7 @@ describe("resolveLiveCameraDeviceGps", () => {
         geolocation: geo,
         permissions: null,
       }),
-    ).resolves.toEqual({ gps: savedGps, allowed: true });
+    ).resolves.toEqual(savedGps);
   });
 
   it("does not treat a skipped Allow as a live pin", async () => {
@@ -315,22 +314,14 @@ describe("resolveLiveCameraDeviceGps", () => {
         geolocation: { getCurrentPosition },
         permissions: { query: async () => ({ state: "denied" }) },
       }),
-    ).resolves.toEqual({ gps: null, allowed: false });
+    ).resolves.toBeNull();
     expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 });
 
-describe("liveCameraMissingPinHint", () => {
-  it("keeps Location was off for a denied pin, not after Allow", () => {
-    expect(
-      liveCameraMissingPinHint({ userMovedCatchPin: false, locationAllowed: false }),
-    ).toBe(LOCATION_OFF_PIN_HINT);
-    expect(
-      liveCameraMissingPinHint({ userMovedCatchPin: false, locationAllowed: true }),
-    ).not.toContain("Location was off");
-    expect(
-      liveCameraMissingPinHint({ userMovedCatchPin: true, locationAllowed: true }),
-    ).toContain("left where you moved it");
+describe("LOCATION_OFF_PIN_HINT", () => {
+  it("keeps the tap-the-map banner when a live pin could not be placed", () => {
+    expect(LOCATION_OFF_PIN_HINT).toBe("Location was off. Tap the map to pin this catch.");
   });
 });
 

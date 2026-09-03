@@ -19,8 +19,7 @@ import {
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
   formatCoords,
-  liveCameraMissingPinHint,
-  liveLocationWasAllowed,
+  LOCATION_OFF_PIN_HINT,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
   refreshLiveLocationIfGranted,
@@ -402,8 +401,7 @@ export function CatchForm({
 
   function startLiveGpsFromCameraTap() {
     if (!useLiveGps) return;
-    const savedStatus = readSavedLiveLocationStatus();
-    if (!liveLocationWasAllowed(savedStatus)) return;
+    if (readSavedLiveLocationStatus() === "unavailable") return;
     const pending = requestDeviceGps();
     liveGpsRequestRef.current = pending;
     void pending.then((gps) => {
@@ -492,11 +490,16 @@ export function CatchForm({
       const savedGps = pendingLiveGpsRef.current ?? readSavedLiveLocation();
       const savedStatus = readSavedLiveLocationStatus();
       const fromTap = liveGpsRequestRef.current ? await liveGpsRequestRef.current : null;
-      const resolved = await resolveLiveCameraDeviceGps({
-        savedGps: fromTap ?? savedGps,
-        savedStatus,
-      });
-      const deviceGps = resolved.gps ?? fromTap ?? savedGps;
+      let deviceGps =
+        (await resolveLiveCameraDeviceGps({
+          savedGps: fromTap ?? savedGps,
+          savedStatus,
+        })) ??
+        fromTap ??
+        savedGps;
+      if (!deviceGps && savedStatus !== "unavailable") {
+        deviceGps = await requestDeviceGps();
+      }
       if (deviceGps) {
         pendingLiveGpsRef.current = deviceGps;
         writeSavedLiveLocation(deviceGps);
@@ -507,13 +510,12 @@ export function CatchForm({
       });
       if (next) {
         await applyResolvedPin(next);
-      } else {
+      } else if (catchPinUserMovedRef.current) {
         setPinHint(
-          liveCameraMissingPinHint({
-            userMovedCatchPin: catchPinUserMovedRef.current,
-            locationAllowed: resolved.allowed,
-          }),
+          "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
         );
+      } else {
+        setPinHint(LOCATION_OFF_PIN_HINT);
       }
     }
 
@@ -572,12 +574,6 @@ export function CatchForm({
     savingRef.current = true;
     setSaving(true);
     setError(null);
-    if (!form.speciesList.length) {
-      savingRef.current = false;
-      setSaving(false);
-      setError("Add at least one species.");
-      return;
-    }
     try {
       let photoPath = initial?.photoPath ?? importedPhotoPath ?? null;
       if (photoFile) {
