@@ -54,6 +54,21 @@ export function calendarNoteHasContent(input: {
   );
 }
 
+/** Plan’s notes field — keep title/place/species from a Calendar Log note. */
+export function planNoteInput(
+  day: string,
+  notesText: string,
+  existing?: Pick<CalendarNote, "title" | "placeName" | "speciesTargets"> | null,
+): CalendarNoteInput {
+  return {
+    day,
+    notes: trimToNull(notesText, MAX_NOTES),
+    title: existing?.title ?? null,
+    placeName: existing?.placeName ?? null,
+    speciesTargets: existing?.speciesTargets ?? [],
+  };
+}
+
 export function parseCalendarNoteInput(body: Record<string, unknown>): CalendarNoteInput | null {
   const day = typeof body.day === "string" ? body.day.trim() : "";
   if (!DAY_KEY_RE.test(day)) return null;

@@ -1,6 +1,6 @@
 "use client";
 
-import { noteHeadline } from "@/lib/notes";
+import { calendarNoteHasContent, noteHeadline, planNoteInput } from "@/lib/notes";
 import type { CalendarNote, CalendarNoteInput } from "@/lib/types";
 import { useState } from "react";
 
@@ -117,6 +117,176 @@ export function DayNotes({
         />
       ) : null}
     </div>
+  );
+}
+
+export function PlanDayNotes({
+  day,
+  notes,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: {
+  day: string;
+  notes: CalendarNote[];
+  onCreate: (input: CalendarNoteInput) => void | Promise<void>;
+  onUpdate: (id: string, input: CalendarNoteInput) => void | Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  return (
+    <section className="journal-card space-y-2 rounded-2xl p-3" data-testid="plan-day-notes">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-display text-lg text-teal">Notes</h3>
+        {adding ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setAdding(true);
+            }}
+            className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-teal"
+            data-testid="plan-note-add"
+          >
+            Add note
+          </button>
+        )}
+      </div>
+      {notes.length === 0 && !adding ? (
+        <p className="text-sm text-ink-muted">
+          Write what you want to try this day. Same notes show on Calendar Log.
+        </p>
+      ) : null}
+      {notes.map((note) =>
+        editingId === note.id ? (
+          <PlanNoteField
+            key={note.id}
+            day={day}
+            initial={note}
+            submitLabel="Save"
+            onCancel={() => setEditingId(null)}
+            onSubmit={async (input) => {
+              await onUpdate(note.id, input);
+              setEditingId(null);
+            }}
+          />
+        ) : (
+          <article key={note.id} className="rounded-2xl border border-line bg-paper px-3 py-2" data-testid="plan-day-note">
+            {note.title || note.placeName ? (
+              <p className="font-semibold">{noteHeadline(note)}</p>
+            ) : null}
+            {note.notes ? (
+              <p className="whitespace-pre-wrap text-sm">{note.notes}</p>
+            ) : (
+              <p className="text-sm text-ink-muted">No write-up yet.</p>
+            )}
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAdding(false);
+                  setEditingId(note.id);
+                }}
+                className="text-xs font-semibold text-teal"
+                data-testid="plan-note-edit"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(note.id)}
+                className="text-xs font-semibold text-copper"
+                data-testid="plan-note-delete"
+              >
+                Delete
+              </button>
+            </div>
+          </article>
+        ),
+      )}
+      {adding ? (
+        <PlanNoteField
+          day={day}
+          submitLabel="Save note"
+          onCancel={() => setAdding(false)}
+          onSubmit={async (input) => {
+            await onCreate(input);
+            setAdding(false);
+          }}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function PlanNoteField({
+  day,
+  initial,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  day: string;
+  initial?: CalendarNote;
+  submitLabel: string;
+  onSubmit: (input: CalendarNoteInput) => void | Promise<void>;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(initial?.notes ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <form
+      className="space-y-2"
+      data-testid="plan-note-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const input = planNoteInput(day, text, initial ?? null);
+        if (!calendarNoteHasContent(input)) {
+          setError("Write a note to save.");
+          return;
+        }
+        setBusy(true);
+        setError(null);
+        try {
+          await onSubmit(input);
+        } catch {
+          setError("Could not save that note.");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Tide, wind, what you want to try…"
+        rows={4}
+        className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm"
+        data-testid="plan-note-text"
+      />
+      {error ? <p className="text-xs text-copper">{error}</p> : null}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-full bg-teal px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+          data-testid="plan-note-save"
+        >
+          {submitLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-full border border-line bg-card px-3 py-1.5 text-xs font-semibold"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

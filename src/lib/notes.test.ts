@@ -5,6 +5,7 @@ import {
   noteHeadline,
   parseCalendarNoteInput,
   parseSpeciesTargets,
+  planNoteInput,
 } from "./notes";
 import type { CalendarNote } from "./types";
 
@@ -50,6 +51,36 @@ describe("parseCalendarNoteInput", () => {
   it("accepts species-only notes", () => {
     expect(calendarNoteHasContent({ speciesTargets: ["Redfish"] })).toBe(true);
     expect(parseSpeciesTargets(["Redfish", "Redfish", 3])).toEqual(["Redfish"]);
+  });
+});
+
+describe("planNoteInput", () => {
+  it("saves notes-only text for a new plan day", () => {
+    expect(planNoteInput("2026-09-10", "  Try the north shoreline.  ")).toEqual({
+      day: "2026-09-10",
+      notes: "Try the north shoreline.",
+      title: null,
+      placeName: null,
+      speciesTargets: [],
+    });
+    expect(calendarNoteHasContent(planNoteInput("2026-09-10", "Try the north shoreline."))).toBe(
+      true,
+    );
+  });
+
+  it("keeps Calendar Log title, place, and species when editing notes", () => {
+    const patched = planNoteInput("2026-09-10", "Outgoing at the point.", {
+      title: "Dawn flood",
+      placeName: "Mosquito Lagoon",
+      speciesTargets: ["Redfish"],
+    });
+    expect(patched).toEqual({
+      day: "2026-09-10",
+      notes: "Outgoing at the point.",
+      title: "Dawn flood",
+      placeName: "Mosquito Lagoon",
+      speciesTargets: ["Redfish"],
+    });
   });
 });
 

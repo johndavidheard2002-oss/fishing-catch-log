@@ -9,11 +9,21 @@ import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
+import { PlanDayNotes } from "@/components/CalendarNotes";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
+import { groupNotesByDay } from "@/lib/notes";
 import { parsePlanDate, planWhyChips } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel, VERY_STRONG_MATCH_CHIP, VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
-import type { BaitPlanSuggestion, BaitSpot, PlanResult, PlanSuggestion, SpotGroup } from "@/lib/types";
+import type {
+  BaitPlanSuggestion,
+  BaitSpot,
+  CalendarNote,
+  CalendarNoteInput,
+  PlanResult,
+  PlanSuggestion,
+  SpotGroup,
+} from "@/lib/types";
 
 const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
   ssr: false,
@@ -33,11 +43,18 @@ type PlanMapTarget = {
   baitSpots: BaitSpot[];
 };
 
-export function PlanClient({ initialDate }: { initialDate: string | null }) {
+export function PlanClient({
+  initialDate,
+  initialNotes = [],
+}: {
+  initialDate: string | null;
+  initialNotes?: CalendarNote[];
+}) {
   const now = new Date();
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>
     parsePlanDate(initialDate) ? initialDate : null,
   );
+  const [notes, setNotes] = useState<CalendarNote[]>(initialNotes);
   const [year, setYear] = useState(() => {
     const parsed = parsePlanDate(selectedDay);
     return parsed ? parsed.getFullYear() : now.getFullYear();
@@ -60,6 +77,49 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/calendar-notes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && Array.isArray(data.notes)) setNotes(data.notes);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function onCreateNote(input: CalendarNoteInput) {
+    const res = await fetch("/api/calendar-notes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error("save failed");
+    const data = await res.json();
+    if (data.note) setNotes((current) => [...current, data.note]);
+  }
+
+  async function onUpdateNote(id: string, input: CalendarNoteInput) {
+    const res = await fetch(`/api/calendar-notes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) throw new Error("save failed");
+    const data = await res.json();
+    if (data.note) {
+      setNotes((current) => current.map((n) => (n.id === id ? data.note : n)));
+    }
+  }
+
+  async function onDeleteNote(id: string) {
+    const res = await fetch(`/api/calendar-notes/${id}`, { method: "DELETE" });
+    if (!res.ok) throw new Error("delete failed");
+    setNotes((current) => current.filter((n) => n.id !== id));
+  }
 
   useEffect(() => {
     if (!selectedDay) return;
@@ -87,6 +147,9 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
 
   const suggestions = plan?.suggestions ?? [];
   const baitSuggestions = plan?.baitSuggestions ?? [];
+  const notesByDay = groupNotesByDay(notes);
+  const notedDays = new Set(notesByDay.keys());
+  const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
 
   return (
     <div className="space-y-4">
@@ -96,8 +159,8 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
         </h1>
         <p className="text-sm text-ink-muted">
           Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
-          produced — including very strong matches with matching tides. Tap a suggested spot for
-          its map.
+          produced — including very strong matches with matching tides. Add a note for that day if
+          you want. Tap a suggested spot for its map.
         </p>
       </div>
 
@@ -105,6 +168,7 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
         year={year}
         month={month}
         selectedDay={selectedDay}
+        notedDays={notedDays}
         onMonthChange={(next) => {
           setYear(next.year);
           setMonth(next.month);
@@ -115,34 +179,41 @@ export function PlanClient({ initialDate }: { initialDate: string | null }) {
         }}
       />
 
-      {plan && selectedDay ? (
-        <p className="rounded-2xl border border-line bg-card px-3 py-2 text-xs text-ink-muted">
-          {plan.weatherSource === "demo" || plan.tideSource === "demo"
-            ? "Demo forecast/tides until you add API keys. "
-            : "Live forecast"}
-          {plan.weatherSource === "openweather" ? " Weather: OpenWeather. " : null}
-          {plan.tideSource === "worldtides" ? " Tides: WorldTides. " : null}
-          Suggestions compare tide stage and height, clock time, sky, temp, and wind
-          against productive trips and bait spots for {formatWeekdayDate(selectedDay)}.
-        </p>
-      ) : null}
-
       {!selectedDay ? (
         <p className="on-wash-chip text-sm">Tap a day to plan it.</p>
-      ) : !plan && !error ? (
-        <p className="on-wash-chip text-sm">Matching that day to your journal…</p>
-      ) : error ? (
-        <p className="on-wash-chip text-sm text-copper">{error}</p>
       ) : (
         <section
           ref={resultsRef}
-          className="space-y-2"
+          className="space-y-3"
           data-testid="plan-day-results"
         >
           <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
             {formatWeekdayDate(selectedDay)}
           </h2>
-          {suggestions.length || baitSuggestions.length ? (
+          <PlanDayNotes
+            key={selectedDay}
+            day={selectedDay}
+            notes={selectedNotes}
+            onCreate={onCreateNote}
+            onUpdate={onUpdateNote}
+            onDelete={onDeleteNote}
+          />
+          {plan ? (
+            <p className="rounded-2xl border border-line bg-card px-3 py-2 text-xs text-ink-muted">
+              {plan.weatherSource === "demo" || plan.tideSource === "demo"
+                ? "Demo forecast/tides until you add API keys. "
+                : "Live forecast"}
+              {plan.weatherSource === "openweather" ? " Weather: OpenWeather. " : null}
+              {plan.tideSource === "worldtides" ? " Tides: WorldTides. " : null}
+              Suggestions compare tide stage and height, clock time, sky, temp, and wind
+              against productive trips and bait spots for {formatWeekdayDate(selectedDay)}.
+            </p>
+          ) : null}
+          {!plan && !error ? (
+            <p className="on-wash-chip text-sm">Matching that day to your journal…</p>
+          ) : error ? (
+            <p className="on-wash-chip text-sm text-copper">{error}</p>
+          ) : suggestions.length || baitSuggestions.length ? (
             <>
               {suggestions.map((s) => (
                 <SuggestionCard
@@ -188,12 +259,14 @@ function PlanDayCalendar({
   year,
   month,
   selectedDay,
+  notedDays,
   onMonthChange,
   onSelectDay,
 }: {
   year: number;
   month: number;
   selectedDay: string | null;
+  notedDays: Set<string>;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
 }) {
@@ -229,6 +302,7 @@ function PlanDayCalendar({
         {cells.map((cell) => {
           const isSelected = selectedDay === cell.date;
           const isToday = cell.date === today;
+          const hasNote = notedDays.has(cell.date);
           return (
             <Link
               key={cell.date}
@@ -238,10 +312,10 @@ function PlanDayCalendar({
                 event.preventDefault();
                 onSelectDay(cell.date);
               }}
-              aria-label={cell.date}
+              aria-label={hasNote ? `${cell.date}, has notes` : cell.date}
               aria-current={isSelected ? "date" : undefined}
               data-testid={`plan-day-${cell.date}`}
-              className={`flex min-h-10 items-center justify-center rounded-xl py-2 text-sm ${
+              className={`flex min-h-10 flex-col items-center justify-center rounded-xl py-2 text-sm ${
                 isSelected
                   ? "bg-teal font-semibold text-white"
                   : isToday
@@ -250,6 +324,14 @@ function PlanDayCalendar({
               } ${cell.inMonth ? "" : "opacity-35"}`}
             >
               {cell.day}
+              {hasNote ? (
+                <span
+                  className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white" : "bg-copper"}`}
+                  data-testid="plan-day-has-note"
+                />
+              ) : (
+                <span className="mt-0.5 h-1.5 w-1.5" />
+              )}
             </Link>
           );
         })}

@@ -31,6 +31,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Pick a day on the calendar.",
       "We suggest spots that match tides and weather from your log.",
       "Tap a suggested spot to see it on the map.",
+      "Add a note for that day — it stays on Calendar Log too.",
     ],
   },
   {
