@@ -3,7 +3,9 @@
 import { BaitSpotCard } from "@/components/BaitSpotCard";
 import { CatchCard } from "@/components/CatchCard";
 import { DayNotes } from "@/components/CalendarNotes";
+import { LocationMapSheet, targetFromBait, targetFromCatch } from "@/components/LocationMapSheet";
 import { SpotMap } from "@/components/SpotMap";
+import type { LocationMapTarget } from "@/lib/location-map";
 import {
   baitSpotLabel,
   baitSpotsOnMonthDay,
@@ -66,6 +68,7 @@ export function HistoryCalendar({
   viewerId?: string;
 }) {
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
+  const [mapTarget, setMapTarget] = useState<LocationMapTarget | null>(null);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
   const byBaitDate = groupBaitSpotsByDate(baitSpots);
@@ -174,7 +177,7 @@ export function HistoryCalendar({
                     planned ? `, ${dayNotes.length} planned trip${dayNotes.length === 1 ? "" : "s"}` : ""
                   }`}
                   aria-pressed={isSelected}
-                  className="flex w-full flex-1 flex-col items-center leading-none outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal"
+                  className="flex w-full flex-col items-center leading-none outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal"
                 >
                   <span>
                     {cell.day}
@@ -184,49 +187,77 @@ export function HistoryCalendar({
                       </span>
                     ) : null}
                   </span>
-                  {count ? (
-                    <span className="relative">
-                      <DayThumbs records={dayCatches} selected={isSelected} />
-                      {baitCount ? (
-                        <span
-                          className="absolute -bottom-0.5 -left-1 rounded-full bg-copper px-1 text-[8px] font-bold text-white"
-                          data-testid="calendar-bait-badge"
-                        >
-                          B
-                        </span>
-                      ) : null}
-                      {planned ? (
-                        <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
-                          P
-                        </span>
-                      ) : null}
-                    </span>
-                  ) : baitCount ? (
-                    <span className="relative">
+                </button>
+                {count ? (
+                  <span className="relative">
+                    <DayThumbs
+                      records={dayCatches}
+                      selected={isSelected}
+                      onOpenRecord={(record) => {
+                        openDay(cell.date);
+                        setMapTarget(targetFromCatch(record));
+                      }}
+                    />
+                    {baitCount ? (
                       <span
-                        className="mt-1 rounded-full bg-copper px-1.5 text-[9px] font-bold text-white"
+                        className="absolute -bottom-0.5 -left-1 rounded-full bg-copper px-1 text-[8px] font-bold text-white"
                         data-testid="calendar-bait-badge"
                       >
-                        Bait
+                        B
                       </span>
-                      {planned ? (
-                        <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
-                          P
-                        </span>
-                      ) : null}
+                    ) : null}
+                    {planned ? (
+                      <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
+                        P
+                      </span>
+                    ) : null}
+                  </span>
+                ) : baitCount ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openDay(cell.date);
+                      if (dayBait[0]) setMapTarget(targetFromBait(dayBait[0]));
+                    }}
+                    className="relative outline-none [-webkit-tap-highlight-color:transparent]"
+                    aria-label={`${cell.date}, ${baitCount} bait spot${baitCount === 1 ? "" : "s"}`}
+                  >
+                    <span
+                      className="mt-1 inline-block rounded-full bg-copper px-1.5 text-[9px] font-bold text-white"
+                      data-testid="calendar-bait-badge"
+                    >
+                      Bait
                     </span>
-                  ) : otherYears ? (
-                    <span className="mt-1 rounded-full bg-copper px-1 text-[9px] font-bold text-white">
-                      {yearCount}y
-                    </span>
-                  ) : planned ? (
-                    <span className="mt-1 rounded-full bg-copper px-1.5 text-[9px] font-bold text-white">
-                      Plan
-                    </span>
-                  ) : (
-                    <span className="mt-1 h-7" />
-                  )}
-                </button>
+                    {planned ? (
+                      <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
+                        P
+                      </span>
+                    ) : null}
+                  </button>
+                ) : otherYears ? (
+                  <button
+                    type="button"
+                    onClick={() => openDay(cell.date)}
+                    className="mt-1 rounded-full bg-copper px-1 text-[9px] font-bold text-white"
+                  >
+                    {yearCount}y
+                  </button>
+                ) : planned ? (
+                  <button
+                    type="button"
+                    onClick={() => openDay(cell.date)}
+                    className="mt-1 rounded-full bg-copper px-1.5 text-[9px] font-bold text-white"
+                  >
+                    Plan
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openDay(cell.date)}
+                    className="mt-1 h-7 w-full"
+                    aria-label={cell.date}
+                  />
+                )}
               </div>
             );
           })}
@@ -416,6 +447,7 @@ export function HistoryCalendar({
           needed for future days.
         </p>
       )}
+      <LocationMapSheet target={mapTarget} onClose={() => setMapTarget(null)} />
     </div>
   );
 }
@@ -522,9 +554,11 @@ function PinSummary({ spots, baitSpots = [] }: { spots: SpotGroup[]; baitSpots?:
 function DayThumbs({
   records,
   selected,
+  onOpenRecord,
 }: {
   records: CatchRecord[];
   selected: boolean;
+  onOpenRecord: (record: CatchRecord) => void;
 }) {
   if (!records.length) return <span className="mt-1 h-7" />;
   const shown = records.slice(0, 2);
@@ -537,9 +571,13 @@ function DayThumbs({
           const src = photoSrc(record.photoPath);
           const size = large ? "h-7 w-7" : "h-6 w-6";
           return (
-            <span
+            <button
               key={record.id}
+              type="button"
+              onClick={() => onOpenRecord(record)}
               title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} · ${catchSpotLabel(record)}`}
+              aria-label={`Open map for ${catchSpotLabel(record)}`}
+              data-testid="calendar-day-photo"
               className={`relative ${size} overflow-hidden rounded-md border ${
                 selected ? "border-teal" : "border-white"
               } bg-paper`}
@@ -551,7 +589,7 @@ function DayThumbs({
               ) : (
                 <span className="block h-full w-full bg-copper/40" />
               )}
-            </span>
+            </button>
           );
         })}
         {extra > 0 ? (

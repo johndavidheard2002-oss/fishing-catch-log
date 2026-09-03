@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { hasSavedPin, type LocationMapTarget } from "@/lib/location-map";
 export type { LocationMapTarget } from "@/lib/location-map";
 export {
@@ -51,7 +52,7 @@ export function LocationMapSheet({
   const emptyId =
     emptyTestId ?? (target.kind === "catch" ? "calendar-catch-map-empty" : "location-map-empty");
 
-  return (
+  const sheet = (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-3 sm:items-center"
       role="dialog"
@@ -113,4 +114,6 @@ export function LocationMapSheet({
       </div>
     </div>
   );
+
+  return typeof document === "undefined" ? sheet : createPortal(sheet, document.body);
 }
