@@ -2,6 +2,9 @@
 
 export const SCAN_QUEUE_STORAGE_KEY = "cast-log-scan-queue";
 
+/** `picked` = the angler chose these files. `scan` = detect-fish ranked a folder dump. */
+export type ScanBatchOrigin = "picked" | "scan";
+
 export type QueuedScanCandidate = {
   photoPath: string;
   caughtAtIso: string;
@@ -9,6 +12,7 @@ export type QueuedScanCandidate = {
   confidence: number;
   demo: boolean;
   likely?: boolean;
+  origin?: ScanBatchOrigin;
   photoTakenLatitude?: number | null;
   photoTakenLongitude?: number | null;
 };
@@ -46,6 +50,36 @@ export function partitionScanReview<T extends { likely?: boolean }>(items: T[]):
   return { likely, unlikely };
 }
 
+export function normalizeScanOrigin(origin: ScanBatchOrigin | undefined): ScanBatchOrigin {
+  return origin === "picked" ? "picked" : "scan";
+}
+
+/** A batch the angler chose by hand — every opened photo is an intended catch. */
+export function isUserPickedScanBatch(items: { origin?: ScanBatchOrigin }[]): boolean {
+  return items.length > 0 && items.every((item) => normalizeScanOrigin(item.origin) === "picked");
+}
+
+/** User-chosen photos are never ranked or labeled unlikely. */
+export function asPickedScanItems<T extends { likely?: boolean; origin?: ScanBatchOrigin }>(
+  items: T[],
+): Array<T & { likely: true; origin: "picked" }> {
+  return items.map((item) => ({ ...item, likely: true as const, origin: "picked" as const }));
+}
+
+/**
+ * Review sections for the current queue.
+ * Picked batches stay flat — detection must not invent an Unlikely group.
+ * Folder-scan batches still split likely vs unlikely.
+ */
+export function presentScanReview<T extends { likely?: boolean; origin?: ScanBatchOrigin }>(
+  items: T[],
+): { origin: ScanBatchOrigin; likely: T[]; unlikely: T[] } {
+  if (isUserPickedScanBatch(items)) {
+    return { origin: "picked", likely: items, unlikely: [] };
+  }
+  return { origin: "scan", ...partitionScanReview(items) };
+}
+
 /**
  * Review list = every photo that opened. Detection only ranks; it never omits.
  * Failed opens (compress/read) stay out — those are `skipped`.
@@ -71,7 +105,9 @@ function sessionStore(): Storage | null {
 function isStoredCandidate(value: unknown): value is QueuedScanCandidate {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
+  const originOk = item.origin === undefined || item.origin === "picked" || item.origin === "scan";
   return (
+    originOk &&
     typeof item.photoPath === "string" &&
     item.photoPath.trim().length > 0 &&
     typeof item.caughtAtIso === "string" &&
@@ -146,7 +182,14 @@ export function getScanQueueCountServerSnapshot() {
 
 export function setScanQueue(items: QueuedScanCandidate[]) {
   loaded = true;
-  queue = items.map((item) => ({ ...item, likely: isLikelyScanPhoto(item.likely) }));
+  queue = items.map((item) => {
+    const origin = normalizeScanOrigin(item.origin);
+    return {
+      ...item,
+      origin,
+      likely: origin === "picked" ? true : isLikelyScanPhoto(item.likely),
+    };
+  });
   persist(queue);
   notifyScanQueueListeners();
 }

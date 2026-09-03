@@ -22,7 +22,7 @@ describe("HELP_SECTIONS", () => {
     ).toBe(true);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Backfill")?.steps.some((step) =>
-        step.includes("keep the whole batch"),
+        step.includes("not marked unlikely"),
       ),
     ).toBe(true);
     expect(
