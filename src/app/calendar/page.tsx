@@ -6,8 +6,7 @@ import { JournalUnavailable } from "@/components/JournalUnavailable";
 import { listCatches } from "@/lib/db/catches";
 import { listBaitSpots } from "@/lib/db/bait";
 import { listCalendarNotes } from "@/lib/db/notes";
-import { seedDefaultAngler, getAngler } from "@/lib/db/anglers";
-import { ANGLER_COOKIE } from "@/lib/viewer";
+import { ANGLER_COOKIE, resolveViewerId } from "@/lib/viewer";
 
 export const metadata: Metadata = { title: "Calendar Log" };
 export const runtime = "nodejs";
@@ -20,9 +19,7 @@ export default async function CalendarLogPage() {
   let initialNotes;
   try {
     const jar = await cookies();
-    const fromCookie = jar.get(ANGLER_COOKIE)?.value;
-    const me = fromCookie ? await getAngler(fromCookie) : null;
-    viewerId = me && fromCookie ? fromCookie : (await seedDefaultAngler()).id;
+    viewerId = await resolveViewerId(jar.get(ANGLER_COOKIE)?.value);
     initialCatches = await listCatches({ viewerId, includeShared: false });
     initialBaitSpots = await listBaitSpots({ viewerId, includeShared: false });
     initialNotes = await listCalendarNotes(viewerId);

@@ -93,6 +93,7 @@ export async function upsertDefaultAngler(db: JournalDatabase): Promise<AnglerRe
   return row;
 }
 
+/** Boot/migrate only: ensure at least one angler row exists. Never use this as a new visitor’s identity. */
 export async function seedDefaultAngler(): Promise<AnglerRecord> {
   if (databaseConfig().mode === "file") return ensureDefaultAngler();
   const db = await ensureDb();
@@ -119,20 +120,42 @@ export async function listAnglers(): Promise<AnglerRecord[]> {
   return rows.map(mapAngler);
 }
 
-export async function createAngler(name: string): Promise<AnglerRecord> {
+/** This browser’s journal plus friends linked on this phone — not every angler in the database. */
+export async function listHouseholdProfiles(viewerId: string): Promise<AnglerRecord[]> {
+  const me = await getAngler(viewerId);
+  const linked = await listBuddies(viewerId);
+  const seen = new Set<string>();
+  const out: AnglerRecord[] = [];
+  for (const row of [me, ...linked]) {
+    if (!row || seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+  }
+  return out;
+}
+
+export async function createAngler(name: string, id?: string): Promise<AnglerRecord> {
+  const anglerId = id?.trim() || crypto.randomUUID();
+  const existing = await getAngler(anglerId);
+  if (existing) return existing;
   const db = await ensureDb();
-  const id = crypto.randomUUID();
   const stamp = new Date().toISOString();
   const inviteCode = newInviteCode();
-  await runChange(
-    db.insert(anglers).values({
-      id,
-      name: name.trim() || "Friend",
-      inviteCode,
-      createdAt: stamp,
-    }),
-  );
-  return (await getAngler(id))!;
+  try {
+    await runChange(
+      db.insert(anglers).values({
+        id: anglerId,
+        name: name.trim() || "Friend",
+        inviteCode,
+        createdAt: stamp,
+      }),
+    );
+  } catch {
+    const raced = await getAngler(anglerId);
+    if (raced) return raced;
+    throw new Error("Could not create journal");
+  }
+  return (await getAngler(anglerId))!;
 }
 
 export async function renameAngler(id: string, name: string): Promise<AnglerRecord | null> {

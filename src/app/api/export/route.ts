@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { listCatches } from "@/lib/db/catches";
 import { catchesToCsv } from "@/lib/csv";
-import { ANGLER_COOKIE, includeSharedFrom, viewerIdFromRequest } from "@/lib/viewer";
+import { applyViewerCookie, includeSharedFrom, viewerIdFromRequest } from "@/lib/viewer";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -18,10 +18,5 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": 'attachment; filename="cast-log.csv"',
     },
   });
-  res.cookies.set(ANGLER_COOKIE, viewerId, {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-    sameSite: "lax",
-  });
-  return res;
+  return applyViewerCookie(res, viewerId);
 }

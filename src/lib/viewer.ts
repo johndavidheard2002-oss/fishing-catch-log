@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAngler, seedDefaultAngler } from "./db/anglers";
+import { createAngler, getAngler } from "./db/anglers";
+import { ANGLER_COOKIE, VIEWER_COOKIE } from "./viewer-cookie";
 
-export const ANGLER_COOKIE = "cast-log-angler";
+export { ANGLER_COOKIE, VIEWER_COOKIE };
+
+/** Journal owner for this browser. Unknown visitors get a new angler — never the first/default row. */
+export async function resolveViewerId(cookieValue?: string | null): Promise<string> {
+  const fromCookie = cookieValue?.trim();
+  if (fromCookie && (await getAngler(fromCookie))) return fromCookie;
+  if (fromCookie) {
+    const claimed = await createAngler("You", fromCookie);
+    if (claimed.id === fromCookie) return claimed.id;
+    const raced = await getAngler(fromCookie);
+    if (raced) return raced.id;
+  }
+  return (await createAngler("You")).id;
+}
 
 export async function viewerIdFromRequest(request: NextRequest): Promise<string> {
-  const fromCookie = request.cookies.get(ANGLER_COOKIE)?.value;
-  if (fromCookie && (await getAngler(fromCookie))) return fromCookie;
-  return (await seedDefaultAngler()).id;
+  return resolveViewerId(request.cookies.get(ANGLER_COOKIE)?.value);
+}
+
+export function applyViewerCookie(res: NextResponse, viewerId: string): NextResponse {
+  res.cookies.set(ANGLER_COOKIE, viewerId, VIEWER_COOKIE);
+  return res;
 }
 
 export function jsonWithViewer(
@@ -15,12 +32,7 @@ export function jsonWithViewer(
   init?: ResponseInit,
 ): NextResponse {
   const res = NextResponse.json(data, init);
-  res.cookies.set(ANGLER_COOKIE, viewerId, {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-    sameSite: "lax",
-  });
-  return res;
+  return applyViewerCookie(res, viewerId);
 }
 
 export function includeSharedFrom(request: NextRequest): boolean {
