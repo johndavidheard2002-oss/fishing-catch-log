@@ -7,13 +7,11 @@ import { notifyAuthChange } from "@/lib/tour";
 
 export function AuthForm({
   defaultName = "",
-  claimExisting = false,
   nextPath = "/",
   defaultMode = "signin",
   onSignedIn,
 }: {
   defaultName?: string;
-  claimExisting?: boolean;
   nextPath?: string;
   defaultMode?: "create" | "signin";
   onSignedIn?: (name: string) => void;
@@ -78,18 +76,7 @@ export function AuthForm({
           Sign in
         </button>
       </div>
-      <h2 className="font-display text-2xl text-teal">
-        {mode === "create"
-          ? claimExisting
-            ? "Save this journal"
-            : "Create your journal"
-          : "Sign in"}
-      </h2>
-      {mode === "create" && claimExisting ? (
-        <p className="text-sm text-ink">
-          Trips already on this phone stay yours. Add email and a password so only you can open them.
-        </p>
-      ) : null}
+      <h2 className="font-display text-2xl text-teal">{mode === "create" ? "Create your journal" : "Sign in"}</h2>
       <p className="text-sm text-ink-muted">{AUTH_PRIVACY_LINE}</p>
       <form onSubmit={(event) => void submit(event)} className="space-y-3">
         {mode === "create" ? (

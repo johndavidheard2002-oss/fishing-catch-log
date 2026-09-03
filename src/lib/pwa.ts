@@ -37,6 +37,9 @@ export function appleStartupImageMetadata() {
   }));
 }
 
+/** Bump this (and public/sw.js) so leftover home-screen SW caches drop. */
+export const PWA_CACHE_NAME = "catch-compass-static-v2";
+
 /** Paths the service worker must never intercept (photos, auth, Turso APIs). */
 export function isPwaApiPath(pathname: string) {
   return pathname === "/api" || pathname.startsWith("/api/");

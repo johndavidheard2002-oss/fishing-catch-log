@@ -7,6 +7,7 @@ import {
   APPLE_STARTUP_IMAGES,
   PWA_APPLE_TOUCH_ICON,
   PWA_BACKGROUND_COLOR,
+  PWA_CACHE_NAME,
   PWA_ICON_192,
   PWA_ICON_512,
   PWA_THEME_COLOR,
@@ -62,7 +63,12 @@ describe("PWA cache rules", () => {
 
   it("keeps the service worker network-first for HTML and API", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(sw).toContain("catch-compass-static-");
+    expect(PWA_CACHE_NAME).toBe("catch-compass-static-v2");
+    expect(sw).toContain(`"${PWA_CACHE_NAME}"`);
+    expect(sw).not.toContain("catch-compass-static-v1");
+    expect(sw).toContain("skipWaiting");
+    expect(sw).toContain("clients.claim");
+    expect(sw).toMatch(/caches\.delete/);
     expect(sw).not.toMatch(/cache\.addAll/);
     expect(sw).toMatch(/pathname\.startsWith\("\/api\/"\)/);
     expect(sw).toMatch(/request\.mode === "navigate"/);

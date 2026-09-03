@@ -155,6 +155,26 @@ export async function getAnglerByCode(code: string): Promise<AnglerRecord | null
   return row ? mapAngler(row) : null;
 }
 
+export type InviteLinkResult =
+  | { ok: true; linked: AnglerRecord }
+  | { ok: false; error: string; status: number };
+
+/** Pair two signed-in journals. Unclaimed leftover anglers cannot be joined via a code. */
+export async function linkByInviteCode(viewerId: string, code: string): Promise<InviteLinkResult> {
+  const other = await getAnglerByCode(code);
+  if (!other) {
+    return { ok: false, error: "That invite code was not found on this journal.", status: 404 };
+  }
+  if (!other.claimed) {
+    return { ok: false, error: "That friend needs their own account before you can link.", status: 400 };
+  }
+  if (other.id === viewerId) {
+    return { ok: false, error: "You cannot link to yourself.", status: 400 };
+  }
+  await linkAnglers(viewerId, other.id);
+  return { ok: true, linked: other };
+}
+
 export async function listAnglers(): Promise<AnglerRecord[]> {
   const db = await ensureDb();
   const rows = await allRows(db.select().from(anglers));

@@ -4,10 +4,11 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { signSession } from "./auth";
-import { createAngler, linkAnglers, listAnglers, listHouseholdProfiles, seedDefaultAngler } from "./db/anglers";
+import { createAngler, linkAnglers, linkByInviteCode, listAnglers, listHouseholdProfiles, seedDefaultAngler } from "./db/anglers";
 import { getDb, resetDbForTests } from "./db/index";
 import { registerJournal } from "./auth";
 import { ANGLER_COOKIE, SESSION_COOKIE, requireViewerId, resolveViewerId, viewerIdFromRequest } from "./viewer";
+import { LEGACY_SESSION_COOKIE } from "./viewer-cookie";
 
 describe("viewer identity requires a signed-in session", () => {
   const previousPath = process.env.DATABASE_PATH;
@@ -35,6 +36,13 @@ describe("viewer identity requires a signed-in session", () => {
     return new NextRequest("http://localhost/api/me", { headers });
   }
 
+  it("rotates the session cookie away from leftover tester sessions", () => {
+    expect(SESSION_COOKIE).toBe("cast-log-session-v2");
+    expect(LEGACY_SESSION_COOKIE).toBe("cast-log-session");
+    expect(ANGLER_COOKIE).toBe("cast-log-angler");
+    expect(SESSION_COOKIE).not.toBe(LEGACY_SESSION_COOKIE);
+  });
+
   it("does not mint a journal for a request without a cookie", async () => {
     freshJournal();
     const first = await seedDefaultAngler();
@@ -56,12 +64,12 @@ describe("viewer identity requires a signed-in session", () => {
     expect(b).toBe("");
   });
 
-  it("keeps an unclaimed leftover cookie so Create account can claim that journal", async () => {
+  it("does not open a leftover unclaimed cookie as a journal", async () => {
     freshJournal();
     const mine = await createAngler("Pat");
-    const again = await resolveViewerId(mine.id);
-    expect(again).toBe(mine.id);
+    expect(await resolveViewerId(mine.id)).toBe("");
     expect(await requireViewerId(requestWithCookie(mine.id))).toBeNull();
+    expect(await viewerIdFromRequest(requestWithCookie(mine.id))).toBe("");
   });
 
   it("does not create an angler from a minted cookie id", async () => {
@@ -76,36 +84,65 @@ describe("viewer identity requires a signed-in session", () => {
 
   it("does not reuse a claimed journal from an anonymous cookie", async () => {
     freshJournal();
-    const pat = await createAngler("Pat");
     const claimed = await registerJournal({
-      viewerId: pat.id,
       name: "Pat",
       email: "pat@gulf.com",
       password: "password1",
       confirm: "password1",
     });
     expect(claimed.ok).toBe(true);
-    const next = await resolveViewerId(pat.id);
+    if (!claimed.ok) return;
+    const next = await resolveViewerId(claimed.angler.id);
     expect(next).toBe("");
-    expect(await viewerIdFromRequest(requestWithCookie(pat.id))).toBe("");
+    expect(await viewerIdFromRequest(requestWithCookie(claimed.angler.id))).toBe("");
   });
 
-  it("prefers a signed session over the anonymous cookie", async () => {
+  it("ignores leftover angler and pre-rotation session cookies", async () => {
     freshJournal();
-    const pat = await createAngler("Pat");
-    await registerJournal({
-      viewerId: pat.id,
+    const leftover = await seedDefaultAngler();
+    const created = await registerJournal({
       name: "Pat",
       email: "pat@gulf.com",
       password: "password1",
       confirm: "password1",
     });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const headers = new Headers();
+    headers.set(
+      "cookie",
+      `${ANGLER_COOKIE}=${leftover.id}; ${LEGACY_SESSION_COOKIE}=${signSession(created.angler.id)}`,
+    );
+    expect(await viewerIdFromRequest(new NextRequest("http://localhost/api/me", { headers }))).toBe("");
+    expect(await requireViewerId(new NextRequest("http://localhost/api/me", { headers }))).toBeNull();
+  });
+
+  it("does not treat a leftover unclaimed angler as signed in even with a session token", async () => {
+    freshJournal();
+    const leftover = await seedDefaultAngler();
+    const headers = new Headers();
+    headers.set("cookie", `${SESSION_COOKIE}=${signSession(leftover.id)}`);
+    expect(leftover.claimed).toBe(false);
+    expect(await viewerIdFromRequest(new NextRequest("http://localhost/api/me", { headers }))).toBe("");
+    expect(await requireViewerId(new NextRequest("http://localhost/api/me", { headers }))).toBeNull();
+  });
+
+  it("opens only the rotated signed session", async () => {
+    freshJournal();
+    const created = await registerJournal({
+      name: "Pat",
+      email: "pat@gulf.com",
+      password: "password1",
+      confirm: "password1",
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
     const other = await createAngler("Other");
     const headers = new Headers();
-    headers.set("cookie", `${ANGLER_COOKIE}=${other.id}; ${SESSION_COOKIE}=${signSession(pat.id)}`);
+    headers.set("cookie", `${ANGLER_COOKIE}=${other.id}; ${SESSION_COOKIE}=${signSession(created.angler.id)}`);
     const id = await viewerIdFromRequest(new NextRequest("http://localhost/api/me", { headers }));
-    expect(id).toBe(pat.id);
-    expect(await requireViewerId(new NextRequest("http://localhost/api/me", { headers }))).toBe(pat.id);
+    expect(id).toBe(created.angler.id);
+    expect(await requireViewerId(new NextRequest("http://localhost/api/me", { headers }))).toBe(created.angler.id);
   });
 
   it("lists only this journal plus linked friends, not every angler", async () => {
@@ -117,5 +154,35 @@ describe("viewer identity requires a signed-in session", () => {
     const profiles = await listHouseholdProfiles(me.id);
     expect(profiles.map((row) => row.id).sort()).toEqual([friend.id, me.id].sort());
     expect(profiles.some((row) => row.id === stranger.id)).toBe(false);
+  });
+
+  it("does not let an invite code dump a tester into an unclaimed journal", async () => {
+    freshJournal();
+    const leftover = await seedDefaultAngler();
+    const me = await registerJournal({
+      name: "Pat",
+      email: "pat@gulf.com",
+      password: "password1",
+      confirm: "password1",
+    });
+    expect(me.ok).toBe(true);
+    if (!me.ok) return;
+    const blocked = await linkByInviteCode(me.angler.id, leftover.inviteCode);
+    expect(blocked.ok).toBe(false);
+    if (blocked.ok) return;
+    expect(blocked.error).toMatch(/own account/i);
+
+    const friend = await registerJournal({
+      name: "Sam",
+      email: "sam@gulf.com",
+      password: "password2",
+      confirm: "password2",
+    });
+    expect(friend.ok).toBe(true);
+    if (!friend.ok) return;
+    const linked = await linkByInviteCode(me.angler.id, friend.angler.inviteCode);
+    expect(linked.ok).toBe(true);
+    if (!linked.ok) return;
+    expect(linked.linked.id).toBe(friend.angler.id);
   });
 });

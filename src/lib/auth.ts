@@ -2,12 +2,12 @@ import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import {
   createAngler,
-  getAngler,
   getAnglerByEmail,
   getAnglerPasswordHash,
   setAnglerCredentials,
   type AnglerRecord,
 } from "./db/anglers";
+import { SESSION_COOKIE } from "./viewer-cookie";
 import { SESSION_COOKIE_OPTS, readSession, sessionSecret, signSession } from "./session-token";
 
 const scrypt = promisify(scryptCb);
@@ -15,7 +15,7 @@ const KEYLEN = 64;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 8;
 
-export const SESSION_COOKIE = "cast-log-session";
+export { SESSION_COOKIE };
 export { AUTH_PRIVACY_LINE } from "./privacy";
 export { SESSION_COOKIE_OPTS, readSession, sessionSecret, signSession };
 export const AUTH_WRONG = "Email or password is wrong.";
@@ -76,7 +76,6 @@ export type AuthResult =
   | { ok: false; error: string; status: number };
 
 export async function registerJournal(args: {
-  viewerId: string;
   name: string;
   email: string;
   password: string;
@@ -90,10 +89,9 @@ export async function registerJournal(args: {
     return { ok: false, error: "That email already has a journal. Sign in.", status: 409 };
   }
   const hash = await hashPassword(args.password);
-  const current = args.viewerId ? await getAngler(args.viewerId) : null;
-  const targetId = current && !current.claimed ? current.id : (await createAngler(args.name.trim() || "You")).id;
-  const saved = await setAnglerCredentials(targetId, {
-    name: args.name.trim() || current?.name || "You",
+  const created = await createAngler(args.name.trim() || "You");
+  const saved = await setAnglerCredentials(created.id, {
+    name: args.name.trim() || "You",
     email,
     passwordHash: hash,
   });

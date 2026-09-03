@@ -1,4 +1,6 @@
-const CACHE = "catch-compass-static-v1";
+// Catch Compass SW — cache v2. HTML/API stay network-only. Claims clients so leftover
+// home-screen tabs pick up the sign-in gate instead of a precached pre-login app.
+const CACHE = "catch-compass-static-v2";
 
 function isApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/");
@@ -23,7 +25,17 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+      .then(() => self.clients.claim())
+      .then(() =>
+        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) =>
+          Promise.all(
+            clients.map((client) => {
+              if (typeof client.navigate === "function") return client.navigate(client.url);
+              return undefined;
+            }),
+          ),
+        ),
+      ),
   );
 });
 
