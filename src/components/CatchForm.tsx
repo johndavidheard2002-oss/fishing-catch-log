@@ -489,7 +489,7 @@ export function CatchForm({
     if (!form.speciesList.length) {
       savingRef.current = false;
       setSaving(false);
-      setError("Add at least one species. You can tag more than one fish in the same photo.");
+      setError("Add at least one species.");
       return;
     }
     try {
@@ -708,7 +708,7 @@ export function CatchForm({
       <SpeciesPicker
         speciesList={form.speciesList}
         habitat={form.habitat}
-        hideHints={pastMode}
+        hideHints
         onHabitat={(habitat) => {
           if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
           patch(habitatPatch(habitat));
@@ -791,11 +791,6 @@ export function CatchForm({
             }
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
-          {pastMode ? null : (
-            <span className="on-wash-chip mt-1 inline-block text-xs">
-              Tag a second species to count each kind.
-            </span>
-          )}
         </label>
       )}
 
