@@ -229,7 +229,7 @@ export function SpotsClient() {
                       spot.key === selected ? "ring-2 ring-copper" : ""
                     }`}
                   >
-                    <OptionThumb src={catchGroupThumbSrc(spot)} kind="catch" />
+                    <OptionThumb src={catchGroupThumbSrc(spot)} kind="catch" size={40} />
                     <span className="min-w-0 flex-1">
                       <p className="font-semibold">{spot.placeName}</p>
                       <p className="truncate text-sm text-ink-muted">
@@ -258,7 +258,7 @@ export function SpotsClient() {
                       spot.key === selected ? "ring-2 ring-copper" : ""
                     }`}
                   >
-                    <OptionThumb src={baitGroupThumbSrc(spot)} kind="bait" />
+                    <OptionThumb src={baitGroupThumbSrc(spot)} kind="bait" size={40} />
                     <span className="min-w-0 flex-1">
                       <p className="font-semibold">{spot.placeName}</p>
                       <p className="truncate text-sm text-ink-muted">
@@ -311,7 +311,7 @@ function CatchSpotPanel({
           className="shrink-0"
           aria-label={`Show ${spot.placeName} on the map`}
         >
-          <OptionThumb src={catchGroupThumbSrc(spot)} kind="catch" />
+          <OptionThumb src={catchGroupThumbSrc(spot)} kind="catch" size={40} />
         </button>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl text-teal">{spot.placeName}</h2>
@@ -377,7 +377,7 @@ function BaitSpotPanel({
           className="shrink-0"
           aria-label={`Show ${group.placeName} on the map`}
         >
-          <OptionThumb src={baitGroupThumbSrc(group)} kind="bait" />
+          <OptionThumb src={baitGroupThumbSrc(group)} kind="bait" size={40} />
         </button>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl text-teal">{group.placeName}</h2>

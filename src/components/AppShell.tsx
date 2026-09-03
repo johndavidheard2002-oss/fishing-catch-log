@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { FirstRunSetup } from "@/components/FirstRunSetup";
 import { HelpButton, HelpGuide } from "@/components/HelpGuide";
+import { APP_LOGO_SRC } from "@/lib/brand";
 import type { ProviderStatus } from "@/lib/types";
 
 const NAV: {
@@ -228,7 +229,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" className="flex min-w-0 items-center gap-2 overflow-hidden text-teal" data-testid="header-lockup">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/bite-book-logo.png"
+              src={APP_LOGO_SRC}
               alt=""
               width={32}
               height={32}
