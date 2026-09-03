@@ -1,5 +1,8 @@
 export const ANGLER_COOKIE = "cast-log-angler";
-export const SESSION_COOKIE = "cast-log-session";
+/** Shared-journal-era login cookie. Read never; expire only. */
+export const LEGACY_SESSION_COOKIE = "cast-log-session";
+/** Rotated so leftover tester sessions from the shared journal are invalid. */
+export const SESSION_COOKIE = "cast-log-session-v2";
 
 export const VIEWER_COOKIE = {
   path: "/",

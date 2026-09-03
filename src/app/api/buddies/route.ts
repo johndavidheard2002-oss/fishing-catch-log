@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import {
   createAngler,
-  getAnglerByCode,
   linkAnglers,
+  linkByInviteCode,
   listBuddies,
 } from "@/lib/db/anglers";
 import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
@@ -22,16 +22,11 @@ export async function POST(request: NextRequest) {
   const body = (await request.json()) as { code?: string; name?: string };
   try {
     if (body.code?.trim()) {
-      const other = await getAnglerByCode(body.code);
-      if (!other) {
-        return jsonWithViewer(
-          { error: "That invite code was not found on this journal." },
-          viewerId,
-          { status: 404 },
-        );
+      const result = await linkByInviteCode(viewerId, body.code);
+      if (!result.ok) {
+        return jsonWithViewer({ error: result.error }, viewerId, { status: result.status });
       }
-      await linkAnglers(viewerId, other.id);
-      return jsonWithViewer({ buddies: await listBuddies(viewerId), linked: other }, viewerId);
+      return jsonWithViewer({ buddies: await listBuddies(viewerId), linked: result.linked }, viewerId);
     }
     if (body.name?.trim()) {
       const buddy = await createAngler(body.name);

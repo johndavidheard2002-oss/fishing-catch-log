@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAngler, renameAngler } from "@/lib/db/anglers";
-import { jsonWithViewer, requireViewerId, signInRequired, viewerFromRequest } from "@/lib/viewer";
+import { clearAuthCookies, jsonWithViewer, requireViewerId, signInRequired, viewerFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,13 +8,14 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const { id: viewerId, signedIn } = await viewerFromRequest(request);
   if (!signedIn) {
-    const claimable = viewerId ? await getAngler(viewerId, { includeEmail: true }) : null;
-    return NextResponse.json({
-      me: claimable,
-      profiles: [],
-      signedIn: false,
-      claimable: Boolean(claimable),
-    });
+    return clearAuthCookies(
+      NextResponse.json({
+        me: null,
+        profiles: [],
+        signedIn: false,
+        claimable: false,
+      }),
+    );
   }
   const me = await getAngler(viewerId, { includeEmail: true });
   return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true }, viewerId, undefined, true);

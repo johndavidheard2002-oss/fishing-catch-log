@@ -81,9 +81,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {});
+    if (!("serviceWorker" in navigator)) return;
+    let refreshing = false;
+    function onControllerChange() {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
     }
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((reg) => {
+        void reg.update();
+      })
+      .catch(() => {});
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
   }, []);
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { expireStaleAuthCookies } from "@/lib/auth-cookies";
 import { authGate } from "@/lib/auth-gate";
 import { readSession } from "@/lib/session-token";
 import { SESSION_COOKIE } from "@/lib/viewer-cookie";
@@ -10,11 +11,11 @@ export function proxy(request: NextRequest) {
     pathname: request.nextUrl.pathname,
     hasSession: Boolean(readSession(token)),
   });
-  if (decision.action === "next") return NextResponse.next();
+  if (decision.action === "next") return expireStaleAuthCookies(NextResponse.next());
   if (decision.action === "unauthorized") {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    return expireStaleAuthCookies(NextResponse.json({ error: "Sign in required." }, { status: 401 }));
   }
-  return NextResponse.redirect(new URL(decision.to, request.url));
+  return expireStaleAuthCookies(NextResponse.redirect(new URL(decision.to, request.url)));
 }
 
 export const config = {
