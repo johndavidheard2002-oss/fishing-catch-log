@@ -47,3 +47,23 @@ export function peekScanQueue(): QueuedScanCandidate[] {
 export function scanQueueCount(): number {
   return queue.length;
 }
+
+/**
+ * Copy leftover photos into the review list. Does not clear the module queue —
+ * Strict Mode double-inits must still see the same File objects.
+ */
+export function hydrateScanQueue(): QueuedScanCandidate[] {
+  return peekScanQueue();
+}
+
+/** After logging one scan photo, remaining items go back to the review list. */
+export function pathAfterScanCatchSave(args: {
+  remainingCount: number;
+  afterSave: "calendar" | "detail";
+  catchId: string;
+  dayKey: string;
+}): string {
+  if (args.remainingCount > 0) return "/log/scan";
+  if (args.afterSave === "calendar") return `/calendar?day=${args.dayKey}`;
+  return `/catch/${args.catchId}`;
+}

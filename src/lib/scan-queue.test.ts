@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  hydrateScanQueue,
+  pathAfterScanCatchSave,
   peekScanQueue,
   reviewListFromScanResults,
   scanQueueCount,
@@ -26,6 +28,69 @@ describe("scanQueue", () => {
     expect(peekScanQueue()[0].file.name).toBe("catch.jpg");
     expect(peekScanQueue()[0].likely).toBe(false);
     setScanQueue([]);
+  });
+
+  it("does not drop the queue when hydration runs twice (Strict Mode)", () => {
+    const file = new File(["x"], "trout.jpg", { type: "image/jpeg" });
+    setScanQueue([
+      {
+        file,
+        caughtAtIso: "2024-06-12T13:40:00.000Z",
+        note: "",
+        confidence: 0.5,
+        demo: true,
+        likely: true,
+      },
+    ]);
+    const first = hydrateScanQueue();
+    const second = hydrateScanQueue();
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(1);
+    expect(scanQueueCount()).toBe(1);
+    expect(first[0].file).toBe(file);
+    expect(second[0].file).toBe(file);
+    expect(peekScanQueue()[0].file.name).toBe("trout.jpg");
+    setScanQueue([]);
+  });
+});
+
+describe("pathAfterScanCatchSave", () => {
+  it("returns to the scan list when photos remain", () => {
+    expect(
+      pathAfterScanCatchSave({
+        remainingCount: 3,
+        afterSave: "calendar",
+        catchId: "c1",
+        dayKey: "2024-06-12",
+      }),
+    ).toBe("/log/scan");
+    expect(
+      pathAfterScanCatchSave({
+        remainingCount: 1,
+        afterSave: "detail",
+        catchId: "c1",
+        dayKey: "2024-06-12",
+      }),
+    ).toBe("/log/scan");
+  });
+
+  it("keeps calendar or detail when the queue is empty", () => {
+    expect(
+      pathAfterScanCatchSave({
+        remainingCount: 0,
+        afterSave: "calendar",
+        catchId: "c1",
+        dayKey: "2024-06-12",
+      }),
+    ).toBe("/calendar?day=2024-06-12");
+    expect(
+      pathAfterScanCatchSave({
+        remainingCount: 0,
+        afterSave: "detail",
+        catchId: "c1",
+        dayKey: "2024-06-12",
+      }),
+    ).toBe("/catch/c1");
   });
 });
 

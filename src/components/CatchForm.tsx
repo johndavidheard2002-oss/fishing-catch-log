@@ -33,6 +33,7 @@ import {
   totalFishCount,
 } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
+import { pathAfterScanCatchSave, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
@@ -525,11 +526,15 @@ export function CatchForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
-      if (afterSave === "calendar") {
-        router.push(`/calendar?day=${localDateKey(data.catch.caughtAt)}`);
-      } else {
-        router.push(`/catch/${data.catch.id}`);
-      }
+      const fromScan = Boolean(importedPhotoPath && pastMode);
+      router.push(
+        pathAfterScanCatchSave({
+          remainingCount: fromScan ? scanQueueCount() : 0,
+          afterSave,
+          catchId: data.catch.id,
+          dayKey: localDateKey(data.catch.caughtAt),
+        }),
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");

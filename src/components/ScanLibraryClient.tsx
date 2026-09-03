@@ -8,7 +8,7 @@ import { compressImage } from "@/lib/photo";
 import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import {
-  peekScanQueue,
+  hydrateScanQueue,
   setScanQueue,
   sortScanReviewList,
   type QueuedScanCandidate,
@@ -63,17 +63,19 @@ export function ScanLibraryClient() {
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
   const [heuristic, setHeuristic] = useState(false);
-  const [candidates, setCandidates] = useState<Candidate[]>(() => {
-    const leftover = peekScanQueue();
-    setScanQueue([]);
-    return leftover.map(fromQueued);
-  });
+  const [candidates, setCandidates] = useState<Candidate[]>(() =>
+    hydrateScanQueue().map(fromQueued),
+  );
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
 
   useEffect(() => {
     folderRef.current?.setAttribute("webkitdirectory", "true");
   }, []);
+
+  useEffect(() => {
+    setScanQueue(candidates.map(toQueued));
+  }, [candidates]);
 
   async function onFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -159,9 +161,10 @@ export function ScanLibraryClient() {
       const at = item.caughtAt.toISOString();
       const day = localDateKeyFromDate(item.caughtAt);
       const remaining = candidates.filter((c) => c.id !== item.id);
-      setScanQueue(remaining.map(toQueued));
       remaining.forEach((c) => URL.revokeObjectURL(c.previewUrl));
       URL.revokeObjectURL(item.previewUrl);
+      setCandidates(remaining);
+      setScanQueue(remaining.map(toQueued));
       const gps =
         item.photoTakenLatitude != null && item.photoTakenLongitude != null
           ? `&plat=${encodeURIComponent(String(item.photoTakenLatitude))}&plon=${encodeURIComponent(String(item.photoTakenLongitude))}`
