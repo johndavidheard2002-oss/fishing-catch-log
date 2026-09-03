@@ -39,9 +39,10 @@ export function PhotoCapture({
       data-testid={keepVisible && previewUrl ? "backfill-photo-dock" : undefined}
     >
       <div
-        className={`relative w-full bg-paper-deep ${
-          compactPreview && previewUrl ? "h-40" : "aspect-[4/3]"
-        }`}
+        className={`relative w-full ${
+          previewUrl ? "bg-paper-deep" : "photo-capture-brand"
+        } ${compactPreview && previewUrl ? "h-40" : "aspect-[4/3]"}`}
+        data-testid={previewUrl ? undefined : "photo-capture-brand"}
       >
         <button
           type="button"
@@ -52,15 +53,15 @@ export function PhotoCapture({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={previewUrl} alt="Catch photo" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-teal text-white">
+            <div className="flex h-full flex-col items-center justify-end gap-2 bg-gradient-to-t from-ink/75 via-ink/25 to-transparent px-6 pb-5 pt-16 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-teal text-white shadow-lg ring-2 ring-white/85">
                 <CameraIcon />
               </span>
-              <p className="text-lg font-semibold">
+              <p className="text-lg font-semibold text-white">
                 {emptyTitle ??
                   (emphasis === "library" ? "Add a photo from your roll" : "Take a photo")}
               </p>
-              {hint ? <p className="text-sm text-ink-muted">{hint}</p> : null}
+              {hint ? <p className="text-sm text-white/90">{hint}</p> : null}
             </div>
           )}
         </button>
