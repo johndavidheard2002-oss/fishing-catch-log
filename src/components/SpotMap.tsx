@@ -5,11 +5,10 @@ import type { Map as LeafletMap } from "leaflet";
 import { BasemapToggle } from "./BasemapToggle";
 import {
   addBasemapToMap,
-  DEFAULT_MAP_CENTER,
   DEFAULT_MAP_FRAME_CLASS,
   DEFAULT_MAP_STYLE,
-  DEFAULT_MAP_ZOOM,
   loadLeaflet,
+  mapCamera,
   type LeafletNS,
   type MapStyle,
 } from "@/lib/map-tiles";
@@ -41,12 +40,18 @@ export function SpotMap({
   selectedKey,
   onSelect,
   className = DEFAULT_MAP_FRAME_CLASS,
+  overview = false,
+  followSelection = true,
 }: {
   spots: SpotGroup[];
   baitSpots?: BaitSpot[];
   selectedKey: string | null;
   onSelect?: (key: string) => void;
   className?: string;
+  /** Stay on the Texas Gulf frame instead of fitting every pin. */
+  overview?: boolean;
+  /** When false, a list highlight does not pull the camera off the TX frame. */
+  followSelection?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const spotsRef = useRef(spots);
@@ -81,15 +86,24 @@ export function SpotMap({
 
     function zoomToSpots(instance: LeafletMap, L: LeafletNS) {
       instance.invalidateSize();
-      const center = pinLatLngs[0] ?? DEFAULT_MAP_CENTER;
-      if (pinLatLngs.length > 1) {
-        const bounds = L.latLngBounds(pinLatLngs);
+      const selectedSpot = followSelection
+        ? catchCoords.find((spot) => spot.key === selectedKey)
+        : undefined;
+      const selected =
+        selectedSpot?.latitude != null && selectedSpot.longitude != null
+          ? ([selectedSpot.latitude, selectedSpot.longitude] as [number, number])
+          : null;
+      const camera = mapCamera({
+        pins: pinLatLngs,
+        selected,
+        overview,
+      });
+      if (camera.fitPins && camera.fitPins.length > 1) {
+        const bounds = L.latLngBounds(camera.fitPins);
         instance.fitBounds(bounds.pad(0.18), { maxZoom: 17, animate: false });
-      } else if (pinLatLngs.length === 1) {
-        instance.setView(center, 16, { animate: false });
-      } else {
-        instance.setView(center, DEFAULT_MAP_ZOOM, { animate: false });
+        return;
       }
+      instance.setView(camera.center, camera.zoom, { animate: false });
     }
 
     (async () => {
@@ -124,13 +138,17 @@ export function SpotMap({
       }
       if (cancelled || !el) return;
 
-      const center = pinLatLngs[0] ?? DEFAULT_MAP_CENTER;
+      const start = mapCamera({
+        pins: pinLatLngs,
+        selected: null,
+        overview,
+      });
 
       const instance = L.map(el, {
         zoomControl: true,
         attributionControl: true,
         maxZoom: 19,
-      }).setView(center, pinLatLngs.length ? 16 : DEFAULT_MAP_ZOOM);
+      }).setView(start.center, start.zoom);
       basemapLayerRef.current = addBasemapToMap(L, instance, basemapStyleRef.current);
 
       for (const spot of catchCoords) {
@@ -186,7 +204,7 @@ export function SpotMap({
       mapRef.current = null;
       basemapLayerRef.current = null;
     };
-  }, [signature, selectedKey]);
+  }, [signature, selectedKey, overview, followSelection]);
 
   useEffect(() => {
     const map = mapRef.current;

@@ -55,6 +55,7 @@ export function SpotsClient() {
   const [spots, setSpots] = useState<SpotGroup[]>([]);
   const [baitGroups, setBaitGroups] = useState<BaitSpotGroup[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [mapFollowsSelection, setMapFollowsSelection] = useState(false);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [viewerId, setViewerId] = useState<string | undefined>();
@@ -81,11 +82,13 @@ export function SpotsClient() {
           setBaitGroups(list);
           setSpots([]);
           setSelected(list[0]?.key ?? null);
+          setMapFollowsSelection(false);
         } else {
           const list = (data.spots ?? []) as SpotGroup[];
           setSpots(list);
           setBaitGroups([]);
           setSelected(list[0]?.key ?? null);
+          setMapFollowsSelection(false);
         }
         setLoadedKey(requestKey);
       })
@@ -99,6 +102,7 @@ export function SpotsClient() {
 
   const onSelect = useCallback((key: string) => {
     setSelected(key);
+    setMapFollowsSelection(true);
     requestAnimationFrame(() => {
       detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
@@ -154,7 +158,7 @@ export function SpotsClient() {
         <p className="on-wash-chip text-sm">Loading spots…</p>
       ) : kind === "bait" && baitGroups.length === 0 ? (
         <>
-          <SpotMap spots={[]} selectedKey={null} />
+          <SpotMap spots={[]} selectedKey={null} overview />
           <p className="on-wash-chip text-sm">
             No bait yet. Tap Log bait, pin the hole, and tag shrimp, mullet, or crabs so Plan can
             match similar tides and weather.
@@ -162,7 +166,7 @@ export function SpotsClient() {
         </>
       ) : kind === "catch" && spots.length === 0 ? (
         <>
-          <SpotMap spots={[]} selectedKey={null} />
+          <SpotMap spots={[]} selectedKey={null} overview />
           <p className="on-wash-chip text-sm">
             No spots yet. Log a catch to drop your first pin. Sample trips stay off until you load
             them from Home → More.
@@ -170,7 +174,13 @@ export function SpotsClient() {
         </>
       ) : (
         <>
-          <SpotMap spots={mapSpots} selectedKey={selected} onSelect={onSelect} />
+          <SpotMap
+            spots={mapSpots}
+            selectedKey={selected}
+            onSelect={onSelect}
+            overview
+            followSelection={mapFollowsSelection}
+          />
           <div ref={detailRef}>
             {kind === "catch" && currentCatch ? (
               <CatchSpotPanel spot={currentCatch} viewerId={viewerId} />

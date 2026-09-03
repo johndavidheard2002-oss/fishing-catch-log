@@ -3,13 +3,48 @@ export type MapStyle = "satellite" | "street";
 export const DEFAULT_MAP_STYLE: MapStyle = "satellite";
 
 /**
- * Empty-map starting view: Texas Gulf Coast with San Antonio (upper-left)
- * and Houston (upper-right) on screen and the shoreline across the lower
- * mid. Used only when there is no pin yet — a catch with GPS still fits
- * to that point.
+ * Texas Gulf starting view: San Antonio upper-left, Houston upper-right,
+ * shoreline across the lower mid. Center sits a bit north of the coast so
+ * Mexico does not fill the south edge at phone width.
  */
-export const DEFAULT_MAP_CENTER: [number, number] = [28.95, -96.9];
+export const DEFAULT_MAP_CENTER: [number, number] = [29.15, -96.88];
 export const DEFAULT_MAP_ZOOM = 7;
+export const SELECTED_PIN_ZOOM = 14;
+
+/** Wider than this and fitBounds is showing a continent, not a fishing day. */
+const WIDE_FIT_LAT_SPAN = 3.5;
+const WIDE_FIT_LNG_SPAN = 4.5;
+
+export type MapCamera = {
+  center: [number, number];
+  zoom: number;
+  fitPins: [number, number][] | null;
+};
+
+export function mapCamera(args: {
+  pins: [number, number][];
+  selected?: [number, number] | null;
+  /** When true, stay on the TX Gulf frame unless a pin is focused. */
+  overview?: boolean;
+}): MapCamera {
+  if (args.selected) {
+    return { center: args.selected, zoom: SELECTED_PIN_ZOOM, fitPins: null };
+  }
+  if (args.overview || args.pins.length === 0) {
+    return { center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM, fitPins: null };
+  }
+  if (args.pins.length === 1) {
+    return { center: args.pins[0], zoom: 16, fitPins: null };
+  }
+  const lats = args.pins.map((pin) => pin[0]);
+  const lngs = args.pins.map((pin) => pin[1]);
+  const latSpan = Math.max(...lats) - Math.min(...lats);
+  const lngSpan = Math.max(...lngs) - Math.min(...lngs);
+  if (latSpan > WIDE_FIT_LAT_SPAN || lngSpan > WIDE_FIT_LNG_SPAN) {
+    return { center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM, fitPins: null };
+  }
+  return { center: DEFAULT_MAP_CENTER, zoom: DEFAULT_MAP_ZOOM, fitPins: args.pins };
+}
 
 /** Same pixel frame on Spots and Calendar so empty TX-Gulf views match. */
 export const DEFAULT_MAP_FRAME_CLASS =

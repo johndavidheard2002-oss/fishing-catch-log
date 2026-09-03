@@ -7,19 +7,60 @@ import {
   ESRI_ATTRIBUTION,
   ESRI_WORLD_IMAGERY_URL,
   OSM_STREET_URL,
+  SELECTED_PIN_ZOOM,
   addBasemapToMap,
   mapBasemapSpec,
+  mapCamera,
 } from "./map-tiles";
 
 describe("default map view", () => {
   it("frames San Antonio (upper-left) and Houston (upper-right) on the TX Gulf", () => {
     const [lat, lng] = DEFAULT_MAP_CENTER;
-    expect(lat).toBeGreaterThan(28.6);
+    expect(lat).toBeGreaterThan(28.9);
     expect(lat).toBeLessThan(29.4);
-    expect(lng).toBeGreaterThan(-97.4);
-    expect(lng).toBeLessThan(-96.4);
+    expect(lng).toBeGreaterThan(-97.2);
+    expect(lng).toBeLessThan(-96.5);
     expect(DEFAULT_MAP_ZOOM).toBe(7);
     expect(DEFAULT_MAP_FRAME_CLASS).toContain("h-64");
+  });
+});
+
+describe("mapCamera", () => {
+  const texasCoast: [number, number] = [28.45, -96.4];
+  const houston: [number, number] = [29.76, -95.37];
+  const miami: [number, number] = [25.76, -80.19];
+  const ohio: [number, number] = [40.21, -82.89];
+
+  it("opens the Texas Gulf frame when empty or in overview mode", () => {
+    expect(mapCamera({ pins: [] })).toEqual({
+      center: DEFAULT_MAP_CENTER,
+      zoom: DEFAULT_MAP_ZOOM,
+      fitPins: null,
+    });
+    expect(mapCamera({ pins: [texasCoast, miami, ohio], overview: true })).toEqual({
+      center: DEFAULT_MAP_CENTER,
+      zoom: DEFAULT_MAP_ZOOM,
+      fitPins: null,
+    });
+  });
+
+  it("zooms to a focused pin instead of fitting every distant marker", () => {
+    expect(
+      mapCamera({ pins: [texasCoast, miami], selected: texasCoast, overview: true }),
+    ).toEqual({ center: texasCoast, zoom: SELECTED_PIN_ZOOM, fitPins: null });
+  });
+
+  it("does not fitBounds a worldwide pin set", () => {
+    expect(mapCamera({ pins: [texasCoast, miami, ohio] })).toEqual({
+      center: DEFAULT_MAP_CENTER,
+      zoom: DEFAULT_MAP_ZOOM,
+      fitPins: null,
+    });
+  });
+
+  it("fits a tight local cluster on Calendar-style maps", () => {
+    const camera = mapCamera({ pins: [texasCoast, houston] });
+    expect(camera.fitPins).toEqual([texasCoast, houston]);
   });
 });
 
