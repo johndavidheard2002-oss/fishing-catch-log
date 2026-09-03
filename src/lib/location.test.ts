@@ -4,6 +4,7 @@ import {
   classifyCatchPinEdit,
   coordsLookDifferent,
   resolveCatchPinAfterPhotoAnswer,
+  resolveLiveCameraCatchPin,
   shouldApplyPhotoGpsToCatch,
   shouldAutoPlaceCatchPin,
 } from "./location";
@@ -27,6 +28,25 @@ describe("shouldAutoPlaceCatchPin", () => {
 
   it("still will not overwrite a pin the angler already moved", () => {
     expect(shouldAutoPlaceCatchPin({ photoTakenAtCatch: true, userMovedCatchPin: true })).toBe(false);
+  });
+});
+
+describe("resolveLiveCameraCatchPin", () => {
+  const deviceGps = { latitude: 29.15, longitude: -96.88 };
+
+  it("pins from this phone when location is allowed and the pin was not moved", () => {
+    expect(resolveLiveCameraCatchPin({ userMovedCatchPin: false, deviceGps })).toEqual({
+      ...deviceGps,
+      source: "device",
+    });
+  });
+
+  it("does nothing when location is denied", () => {
+    expect(resolveLiveCameraCatchPin({ userMovedCatchPin: false, deviceGps: null })).toBeNull();
+  });
+
+  it("does not overwrite a pin the angler already moved", () => {
+    expect(resolveLiveCameraCatchPin({ userMovedCatchPin: true, deviceGps })).toBeNull();
   });
 });
 

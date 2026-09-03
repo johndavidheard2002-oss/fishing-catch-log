@@ -23,6 +23,19 @@ export function shouldAutoPlaceCatchPin(args: {
 }
 
 /**
+ * Live Log camera: pin from this phone now. Does not wait for Yes/No.
+ * A user-moved pin is left alone. Denied location returns null.
+ */
+export function resolveLiveCameraCatchPin(args: {
+  userMovedCatchPin: boolean;
+  deviceGps: PhotoGps | null;
+}): { latitude: number; longitude: number; source: "device" } | null {
+  if (args.userMovedCatchPin) return null;
+  if (!args.deviceGps) return null;
+  return { ...args.deviceGps, source: "device" };
+}
+
+/**
  * After Yes: photo EXIF GPS first, else device GPS (not in past/backfill mode).
  * Unanswered, No, or a user-moved pin → no auto-place.
  */

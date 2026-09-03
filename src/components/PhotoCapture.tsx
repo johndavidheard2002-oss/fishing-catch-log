@@ -3,43 +3,54 @@
 import { useRef } from "react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 
+export type PhotoSource = "camera" | "library";
+
 export function PhotoCapture({
   previewUrl,
   onFile,
+  onLiveCapture,
   busy,
   emphasis = "camera",
   emptyTitle,
   emptyHint,
-  keepVisible = false,
   compactPreview = false,
   libraryOnly = false,
+  locationReason,
 }: {
   previewUrl: string | null;
-  onFile: (file: File) => void;
+  onFile: (file: File, source: PhotoSource) => void;
+  onLiveCapture?: () => void;
   busy?: boolean;
   emphasis?: "camera" | "library";
   emptyTitle?: string;
   emptyHint?: string;
-  keepVisible?: boolean;
   compactPreview?: boolean;
   libraryOnly?: boolean;
+  locationReason?: string;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
-  const pick = () => (libraryOnly ? libraryRef : cameraRef).current?.click();
+
+  function openCamera() {
+    onLiveCapture?.();
+    cameraRef.current?.click();
+  }
+
+  const pick = () => {
+    if (libraryOnly) libraryRef.current?.click();
+    else openCamera();
+  };
   const hint =
     emptyHint === undefined
       ? libraryOnly || emphasis === "library"
         ? "Pick an old catch photo from your camera roll. We’ll ask if it was taken where you caught the fish before dropping a pin."
-        : "Camera first. We’ll ask if this photo was taken where you caught the fish before dropping a pin."
+        : "Camera first. This phone’s location pins the catch — allow it when asked."
       : emptyHint;
 
   return (
     <div
-      className={`journal-card overflow-hidden rounded-3xl ${
-        keepVisible && previewUrl ? "backfill-photo-dock sticky top-0 z-10" : ""
-      }`}
-      data-testid={keepVisible && previewUrl ? "backfill-photo-dock" : undefined}
+      className="journal-card overflow-hidden rounded-3xl"
+      data-testid={libraryOnly && previewUrl ? "backfill-photo" : undefined}
     >
       <div
         className={`relative w-full ${
@@ -91,7 +102,7 @@ export function PhotoCapture({
             className={`rounded-xl px-3 py-3 text-sm font-semibold ${
               emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
             }`}
-            onClick={() => cameraRef.current?.click()}
+            onClick={openCamera}
           >
             Camera
           </button>
@@ -106,6 +117,11 @@ export function PhotoCapture({
           Camera roll
         </button>
       </div>
+      {locationReason ? (
+        <p data-testid="live-location-reason" className="px-3 pb-3 text-xs text-ink-muted">
+          {locationReason}
+        </p>
+      ) : null}
       {libraryOnly ? null : (
         <input
           ref={cameraRef}
@@ -115,7 +131,7 @@ export function PhotoCapture({
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) onFile(file);
+            if (file) onFile(file, "camera");
             e.target.value = "";
           }}
         />
@@ -127,7 +143,7 @@ export function PhotoCapture({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) onFile(file);
+          if (file) onFile(file, "library");
           e.target.value = "";
         }}
       />
