@@ -28,15 +28,14 @@ import {
   type YearCatchGroup,
 } from "@/lib/calendar";
 import { baitTypesLabel } from "@/lib/bait";
-import { groupSpots } from "@/lib/filters";
 import { groupNotesByDay } from "@/lib/notes";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
-import { catchSpeciesTitle, fishCountLabel } from "@/lib/count";
+import { fishCountLabel } from "@/lib/count";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchRecord, SpotGroup } from "@/lib/types";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function HistoryCalendar({
   catches,
@@ -68,7 +67,6 @@ export function HistoryCalendar({
   viewerId?: string;
 }) {
   const [thisYearOnlyDay, setThisYearOnlyDay] = useState<string | null>(null);
-  const [mapCatch, setMapCatch] = useState<CatchRecord | null>(null);
   const thisYearOnly = Boolean(selectedDay && thisYearOnlyDay === selectedDay);
   const byDate = groupCatchesByDate(catches);
   const byBaitDate = groupBaitSpotsByDate(baitSpots);
@@ -313,7 +311,6 @@ export function HistoryCalendar({
                     record={record}
                     showTime
                     viewerId={viewerId}
-                    onOpenMap={() => setMapCatch(record)}
                   />
                 ))}
                 {thisYearBait.length ? (
@@ -388,7 +385,6 @@ export function HistoryCalendar({
                           showTime
                           showYear
                           viewerId={viewerId}
-                          onOpenMap={() => setMapCatch(record)}
                         />
                       ))}
                       {block.spots.length ? (
@@ -421,7 +417,6 @@ export function HistoryCalendar({
           needed for future days.
         </p>
       )}
-      <CalendarCatchMapSheet record={mapCatch} onClose={() => setMapCatch(null)} />
     </div>
   );
 }
@@ -450,88 +445,6 @@ function mergePriorYearBlocks(catchGroups: YearCatchGroup[], baitGroups: YearBai
     }
   }
   return [...years.values()].sort((a, b) => b.year - a.year);
-}
-
-function CalendarCatchMapSheet({
-  record,
-  onClose,
-}: {
-  record: CatchRecord | null;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    if (!record) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [record, onClose]);
-
-  if (!record) return null;
-
-  const hasPin = record.latitude != null && record.longitude != null;
-  const spots = hasPin ? groupSpots([record]) : [];
-  const title = catchSpeciesTitle(record);
-  const place = catchSpotLabel(record);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-3 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="calendar-catch-map-title"
-      data-testid="calendar-catch-map"
-      data-no-tab-swipe
-      onClick={onClose}
-    >
-      <div
-        className="journal-card w-full max-w-lg overflow-hidden rounded-2xl bg-card shadow-lg"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-2 p-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-copper">
-              Catch location
-            </p>
-            <h3 id="calendar-catch-map-title" className="font-display text-xl text-teal">
-              {title}
-            </h3>
-            <p className="mt-1 text-xs text-ink-muted">{place}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-line px-3 py-1 text-xs font-semibold"
-          >
-            Close
-          </button>
-        </div>
-        <div className="space-y-2 px-3 pb-3">
-          {hasPin ? (
-            <SpotMap
-              spots={spots}
-              selectedKey={spots[0]?.key ?? null}
-              className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
-            />
-          ) : (
-            <p
-              className="rounded-2xl border border-line bg-paper-deep px-3 py-6 text-sm text-ink-muted"
-              data-testid="calendar-catch-map-empty"
-            >
-              This catch has no saved pin. Open the trip to drop one on the map.
-            </p>
-          )}
-          <Link
-            href={`/catch/${record.id}`}
-            className="block rounded-2xl border border-line bg-card px-4 py-3 text-center text-sm font-semibold"
-          >
-            Open catch
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function DayShareToggle({

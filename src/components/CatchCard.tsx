@@ -1,4 +1,7 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
+import { LocationMapSheet, targetFromCatch } from "@/components/LocationMapSheet";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel, yearFromDateKey } from "@/lib/calendar";
@@ -32,6 +35,11 @@ export function CatchCard({
 }) {
   const src = photoSrc(record.photoPath);
   const theirs = viewerId && record.anglerId !== viewerId;
+  const [mapOpen, setMapOpen] = useState(false);
+  const openMap = () => {
+    onOpenMap?.();
+    setMapOpen(true);
+  };
   const body = (
     <>
         <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 bg-paper-deep`}>
@@ -93,32 +101,31 @@ export function CatchCard({
   );
   return (
     <div className="journal-card relative flex overflow-hidden rounded-2xl">
-      {onOpenMap ? (
-        <button
-          type="button"
-          onClick={onOpenMap}
-          className="flex min-w-0 flex-1 text-left"
-          data-testid="calendar-catch-open-map"
-        >
-          {body}
-        </button>
-      ) : (
-      <Link href={`/catch/${record.id}`} className="flex min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={openMap}
+        className="flex min-w-0 flex-1 text-left"
+        data-testid="calendar-catch-open-map"
+      >
         {body}
-      </Link>
-      )}
+      </button>
       {src ? (
         <SaveToPhotosButton src={src} filename={photoFilename(record)} variant="overlay" />
       ) : null}
+      <LocationMapSheet
+        target={mapOpen ? targetFromCatch(record) : null}
+        onClose={() => setMapOpen(false)}
+      />
     </div>
   );
 }
 
 export function CatchGridCard({ record }: { record: CatchRecord }) {
   const src = photoSrc(record.photoPath);
+  const [mapOpen, setMapOpen] = useState(false);
   return (
     <div className="journal-card relative overflow-hidden rounded-2xl">
-      <Link href={`/catch/${record.id}`} className="block">
+      <button type="button" onClick={() => setMapOpen(true)} className="block w-full text-left">
         <div className="aspect-square bg-paper-deep">
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -142,10 +149,14 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
             {isSampleCatchPhoto(record.photoPath) ? " · Sample" : ""}
           </p>
         </div>
-      </Link>
+      </button>
       {src ? (
         <SaveToPhotosButton src={src} filename={photoFilename(record)} variant="overlay" />
       ) : null}
+      <LocationMapSheet
+        target={mapOpen ? targetFromCatch(record) : null}
+        onClose={() => setMapOpen(false)}
+      />
     </div>
   );
 }

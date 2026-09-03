@@ -17,6 +17,14 @@ import {
   catchGroupThumbSrc,
   catchRecordThumbSrc,
 } from "@/lib/spot-thumbs";
+import {
+  LocationMapSheet,
+  targetFromBait,
+  targetFromBaitGroup,
+  targetFromCatch,
+  targetFromSpotGroup,
+  type LocationMapTarget,
+} from "@/components/LocationMapSheet";
 import type { BaitSpot, BaitSpotGroup, CatchRecord, SpotGroup } from "@/lib/types";
 
 const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
@@ -56,6 +64,7 @@ export function SpotsClient() {
   const [baitGroups, setBaitGroups] = useState<BaitSpotGroup[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [mapFollowsSelection, setMapFollowsSelection] = useState(false);
+  const [mapTarget, setMapTarget] = useState<LocationMapTarget | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [viewerId, setViewerId] = useState<string | undefined>();
@@ -100,13 +109,25 @@ export function SpotsClient() {
     };
   }, [includeShared, kind, requestKey]);
 
-  const onSelect = useCallback((key: string) => {
-    setSelected(key);
-    setMapFollowsSelection(true);
-    requestAnimationFrame(() => {
-      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  }, []);
+  const onSelect = useCallback(
+    (key: string, openSheet = true) => {
+      setSelected(key);
+      setMapFollowsSelection(true);
+      if (openSheet) {
+        if (kind === "bait") {
+          const group = baitGroups.find((item) => item.key === key);
+          setMapTarget(group ? targetFromBaitGroup(group) : null);
+        } else {
+          const spot = spots.find((item) => item.key === key);
+          setMapTarget(spot ? targetFromSpotGroup(spot) : null);
+        }
+      }
+      requestAnimationFrame(() => {
+        detailRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    },
+    [baitGroups, kind, spots],
+  );
   const mapSpots = kind === "bait" ? baitGroupsToMapSpots(baitGroups) : spots;
   const currentCatch = spots.find((s) => s.key === selected) ?? null;
   const currentBait = baitGroups.find((s) => s.key === selected) ?? null;
@@ -183,10 +204,18 @@ export function SpotsClient() {
           />
           <div ref={detailRef}>
             {kind === "catch" && currentCatch ? (
-              <CatchSpotPanel spot={currentCatch} viewerId={viewerId} />
+              <CatchSpotPanel
+                spot={currentCatch}
+                viewerId={viewerId}
+                onOpenLocation={setMapTarget}
+              />
             ) : null}
             {kind === "bait" && currentBait ? (
-              <BaitSpotPanel group={currentBait} viewerId={viewerId} />
+              <BaitSpotPanel
+                group={currentBait}
+                viewerId={viewerId}
+                onOpenLocation={setMapTarget}
+              />
             ) : null}
           </div>
           {kind === "catch" ? (
@@ -250,11 +279,25 @@ export function SpotsClient() {
         </>
       )}
       <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
+      <LocationMapSheet
+        target={mapTarget}
+        onClose={() => setMapTarget(null)}
+        testId="spot-location-map"
+        emptyTestId="spot-location-map-empty"
+      />
     </div>
   );
 }
 
-function CatchSpotPanel({ spot, viewerId }: { spot: SpotGroup; viewerId?: string }) {
+function CatchSpotPanel({
+  spot,
+  viewerId,
+  onOpenLocation,
+}: {
+  spot: SpotGroup;
+  viewerId?: string;
+  onOpenLocation: (target: LocationMapTarget) => void;
+}) {
   const latestNotes = spot.catches.find((c) => c.notes?.trim())?.notes?.trim() ?? null;
   return (
     <section
@@ -262,7 +305,14 @@ function CatchSpotPanel({ spot, viewerId }: { spot: SpotGroup; viewerId?: string
       className="journal-card space-y-3 rounded-2xl p-3"
     >
       <div className="flex items-start gap-3">
-        <OptionThumb src={catchGroupThumbSrc(spot)} kind="catch" />
+        <button
+          type="button"
+          onClick={() => onOpenLocation(targetFromSpotGroup(spot))}
+          className="shrink-0"
+          aria-label={`Show ${spot.placeName} on the map`}
+        >
+          <OptionThumb src={catchGroupThumbSrc(spot)} kind="catch" />
+        </button>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl text-teal">{spot.placeName}</h2>
           <p className="text-sm text-ink-muted">
@@ -290,7 +340,11 @@ function CatchSpotPanel({ spot, viewerId }: { spot: SpotGroup; viewerId?: string
       <ul className="space-y-1.5">
         {spot.catches.map((record) => (
           <li key={record.id}>
-            <CatchVisitRow record={record} viewerId={viewerId} />
+            <CatchVisitRow
+              record={record}
+              viewerId={viewerId}
+              onOpenLocation={() => onOpenLocation(targetFromCatch(record))}
+            />
           </li>
         ))}
       </ul>
@@ -301,7 +355,15 @@ function CatchSpotPanel({ spot, viewerId }: { spot: SpotGroup; viewerId?: string
   );
 }
 
-function BaitSpotPanel({ group, viewerId }: { group: BaitSpotGroup; viewerId?: string }) {
+function BaitSpotPanel({
+  group,
+  viewerId,
+  onOpenLocation,
+}: {
+  group: BaitSpotGroup;
+  viewerId?: string;
+  onOpenLocation: (target: LocationMapTarget) => void;
+}) {
   const latestNotes = group.spots.find((s) => s.notes?.trim())?.notes?.trim() ?? null;
   return (
     <section
@@ -309,7 +371,14 @@ function BaitSpotPanel({ group, viewerId }: { group: BaitSpotGroup; viewerId?: s
       className="journal-card space-y-3 rounded-2xl p-3"
     >
       <div className="flex items-start gap-3">
-        <OptionThumb src={baitGroupThumbSrc(group)} kind="bait" />
+        <button
+          type="button"
+          onClick={() => onOpenLocation(targetFromBaitGroup(group))}
+          className="shrink-0"
+          aria-label={`Show ${group.placeName} on the map`}
+        >
+          <OptionThumb src={baitGroupThumbSrc(group)} kind="bait" />
+        </button>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl text-teal">{group.placeName}</h2>
           <p className="text-sm text-ink-muted">
@@ -334,7 +403,11 @@ function BaitSpotPanel({ group, viewerId }: { group: BaitSpotGroup; viewerId?: s
       <ul className="space-y-1.5">
         {group.spots.map((spot) => (
           <li key={spot.id}>
-            <BaitVisitRow spot={spot} viewerId={viewerId} />
+            <BaitVisitRow
+              spot={spot}
+              viewerId={viewerId}
+              onOpenLocation={() => onOpenLocation(targetFromBait(spot))}
+            />
           </li>
         ))}
       </ul>
@@ -345,12 +418,21 @@ function BaitSpotPanel({ group, viewerId }: { group: BaitSpotGroup; viewerId?: s
   );
 }
 
-function CatchVisitRow({ record, viewerId }: { record: CatchRecord; viewerId?: string }) {
+function CatchVisitRow({
+  record,
+  viewerId,
+  onOpenLocation,
+}: {
+  record: CatchRecord;
+  viewerId?: string;
+  onOpenLocation: () => void;
+}) {
   const theirs = viewerId && record.anglerId !== viewerId;
   return (
-    <Link
-      href={`/catch/${record.id}`}
-      className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-2 py-1.5"
+    <button
+      type="button"
+      onClick={onOpenLocation}
+      className="flex w-full items-center gap-2.5 rounded-xl border border-line bg-card px-2 py-1.5 text-left"
     >
       <OptionThumb src={catchRecordThumbSrc(record)} kind="catch" size={40} />
       <span className="min-w-0 flex-1">
@@ -364,16 +446,25 @@ function CatchVisitRow({ record, viewerId }: { record: CatchRecord; viewerId?: s
           {record.notes?.trim() ? ` · ${record.notes.trim()}` : ""}
         </p>
       </span>
-    </Link>
+    </button>
   );
 }
 
-function BaitVisitRow({ spot, viewerId }: { spot: BaitSpot; viewerId?: string }) {
+function BaitVisitRow({
+  spot,
+  viewerId,
+  onOpenLocation,
+}: {
+  spot: BaitSpot;
+  viewerId?: string;
+  onOpenLocation: () => void;
+}) {
   const theirs = viewerId && spot.anglerId !== viewerId;
   return (
-    <Link
-      href={`/bait/${spot.id}`}
-      className="flex items-center gap-2.5 rounded-xl border border-line bg-card px-2 py-1.5"
+    <button
+      type="button"
+      onClick={onOpenLocation}
+      className="flex w-full items-center gap-2.5 rounded-xl border border-line bg-card px-2 py-1.5 text-left"
     >
       <OptionThumb src={baitRecordThumbSrc(spot)} kind="bait" size={40} />
       <span className="min-w-0 flex-1">
@@ -388,6 +479,6 @@ function BaitVisitRow({ spot, viewerId }: { spot: BaitSpot; viewerId?: string })
           {spot.notes?.trim() ? ` · ${spot.notes.trim()}` : ""}
         </p>
       </span>
-    </Link>
+    </button>
   );
 }

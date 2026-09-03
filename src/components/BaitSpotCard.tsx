@@ -1,4 +1,7 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
+import { LocationMapSheet, targetFromBait } from "@/components/LocationMapSheet";
 import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
 import { baitSpotLabel, yearFromDateKey } from "@/lib/calendar";
@@ -21,9 +24,15 @@ export function BaitSpotCard({
 }) {
   const src = photoSrc(spot.photoPath);
   const theirs = viewerId && spot.anglerId !== viewerId;
+  const [mapOpen, setMapOpen] = useState(false);
   return (
     <div className="journal-card relative flex overflow-hidden rounded-2xl" data-testid="calendar-bait-entry">
-      <Link href={`/bait/${spot.id}`} className="flex min-w-0 flex-1">
+      <button
+        type="button"
+        onClick={() => setMapOpen(true)}
+        className="flex min-w-0 flex-1 text-left"
+        data-testid="calendar-bait-open-map"
+      >
         <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 bg-paper-deep`}>
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -72,7 +81,13 @@ export function BaitSpotCard({
             ) : null}
           </p>
         </div>
-      </Link>
+      </button>
+      <LocationMapSheet
+        target={mapOpen ? targetFromBait(spot) : null}
+        onClose={() => setMapOpen(false)}
+        testId="calendar-bait-map"
+        emptyTestId="calendar-bait-map-empty"
+      />
     </div>
   );
 }
