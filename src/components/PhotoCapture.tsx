@@ -54,9 +54,6 @@ export function PhotoCapture({
             <img src={previewUrl} alt="Catch photo" className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full flex-col items-center justify-end gap-2 bg-gradient-to-t from-ink/75 via-ink/25 to-transparent px-6 pb-5 pt-16 text-center">
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-teal text-white shadow-lg ring-2 ring-white/85">
-                <CameraIcon />
-              </span>
               <p className="text-lg font-semibold text-white">
                 {emptyTitle ??
                   (emphasis === "library" ? "Add a photo from your roll" : "Take a photo")}
@@ -126,18 +123,5 @@ export function PhotoCapture({
         }}
       />
     </div>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M8 8 9.2 6.2A1 1 0 0 1 10 6h4a1 1 0 0 1 .8.4L16 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1h3Z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <circle cx="12" cy="13" r="3.2" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
   );
 }
