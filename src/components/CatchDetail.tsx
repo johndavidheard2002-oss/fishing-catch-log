@@ -18,6 +18,7 @@ import { tidesApplyToHabitat, tideWeatherBits } from "@/lib/tides/snapshot";
 import { formatCaughtAt } from "@/lib/time";
 import { groupSpots } from "@/lib/filters";
 import { hasSavedPin } from "@/lib/location-map";
+import { DEFAULT_MAP_FRAME_CLASS } from "@/lib/map-tiles";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
 
 const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
@@ -77,8 +78,17 @@ export function CatchDetail({ id }: { id: string }) {
   }
 
   return (
-    <article className="space-y-5">
-      <div className="journal-card overflow-hidden rounded-3xl">
+    <article className="space-y-4" data-testid="catch-screen">
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="on-wash-chip w-fit text-sm font-semibold text-teal"
+        data-testid="catch-back"
+      >
+        ← Back
+      </button>
+
+      <div className="journal-card overflow-hidden rounded-3xl" data-testid="catch-trip">
         <div className="relative aspect-[4/3] bg-paper-deep">
           {src ? (
             <>
@@ -98,134 +108,148 @@ export function CatchDetail({ id }: { id: string }) {
             <div className="flex h-full items-center justify-center text-ink-muted">No photo</div>
           )}
         </div>
-        <div className="space-y-2 p-4">
-          <h1 className="font-display text-3xl text-teal">
-            {catchSpeciesTitle(record)}
-          </h1>
-          <p className="text-ink-muted">
-            {catchFishLabel(record)} · {record.placeName || "Unnamed spot"}
-          </p>
-          <p className="text-sm">{formatCaughtAt(record.caughtAt)}</p>
-          <p className="text-sm">
-            {habitatLabel(record.habitat)} · {weatherLine(record)}
-          </p>
-          {record.sharedWithLinked ? (
-            <p className="text-xs text-ink-muted">
-              {PRIVACY_LINE} Never public. No feed.
+
+        <div className="space-y-5 p-4">
+          <header className="space-y-1.5">
+            <h1 className="font-display text-3xl text-teal">{catchSpeciesTitle(record)}</h1>
+            <p className="text-sm font-semibold" data-testid="catch-when">
+              {formatCaughtAt(record.caughtAt)}
             </p>
-          ) : (
-            <p className="text-xs text-ink-muted">Private to you. Not shared with anyone.</p>
-          )}
-          <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
+            <p className="text-sm" data-testid="catch-area">
+              {record.placeName || "Unnamed spot"}
+              {record.latitude != null && record.longitude != null
+                ? ` · ${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`
+                : ""}
+            </p>
+            <p className="text-sm text-ink-muted">
+              {catchFishLabel(record)} · {habitatLabel(record.habitat)} · {weatherLine(record)}
+            </p>
+            {record.sharedWithLinked ? (
+              <p className="text-xs text-ink-muted">
+                {PRIVACY_LINE} Never public. No feed.
+              </p>
+            ) : (
+              <p className="text-xs text-ink-muted">Private to you. Not shared with anyone.</p>
+            )}
+            <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
+          </header>
+
+          <CatchLocationMap record={record} />
+
+          <section data-testid="catch-conditions">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Conditions</h2>
+            <dl className="mt-2 grid grid-cols-2 gap-3 text-sm">
+              <Item label="Fish" value={catchFishLabel(record)} />
+              <Item label="Temp" value={record.temperatureF != null ? `${record.temperatureF}°F` : "—"} />
+              <Item
+                label="Sky"
+                value={record.weatherCondition ? CONDITION_LABELS[record.weatherCondition] : "—"}
+              />
+              <Item
+                label="Wind"
+                value={
+                  record.windSpeedMph != null && record.windDirection
+                    ? `${record.windDirection} ${record.windSpeedMph} mph`
+                    : record.windSpeedMph != null
+                      ? `${record.windSpeedMph} mph`
+                      : record.windDirection || "—"
+                }
+              />
+              <Item
+                label="Moon"
+                value={
+                  record.moonPhase
+                    ? `${record.moonPhase}${
+                        record.moonIllumination != null ? ` · ${Math.round(record.moonIllumination)}%` : ""
+                      }`
+                    : "—"
+                }
+              />
+              <Item
+                label="Pressure"
+                value={
+                  record.pressureInHg != null || record.pressureMb != null
+                    ? [
+                        record.pressureInHg != null ? `${record.pressureInHg.toFixed(2)} inHg` : null,
+                        record.pressureMb != null ? `${record.pressureMb} mb` : null,
+                        record.pressureTrend,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "—"
+                }
+              />
+              <Item
+                label="Tide"
+                value={
+                  tidesApplyToHabitat(record.habitat)
+                    ? tideWeatherBits({
+                        habitat: record.habitat,
+                        tide: record.tide,
+                        tideHeightFt: record.tideHeightFt,
+                        tideDetail: record.tideDetail,
+                      }).join(" · ") || "—"
+                    : "Does not apply"
+                }
+              />
+              <Item
+                label="Precip"
+                value={record.precipitationIn != null ? `${record.precipitationIn} in` : "—"}
+              />
+              <Item label="Habitat" value={habitatLabel(record.habitat)} />
+              <Item label="Bait" value={record.bait || "—"} />
+              <Item label="Water" value={record.waterClarity || "—"} />
+              <Item
+                label="Catch location"
+                value={
+                  record.latitude != null && record.longitude != null
+                    ? `${record.placeName ? `${record.placeName} · ` : ""}${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`
+                    : record.placeName || "—"
+                }
+              />
+              {record.photoTakenLatitude != null &&
+              record.photoTakenLongitude != null &&
+              coordsLookDifferent(
+                record.latitude,
+                record.longitude,
+                record.photoTakenLatitude,
+                record.photoTakenLongitude,
+              ) ? (
+                <Item
+                  label="Photo taken at"
+                  value={`${record.photoTakenLatitude.toFixed(4)}, ${record.photoTakenLongitude.toFixed(4)}`}
+                />
+              ) : null}
+            </dl>
+          </section>
+
+          <section data-testid="catch-notes">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Notes</h2>
+            {record.notes ? (
+              <p className="mt-2 text-sm">{record.notes}</p>
+            ) : (
+              <p className="mt-2 text-sm text-ink-muted">No notes on this catch.</p>
+            )}
+          </section>
+
+          {src ? (
+            <div>
+              <SaveToPhotosButton
+                src={src}
+                filename={catchPhotoFilename({
+                  species: record.speciesList?.length ? record.speciesList : record.species,
+                  caughtAt: record.caughtAt,
+                  photoPath: record.photoPath,
+                })}
+              />
+              <p className="mt-1.5 text-xs text-ink-muted">
+                Save this catch photo to this phone whenever you want. Catch Compass never adds it to
+                Photos by itself.
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
-
-      <CatchLocationMap record={record} />
-
-      <dl className="journal-card grid grid-cols-2 gap-3 rounded-2xl p-4 text-sm">
-        <Item label="Fish" value={catchFishLabel(record)} />
-        <Item label="Temp" value={record.temperatureF != null ? `${record.temperatureF}°F` : "—"} />
-        <Item
-          label="Sky"
-          value={record.weatherCondition ? CONDITION_LABELS[record.weatherCondition] : "—"}
-        />
-        <Item
-          label="Wind"
-          value={
-            record.windSpeedMph != null && record.windDirection
-              ? `${record.windDirection} ${record.windSpeedMph} mph`
-              : record.windSpeedMph != null
-                ? `${record.windSpeedMph} mph`
-                : record.windDirection || "—"
-          }
-        />
-        <Item
-          label="Moon"
-          value={
-            record.moonPhase
-              ? `${record.moonPhase}${
-                  record.moonIllumination != null ? ` · ${Math.round(record.moonIllumination)}%` : ""
-                }`
-              : "—"
-          }
-        />
-        <Item
-          label="Pressure"
-          value={
-            record.pressureInHg != null || record.pressureMb != null
-              ? [
-                  record.pressureInHg != null ? `${record.pressureInHg.toFixed(2)} inHg` : null,
-                  record.pressureMb != null ? `${record.pressureMb} mb` : null,
-                  record.pressureTrend,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")
-              : "—"
-          }
-        />
-        <Item
-          label="Tide"
-          value={
-            tidesApplyToHabitat(record.habitat)
-              ? tideWeatherBits({
-                  habitat: record.habitat,
-                  tide: record.tide,
-                  tideHeightFt: record.tideHeightFt,
-                  tideDetail: record.tideDetail,
-                }).join(" · ") || "—"
-              : "Does not apply"
-          }
-        />
-        <Item
-          label="Precip"
-          value={record.precipitationIn != null ? `${record.precipitationIn} in` : "—"}
-        />
-        <Item label="Habitat" value={habitatLabel(record.habitat)} />
-        <Item label="Bait" value={record.bait || "—"} />
-        <Item label="Water" value={record.waterClarity || "—"} />
-        <Item
-          label="Catch location"
-          value={
-            record.latitude != null && record.longitude != null
-              ? `${record.placeName ? `${record.placeName} · ` : ""}${record.latitude.toFixed(4)}, ${record.longitude.toFixed(4)}`
-              : record.placeName || "—"
-          }
-        />
-        {record.photoTakenLatitude != null &&
-        record.photoTakenLongitude != null &&
-        coordsLookDifferent(
-          record.latitude,
-          record.longitude,
-          record.photoTakenLatitude,
-          record.photoTakenLongitude,
-        ) ? (
-          <Item
-            label="Photo taken at"
-            value={`${record.photoTakenLatitude.toFixed(4)}, ${record.photoTakenLongitude.toFixed(4)}`}
-          />
-        ) : null}
-      </dl>
-
-      {record.notes ? (
-        <p className="journal-card rounded-2xl p-4 text-sm">{record.notes}</p>
-      ) : null}
-
-      {src ? (
-        <div>
-          <SaveToPhotosButton
-            src={src}
-            filename={catchPhotoFilename({
-              species: record.speciesList?.length ? record.speciesList : record.species,
-              caughtAt: record.caughtAt,
-              photoPath: record.photoPath,
-            })}
-          />
-          <p className="on-wash-chip mt-1.5 text-xs">
-            Save this catch photo to this phone whenever you want. Catch Compass never adds it to
-            Photos by itself.
-          </p>
-        </div>
-      ) : null}
 
       <div className="flex gap-2">
         <button
@@ -275,22 +299,24 @@ function CatchLocationMap({ record }: { record: CatchRecord }) {
   const hasPin = hasSavedPin(record.latitude, record.longitude);
   const spots = hasPin ? groupSpots([record]) : [];
   return (
-    <section className="space-y-1" data-testid="catch-location-map">
-      <p className="on-wash-chip w-fit text-xs font-semibold uppercase tracking-wide">Location</p>
-      {hasPin ? (
-        <SpotMap
-          spots={spots}
-          selectedKey={spots[0]?.key ?? null}
-          className="h-64 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
-        />
-      ) : (
-        <p
-          className="journal-card rounded-2xl px-3 py-6 text-sm text-ink-muted"
-          data-testid="catch-location-map-empty"
-        >
-          This catch has no saved pin. Tap Edit spot to drop one on the map.
-        </p>
-      )}
+    <section data-testid="catch-location-map">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Location</h2>
+      <div className="mt-2">
+        {hasPin ? (
+          <SpotMap
+            spots={spots}
+            selectedKey={spots[0]?.key ?? null}
+            className={`${DEFAULT_MAP_FRAME_CLASS} bg-paper-deep`}
+          />
+        ) : (
+          <p
+            className="rounded-2xl border border-line bg-paper-deep px-3 py-6 text-sm text-ink-muted"
+            data-testid="catch-location-map-empty"
+          >
+            This catch has no saved pin. Tap Edit spot to drop one on the map.
+          </p>
+        )}
+      </div>
     </section>
   );
 }
