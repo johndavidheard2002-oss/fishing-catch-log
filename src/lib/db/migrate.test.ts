@@ -193,4 +193,86 @@ describe("migrate older journals", () => {
     expect(names).toContain("named_areas");
     expect(names).toContain("bait_spots");
   });
+
+  it("purges reloaded sample trips on a v11 journal and keeps real uploads", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    const file = path.join(dir, "journal.sqlite");
+    process.env.DATABASE_PATH = file;
+    resetDbForTests();
+    getDb();
+    const sqlite = getSqlite();
+    expect(Number(sqlite.pragma("user_version", { simple: true }))).toBe(12);
+    sqlite.pragma("user_version = 11");
+    const stamp = "2026-09-03T12:00:00.000Z";
+    const insert = sqlite.prepare(
+      `INSERT INTO catches (
+        id, photo_path, species, species_source, caught_at, time_of_day, season,
+        habitat, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    insert.run(
+      "seed-1",
+      "/seed/striper.svg",
+      "Striped Bass",
+      "demo",
+      stamp,
+      "afternoon",
+      "summer",
+      "freshwater",
+      stamp,
+      stamp,
+    );
+    insert.run(
+      "mine-1",
+      "uploads/john-redfish.jpg",
+      "Redfish",
+      "manual",
+      stamp,
+      "afternoon",
+      "summer",
+      "saltwater-inshore",
+      stamp,
+      stamp,
+    );
+    insert.run(
+      "vision-demo",
+      "uploads/john-trout.jpg",
+      "Speckled Trout",
+      "demo",
+      stamp,
+      "morning",
+      "summer",
+      "saltwater-inshore",
+      stamp,
+      stamp,
+    );
+    sqlite
+      .prepare(
+        `INSERT INTO bait_spots (
+          id, photo_path, bait_types, logged_at, time_of_day, season, habitat,
+          angler_id, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        "seed-bait",
+        "/seed/redfish.svg",
+        "[]",
+        stamp,
+        "morning",
+        "summer",
+        "saltwater-inshore",
+        "a1",
+        stamp,
+        stamp,
+      );
+    resetDbForTests();
+    getDb();
+    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(12);
+    const records = await listCatches();
+    expect(records.map((r) => r.id).sort()).toEqual(["mine-1", "vision-demo"]);
+    expect(records.some((r) => r.photoPath?.startsWith("/seed/"))).toBe(false);
+    const bait = getSqlite().prepare("SELECT id FROM bait_spots").all() as { id: string }[];
+    expect(bait).toEqual([]);
+  });
 });

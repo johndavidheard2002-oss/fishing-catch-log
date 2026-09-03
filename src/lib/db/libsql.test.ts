@@ -103,4 +103,41 @@ describe("LibSQL / Turso path (local file: smoke)", () => {
     expect(names).toEqual(expect.arrayContaining(["catches", "anglers", "bait_spots", "schema_meta"]));
     client.close();
   });
+
+  it("purges sample /seed/ rows when schema_meta is already 11", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-libsql-v12-"));
+    tmpDirs.push(dir);
+    const client = createClient({ url: `file:${path.join(dir, "journal.db")}` });
+    await migrateLibsql(client);
+    await client.execute({
+      sql: "INSERT OR REPLACE INTO schema_meta (key, value) VALUES (?, ?)",
+      args: ["schema_version", "11"],
+    });
+    const stamp = "2026-09-03T12:00:00.000Z";
+    await client.execute({
+      sql: `INSERT INTO catches (
+        id, photo_path, species, species_source, caught_at, time_of_day, season,
+        habitat, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["seed-1", "/seed/rainbow.svg", "Brown Trout", "demo", stamp, "afternoon", "summer", "freshwater", stamp, stamp],
+    });
+    await client.execute({
+      sql: `INSERT INTO catches (
+        id, photo_path, species, species_source, caught_at, time_of_day, season,
+        habitat, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: ["mine-1", "uploads/john.jpg", "Redfish", "manual", stamp, "afternoon", "summer", "saltwater-inshore", stamp, stamp],
+    });
+    await migrateLibsql(client);
+    const version = await client.execute({
+      sql: "SELECT value FROM schema_meta WHERE key = ?",
+      args: ["schema_version"],
+    });
+    const row = version.rows[0] as unknown as Record<string, unknown> | undefined;
+    expect(String(row?.value ?? row?.[0] ?? "")).toBe("12");
+    const leftover = await client.execute("SELECT id, photo_path FROM catches ORDER BY id");
+    const ids = leftover.rows.map((r) => String((r as unknown as Record<string, unknown>).id ?? r[0]));
+    expect(ids).toEqual(["mine-1"]);
+    client.close();
+  });
 });

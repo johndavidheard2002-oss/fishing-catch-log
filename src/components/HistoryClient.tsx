@@ -259,7 +259,7 @@ export function HistoryClient({
       ) : catches.length === 0 ? (
         <p className="on-wash-chip text-sm">
           Nothing logged yet. Log a catch or backfill a photo — one picture becomes one trip at
-          one pin. Sample trips are off unless you load them from Home → More.
+          one pin.
         </p>
       ) : filtered.length === 0 ? (
         <p className="on-wash-chip text-sm">

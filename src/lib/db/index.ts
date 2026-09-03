@@ -146,8 +146,27 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 `;
 
 /** File SQLite uses PRAGMA user_version. LibSQL/Turso stores the same number in schema_meta. */
-export const SCHEMA_VERSION = 11;
+export const SCHEMA_VERSION = 12;
 const SCHEMA_META_KEY = "schema_version";
+
+/**
+ * Sample trips: cartoon `/seed/` art (the Calendar “Sample” badge) or a demo-source
+ * row with no personal photo. A real upload with species_source=demo (vision fallback)
+ * is kept.
+ */
+export const PURGE_SAMPLE_CATCHES_SQL = `
+  DELETE FROM catches
+  WHERE photo_path LIKE '/seed/%'
+     OR (
+       species_source = 'demo'
+       AND (photo_path IS NULL OR photo_path = '' OR photo_path LIKE '/seed/%')
+     )
+`;
+
+export const PURGE_SAMPLE_BAIT_SQL = `
+  DELETE FROM bait_spots
+  WHERE photo_path LIKE '/seed/%'
+`;
 
 type FileHandle = {
   kind: "file";
@@ -358,11 +377,7 @@ function migrate(sqlite: Database.Database) {
     sqlite.pragma("user_version = 6");
   }
   if (version < 7) {
-    sqlite.exec(`
-      DELETE FROM catches
-      WHERE photo_path LIKE '/seed/%'
-         OR (species_source = 'demo' AND (photo_path IS NULL OR photo_path = ''))
-    `);
+    sqlite.exec(PURGE_SAMPLE_CATCHES_SQL);
     sqlite.pragma("user_version = 7");
   }
   if (version < 8) {
@@ -440,6 +455,11 @@ function migrate(sqlite: Database.Database) {
     `);
     sqlite.pragma("user_version = 11");
   }
+  if (version < 12) {
+    sqlite.exec(PURGE_SAMPLE_CATCHES_SQL);
+    sqlite.exec(PURGE_SAMPLE_BAIT_SQL);
+    sqlite.pragma("user_version = 12");
+  }
 }
 
 async function libsqlColumns(client: Client, table: string): Promise<string[]> {
@@ -504,11 +524,11 @@ export async function migrateLibsql(client: Client) {
 
   const version = await libsqlSchemaVersion(client);
   if (version < 7) {
-    await client.execute(
-      `DELETE FROM catches
-       WHERE photo_path LIKE '/seed/%'
-          OR (species_source = 'demo' AND (photo_path IS NULL OR photo_path = ''))`,
-    );
+    await client.execute(PURGE_SAMPLE_CATCHES_SQL);
+  }
+  if (version < 12) {
+    await client.execute(PURGE_SAMPLE_CATCHES_SQL);
+    await client.execute(PURGE_SAMPLE_BAIT_SQL);
   }
   if (version < SCHEMA_VERSION) {
     await libsqlSetSchemaVersion(client, SCHEMA_VERSION);

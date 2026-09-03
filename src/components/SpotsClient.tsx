@@ -189,8 +189,7 @@ export function SpotsClient() {
         <>
           <SpotMap spots={[]} selectedKey={null} overview />
           <p className="on-wash-chip text-sm">
-            No spots yet. Log a catch to drop your first pin. Sample trips stay off until you load
-            them from Home → More.
+            No spots yet. Log a catch to drop your first pin.
           </p>
         </>
       ) : (
