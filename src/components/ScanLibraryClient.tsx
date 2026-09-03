@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
-import { compressImage } from "@/lib/photo";
+import { compressImage, photoSrc } from "@/lib/photo";
 import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import {
@@ -15,7 +15,7 @@ import {
 
 type Candidate = {
   id: string;
-  file: File;
+  photoPath: string;
   previewUrl: string;
   caughtAt: Date;
   note: string;
@@ -28,7 +28,7 @@ type Candidate = {
 
 function toQueued(c: Candidate): QueuedScanCandidate {
   return {
-    file: c.file,
+    photoPath: c.photoPath,
     caughtAtIso: c.caughtAt.toISOString(),
     note: c.note,
     confidence: c.confidence,
@@ -39,11 +39,11 @@ function toQueued(c: Candidate): QueuedScanCandidate {
   };
 }
 
-function fromQueued(item: QueuedScanCandidate, i: number): Candidate {
+function fromQueued(item: QueuedScanCandidate): Candidate {
   return {
-    id: `queued-${i}-${item.file.name}`,
-    file: item.file,
-    previewUrl: URL.createObjectURL(item.file),
+    id: item.photoPath,
+    photoPath: item.photoPath,
+    previewUrl: photoSrc(item.photoPath) ?? "",
     caughtAt: new Date(item.caughtAtIso),
     note: item.note,
     confidence: item.confidence,
@@ -61,9 +61,8 @@ export function ScanLibraryClient() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
-  const [candidates, setCandidates] = useState<Candidate[]>(() =>
-    hydrateScanQueue().map(fromQueued),
-  );
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -72,8 +71,9 @@ export function ScanLibraryClient() {
   }, []);
 
   useEffect(() => {
-    setScanQueue(candidates.map(toQueued));
-  }, [candidates]);
+    setCandidates(hydrateScanQueue().map(fromQueued));
+    setReady(true);
+  }, []);
 
   async function onFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -113,10 +113,15 @@ export function ScanLibraryClient() {
         } catch {
           /* EXIF optional */
         }
+        const fd = new FormData();
+        fd.set("photo", file);
+        const up = await fetch("/api/media", { method: "POST", body: fd });
+        const data = (await up.json()) as { photoPath?: string; error?: string };
+        if (!up.ok || !data.photoPath) throw new Error(data.error || "Photo upload failed");
         found.push({
-          id: `${original.name}-${i}`,
-          file,
-          previewUrl: URL.createObjectURL(file),
+          id: data.photoPath,
+          photoPath: data.photoPath,
+          previewUrl: photoSrc(data.photoPath) ?? "",
           caughtAt,
           note: detection.note,
           confidence: detection.confidence,
@@ -125,51 +130,40 @@ export function ScanLibraryClient() {
           photoTakenLatitude,
           photoTakenLongitude,
         });
+        setScanQueue(sortScanReviewList(found).map(toQueued));
       } catch {
         skip += 1;
       }
     }
     setSkipped(skip);
-    setCandidates(sortScanReviewList(found));
+    const reviewed = sortScanReviewList(found);
+    setCandidates(reviewed);
+    setScanQueue(reviewed.map(toQueued));
     setBusy(false);
     setProgress("");
   }
 
   function dismiss(i: number) {
-    setCandidates((list) => {
-      const gone = list[i];
-      if (gone) URL.revokeObjectURL(gone.previewUrl);
-      return list.filter((_, j) => j !== i);
-    });
+    const next = candidates.filter((_, j) => j !== i);
+    setCandidates(next);
+    setScanQueue(next.map(toQueued));
   }
 
-  async function openCandidate(item: Candidate) {
+  function openCandidate(item: Candidate) {
     setAdding(item.id);
     setError(null);
-    try {
-      const fd = new FormData();
-      fd.set("photo", item.file);
-      const up = await fetch("/api/media", { method: "POST", body: fd });
-      const data = await up.json();
-      if (!up.ok) throw new Error(data.error || "Photo upload failed");
-      const at = item.caughtAt.toISOString();
-      const day = localDateKeyFromDate(item.caughtAt);
-      const remaining = candidates.filter((c) => c.id !== item.id);
-      remaining.forEach((c) => URL.revokeObjectURL(c.previewUrl));
-      URL.revokeObjectURL(item.previewUrl);
-      setCandidates(remaining);
-      setScanQueue(remaining.map(toQueued));
-      const gps =
-        item.photoTakenLatitude != null && item.photoTakenLongitude != null
-          ? `&plat=${encodeURIComponent(String(item.photoTakenLatitude))}&plon=${encodeURIComponent(String(item.photoTakenLongitude))}`
-          : "";
-      router.push(
-        `/backfill?photo=${encodeURIComponent(data.photoPath)}&at=${encodeURIComponent(at)}&day=${day}&next=calendar${gps}`,
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not add that photo");
-      setAdding(null);
-    }
+    const remaining = candidates.filter((c) => c.id !== item.id);
+    setCandidates(remaining);
+    setScanQueue(remaining.map(toQueued));
+    const at = item.caughtAt.toISOString();
+    const day = localDateKeyFromDate(item.caughtAt);
+    const gps =
+      item.photoTakenLatitude != null && item.photoTakenLongitude != null
+        ? `&plat=${encodeURIComponent(String(item.photoTakenLatitude))}&plon=${encodeURIComponent(String(item.photoTakenLongitude))}`
+        : "";
+    router.push(
+      `/backfill?photo=${encodeURIComponent(item.photoPath)}&at=${encodeURIComponent(at)}&day=${day}&next=calendar${gps}`,
+    );
   }
 
   return (
@@ -224,7 +218,7 @@ export function ScanLibraryClient() {
 
       {error ? <p className="on-wash-chip text-sm text-copper">{error}</p> : null}
 
-      {!busy && candidates.length === 0 ? (
+      {ready && !busy && candidates.length === 0 ? (
         <p className="on-wash-chip text-sm">
           {skipped
             ? `Could not open ${skipped}. Try a different batch.`
@@ -249,7 +243,7 @@ export function ScanLibraryClient() {
               <button
                 type="button"
                 disabled={adding !== null}
-                onClick={() => void openCandidate(item)}
+                onClick={() => openCandidate(item)}
                 className="flex min-w-0 flex-1 text-left disabled:opacity-60"
               >
                 <div className="h-24 w-24 shrink-0 bg-paper-deep">

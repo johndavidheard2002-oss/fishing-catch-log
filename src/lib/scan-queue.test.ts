@@ -1,56 +1,109 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  forgetScanQueueMemory,
   hydrateScanQueue,
   pathAfterScanCatchSave,
   peekScanQueue,
+  removeScanQueueByPhotoPath,
   reviewListFromScanResults,
+  SCAN_QUEUE_STORAGE_KEY,
   scanQueueCount,
   setScanQueue,
   sortScanReviewList,
+  type QueuedScanCandidate,
 } from "./scan-queue";
 
+function mockSessionStorage() {
+  const store = new Map<string, string>();
+  const memory: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      return store.has(key) ? store.get(key)! : null;
+    },
+    key(index: number) {
+      return [...store.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, value);
+    },
+  };
+  Object.defineProperty(globalThis, "sessionStorage", {
+    configurable: true,
+    value: memory,
+  });
+}
+
+function sample(path: string, extras: Partial<QueuedScanCandidate> = {}): QueuedScanCandidate {
+  return {
+    photoPath: path,
+    caughtAtIso: "2024-06-12T13:40:00.000Z",
+    note: "",
+    confidence: 0.7,
+    demo: true,
+    likely: false,
+    ...extras,
+  };
+}
+
+beforeEach(() => {
+  mockSessionStorage();
+  forgetScanQueueMemory();
+  setScanQueue([]);
+});
+
+afterEach(() => {
+  setScanQueue([]);
+  forgetScanQueueMemory();
+});
+
 describe("scanQueue", () => {
-  it("holds remaining library photos across SPA navigation", () => {
-    setScanQueue([]);
-    expect(scanQueueCount()).toBe(0);
-    const file = new File(["x"], "catch.jpg", { type: "image/jpeg" });
-    setScanQueue([
-      {
-        file,
-        caughtAtIso: "2024-06-12T13:40:00.000Z",
-        note: "",
-        confidence: 0.7,
-        demo: true,
-        likely: false,
-      },
-    ]);
+  it("persists leftovers so a memory wipe still hydrates them", () => {
+    setScanQueue([sample("catch.jpg", { likely: false })]);
     expect(scanQueueCount()).toBe(1);
-    expect(peekScanQueue()[0].file.name).toBe("catch.jpg");
-    expect(peekScanQueue()[0].likely).toBe(false);
-    setScanQueue([]);
+    expect(peekScanQueue()[0].photoPath).toBe("catch.jpg");
+    expect(sessionStorage.getItem(SCAN_QUEUE_STORAGE_KEY)).toContain("catch.jpg");
+
+    forgetScanQueueMemory();
+    expect(scanQueueCount()).toBe(1);
+    const restored = hydrateScanQueue();
+    expect(restored).toHaveLength(1);
+    expect(restored[0].photoPath).toBe("catch.jpg");
+    expect(restored[0].likely).toBe(false);
   });
 
   it("does not drop the queue when hydration runs twice (Strict Mode)", () => {
-    const file = new File(["x"], "trout.jpg", { type: "image/jpeg" });
-    setScanQueue([
-      {
-        file,
-        caughtAtIso: "2024-06-12T13:40:00.000Z",
-        note: "",
-        confidence: 0.5,
-        demo: true,
-        likely: true,
-      },
-    ]);
+    setScanQueue([sample("trout.jpg", { confidence: 0.5, likely: true })]);
     const first = hydrateScanQueue();
     const second = hydrateScanQueue();
     expect(first).toHaveLength(1);
     expect(second).toHaveLength(1);
     expect(scanQueueCount()).toBe(1);
-    expect(first[0].file).toBe(file);
-    expect(second[0].file).toBe(file);
-    expect(peekScanQueue()[0].file.name).toBe("trout.jpg");
+    expect(first[0].photoPath).toBe("trout.jpg");
+    expect(second[0].photoPath).toBe("trout.jpg");
+  });
+
+  it("clears persistence when a new batch empties the list", () => {
+    setScanQueue([sample("a.jpg"), sample("b.jpg")]);
     setScanQueue([]);
+    forgetScanQueueMemory();
+    expect(hydrateScanQueue()).toEqual([]);
+    expect(scanQueueCount()).toBe(0);
+  });
+
+  it("removes a saved photoPath from the leftover queue", () => {
+    setScanQueue([sample("keep.jpg"), sample("saved.jpg")]);
+    removeScanQueueByPhotoPath("saved.jpg");
+    expect(peekScanQueue().map((item) => item.photoPath)).toEqual(["keep.jpg"]);
+    forgetScanQueueMemory();
+    expect(hydrateScanQueue().map((item) => item.photoPath)).toEqual(["keep.jpg"]);
   });
 });
 

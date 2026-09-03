@@ -33,7 +33,7 @@ import {
   totalFishCount,
 } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
-import { pathAfterScanCatchSave, scanQueueCount } from "@/lib/scan-queue";
+import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
@@ -527,6 +527,9 @@ export function CatchForm({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
       const fromScan = Boolean(importedPhotoPath && pastMode);
+      if (fromScan) {
+        removeScanQueueByPhotoPath(photoPath ?? importedPhotoPath ?? "");
+      }
       router.push(
         pathAfterScanCatchSave({
           remainingCount: fromScan ? scanQueueCount() : 0,

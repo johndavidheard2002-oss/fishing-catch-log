@@ -1,7 +1,9 @@
-/** In-memory queue of library photos left after opening one. Survives SPA navigation only. */
+/** Durable queue of Find fish photos leftovers. Survives refresh via sessionStorage. */
+
+export const SCAN_QUEUE_STORAGE_KEY = "cast-log-scan-queue";
 
 export type QueuedScanCandidate = {
-  file: File;
+  photoPath: string;
   caughtAtIso: string;
   note: string;
   confidence: number;
@@ -35,25 +37,95 @@ export function reviewListFromScanResults<T extends ScanReviewSortKey & { opened
 }
 
 let queue: QueuedScanCandidate[] = [];
+let loaded = false;
+
+function sessionStore(): Storage | null {
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    return sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function isStoredCandidate(value: unknown): value is QueuedScanCandidate {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.photoPath === "string" &&
+    item.photoPath.trim().length > 0 &&
+    typeof item.caughtAtIso === "string" &&
+    typeof item.note === "string" &&
+    typeof item.confidence === "number" &&
+    typeof item.demo === "boolean"
+  );
+}
+
+function loadPersisted(): QueuedScanCandidate[] {
+  const store = sessionStore();
+  if (!store) return [];
+  try {
+    const raw = store.getItem(SCAN_QUEUE_STORAGE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw) as unknown;
+    if (!Array.isArray(data)) return [];
+    return data.filter(isStoredCandidate);
+  } catch {
+    return [];
+  }
+}
+
+function persist(items: QueuedScanCandidate[]) {
+  const store = sessionStore();
+  if (!store) return;
+  try {
+    store.setItem(SCAN_QUEUE_STORAGE_KEY, JSON.stringify(items));
+  } catch {
+    /* private mode / quota — module memory still works for this tab */
+  }
+}
+
+function ensureLoaded() {
+  if (loaded) return;
+  queue = loadPersisted();
+  loaded = true;
+}
+
+/** Test helper: wipe module memory the way a full reload does. sessionStorage stays. */
+export function forgetScanQueueMemory() {
+  queue = [];
+  loaded = false;
+}
 
 export function setScanQueue(items: QueuedScanCandidate[]) {
+  loaded = true;
   queue = items;
+  persist(items);
 }
 
 export function peekScanQueue(): QueuedScanCandidate[] {
+  ensureLoaded();
   return queue;
 }
 
 export function scanQueueCount(): number {
-  return queue.length;
+  return peekScanQueue().length;
 }
 
 /**
- * Copy leftover photos into the review list. Does not clear the module queue —
- * Strict Mode double-inits must still see the same File objects.
+ * Reload leftovers from sessionStorage. Safe to call twice (Strict Mode).
+ * Does not clear the persisted queue.
  */
 export function hydrateScanQueue(): QueuedScanCandidate[] {
-  return peekScanQueue();
+  queue = loadPersisted();
+  loaded = true;
+  return queue;
+}
+
+export function removeScanQueueByPhotoPath(photoPath: string) {
+  const path = photoPath.trim();
+  if (!path) return;
+  setScanQueue(peekScanQueue().filter((item) => item.photoPath !== path));
 }
 
 /** After logging one scan photo, remaining items go back to the review list. */

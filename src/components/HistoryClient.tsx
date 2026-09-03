@@ -299,7 +299,10 @@ export function HistoryClient({
 }
 
 function LibraryScanBanner() {
-  const [left] = useState(() => scanQueueCount());
+  const [left, setLeft] = useState(0);
+  useEffect(() => {
+    setLeft(scanQueueCount());
+  }, []);
   if (!left) return null;
   return (
     <Link
