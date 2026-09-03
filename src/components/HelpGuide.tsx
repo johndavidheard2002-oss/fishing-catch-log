@@ -112,7 +112,20 @@ export function HelpGuide() {
 }
 
 export function FirstHelpTip() {
-  const setupDone = useSyncExternalStore(subscribeSetup, setupSeen, () => false);
+  const [anglerId, setAnglerId] = useState("");
+  useEffect(() => {
+    fetch("/api/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (typeof data.me?.id === "string") setAnglerId(data.me.id);
+      })
+      .catch(() => {});
+  }, []);
+  const setupDone = useSyncExternalStore(
+    subscribeSetup,
+    () => (anglerId ? setupSeen(anglerId) : false),
+    () => false,
+  );
   const unseen = useSyncExternalStore(subscribeHelpTip, () => !helpTipSeen(), () => false);
   if (!setupDone || !unseen) return null;
 

@@ -12,8 +12,18 @@ function subscribeNever() {
 export function FirstRunSetup() {
   const router = useRouter();
   const ready = useSyncExternalStore(subscribeNever, () => true, () => false);
-  const seen = useSyncExternalStore(subscribeSetup, setupSeen, () => false);
+  const [anglerId, setAnglerId] = useState<string>("");
+  const seen = useSyncExternalStore(subscribeSetup, () => (anglerId ? setupSeen(anglerId) : true), () => true);
   const [forced, setForced] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (typeof data.me?.id === "string") setAnglerId(data.me.id);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     function onOpen() {
@@ -23,10 +33,10 @@ export function FirstRunSetup() {
     return () => window.removeEventListener(SETUP_OPEN_EVENT, onOpen);
   }, []);
 
-  if (!shouldShowFirstRun({ ready, seen, forced })) return null;
+  if (!shouldShowFirstRun({ ready, seen, forced, hasJournal: Boolean(anglerId) })) return null;
 
   function finish() {
-    markSetupSeen();
+    markSetupSeen(anglerId);
     setForced(false);
   }
 

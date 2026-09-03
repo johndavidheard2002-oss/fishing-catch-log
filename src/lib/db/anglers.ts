@@ -10,16 +10,21 @@ export type AnglerRecord = {
   name: string;
   inviteCode: string;
   createdAt: string;
+  email: string | null;
+  claimed: boolean;
 };
 
 export type BuddyRecord = AnglerRecord & { linkedAt: string };
 
-function mapAngler(row: typeof anglers.$inferSelect): AnglerRecord {
+function mapAngler(row: typeof anglers.$inferSelect, includeEmail = false): AnglerRecord {
+  const email = row.email?.trim() ? row.email.trim().toLowerCase() : null;
   return {
     id: row.id,
     name: row.name,
     inviteCode: row.inviteCode,
     createdAt: row.createdAt,
+    email: includeEmail ? email : null,
+    claimed: Boolean(email && row.passwordHash),
   };
 }
 
@@ -47,6 +52,8 @@ export function seedDefaultAnglerOnSqlite(sqlite: Database.Database): AnglerReco
       name: existing.name,
       inviteCode: existing.invite_code,
       createdAt: existing.created_at,
+      email: null,
+      claimed: false,
     };
   }
   const row = {
@@ -61,7 +68,7 @@ export function seedDefaultAnglerOnSqlite(sqlite: Database.Database): AnglerReco
   sqlite
     .prepare("UPDATE catches SET angler_id = ? WHERE angler_id IS NULL OR angler_id = ''")
     .run(row.id);
-  return row;
+  return { ...row, email: null, claimed: false };
 }
 
 export function ensureDefaultAngler(): AnglerRecord {
@@ -90,7 +97,7 @@ export async function upsertDefaultAngler(db: JournalDatabase): Promise<AnglerRe
       createdAt: row.createdAt,
     }),
   );
-  return row;
+  return { ...row, email: null, claimed: false };
 }
 
 /** Boot/migrate only: ensure at least one angler row exists. Never use this as a new visitor’s identity. */
@@ -100,10 +107,44 @@ export async function seedDefaultAngler(): Promise<AnglerRecord> {
   return upsertDefaultAngler(db);
 }
 
-export async function getAngler(id: string): Promise<AnglerRecord | null> {
+export async function getAngler(id: string, opts?: { includeEmail?: boolean }): Promise<AnglerRecord | null> {
   const db = await ensureDb();
   const row = await getRow(db.select().from(anglers).where(eq(anglers.id, id)));
-  return row ? mapAngler(row) : null;
+  return row ? mapAngler(row, opts?.includeEmail) : null;
+}
+
+export async function getAnglerByEmail(email: string): Promise<AnglerRecord | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized) return null;
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(anglers).where(eq(anglers.email, normalized)));
+  return row ? mapAngler(row, true) : null;
+}
+
+export async function getAnglerPasswordHash(id: string): Promise<string | null> {
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(anglers).where(eq(anglers.id, id)));
+  return row?.passwordHash ?? null;
+}
+
+export async function setAnglerCredentials(
+  id: string,
+  args: { name: string; email: string; passwordHash: string },
+): Promise<AnglerRecord | null> {
+  const existing = await getAngler(id);
+  if (!existing) return null;
+  const db = await ensureDb();
+  await runChange(
+    db
+      .update(anglers)
+      .set({
+        name: args.name.trim() || existing.name,
+        email: args.email.trim().toLowerCase(),
+        passwordHash: args.passwordHash,
+      })
+      .where(eq(anglers.id, id)),
+  );
+  return getAngler(id, { includeEmail: true });
 }
 
 export async function getAnglerByCode(code: string): Promise<AnglerRecord | null> {
@@ -117,7 +158,7 @@ export async function getAnglerByCode(code: string): Promise<AnglerRecord | null
 export async function listAnglers(): Promise<AnglerRecord[]> {
   const db = await ensureDb();
   const rows = await allRows(db.select().from(anglers));
-  return rows.map(mapAngler);
+  return rows.map((row) => mapAngler(row));
 }
 
 /** This browser’s journal plus friends linked on this phone — not every angler in the database. */

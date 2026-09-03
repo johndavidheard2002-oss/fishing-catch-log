@@ -1,4 +1,5 @@
 export const ANGLER_COOKIE = "cast-log-angler";
+export const SESSION_COOKIE = "cast-log-session";
 
 export const VIEWER_COOKIE = {
   path: "/",

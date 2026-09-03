@@ -4,7 +4,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
 import { listCatches } from "./catches";
-import { getDb, getSqlite, resetDbForTests } from "./index";
+import { getDb, getSqlite, resetDbForTests, SCHEMA_VERSION } from "./index";
 
 const OLD_CREATE = `
 CREATE TABLE catches (
@@ -160,6 +160,21 @@ describe("migrate older journals", () => {
     expect(records[0].photoPath).toBe("real-catch.jpg");
   });
 
+  it("adds email and password hash columns on anglers", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    getDb();
+    const cols = getSqlite()
+      .prepare(`PRAGMA table_info(anglers)`)
+      .all() as { name: string }[];
+    const names = cols.map((c) => c.name);
+    expect(names).toContain("email");
+    expect(names).toContain("password_hash");
+    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
+  });
+
   it("creates the calendar_notes table for planned trips", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
     tmpDirs.push(dir);
@@ -202,7 +217,7 @@ describe("migrate older journals", () => {
     resetDbForTests();
     getDb();
     const sqlite = getSqlite();
-    expect(Number(sqlite.pragma("user_version", { simple: true }))).toBe(12);
+    expect(Number(sqlite.pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
     sqlite.pragma("user_version = 11");
     const stamp = "2026-09-03T12:00:00.000Z";
     const insert = sqlite.prepare(
@@ -268,7 +283,7 @@ describe("migrate older journals", () => {
       );
     resetDbForTests();
     getDb();
-    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(12);
+    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
     const records = await listCatches();
     expect(records.map((r) => r.id).sort()).toEqual(["mine-1", "vision-demo"]);
     expect(records.some((r) => r.photoPath?.startsWith("/seed/"))).toBe(false);

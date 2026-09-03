@@ -10,12 +10,18 @@ function store(): Storage | null {
   }
 }
 
-export function setupSeen(): boolean {
-  return store()?.getItem(SETUP_KEY) === "1";
+export function setupStorageKey(anglerId?: string) {
+  return anglerId ? `${SETUP_KEY}:${anglerId}` : SETUP_KEY;
 }
 
-export function markSetupSeen() {
-  store()?.setItem(SETUP_KEY, "1");
+export function setupSeen(anglerId?: string): boolean {
+  if (!anglerId) return false;
+  return store()?.getItem(setupStorageKey(anglerId)) === "1";
+}
+
+export function markSetupSeen(anglerId?: string) {
+  if (!anglerId) return;
+  store()?.setItem(setupStorageKey(anglerId), "1");
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(SETUP_EVENT));
   }
@@ -39,7 +45,10 @@ export function shouldShowFirstRun(args: {
   ready: boolean;
   seen: boolean;
   forced: boolean;
+  hasJournal?: boolean;
 }): boolean {
   if (!args.ready) return false;
-  return args.forced || !args.seen;
+  if (args.forced) return true;
+  if (args.hasJournal === false) return false;
+  return !args.seen;
 }

@@ -134,7 +134,7 @@ describe("LibSQL / Turso path (local file: smoke)", () => {
       args: ["schema_version"],
     });
     const row = version.rows[0] as unknown as Record<string, unknown> | undefined;
-    expect(String(row?.value ?? row?.[0] ?? "")).toBe("12");
+    expect(String(row?.value ?? row?.[0] ?? "")).toBe(String(SCHEMA_VERSION));
     const leftover = await client.execute("SELECT id, photo_path FROM catches ORDER BY id");
     const ids = leftover.rows.map((r) => String((r as unknown as Record<string, unknown>).id ?? r[0]));
     expect(ids).toEqual(["mine-1"]);

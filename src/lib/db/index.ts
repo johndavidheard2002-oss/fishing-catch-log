@@ -68,8 +68,11 @@ CREATE TABLE IF NOT EXISTS anglers (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   invite_code TEXT NOT NULL UNIQUE,
+  email TEXT,
+  password_hash TEXT,
   created_at TEXT NOT NULL
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email);
 
 CREATE TABLE IF NOT EXISTS buddy_links (
   id TEXT PRIMARY KEY,
@@ -146,7 +149,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 `;
 
 /** File SQLite uses PRAGMA user_version. LibSQL/Turso stores the same number in schema_meta. */
-export const SCHEMA_VERSION = 12;
+export const SCHEMA_VERSION = 13;
 const SCHEMA_META_KEY = "schema_version";
 
 /**
@@ -460,6 +463,17 @@ function migrate(sqlite: Database.Database) {
     sqlite.exec(PURGE_SAMPLE_BAIT_SQL);
     sqlite.pragma("user_version = 12");
   }
+  const anglerCols = tableColumns(sqlite, "anglers");
+  if (!anglerCols.includes("email")) {
+    sqlite.exec(`ALTER TABLE anglers ADD COLUMN email TEXT`);
+  }
+  if (!anglerCols.includes("password_hash")) {
+    sqlite.exec(`ALTER TABLE anglers ADD COLUMN password_hash TEXT`);
+  }
+  sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email)`);
+  if (version < 13) {
+    sqlite.pragma("user_version = 13");
+  }
 }
 
 async function libsqlColumns(client: Client, table: string): Promise<string[]> {
@@ -521,6 +535,15 @@ export async function migrateLibsql(client: Client) {
   }
   await client.execute("CREATE INDEX IF NOT EXISTS idx_catches_habitat ON catches(habitat)");
   await client.execute("CREATE INDEX IF NOT EXISTS idx_catches_angler ON catches(angler_id)");
+
+  const anglerCols = await libsqlColumns(client, "anglers");
+  if (!anglerCols.includes("email")) {
+    await client.execute("ALTER TABLE anglers ADD COLUMN email TEXT");
+  }
+  if (!anglerCols.includes("password_hash")) {
+    await client.execute("ALTER TABLE anglers ADD COLUMN password_hash TEXT");
+  }
+  await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email)");
 
   const version = await libsqlSchemaVersion(client);
   if (version < 7) {

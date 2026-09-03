@@ -46,6 +46,8 @@ export const anglers = sqliteTable("anglers", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   inviteCode: text("invite_code").notNull(),
+  email: text("email"),
+  passwordHash: text("password_hash"),
   createdAt: text("created_at").notNull(),
 });
 

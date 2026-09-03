@@ -29,18 +29,20 @@ describe("setup seen flag", () => {
     memory.clear();
   });
 
-  it("starts unseen and stays set after complete or skip", () => {
+  it("starts unseen per journal and stays set after complete or skip", () => {
     Object.defineProperty(globalThis, "localStorage", { value: fakeStorage, configurable: true });
-    expect(setupSeen()).toBe(false);
-    markSetupSeen();
-    expect(setupSeen()).toBe(true);
-    expect(memory.get(SETUP_KEY)).toBe("1");
+    expect(setupSeen("a")).toBe(false);
+    markSetupSeen("a");
+    expect(setupSeen("a")).toBe(true);
+    expect(setupSeen("b")).toBe(false);
+    expect(memory.get(`${SETUP_KEY}:a`)).toBe("1");
   });
 
   it("shows the first-run dialog only after client read, when unseen or forced", () => {
-    expect(shouldShowFirstRun({ ready: false, seen: false, forced: false })).toBe(false);
-    expect(shouldShowFirstRun({ ready: true, seen: false, forced: false })).toBe(true);
-    expect(shouldShowFirstRun({ ready: true, seen: true, forced: false })).toBe(false);
-    expect(shouldShowFirstRun({ ready: true, seen: true, forced: true })).toBe(true);
+    expect(shouldShowFirstRun({ ready: false, seen: false, forced: false, hasJournal: true })).toBe(false);
+    expect(shouldShowFirstRun({ ready: true, seen: false, forced: false, hasJournal: false })).toBe(false);
+    expect(shouldShowFirstRun({ ready: true, seen: false, forced: false, hasJournal: true })).toBe(true);
+    expect(shouldShowFirstRun({ ready: true, seen: true, forced: false, hasJournal: true })).toBe(false);
+    expect(shouldShowFirstRun({ ready: true, seen: true, forced: true, hasJournal: true })).toBe(true);
   });
 });

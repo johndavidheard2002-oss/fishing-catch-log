@@ -63,7 +63,7 @@ Everything is editable if GPS or weather fail. Species is always yours to tag.
 
 ## Data
 
-SQLite via Drizzle (`data/cast-log.sqlite` by default). Set `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` to use the same schema on Turso. User photos land in `data/uploads/` (gitignored) unless `UPLOADS_DIR` is set. Seed illustrations live in `public/seed/`.
+SQLite via Drizzle (`data/cast-log.sqlite` by default). Set `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` to use the same schema on Turso. On a shared host set `SESSION_SECRET` so sign-in cookies stay valid across deploys. User photos land in `data/uploads/` (gitignored) unless `UPLOADS_DIR` is set. Seed illustrations live in `public/seed/`.
 
 Delete the `data/` folder to reset a **local** journal. A Turso database is independent of that folder.
 

@@ -1,11 +1,36 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { AuthForm } from "@/components/AuthForm";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { BuddyPanel } from "@/components/BuddyPanel";
 import { FirstHelpTip } from "@/components/HelpGuide";
 
+type MeState = {
+  signedIn: boolean;
+  name: string;
+  claimed: boolean;
+  ready: boolean;
+};
+
 export function HomeClient() {
+  const [me, setMe] = useState<MeState>({ signedIn: false, name: "", claimed: false, ready: false });
+
+  useEffect(() => {
+    fetch("/api/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        setMe({
+          signedIn: Boolean(data.signedIn),
+          name: data.me?.name ?? "",
+          claimed: Boolean(data.me?.claimed),
+          ready: true,
+        });
+      })
+      .catch(() => setMe((current) => ({ ...current, ready: true })));
+  }, []);
+
   return (
     <div className="space-y-6">
       <section className="page-intro home-lockup mx-auto w-fit text-center">
@@ -13,6 +38,14 @@ export function HomeClient() {
       </section>
 
       <FirstHelpTip />
+
+      {me.ready && !me.signedIn ? (
+        <AuthForm
+          defaultName={me.name === "You" ? "" : me.name}
+          claimExisting={me.claimed === false}
+          onSignedIn={(name) => setMe({ signedIn: true, name, claimed: true, ready: true })}
+        />
+      ) : null}
 
       <div className="grid grid-cols-2 gap-2">
         <Link

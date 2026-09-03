@@ -3,9 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
+import { signSession } from "./auth";
 import { createAngler, linkAnglers, listHouseholdProfiles, seedDefaultAngler } from "./db/anglers";
 import { getDb, resetDbForTests } from "./db/index";
-import { ANGLER_COOKIE, resolveViewerId, viewerIdFromRequest } from "./viewer";
+import { registerJournal } from "./auth";
+import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerId, viewerIdFromRequest } from "./viewer";
 
 describe("viewer identity is per browser", () => {
   const previousPath = process.env.DATABASE_PATH;
@@ -64,6 +66,38 @@ describe("viewer identity is per browser", () => {
     const claimed = await resolveViewerId(minted);
     expect(claimed).toBe(minted);
     expect(claimed).not.toBe(first.id);
+  });
+
+  it("does not reuse a claimed journal from an anonymous cookie", async () => {
+    freshJournal();
+    const pat = await createAngler("Pat");
+    const claimed = await registerJournal({
+      viewerId: pat.id,
+      name: "Pat",
+      email: "pat@gulf.com",
+      password: "password1",
+      confirm: "password1",
+    });
+    expect(claimed.ok).toBe(true);
+    const next = await viewerIdFromRequest(requestWithCookie(pat.id));
+    expect(next).not.toBe(pat.id);
+  });
+
+  it("prefers a signed session over the anonymous cookie", async () => {
+    freshJournal();
+    const pat = await createAngler("Pat");
+    await registerJournal({
+      viewerId: pat.id,
+      name: "Pat",
+      email: "pat@gulf.com",
+      password: "password1",
+      confirm: "password1",
+    });
+    const other = await createAngler("Other");
+    const headers = new Headers();
+    headers.set("cookie", `${ANGLER_COOKIE}=${other.id}; ${SESSION_COOKIE}=${signSession(pat.id)}`);
+    const id = await viewerIdFromRequest(new NextRequest("http://localhost/api/me", { headers }));
+    expect(id).toBe(pat.id);
   });
 
   it("lists only this journal plus linked friends, not every angler", async () => {

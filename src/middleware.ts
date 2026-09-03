@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ANGLER_COOKIE, VIEWER_COOKIE } from "@/lib/viewer-cookie";
+import { ANGLER_COOKIE, SESSION_COOKIE, VIEWER_COOKIE } from "@/lib/viewer-cookie";
 
 function withAnglerCookie(header: string | null, id: string): string {
   const parts = (header ?? "")
@@ -12,8 +12,9 @@ function withAnglerCookie(header: string | null, id: string): string {
 
 /** Mint a journal cookie before SSR/API so one browser does not create several anglers. */
 export function middleware(request: NextRequest) {
+  const session = request.cookies.get(SESSION_COOKIE)?.value?.trim();
   const existing = request.cookies.get(ANGLER_COOKIE)?.value?.trim();
-  if (existing) return NextResponse.next();
+  if (existing || session) return NextResponse.next();
 
   const id = crypto.randomUUID();
   const headers = new Headers(request.headers);

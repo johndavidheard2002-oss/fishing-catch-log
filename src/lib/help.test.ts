@@ -9,6 +9,7 @@ describe("HELP_SECTIONS", () => {
       "Log bait",
       "Plan a day",
       "Calendar Log",
+      "Your journal",
       "Share with a friend",
       "Spots",
       "Backfill",
@@ -24,6 +25,9 @@ describe("HELP_SECTIONS", () => {
         step.includes("keep the whole batch"),
       ),
     ).toBe(true);
+    const journal = HELP_SECTIONS.find((section) => section.title === "Your journal")?.steps ?? [];
+    expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
+    expect(journal.some((step) => step.includes("Log out"))).toBe(true);
     const share = HELP_SECTIONS.find((section) => section.title === "Share with a friend")?.steps ?? [];
     expect(share.some((step) => step.includes("More") && step.includes("Linked friends") && step.includes("Link"))).toBe(
       true,
