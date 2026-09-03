@@ -19,6 +19,7 @@ import {
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
   formatCoords,
+  requestDeviceGps,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
 } from "@/lib/location";
@@ -260,6 +261,7 @@ export function CatchForm({
   const liveGpsRequestRef = useRef<Promise<{ latitude: number; longitude: number } | null> | null>(
     null,
   );
+  const liveGpsSettledRef = useRef(false);
 
   useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
@@ -337,16 +339,23 @@ export function CatchForm({
   }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked]);
 
   function requestLiveGps() {
-    if (pastMode) return;
-    liveGpsRequestRef.current = getPosition().then((geo) => {
-      if (!geo) {
-        pendingLiveGpsRef.current = null;
-        return null;
-      }
-      const gps = { latitude: geo.coords.latitude, longitude: geo.coords.longitude };
-      pendingLiveGpsRef.current = gps;
-      return gps;
-    });
+    if (pastMode) return Promise.resolve(null);
+    // A later Camera tap must not wait again — iPhone may need that same
+    // gesture to open the camera if the first post-permission click was ignored.
+    if (liveGpsSettledRef.current) return Promise.resolve(pendingLiveGpsRef.current);
+    if (!liveGpsRequestRef.current) {
+      liveGpsRequestRef.current = requestDeviceGps().then((gps) => {
+        pendingLiveGpsRef.current = gps;
+        liveGpsSettledRef.current = true;
+        const next = resolveLiveCameraCatchPin({
+          userMovedCatchPin: catchPinUserMovedRef.current,
+          deviceGps: gps,
+        });
+        if (next) void applyResolvedPin(next);
+        return gps;
+      });
+    }
+    return liveGpsRequestRef.current;
   }
 
   async function applyResolvedPin(next: {
@@ -428,9 +437,7 @@ export function CatchForm({
       const deviceGps =
         pendingLiveGpsRef.current ??
         (liveGpsRequestRef.current ? await liveGpsRequestRef.current : null) ??
-        (await getPosition().then((geo) =>
-          geo ? { latitude: geo.coords.latitude, longitude: geo.coords.longitude } : null,
-        ));
+        (await requestDeviceGps());
       pendingLiveGpsRef.current = deviceGps;
       const next = resolveLiveCameraCatchPin({
         userMovedCatchPin: catchPinUserMovedRef.current,
@@ -462,10 +469,7 @@ export function CatchForm({
       const photoGps = pendingPhotoGpsRef.current;
       let deviceGps: { latitude: number; longitude: number } | null = null;
       if (!photoGps && !pastMode) {
-        const geo = await getPosition();
-        if (geo) {
-          deviceGps = { latitude: geo.coords.latitude, longitude: geo.coords.longitude };
-        }
+        deviceGps = pendingLiveGpsRef.current ?? (await requestDeviceGps());
       }
 
       const next = resolveCatchPinAfterPhotoAnswer({
@@ -1289,17 +1293,6 @@ function numOrNull(value: string): number | null {
   if (!value.trim()) return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
-}
-
-function getPosition(): Promise<GeolocationPosition | null> {
-  if (!navigator.geolocation) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve(pos),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
-    );
-  });
 }
 
 function CatchLocationFields({

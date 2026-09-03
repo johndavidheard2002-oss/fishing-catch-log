@@ -17,7 +17,7 @@ describe("HELP_SECTIONS", () => {
     ]);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
-        step.includes("this phone’s location"),
+        step.includes("this phone’s location") && step.includes("allow"),
       ),
     ).toBe(true);
     expect(

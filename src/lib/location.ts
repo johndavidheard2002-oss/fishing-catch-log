@@ -6,6 +6,63 @@ export type PhotoGps = { latitude: number; longitude: number };
 
 export const DROP_CATCH_PIN_HINT = "Drop a pin on the map for where you caught it.";
 
+/** Used by live Log Camera so iPhone can show the location dialog before the camera sheet. */
+export const LIVE_GPS_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 8000,
+  maximumAge: 60_000,
+};
+
+export type DeviceGeolocation = {
+  getCurrentPosition: (
+    success: (position: { coords: { latitude: number; longitude: number } }) => void,
+    error?: () => void,
+    options?: PositionOptions,
+  ) => void;
+};
+
+/**
+ * One-shot GPS. Errors, timeouts, and missing geolocation all resolve null
+ * so live Log can still open the camera and let them drop a pin by hand.
+ */
+export function requestDeviceGps(
+  geolocation: DeviceGeolocation | null | undefined = typeof navigator !== "undefined"
+    ? navigator.geolocation
+    : undefined,
+  options: PositionOptions = LIVE_GPS_OPTIONS,
+): Promise<PhotoGps | null> {
+  if (!geolocation) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    geolocation.getCurrentPosition(
+      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      () => resolve(null),
+      options,
+    );
+  });
+}
+
+/**
+ * Await this tap’s location request, then open the camera.
+ * On iPhone Safari the camera sheet steals the same gesture if both start together,
+ * so the system location dialog never appears.
+ */
+export async function awaitLiveLocationThenOpenCamera(args: {
+  requestLocation?: () => void | Promise<unknown>;
+  openCamera: () => void;
+  alreadyAsked?: boolean;
+}): Promise<void> {
+  if (args.alreadyAsked || !args.requestLocation) {
+    args.openCamera();
+    return;
+  }
+  try {
+    await args.requestLocation();
+  } catch {
+    /* deny / timeout / unsupported — still open the camera */
+  }
+  args.openCamera();
+}
+
 /** Auto-place from the photo unless the angler already moved this catch’s pin. */
 export function shouldApplyPhotoGpsToCatch(userMovedCatchPin: boolean): boolean {
   return !userMovedCatchPin;

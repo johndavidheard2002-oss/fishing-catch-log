@@ -12,7 +12,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Log a catch",
     steps: [
       "Tap Log, then take or pick one photo.",
-      "A live camera shot pins from this phone’s location. Camera-roll photos still ask Yes or No before a pin.",
+      "Tap Camera — allow this phone’s location when asked, then the camera opens. Camera-roll photos still ask Yes or No before a pin.",
       "Drop the pin on the water you fished.",
       "Name the area if you want — leave it blank if the map already named it.",
       "Save. One photo is one trip at one pin.",

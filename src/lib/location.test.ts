@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  awaitLiveLocationThenOpenCamera,
   catchPinFromPhotoGps,
   classifyCatchPinEdit,
   coordsLookDifferent,
+  requestDeviceGps,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
   shouldApplyPhotoGpsToCatch,
@@ -28,6 +30,83 @@ describe("shouldAutoPlaceCatchPin", () => {
 
   it("still will not overwrite a pin the angler already moved", () => {
     expect(shouldAutoPlaceCatchPin({ photoTakenAtCatch: true, userMovedCatchPin: true })).toBe(false);
+  });
+});
+
+describe("requestDeviceGps", () => {
+  it("returns coords when the phone shares a location", async () => {
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+      ) {
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
+      },
+    };
+    await expect(requestDeviceGps(geo)).resolves.toEqual({ latitude: 29.15, longitude: -96.88 });
+  });
+
+  it("returns null when location is denied, times out, or is missing", async () => {
+    const denied = {
+      getCurrentPosition(
+        _success: (position: { coords: { latitude: number; longitude: number } }) => void,
+        error?: () => void,
+      ) {
+        error?.();
+      },
+    };
+    await expect(requestDeviceGps(denied)).resolves.toBeNull();
+    await expect(requestDeviceGps(null)).resolves.toBeNull();
+  });
+});
+
+describe("awaitLiveLocationThenOpenCamera", () => {
+  it("waits for location, then opens the camera", async () => {
+    const order: string[] = [];
+    await awaitLiveLocationThenOpenCamera({
+      requestLocation: async () => {
+        order.push("location");
+      },
+      openCamera: () => {
+        order.push("camera");
+      },
+    });
+    expect(order).toEqual(["location", "camera"]);
+  });
+
+  it("still opens the camera when location is denied or times out", async () => {
+    const openCamera = vi.fn();
+    await awaitLiveLocationThenOpenCamera({
+      requestLocation: async () => null,
+      openCamera,
+    });
+    expect(openCamera).toHaveBeenCalledOnce();
+
+    openCamera.mockClear();
+    await awaitLiveLocationThenOpenCamera({
+      requestLocation: async () => {
+        throw new Error("timeout");
+      },
+      openCamera,
+    });
+    expect(openCamera).toHaveBeenCalledOnce();
+  });
+
+  it("opens the camera when there is no live location hook (camera roll / bait)", async () => {
+    const openCamera = vi.fn();
+    await awaitLiveLocationThenOpenCamera({ openCamera });
+    expect(openCamera).toHaveBeenCalledOnce();
+  });
+
+  it("opens the camera in the same tap after location was already asked", async () => {
+    const requestLocation = vi.fn();
+    const openCamera = vi.fn();
+    await awaitLiveLocationThenOpenCamera({
+      alreadyAsked: true,
+      requestLocation,
+      openCamera,
+    });
+    expect(requestLocation).not.toHaveBeenCalled();
+    expect(openCamera).toHaveBeenCalledOnce();
   });
 });
 

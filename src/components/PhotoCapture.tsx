@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { awaitLiveLocationThenOpenCamera } from "@/lib/location";
 
 export type PhotoSource = "camera" | "library";
 
@@ -19,7 +20,7 @@ export function PhotoCapture({
 }: {
   previewUrl: string | null;
   onFile: (file: File, source: PhotoSource) => void;
-  onLiveCapture?: () => void;
+  onLiveCapture?: () => void | Promise<unknown>;
   busy?: boolean;
   emphasis?: "camera" | "library";
   emptyTitle?: string;
@@ -30,15 +31,34 @@ export function PhotoCapture({
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
+  const openingRef = useRef(false);
+  const locationAskedRef = useRef(false);
+  const [locating, setLocating] = useState(false);
 
-  function openCamera() {
-    onLiveCapture?.();
-    cameraRef.current?.click();
+  async function openCamera() {
+    if (openingRef.current) return;
+    const alreadyAsked = !onLiveCapture || locationAskedRef.current;
+    if (alreadyAsked) {
+      cameraRef.current?.click();
+      return;
+    }
+    openingRef.current = true;
+    setLocating(true);
+    try {
+      await awaitLiveLocationThenOpenCamera({
+        requestLocation: onLiveCapture,
+        openCamera: () => cameraRef.current?.click(),
+      });
+      locationAskedRef.current = true;
+    } finally {
+      setLocating(false);
+      openingRef.current = false;
+    }
   }
 
   const pick = () => {
     if (libraryOnly) libraryRef.current?.click();
-    else openCamera();
+    else void openCamera();
   };
   const hint =
     emptyHint === undefined
@@ -61,6 +81,7 @@ export function PhotoCapture({
         <button
           type="button"
           onClick={pick}
+          disabled={locating}
           className="block h-full w-full"
         >
           {previewUrl ? (
@@ -85,7 +106,11 @@ export function PhotoCapture({
             variant="overlay"
           />
         ) : null}
-        {busy && previewUrl ? (
+        {locating ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/40 text-sm font-semibold text-white">
+            Getting location…
+          </div>
+        ) : busy && previewUrl ? (
           <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-ink/80 px-2.5 py-1 text-xs font-semibold text-white">
             Reading the photo…
           </span>
@@ -99,12 +124,14 @@ export function PhotoCapture({
         {libraryOnly ? null : (
           <button
             type="button"
+            data-testid="live-camera"
+            disabled={locating}
             className={`rounded-xl px-3 py-3 text-sm font-semibold ${
               emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
             }`}
-            onClick={openCamera}
+            onClick={() => void openCamera()}
           >
-            Camera
+            {locating ? "Locating…" : "Camera"}
           </button>
         )}
         <button
