@@ -462,6 +462,12 @@ export async function buildPlan(
   };
 }
 
+/** Standing demo/source labels stay off Plan. Surface only a real lookup failure. */
+export function planLookupFailureNote(note: string | null | undefined): string | null {
+  if (!note || !/failed/i.test(note)) return null;
+  return "Weather or tide lookup failed for this day. Matches still use your log.";
+}
+
 function hashSpot(key: string): number {
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;

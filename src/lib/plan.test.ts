@@ -5,6 +5,7 @@ import {
   isPositiveCatch,
   parsePlanDate,
   planHeadline,
+  planLookupFailureNote,
   planWhyChips,
   scoreWindowAgainstBait,
   scoreWindowAgainstCatch,
@@ -340,5 +341,22 @@ describe("parsePlanDate", () => {
     expect(parsePlanDate("not-a-day")).toBeNull();
     expect(parsePlanDate("2026-13-40")).toBeNull();
     expect(parsePlanDate(null)).toBeNull();
+  });
+});
+
+describe("planLookupFailureNote", () => {
+  it("stays quiet for demo or live source notes", () => {
+    expect(planLookupFailureNote("Demo forecast (no OpenWeather key). Patterned from season.")).toBeNull();
+    expect(planLookupFailureNote("Upcoming conditions from OpenWeather 5-day forecast.")).toBeNull();
+    expect(planLookupFailureNote("Pick a day to plan.")).toBeNull();
+    expect(planLookupFailureNote("")).toBeNull();
+  });
+
+  it("surfaces a short note only when a lookup actually failed", () => {
+    expect(
+      planLookupFailureNote(
+        "OpenWeather forecast failed — using demo forecast. Suggestions are still pattern matches.",
+      ),
+    ).toBe("Weather or tide lookup failed for this day. Matches still use your log.");
   });
 });

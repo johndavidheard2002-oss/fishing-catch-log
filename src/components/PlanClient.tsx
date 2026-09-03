@@ -11,7 +11,7 @@ import { speciesLabel } from "@/lib/species";
 import { PlanDayNotes } from "@/components/CalendarNotes";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
 import { groupNotesByDay } from "@/lib/notes";
-import { parsePlanDate, planWhyChips } from "@/lib/plan";
+import { parsePlanDate, planLookupFailureNote, planWhyChips } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { conditionLabel, VERY_STRONG_MATCH_CHIP, VERY_STRONG_MATCH_LABEL } from "@/lib/similar";
 import type {
@@ -149,6 +149,7 @@ export function PlanClient({
 
   const suggestions = plan?.suggestions ?? [];
   const baitSuggestions = plan?.baitSuggestions ?? [];
+  const lookupFailure = planLookupFailureNote(plan?.note);
   const notesByDay = groupNotesByDay(notes);
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
@@ -200,15 +201,9 @@ export function PlanClient({
             onUpdate={onUpdateNote}
             onDelete={onDeleteNote}
           />
-          {plan ? (
-            <p className="rounded-2xl border border-line bg-card px-3 py-2 text-xs text-ink-muted">
-              {plan.weatherSource === "demo" || plan.tideSource === "demo"
-                ? "Demo forecast/tides until you add API keys. "
-                : "Live forecast"}
-              {plan.weatherSource === "openweather" ? " Weather: OpenWeather. " : null}
-              {plan.tideSource === "worldtides" ? " Tides: WorldTides. " : null}
-              Suggestions compare tide stage and height, clock time, sky, temp, and wind
-              against productive trips and bait spots for {formatWeekdayDate(selectedDay)}.
+          {lookupFailure ? (
+            <p className="on-wash-chip text-xs text-ink-muted" data-testid="plan-lookup-failure">
+              {lookupFailure}
             </p>
           ) : null}
           {!plan && !error ? (
@@ -441,9 +436,6 @@ function SuggestionCard({
           </button>
         </div>
       ) : null}
-      <p className="px-3 pt-2 text-[11px] text-ink-muted">
-        Photos are from the matching trips you logged — never stock or placeholder fish.
-      </p>
       <ul className="space-y-2 px-3 py-3">
         {matchPhotos.map((m) => (
           <li key={m.id} className="flex items-start gap-2">

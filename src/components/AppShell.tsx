@@ -239,7 +239,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <HelpButton />
-            {demo ? (
+            {demo && !pathname.startsWith("/plan") ? (
               <span className="rounded-full border border-line bg-card px-2 py-0.5 text-[10px] text-ink-muted">
                 Demo APIs
               </span>
