@@ -60,7 +60,8 @@ export function ScanLibraryClient() {
   const router = useRouter();
   const photosRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
-  const blobUrls = useRef(new Map<string, string>());
+  const [blobThumbs, setBlobThumbs] = useState<Record<string, string>>({});
+  const blobThumbsRef = useRef<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
@@ -79,33 +80,43 @@ export function ScanLibraryClient() {
   }, []);
 
   useEffect(() => {
-    const blobs = blobUrls.current;
+    blobThumbsRef.current = blobThumbs;
+  }, [blobThumbs]);
+
+  useEffect(() => {
     return () => {
-      for (const url of blobs.values()) URL.revokeObjectURL(url);
-      blobs.clear();
+      for (const url of Object.values(blobThumbsRef.current)) URL.revokeObjectURL(url);
     };
   }, []);
 
   function thumbSrc(photoPath: string): string | null {
-    return blobUrls.current.get(photoPath) ?? photoSrc(photoPath);
+    return blobThumbs[photoPath] ?? photoSrc(photoPath);
   }
 
   function rememberBlob(photoPath: string, file: File) {
-    const previous = blobUrls.current.get(photoPath);
-    if (previous) URL.revokeObjectURL(previous);
-    blobUrls.current.set(photoPath, URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    setBlobThumbs((current) => {
+      const previous = current[photoPath];
+      if (previous) URL.revokeObjectURL(previous);
+      return { ...current, [photoPath]: url };
+    });
   }
 
   function revokeBlob(photoPath: string) {
-    const url = blobUrls.current.get(photoPath);
-    if (!url) return;
-    URL.revokeObjectURL(url);
-    blobUrls.current.delete(photoPath);
+    setBlobThumbs((current) => {
+      const previous = current[photoPath];
+      if (previous) URL.revokeObjectURL(previous);
+      const next = { ...current };
+      delete next[photoPath];
+      return next;
+    });
   }
 
   function revokeAllBlobs() {
-    for (const url of blobUrls.current.values()) URL.revokeObjectURL(url);
-    blobUrls.current.clear();
+    setBlobThumbs((current) => {
+      for (const url of Object.values(current)) URL.revokeObjectURL(url);
+      return {};
+    });
   }
 
   async function onFiles(list: FileList | null) {
