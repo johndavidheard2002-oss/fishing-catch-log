@@ -15,14 +15,16 @@ export { ANGLER_COOKIE, SESSION_COOKIE, VIEWER_COOKIE, clearAuthCookies, expireS
 export const SIGN_IN_REQUIRED = "Sign in required.";
 
 /** Leftover anonymous cookies never open a journal. */
-export async function resolveViewerId(_cookieValue?: string | null): Promise<string> {
+export async function resolveViewerId(cookieValue?: string | null): Promise<string> {
+  void cookieValue;
   return "";
 }
 
 export async function resolveViewerFromCookies(
-  _anonCookie?: string | null,
+  anonCookie?: string | null,
   sessionCookie?: string | null,
 ): Promise<{ id: string; signedIn: boolean }> {
+  void anonCookie;
   const sessionId = readSession(sessionCookie);
   if (sessionId) {
     const angler = await getAngler(sessionId);
