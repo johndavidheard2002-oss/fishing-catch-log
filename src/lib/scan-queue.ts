@@ -62,7 +62,7 @@ export function isUserPickedScanBatch(items: { origin?: ScanBatchOrigin }[]): bo
 /** User-chosen photos are never ranked or labeled unlikely. */
 export function asPickedScanItems<T extends { likely?: boolean; origin?: ScanBatchOrigin }>(
   items: T[],
-): Array<T & { likely: true; origin: "picked" }> {
+): Array<Omit<T, "likely" | "origin"> & { likely: true; origin: "picked" }> {
   return items.map((item) => ({ ...item, likely: true as const, origin: "picked" as const }));
 }
 
