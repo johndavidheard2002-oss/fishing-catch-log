@@ -162,7 +162,7 @@ export function PlanClient({
         <p className="text-sm text-ink-muted">
           Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
           produced — including very strong matches with matching tides. Add a note for that day if
-          you want. Tap a match photo to open that trip. Show on map for the hole.
+          you want. Tap a match to open that trip. Show spot on map for the hole.
         </p>
       </div>
 
@@ -365,113 +365,117 @@ function SuggestionCard({
       photoPath: m.catch.photoPath,
     }),
   }));
-  const firstPhoto = matchPhotos.find((m) => m.src);
+  const primary = matchPhotos[0];
   const canMap = suggestion.latitude != null && suggestion.longitude != null;
+  if (!primary) return null;
+
+  function openSpotMap(event: { preventDefault: () => void; stopPropagation: () => void }) {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenMap();
+  }
+
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
-      <div className="flex gap-3 p-3">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
-          {firstPhoto?.src ? (
-            <Link
-              href={`/catch/${firstPhoto.id}`}
-              className={`h-full w-full ${TAP_RESET}`}
-              aria-label={`${firstPhoto.species} catch`}
-              data-testid="plan-match-photo"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={firstPhoto.src} alt={firstPhoto.species} className="h-full w-full object-cover" />
-            </Link>
-          ) : (
-            <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">
-              No photo from that trip
-            </span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <button
-              type="button"
-              onClick={canMap ? onOpenMap : undefined}
-              disabled={!canMap}
-              className={`min-w-0 text-left ${TAP_RESET}`}
-            >
-              <span className="font-semibold">{suggestion.placeName}</span>
-              {canMap ? (
-                <span className="text-[11px] font-semibold text-teal">Show on map</span>
-              ) : null}
-            </button>
-            <StrengthBadge strength={suggestion.strength} />
-          </div>
-          <p className="text-sm text-ink-muted">
-            {TIME_OF_DAY_LABELS[w.timeOfDay]}
-            {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
-            {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
-            {w.windSpeedMph != null
-              ? ` · ${w.windDirection ? `${w.windDirection} ` : ""}${Math.round(w.windSpeedMph)} mph`
-              : w.windDirection
-                ? ` · ${w.windDirection}`
-                : ""}
-            {w.moonPhase ? ` · ${w.moonPhase}` : ""}
-            {w.pressureInHg != null ? ` · ${w.pressureInHg.toFixed(2)} inHg` : ""}
-            {w.tide ? ` · ${w.tide} tide` : ""}
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={canMap ? onOpenMap : undefined}
-        disabled={!canMap}
-        className={`w-full px-3 pb-2 text-left text-sm ${TAP_RESET}`}
+      <Link
+        href={`/catch/${primary.id}`}
+        className={`block p-3 ${TAP_RESET}`}
+        aria-label={`${primary.species} catch`}
+        data-testid="plan-match-card"
       >
-        {suggestion.headline}
-      </button>
-      {suggestion.strength === "very-strong" ? (
-        <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+        <div className="flex gap-3">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
+            {primary.src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={primary.src} alt="" className="h-full w-full object-cover" data-testid="plan-match-photo" />
+            ) : (
+              <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">
+                No photo from that trip
+              </span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-semibold">{suggestion.placeName}</span>
+              <StrengthBadge strength={suggestion.strength} />
+            </div>
+            <p className="text-sm text-ink-muted">
+              {TIME_OF_DAY_LABELS[w.timeOfDay]}
+              {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
+              {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
+              {w.windSpeedMph != null
+                ? ` · ${w.windDirection ? `${w.windDirection} ` : ""}${Math.round(w.windSpeedMph)} mph`
+                : w.windDirection
+                  ? ` · ${w.windDirection}`
+                  : ""}
+              {w.moonPhase ? ` · ${w.moonPhase}` : ""}
+              {w.pressureInHg != null ? ` · ${w.pressureInHg.toFixed(2)} inHg` : ""}
+              {w.tide ? ` · ${w.tide} tide` : ""}
+            </p>
+          </div>
+        </div>
+        <p className="pt-2 text-sm">{suggestion.headline}</p>
+        {suggestion.strength === "very-strong" ? (
+          <p className="pt-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+        ) : null}
+        <div className="pt-1">
+          <MatchWhy
+            reasons={suggestion.reasons}
+            strength={suggestion.strength}
+            placeName={suggestion.placeName}
+            species={primary.species}
+            timeOfDay={w.timeOfDay}
+          />
+        </div>
+      </Link>
+      {canMap ? (
+        <div className="px-3 pb-1">
+          <button
+            type="button"
+            onClick={openSpotMap}
+            onPointerDown={(event) => event.stopPropagation()}
+            className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
+            data-testid="plan-show-spot-map"
+          >
+            Show spot on map
+          </button>
+        </div>
       ) : null}
-      <MatchWhy
-        reasons={suggestion.reasons}
-        strength={suggestion.strength}
-        placeName={suggestion.placeName}
-        species={speciesLabel(
-          suggestion.matches[0]?.catch.speciesList?.length
-            ? suggestion.matches[0].catch.speciesList
-            : suggestion.matches[0]?.catch.species,
-        )}
-        timeOfDay={w.timeOfDay}
-      />
       <p className="px-3 pt-2 text-[11px] text-ink-muted">
         Photos are from the matching trips you logged — never stock or placeholder fish.
       </p>
       <ul className="space-y-2 px-3 py-3">
         {matchPhotos.map((m) => (
-          <li key={m.id} className="flex gap-2">
-            {m.src ? (
-              <Link
-                href={`/catch/${m.id}`}
-                className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep ${TAP_RESET}`}
-                aria-label={`${m.species} catch`}
-                data-testid="plan-match-photo"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={m.src} alt={m.species} className="h-full w-full object-cover" />
-              </Link>
-            ) : (
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
-                No photo
-              </span>
-            )}
-            <div className="min-w-0">
-              <Link href={`/catch/${m.id}`} className={`text-sm font-semibold text-teal ${TAP_RESET}`}>
-                {m.species} · {m.date}
-              </Link>
+          <li key={m.id} className="flex items-start gap-2">
+            <Link
+              href={`/catch/${m.id}`}
+              className={`flex min-w-0 flex-1 gap-2 ${TAP_RESET}`}
+              aria-label={`${m.species} catch`}
+              data-testid="plan-match-row"
+            >
               {m.src ? (
-                <SaveToPhotosButton src={m.src} filename={m.filename} variant="text" />
-              ) : null}
-              {showOwner ? (
-                <p className="text-[11px] font-semibold text-copper">{m.ownerName}</p>
-              ) : null}
-              <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
-            </div>
+                <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={m.src} alt="" className="h-full w-full object-cover" data-testid="plan-match-photo" />
+                </span>
+              ) : (
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
+                  No photo
+                </span>
+              )}
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-teal">
+                  {m.species} · {m.date}
+                </span>
+                {showOwner ? (
+                  <span className="block text-[11px] font-semibold text-copper">{m.ownerName}</span>
+                ) : null}
+                <span className="block text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</span>
+              </span>
+            </Link>
+            {m.src ? (
+              <SaveToPhotosButton src={m.src} filename={m.filename} variant="text" />
+            ) : null}
           </li>
         ))}
       </ul>
@@ -492,97 +496,102 @@ function BaitSuggestionCard({
   const first = suggestion.matches[0]?.baitSpot;
   const src = first ? personalPhotoSrc(first.photoPath) : null;
   const canMap = suggestion.latitude != null && suggestion.longitude != null;
+  if (!first) return null;
+
+  function openSpotMap(event: { preventDefault: () => void; stopPropagation: () => void }) {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenMap();
+  }
+
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
-      <div className="flex gap-3 p-3">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
-          {src && first ? (
-            <Link
-              href={`/bait/${first.id}`}
-              className={`h-full w-full ${TAP_RESET}`}
-              aria-label={`${baitTypesLabel(first.baitTypes)} bait spot`}
-              data-testid="plan-bait-photo"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="h-full w-full object-cover" />
-            </Link>
-          ) : (
-            <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">Bait</span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <button
-              type="button"
-              onClick={canMap ? onOpenMap : undefined}
-              disabled={!canMap}
-              className={`min-w-0 text-left ${TAP_RESET}`}
-            >
-              <span className="font-semibold">{suggestion.placeName}</span>
-              {canMap ? (
-                <span className="text-[11px] font-semibold text-teal">Show on map</span>
-              ) : null}
-            </button>
-            <StrengthBadge strength={suggestion.strength} />
-          </div>
-          <p className="text-sm text-ink-muted">
-            {baitTypesLabel(suggestion.baitTypes)} · {TIME_OF_DAY_LABELS[w.timeOfDay]}
-            {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
-            {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
-            {w.tide ? ` · ${w.tide} tide` : ""}
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={canMap ? onOpenMap : undefined}
-        disabled={!canMap}
-        className={`w-full px-3 pb-2 text-left text-sm ${TAP_RESET}`}
+      <Link
+        href={`/bait/${first.id}`}
+        className={`block p-3 ${TAP_RESET}`}
+        aria-label={`${baitTypesLabel(first.baitTypes)} bait spot`}
+        data-testid="plan-bait-card"
       >
-        {suggestion.headline}
-      </button>
-      {suggestion.strength === "very-strong" ? (
-        <p className="px-3 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+        <div className="flex gap-3">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
+            {src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={src} alt="" className="h-full w-full object-cover" data-testid="plan-bait-photo" />
+            ) : (
+              <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">Bait</span>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <span className="font-semibold">{suggestion.placeName}</span>
+              <StrengthBadge strength={suggestion.strength} />
+            </div>
+            <p className="text-sm text-ink-muted">
+              {baitTypesLabel(suggestion.baitTypes)} · {TIME_OF_DAY_LABELS[w.timeOfDay]}
+              {w.temperatureF != null ? ` · ${Math.round(w.temperatureF)}°F` : ""}
+              {w.weatherCondition ? ` · ${conditionLabel(w.weatherCondition)}` : ""}
+              {w.tide ? ` · ${w.tide} tide` : ""}
+            </p>
+          </div>
+        </div>
+        <p className="pt-2 text-sm">{suggestion.headline}</p>
+        {suggestion.strength === "very-strong" ? (
+          <p className="pt-1 text-[11px] font-semibold text-teal">{VERY_STRONG_MATCH_LABEL}</p>
+        ) : null}
+        <div className="pt-1">
+          <MatchWhy
+            reasons={suggestion.reasons}
+            strength={suggestion.strength}
+            placeName={suggestion.placeName}
+            species={baitTypesLabel(suggestion.baitTypes)}
+            timeOfDay={w.timeOfDay}
+          />
+        </div>
+      </Link>
+      {canMap ? (
+        <div className="px-3 pb-1">
+          <button
+            type="button"
+            onClick={openSpotMap}
+            onPointerDown={(event) => event.stopPropagation()}
+            className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
+            data-testid="plan-show-spot-map"
+          >
+            Show spot on map
+          </button>
+        </div>
       ) : null}
-      <MatchWhy
-        reasons={suggestion.reasons}
-        strength={suggestion.strength}
-        placeName={suggestion.placeName}
-        species={baitTypesLabel(suggestion.baitTypes)}
-        timeOfDay={w.timeOfDay}
-      />
       <ul className="space-y-2 px-3 py-3">
         {suggestion.matches.map((m) => {
           const baitSrc = personalPhotoSrc(m.baitSpot.photoPath);
           return (
-            <li key={m.baitSpot.id} className="flex gap-2">
-              {baitSrc ? (
-                <Link
-                  href={`/bait/${m.baitSpot.id}`}
-                  className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep ${TAP_RESET}`}
-                  aria-label={`${baitTypesLabel(m.baitSpot.baitTypes)} bait spot`}
-                  data-testid="plan-bait-photo"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={baitSrc} alt="" className="h-full w-full object-cover" />
-                </Link>
-              ) : (
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
-                  Bait
+            <li key={m.baitSpot.id}>
+              <Link
+                href={`/bait/${m.baitSpot.id}`}
+                className={`flex gap-2 ${TAP_RESET}`}
+                aria-label={`${baitTypesLabel(m.baitSpot.baitTypes)} bait spot`}
+                data-testid="plan-bait-row"
+              >
+                {baitSrc ? (
+                  <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={baitSrc} alt="" className="h-full w-full object-cover" data-testid="plan-bait-photo" />
+                  </span>
+                ) : (
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
+                    Bait
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-teal">
+                    {baitTypesLabel(m.baitSpot.baitTypes)} · {formatDateOnly(m.baitSpot.loggedAt)}
+                  </span>
+                  {showOwner ? (
+                    <span className="block text-[11px] font-semibold text-copper">{m.baitSpot.ownerName}</span>
+                  ) : null}
+                  <span className="block text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</span>
                 </span>
-              )}
-              <div className="min-w-0">
-                <Link
-                  href={`/bait/${m.baitSpot.id}`}
-                  className={`text-sm font-semibold text-teal ${TAP_RESET}`}
-                >
-                  {baitTypesLabel(m.baitSpot.baitTypes)} · {formatDateOnly(m.baitSpot.loggedAt)}
-                </Link>
-                {showOwner ? (
-                  <p className="text-[11px] font-semibold text-copper">{m.baitSpot.ownerName}</p>
-                ) : null}
-                <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
-              </div>
+              </Link>
             </li>
           );
         })}
@@ -607,7 +616,7 @@ function MatchWhy({
   const bits = planWhyChips({ reasons, strength, placeName, species, timeOfDay });
   if ((strength === "strong" || strength === "very-strong") && bits.length) {
     return (
-      <ul className="flex flex-wrap gap-1 px-3" data-testid="plan-match-why">
+      <ul className="flex flex-wrap gap-1" data-testid="plan-match-why">
         {bits.map((reason) => (
           <li
             key={reason}
@@ -620,7 +629,7 @@ function MatchWhy({
     );
   }
   return (
-    <p className="px-3 text-xs text-ink-muted">
+    <p className="text-xs text-ink-muted">
       Why: {reasons.slice(0, 5).join(" · ") || "pattern overlap"}
     </p>
   );

@@ -15,7 +15,7 @@ describe("HELP_SECTIONS", () => {
     ]);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.some((step) =>
-        step.includes("match photo"),
+        step.includes("Tap a match"),
       ),
     ).toBe(true);
     for (const section of HELP_SECTIONS) {

@@ -72,7 +72,12 @@ export function SaveToPhotosButton({
   if (variant === "text") {
     return (
       <span className={className}>
-        <button type="button" onClick={onSave} className="text-sm font-semibold text-teal">
+        <button
+          type="button"
+          onClick={onSave}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="text-sm font-semibold text-teal"
+        >
           {label}
         </button>
         {hint || error ? (
