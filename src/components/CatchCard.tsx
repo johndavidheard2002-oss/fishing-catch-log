@@ -105,8 +105,15 @@ export function CatchCard({
   );
 }
 
-export function CatchGridCard({ record }: { record: CatchRecord }) {
+export function CatchGridCard({
+  record,
+  viewerId,
+}: {
+  record: CatchRecord;
+  viewerId?: string;
+}) {
   const src = photoSrc(record.photoPath);
+  const theirs = viewerId && record.anglerId !== viewerId;
   return (
     <div className="journal-card relative overflow-hidden rounded-2xl">
       <Link href={`/catch/${record.id}`} className="block" data-testid="calendar-catch-open">
@@ -132,6 +139,13 @@ export function CatchGridCard({ record }: { record: CatchRecord }) {
             {formatCatchWhen(record.caughtAt)} · {habitatLabel(record.habitat)}
             {isSampleCatchPhoto(record.photoPath) ? " · Sample" : ""}
           </p>
+          {theirs ? (
+            <p className="mt-1">
+              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
+                {record.ownerName}
+              </span>
+            </p>
+          ) : null}
         </div>
       </Link>
       {src ? (

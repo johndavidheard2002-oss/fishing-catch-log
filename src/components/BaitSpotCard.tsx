@@ -76,3 +76,44 @@ export function BaitSpotCard({
     </div>
   );
 }
+
+export function BaitSpotGridCard({
+  spot,
+  viewerId,
+}: {
+  spot: BaitSpot;
+  viewerId?: string;
+}) {
+  const src = photoSrc(spot.photoPath);
+  const theirs = viewerId && spot.anglerId !== viewerId;
+  return (
+    <div className="journal-card relative overflow-hidden rounded-2xl" data-testid="calendar-bait-entry">
+      <Link href={`/bait/${spot.id}`} className="block" data-testid="calendar-bait-open">
+        <div className="aspect-square bg-paper-deep">
+          {src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={src} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs font-semibold uppercase tracking-wide text-copper">
+              Bait
+            </div>
+          )}
+        </div>
+        <div className="px-2.5 py-2">
+          <p className="truncate text-sm font-semibold">{baitTypesLabel(spot.baitTypes)}</p>
+          <p className="truncate text-xs text-ink-muted">{baitSpotLabel(spot)}</p>
+          <p className="mt-0.5 text-[10px] text-ink-muted">
+            {formatCatchWhen(spot.loggedAt)} · Bait
+          </p>
+          {theirs ? (
+            <p className="mt-1">
+              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
+                {spot.ownerName}
+              </span>
+            </p>
+          ) : null}
+        </div>
+      </Link>
+    </div>
+  );
+}

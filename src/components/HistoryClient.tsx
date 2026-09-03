@@ -1,11 +1,13 @@
 "use client";
 
 import { CatchCard, CatchGridCard } from "@/components/CatchCard";
+import { BaitSpotCard, BaitSpotGridCard } from "@/components/BaitSpotCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { parseYearMonth } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
+import { mergeJournalFeed } from "@/lib/journal";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
 import {
   getScanQueueCountServerSnapshot,
@@ -144,6 +146,9 @@ export function HistoryClient({
     () => catches.filter((c) => matchesFilters(c, filters)),
     [catches, filters],
   );
+  const feed = useMemo(() => mergeJournalFeed(filtered, baitSpots), [filtered, baitSpots]);
+  const journalEmpty = catches.length === 0 && baitSpots.length === 0;
+  const feedEmpty = feed.length === 0;
   const active = hasActiveFilters(filters);
   const displayDay = selectedDay;
   const monthCursor =
@@ -184,6 +189,8 @@ export function HistoryClient({
         ))}
       </div>
 
+      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
+
       <LibraryScanBanner />
 
       {showFilters ? (
@@ -196,11 +203,11 @@ export function HistoryClient({
 
       {loadError ? <p className="on-wash-chip text-sm text-copper">{loadError}</p> : null}
 
-      {loading && catches.length === 0 ? (
+      {loading && journalEmpty ? (
         <p className="on-wash-chip text-sm">Loading the journal…</p>
       ) : view === "calendar" ? (
         <div className="space-y-3">
-          {catches.length === 0 && baitSpots.length === 0 ? (
+          {journalEmpty ? (
             <p className="on-wash-chip text-sm">
               Nothing logged yet. Tap a day to plan a trip with a note — no photo needed. Log a
               catch or bait later from Log or Log bait.
@@ -268,26 +275,34 @@ export function HistoryClient({
             viewerId={viewerId}
           />
         </div>
-      ) : catches.length === 0 ? (
+      ) : journalEmpty ? (
         <p className="on-wash-chip text-sm">
           Nothing logged yet. Log a catch or backfill a photo — one picture becomes one trip at
           one pin.
         </p>
-      ) : filtered.length === 0 ? (
+      ) : feedEmpty ? (
         <p className="on-wash-chip text-sm">
           Nothing matches those conditions. Clear filters or log another catch.
         </p>
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 gap-3">
-          {filtered.map((record) => (
-            <CatchGridCard key={record.id} record={record} />
-          ))}
+          {feed.map((item) =>
+            item.kind === "catch" ? (
+              <CatchGridCard key={item.id} record={item.record} viewerId={viewerId} />
+            ) : (
+              <BaitSpotGridCard key={item.id} spot={item.spot} viewerId={viewerId} />
+            ),
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((record) => (
-            <CatchCard key={record.id} record={record} viewerId={viewerId} />
-          ))}
+          {feed.map((item) =>
+            item.kind === "catch" ? (
+              <CatchCard key={item.id} record={item.record} viewerId={viewerId} />
+            ) : (
+              <BaitSpotCard key={item.id} spot={item.spot} viewerId={viewerId} />
+            ),
+          )}
         </div>
       )}
 
@@ -297,7 +312,6 @@ export function HistoryClient({
       >
         Export CSV
       </a>
-      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
     </div>
   );
 }
