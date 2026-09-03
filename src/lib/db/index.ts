@@ -72,7 +72,6 @@ CREATE TABLE IF NOT EXISTS anglers (
   password_hash TEXT,
   created_at TEXT NOT NULL
 );
-CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email);
 
 CREATE TABLE IF NOT EXISTS buddy_links (
   id TEXT PRIMARY KEY,
@@ -506,9 +505,35 @@ async function libsqlSetSchemaVersion(client: Client, version: number) {
   });
 }
 
+function sqlStatements(sql: string): string[] {
+  return sql
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function isIgnorableSchemaError(err: unknown, sql: string): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/already exists|duplicate column/i.test(message)) return true;
+  // Index on a column that an older table has not received yet.
+  return /no such column/i.test(message) && /^\s*CREATE\s+(UNIQUE\s+)?INDEX/i.test(sql);
+}
+
+/** One failed statement must not abort the rest of the migration. */
+async function execSoft(client: Client, sql: string) {
+  try {
+    await client.execute(sql);
+  } catch (err) {
+    if (isIgnorableSchemaError(err, sql)) return;
+    throw err;
+  }
+}
+
 /** Turso rejects PRAGMA user_version writes — version lives in schema_meta instead. */
 export async function migrateLibsql(client: Client) {
-  await client.executeMultiple(CREATE_SQL);
+  for (const statement of sqlStatements(CREATE_SQL)) {
+    await execSoft(client, statement);
+  }
   const cols = await libsqlColumns(client, "catches");
   const extra: [string, string][] = [
     ["habitat", "TEXT NOT NULL DEFAULT 'freshwater'"],
@@ -530,20 +555,20 @@ export async function migrateLibsql(client: Client) {
   ];
   for (const [name, type] of extra) {
     if (!cols.includes(name)) {
-      await client.execute(`ALTER TABLE catches ADD COLUMN ${name} ${type}`);
+      await execSoft(client, `ALTER TABLE catches ADD COLUMN ${name} ${type}`);
     }
   }
-  await client.execute("CREATE INDEX IF NOT EXISTS idx_catches_habitat ON catches(habitat)");
-  await client.execute("CREATE INDEX IF NOT EXISTS idx_catches_angler ON catches(angler_id)");
+  await execSoft(client, "CREATE INDEX IF NOT EXISTS idx_catches_habitat ON catches(habitat)");
+  await execSoft(client, "CREATE INDEX IF NOT EXISTS idx_catches_angler ON catches(angler_id)");
 
   const anglerCols = await libsqlColumns(client, "anglers");
   if (!anglerCols.includes("email")) {
-    await client.execute("ALTER TABLE anglers ADD COLUMN email TEXT");
+    await execSoft(client, "ALTER TABLE anglers ADD COLUMN email TEXT");
   }
   if (!anglerCols.includes("password_hash")) {
-    await client.execute("ALTER TABLE anglers ADD COLUMN password_hash TEXT");
+    await execSoft(client, "ALTER TABLE anglers ADD COLUMN password_hash TEXT");
   }
-  await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email)");
+  await execSoft(client, "CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email)");
 
   const version = await libsqlSchemaVersion(client);
   if (version < 7) {
