@@ -3,13 +3,104 @@ import {
   catchPinFromPhotoGps,
   classifyCatchPinEdit,
   coordsLookDifferent,
+  resolveCatchPinAfterPhotoAnswer,
   shouldApplyPhotoGpsToCatch,
+  shouldAutoPlaceCatchPin,
 } from "./location";
 
 describe("shouldApplyPhotoGpsToCatch", () => {
   it("fills the catch pin from the photo until the angler moves it", () => {
     expect(shouldApplyPhotoGpsToCatch(false)).toBe(true);
     expect(shouldApplyPhotoGpsToCatch(true)).toBe(false);
+  });
+});
+
+describe("shouldAutoPlaceCatchPin", () => {
+  it("does not auto-place until the angler says the photo was taken at the catch", () => {
+    expect(shouldAutoPlaceCatchPin({ photoTakenAtCatch: null, userMovedCatchPin: false })).toBe(false);
+    expect(shouldAutoPlaceCatchPin({ photoTakenAtCatch: false, userMovedCatchPin: false })).toBe(false);
+  });
+
+  it("auto-places on Yes when the pin was not already moved", () => {
+    expect(shouldAutoPlaceCatchPin({ photoTakenAtCatch: true, userMovedCatchPin: false })).toBe(true);
+  });
+
+  it("still will not overwrite a pin the angler already moved", () => {
+    expect(shouldAutoPlaceCatchPin({ photoTakenAtCatch: true, userMovedCatchPin: true })).toBe(false);
+  });
+});
+
+describe("resolveCatchPinAfterPhotoAnswer", () => {
+  const photoGps = { latitude: 28.74, longitude: -80.75 };
+  const deviceGps = { latitude: 29.15, longitude: -96.88 };
+
+  it("does nothing before they answer, and nothing on No", () => {
+    expect(
+      resolveCatchPinAfterPhotoAnswer({
+        photoTakenAtCatch: null,
+        userMovedCatchPin: false,
+        photoGps,
+        deviceGps,
+        pastMode: false,
+      }),
+    ).toBeNull();
+    expect(
+      resolveCatchPinAfterPhotoAnswer({
+        photoTakenAtCatch: false,
+        userMovedCatchPin: false,
+        photoGps,
+        deviceGps,
+        pastMode: false,
+      }),
+    ).toBeNull();
+  });
+
+  it("on Yes uses photo EXIF GPS before device GPS", () => {
+    expect(
+      resolveCatchPinAfterPhotoAnswer({
+        photoTakenAtCatch: true,
+        userMovedCatchPin: false,
+        photoGps,
+        deviceGps,
+        pastMode: false,
+      }),
+    ).toEqual({ ...photoGps, source: "photo" });
+  });
+
+  it("on Yes with no photo GPS uses device GPS when not in past mode", () => {
+    expect(
+      resolveCatchPinAfterPhotoAnswer({
+        photoTakenAtCatch: true,
+        userMovedCatchPin: false,
+        photoGps: null,
+        deviceGps,
+        pastMode: false,
+      }),
+    ).toEqual({ ...deviceGps, source: "device" });
+  });
+
+  it("on Yes in past mode does not fill from device GPS", () => {
+    expect(
+      resolveCatchPinAfterPhotoAnswer({
+        photoTakenAtCatch: true,
+        userMovedCatchPin: false,
+        photoGps: null,
+        deviceGps,
+        pastMode: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("on Yes still keeps a user-moved pin", () => {
+    expect(
+      resolveCatchPinAfterPhotoAnswer({
+        photoTakenAtCatch: true,
+        userMovedCatchPin: true,
+        photoGps,
+        deviceGps,
+        pastMode: false,
+      }),
+    ).toBeNull();
   });
 });
 

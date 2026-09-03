@@ -2,9 +2,52 @@
 
 export type PinSource = "photo" | "device" | "manual";
 
+export type PhotoGps = { latitude: number; longitude: number };
+
+export const DROP_CATCH_PIN_HINT = "Drop a pin on the map for where you caught it.";
+
 /** Auto-place from the photo unless the angler already moved this catch’s pin. */
 export function shouldApplyPhotoGpsToCatch(userMovedCatchPin: boolean): boolean {
   return !userMovedCatchPin;
+}
+
+/**
+ * Catch pin auto-fill waits for Yes — the photo was taken where they caught the fish —
+ * and still will not overwrite a pin the angler already moved.
+ */
+export function shouldAutoPlaceCatchPin(args: {
+  photoTakenAtCatch: boolean | null;
+  userMovedCatchPin: boolean;
+}): boolean {
+  return args.photoTakenAtCatch === true && shouldApplyPhotoGpsToCatch(args.userMovedCatchPin);
+}
+
+/**
+ * After Yes: photo EXIF GPS first, else device GPS (not in past/backfill mode).
+ * Unanswered, No, or a user-moved pin → no auto-place.
+ */
+export function resolveCatchPinAfterPhotoAnswer(args: {
+  photoTakenAtCatch: boolean | null;
+  userMovedCatchPin: boolean;
+  photoGps: PhotoGps | null;
+  deviceGps: PhotoGps | null;
+  pastMode: boolean;
+}): { latitude: number; longitude: number; source: PinSource } | null {
+  if (
+    !shouldAutoPlaceCatchPin({
+      photoTakenAtCatch: args.photoTakenAtCatch,
+      userMovedCatchPin: args.userMovedCatchPin,
+    })
+  ) {
+    return null;
+  }
+  if (args.photoGps) {
+    return { ...args.photoGps, source: "photo" };
+  }
+  if (!args.pastMode && args.deviceGps) {
+    return { ...args.deviceGps, source: "device" };
+  }
+  return null;
 }
 
 /**

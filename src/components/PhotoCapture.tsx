@@ -27,8 +27,8 @@ export function PhotoCapture({
   const hint =
     emptyHint === undefined
       ? emphasis === "library"
-        ? "Upload an old catch photo. We’ll pin from GPS when the picture has it — you can still move it."
-        : "Camera first. We’ll try weather and a map pin from the photo’s GPS."
+        ? "Upload an old catch photo. We’ll ask if it was taken where you caught the fish before dropping a pin."
+        : "Camera first. We’ll ask if this photo was taken where you caught the fish before dropping a pin."
       : emptyHint;
 
   return (
