@@ -1,10 +1,8 @@
 "use client";
 
 import { PRIVACY_DETAIL, PRIVACY_LINE } from "@/lib/privacy";
-import { notifyAuthChange } from "@/lib/tour";
 import { formatWeekdayDate } from "@/lib/time";
 import { localDateKey } from "@/lib/calendar";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 type Angler = { id: string; name: string; inviteCode: string; email?: string | null; claimed?: boolean };
@@ -39,7 +37,6 @@ export function sharedQuery(includeShared: boolean): string {
 }
 
 export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
-  const router = useRouter();
   const [me, setMe] = useState<Angler | null>(null);
   const [profiles, setProfiles] = useState<Angler[]>([]);
   const [buddies, setBuddies] = useState<Buddy[]>([]);
@@ -49,7 +46,6 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   async function refresh() {
     const [meRes, buddyRes] = await Promise.all([fetch("/api/me"), fetch("/api/buddies")]);
@@ -138,18 +134,6 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
     window.location.reload();
   }
 
-  async function logOut() {
-    setLoggingOut(true);
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      notifyAuthChange();
-      router.replace("/signin");
-      router.refresh();
-    } finally {
-      setLoggingOut(false);
-    }
-  }
-
   return (
     <section className={embedded ? "space-y-3 px-4 pb-4" : "journal-card space-y-3 rounded-2xl p-4"}>
       {embedded ? (
@@ -158,31 +142,6 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
         <h2 className="font-display text-2xl text-teal">Linked friends</h2>
       )}
       <PrivacyBanner />
-
-      {signedIn ? (
-        <div className="space-y-2 rounded-2xl border border-line bg-paper-deep px-3 py-2">
-          <p className="text-sm">
-            <span className="font-semibold">Signed in</span>
-            {me?.email ? <span className="mt-0.5 block text-xs text-ink-muted">{me.email}</span> : null}
-          </p>
-          <button
-            type="button"
-            onClick={() => void logOut()}
-            disabled={loggingOut}
-            data-testid="log-out"
-            className="w-full rounded-xl bg-copper px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-          >
-            {loggingOut ? "Signing out…" : "Log out"}
-          </button>
-        </div>
-      ) : (
-        <p className="text-sm">
-          <a href="/signin" className="font-semibold text-teal">
-            Sign in or create a journal
-          </a>
-          <span className="mt-0.5 block text-xs text-ink-muted">So the next person on this phone does not see your trips.</span>
-        </p>
-      )}
 
       <label className="block text-sm">
         <span className="mb-1 block font-semibold">Your name</span>

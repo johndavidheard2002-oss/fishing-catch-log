@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { JournalUnavailable } from "@/components/JournalUnavailable";
 import { PlanClient } from "@/components/PlanClient";
 import { listCalendarNotes } from "@/lib/db/notes";
@@ -18,10 +19,12 @@ export default async function PlanPage({
   let initialNotes;
   try {
     const jar = await cookies();
-    const viewerId = (
-      await resolveViewerFromCookies(jar.get(ANGLER_COOKIE)?.value, jar.get(SESSION_COOKIE)?.value)
-    ).id;
-    initialNotes = await listCalendarNotes(viewerId);
+    const viewer = await resolveViewerFromCookies(
+      jar.get(ANGLER_COOKIE)?.value,
+      jar.get(SESSION_COOKIE)?.value,
+    );
+    if (!viewer.signedIn || !viewer.id) redirect("/signin");
+    initialNotes = await listCalendarNotes(viewer.id);
   } catch {
     return <JournalUnavailable title="Plan a day" />;
   }

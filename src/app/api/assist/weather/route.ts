@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getTideSnapshot } from "@/lib/tides";
+import { requireViewerId, signInRequired } from "@/lib/viewer";
 import { getWeather } from "@/lib/weather";
 import type { Habitat } from "@/lib/types";
 
@@ -7,6 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  if (!(await requireViewerId(request))) return signInRequired();
   const body = (await request.json()) as {
     latitude?: number;
     longitude?: number;

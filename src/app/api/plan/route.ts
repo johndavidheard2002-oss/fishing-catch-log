@@ -2,13 +2,14 @@ import { NextRequest } from "next/server";
 import { listBaitSpots } from "@/lib/db/bait";
 import { listCatches } from "@/lib/db/catches";
 import { buildPlan, parsePlanDate } from "@/lib/plan";
-import { includeSharedFrom, jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { includeSharedFrom, jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const includeShared = includeSharedFrom(request);
   const date = parsePlanDate(request.nextUrl.searchParams.get("date"));
   if (!date) {

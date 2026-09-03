@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { canViewCatch, getCatch, listCatches } from "@/lib/db/catches";
 import { findSimilar } from "@/lib/similar";
-import { includeSharedFrom, jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { includeSharedFrom, jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,8 @@ export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const { id } = await ctx.params;
   const record = await getCatch(id);
   if (!record || !(await canViewCatch(record, viewerId))) {

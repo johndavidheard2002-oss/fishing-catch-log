@@ -1,7 +1,7 @@
 import path from "node:path";
 import { NextRequest } from "next/server";
 import { loadUploadedMedia } from "@/lib/storage";
-import { viewerIdFromRequest } from "@/lib/viewer";
+import { requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +18,7 @@ export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ filename: string }> },
 ) {
-  await viewerIdFromRequest(request);
+  if (!(await requireViewerId(request))) return signInRequired();
   const { filename } = await ctx.params;
   const media = loadUploadedMedia(filename);
   if (!media) {

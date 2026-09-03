@@ -1,22 +1,21 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { listCatches } from "@/lib/db/catches";
 import { catchesToCsv } from "@/lib/csv";
-import { applyViewerCookie, includeSharedFrom, viewerIdFromRequest } from "@/lib/viewer";
-import { NextResponse } from "next/server";
+import { includeSharedFrom, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const csv = catchesToCsv(
     await listCatches({ viewerId, includeShared: includeSharedFrom(request) }),
   );
-  const res = new NextResponse(csv, {
+  return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": 'attachment; filename="cast-log.csv"',
     },
   });
-  return applyViewerCookie(res, viewerId);
 }

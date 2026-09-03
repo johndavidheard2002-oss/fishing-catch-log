@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { isCalendarDayKey, setSharedForCatchIds, setSharedForDay } from "@/lib/db/catches";
 import { setSharedForBaitIds } from "@/lib/db/bait";
-import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +12,8 @@ function idList(value: unknown): string[] {
 }
 
 export async function POST(request: NextRequest) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const body = (await request.json().catch(() => ({}))) as {
     day?: unknown;
     shared?: unknown;

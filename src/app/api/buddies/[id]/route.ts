@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { listBuddies, unlinkAnglers } from "@/lib/db/anglers";
-import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
+import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const viewerId = await viewerIdFromRequest(request);
+  const viewerId = await requireViewerId(request);
+  if (!viewerId) return signInRequired();
   const { id } = await ctx.params;
   await unlinkAnglers(viewerId, id);
   return jsonWithViewer({ buddies: await listBuddies(viewerId) }, viewerId);

@@ -1,35 +1,41 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AuthForm } from "@/components/AuthForm";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { BuddyPanel } from "@/components/BuddyPanel";
 import { FirstHelpTip } from "@/components/HelpGuide";
+import { LogOutButton } from "@/components/LogOutButton";
 
 type MeState = {
   signedIn: boolean;
   name: string;
-  claimed: boolean;
+  email: string;
   ready: boolean;
 };
 
 export function HomeClient() {
-  const [me, setMe] = useState<MeState>({ signedIn: false, name: "", claimed: false, ready: false });
+  const router = useRouter();
+  const [me, setMe] = useState<MeState>({ signedIn: false, name: "", email: "", ready: false });
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
+        if (!data.signedIn) {
+          router.replace("/signin");
+          return;
+        }
         setMe({
-          signedIn: Boolean(data.signedIn),
+          signedIn: true,
           name: data.me?.name ?? "",
-          claimed: Boolean(data.me?.claimed),
+          email: typeof data.me?.email === "string" ? data.me.email : "",
           ready: true,
         });
       })
-      .catch(() => setMe((current) => ({ ...current, ready: true })));
-  }, []);
+      .catch(() => router.replace("/signin"));
+  }, [router]);
 
   return (
     <div className="space-y-6">
@@ -39,12 +45,14 @@ export function HomeClient() {
 
       <FirstHelpTip />
 
-      {me.ready && !me.signedIn ? (
-        <AuthForm
-          defaultName={me.name === "You" ? "" : me.name}
-          claimExisting={me.claimed === false}
-          onSignedIn={(name) => setMe({ signedIn: true, name, claimed: true, ready: true })}
-        />
+      {me.ready ? (
+        <section className="journal-card space-y-2 rounded-2xl p-4" data-testid="home-account">
+          <p className="text-sm">
+            <span className="font-semibold">{me.name || "Signed in"}</span>
+            {me.email ? <span className="mt-0.5 block text-xs text-ink-muted">{me.email}</span> : null}
+          </p>
+          <LogOutButton />
+        </section>
       ) : null}
 
       <div className="grid grid-cols-2 gap-2">
@@ -89,10 +97,14 @@ export function HomeClient() {
           <span>
             <span className="block font-semibold">More</span>
             <span className="mt-0.5 block text-sm font-normal text-ink-muted">
-              Link a friend or share an invite code
+              Account, friends, and invite codes
             </span>
           </span>
         </summary>
+        <div className="space-y-3 px-4 pb-2">
+          <p className="text-sm font-semibold">Account</p>
+          <LogOutButton testId="log-out-more" />
+        </div>
         <BuddyPanel embedded />
       </details>
     </div>

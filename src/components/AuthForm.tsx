@@ -9,15 +9,17 @@ export function AuthForm({
   defaultName = "",
   claimExisting = false,
   nextPath = "/",
+  defaultMode = "signin",
   onSignedIn,
 }: {
   defaultName?: string;
   claimExisting?: boolean;
   nextPath?: string;
+  defaultMode?: "create" | "signin";
   onSignedIn?: (name: string) => void;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"create" | "signin">("create");
+  const [mode, setMode] = useState<"create" | "signin">(defaultMode);
   const [name, setName] = useState(defaultName);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,7 +66,7 @@ export function AuthForm({
             mode === "create" ? "bg-teal text-white" : "border border-line bg-card text-ink"
           }`}
         >
-          Create journal
+          Create account
         </button>
         <button
           type="button"
@@ -144,7 +146,7 @@ export function AuthForm({
           disabled={busy}
           className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
         >
-          {busy ? "Working…" : mode === "create" ? "Create journal" : "Sign in"}
+          {busy ? "Working…" : mode === "create" ? "Create account" : "Sign in"}
         </button>
       </form>
     </section>
