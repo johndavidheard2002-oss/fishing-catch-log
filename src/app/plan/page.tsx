@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { PlanClient } from "@/components/PlanClient";
-import { ensureDefaultAngler, getAngler } from "@/lib/db/anglers";
+import { seedDefaultAngler, getAngler } from "@/lib/db/anglers";
 import { listCalendarNotes } from "@/lib/db/notes";
 import { ANGLER_COOKIE } from "@/lib/viewer";
 
@@ -17,7 +17,8 @@ export default async function PlanPage({
   const initialDate = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : null;
   const jar = await cookies();
   const fromCookie = jar.get(ANGLER_COOKIE)?.value;
-  const viewerId = fromCookie && getAngler(fromCookie) ? fromCookie : ensureDefaultAngler().id;
-  const initialNotes = listCalendarNotes(viewerId);
+  const me = fromCookie ? await getAngler(fromCookie) : null;
+  const viewerId = me && fromCookie ? fromCookie : (await seedDefaultAngler()).id;
+  const initialNotes = await listCalendarNotes(viewerId);
   return <PlanClient initialDate={initialDate} initialNotes={initialNotes} />;
 }

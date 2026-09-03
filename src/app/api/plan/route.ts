@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const includeShared = includeSharedFrom(request);
   const date = parsePlanDate(request.nextUrl.searchParams.get("date"));
   if (!date) {
@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
     );
   }
   const plan = await buildPlan(
-    listCatches({ viewerId, includeShared }),
+    await listCatches({ viewerId, includeShared }),
     1,
-    listBaitSpots({ viewerId, includeShared }),
+    await listBaitSpots({ viewerId, includeShared }),
     date,
   );
   return jsonWithViewer(plan, viewerId);

@@ -7,13 +7,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
-  const notes = listCalendarNotes(viewerId);
+  const viewerId = await viewerIdFromRequest(request);
+  const notes = await listCalendarNotes(viewerId);
   return jsonWithViewer({ notes }, viewerId);
 }
 
 export async function POST(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const input = parseCalendarNoteInput(body);
   if (!input) {
@@ -23,6 +23,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const note = createCalendarNote(viewerId, input);
+  const note = await createCalendarNote(viewerId, input);
   return jsonWithViewer({ note }, viewerId, { status: 201 });
 }

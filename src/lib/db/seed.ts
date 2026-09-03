@@ -1,7 +1,7 @@
-import { count, like } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { like } from "drizzle-orm";
+import type { JournalDatabase } from "./index";
+import { allRows, runChange } from "./query";
 import { catches } from "./schema";
-import type * as schema from "./schema";
 import { seasonFromDate, timeOfDayFromDate } from "../time";
 import { inferHabitat } from "../habitat";
 import { moonForDate } from "../moon";
@@ -351,33 +351,28 @@ const SEED: CatchInput[] = [
   },
 ];
 
-export function countSampleCatches(db: BetterSQLite3Database<typeof schema>): number {
-  const row = db
-    .select({ n: count() })
-    .from(catches)
-    .where(like(catches.photoPath, "/seed/%"))
-    .get();
-  return row?.n ?? 0;
+export async function countSampleCatches(db: JournalDatabase): Promise<number> {
+  const rows = await allRows(db.select().from(catches).where(like(catches.photoPath, "/seed/%")));
+  return rows.length;
 }
 
-export function removeSampleCatches(db: BetterSQLite3Database<typeof schema>): number {
-  const result = db.delete(catches).where(like(catches.photoPath, "/seed/%")).run();
-  return Number(result.changes ?? 0);
+export async function removeSampleCatches(db: JournalDatabase): Promise<number> {
+  return runChange(db.delete(catches).where(like(catches.photoPath, "/seed/%")));
 }
 
 /** Insert built-in sample trips only when none are loaded. Never runs on first launch. */
-export function loadSampleCatches(
-  db: BetterSQLite3Database<typeof schema>,
+export async function loadSampleCatches(
+  db: JournalDatabase,
   ownerId: string,
-): { inserted: number; already: number } {
-  const already = countSampleCatches(db);
+): Promise<{ inserted: number; already: number }> {
+  const already = await countSampleCatches(db);
   if (already > 0) return { inserted: 0, already };
 
   const stamp = new Date().toISOString();
   for (const item of SEED) {
     const caught = new Date(item.caughtAt);
-    db.insert(catches)
-      .values({
+    await runChange(
+      db.insert(catches).values({
         id: crypto.randomUUID(),
         photoPath: item.photoPath ?? null,
         species: item.species,
@@ -426,8 +421,8 @@ export function loadSampleCatches(
         sharedWithLinked: 0,
         createdAt: stamp,
         updatedAt: stamp,
-      })
-      .run();
+      }),
+    );
   }
   return { inserted: SEED.length, already: 0 };
 }

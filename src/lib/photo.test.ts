@@ -24,6 +24,7 @@ describe("personalPhotoSrc", () => {
     expect(personalPhotoSrc("/seed/mahi.svg")).toBeNull();
     expect(photoSrc("/seed/mahi.svg")).toBe("/seed/mahi.svg");
     expect(personalPhotoSrc("trip.jpg")).toBe("/api/media/trip.jpg");
+    expect(photoSrc("https://cdn.example/catch.jpg")).toBe("https://cdn.example/catch.jpg");
   });
 });
 

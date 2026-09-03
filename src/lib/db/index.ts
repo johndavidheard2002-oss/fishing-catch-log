@@ -1,12 +1,20 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createClient, type Client, type InValue } from "@libsql/client";
 import Database from "better-sqlite3";
-import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { drizzle as drizzleSqlite, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { drizzle as drizzleLibsql, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { inferHabitat } from "../habitat";
 import { moonForDate } from "../moon";
+import { ensureUploadsDir } from "../storage";
 import { demoWeather } from "../weather/demo";
-import { ensureDefaultAngler } from "./anglers";
+import { databaseConfig } from "./config";
 import * as schema from "./schema";
+import { seedDefaultAnglerOnSqlite } from "./anglers";
+
+export type JournalDatabase =
+  | BetterSQLite3Database<typeof schema>
+  | LibSQLDatabase<typeof schema>;
 
 const CREATE_SQL = `
 CREATE TABLE IF NOT EXISTS catches (
@@ -132,25 +140,33 @@ CREATE INDEX IF NOT EXISTS idx_bait_spots_angler ON bait_spots(angler_id);
 CREATE INDEX IF NOT EXISTS idx_bait_spots_logged_at ON bait_spots(logged_at);
 `;
 
-type DbHandle = {
+type FileHandle = {
+  kind: "file";
   sqlite: Database.Database;
   db: BetterSQLite3Database<typeof schema>;
 };
 
+type LibsqlHandle = {
+  kind: "libsql";
+  client: Client;
+  db: LibSQLDatabase<typeof schema>;
+};
+
+type DbHandle = FileHandle | LibsqlHandle;
+
 declare global {
   var __castLogDb: DbHandle | undefined;
+  var __castLogReady: Promise<void> | undefined;
 }
 
 export function dataDir(): string {
   return path.join(process.cwd(), "data");
 }
 
-export function uploadsDir(): string {
-  return path.join(process.cwd(), "data", "uploads");
-}
+export { uploadsDir, ensureUploadsDir } from "../storage";
 
-function dbPath(): string {
-  return process.env.DATABASE_PATH?.trim() || path.join(process.cwd(), "data", "cast-log.sqlite");
+function fileDbPath(): string {
+  return databaseConfig().filePath;
 }
 
 function tableColumns(sqlite: Database.Database, table: string): string[] {
@@ -417,33 +433,132 @@ function migrate(sqlite: Database.Database) {
   }
 }
 
-export function getDb() {
-  if (globalThis.__castLogDb) {
-    migrate(globalThis.__castLogDb.sqlite);
-    return globalThis.__castLogDb.db;
+async function libsqlColumns(client: Client, table: string): Promise<string[]> {
+  const result = await client.execute(`PRAGMA table_info(${table})`);
+  return result.rows.map((row) => {
+    const rec = row as unknown as Record<string, unknown>;
+    return String(rec.name ?? rec[1] ?? "");
+  }).filter(Boolean);
+}
+
+async function libsqlUserVersion(client: Client): Promise<number> {
+  const result = await client.execute("PRAGMA user_version");
+  const row = result.rows[0] as unknown as Record<string, unknown> | undefined;
+  return Number(row?.user_version ?? row?.[0] ?? 0);
+}
+
+async function migrateLibsql(client: Client) {
+  await client.executeMultiple(CREATE_SQL);
+  const cols = await libsqlColumns(client, "catches");
+  const extra: [string, string][] = [
+    ["habitat", "TEXT NOT NULL DEFAULT 'freshwater'"],
+    ["angler_id", "TEXT"],
+    ["shared_with_linked", "INTEGER NOT NULL DEFAULT 0"],
+    ["wind_direction", "TEXT"],
+    ["moon_phase", "TEXT"],
+    ["moon_illumination", "REAL"],
+    ["pressure_in_hg", "REAL"],
+    ["pressure_mb", "REAL"],
+    ["pressure_trend", "TEXT"],
+    ["species_list", "TEXT"],
+    ["photo_taken_latitude", "REAL"],
+    ["photo_taken_longitude", "REAL"],
+    ["fish_count", "INTEGER NOT NULL DEFAULT 1"],
+    ["tide_height_ft", "REAL"],
+    ["tide_detail", "TEXT"],
+    ["species_counts", "TEXT"],
+  ];
+  for (const [name, type] of extra) {
+    if (!cols.includes(name)) {
+      await client.execute(`ALTER TABLE catches ADD COLUMN ${name} ${type}`);
+    }
+  }
+  const version = await libsqlUserVersion(client);
+  if (version < 7) {
+    await client.execute(
+      `DELETE FROM catches
+       WHERE photo_path LIKE '/seed/%'
+          OR (species_source = 'demo' AND (photo_path IS NULL OR photo_path = ''))`,
+    );
+  }
+  if (version < 11) {
+    await client.execute("PRAGMA user_version = 11");
+  }
+}
+
+function openFileHandle(): FileHandle {
+  const existing = globalThis.__castLogDb;
+  if (existing?.kind === "file") {
+    migrate(existing.sqlite);
+    return existing;
   }
 
-  fs.mkdirSync(uploadsDir(), { recursive: true });
-  const sqlite = new Database(dbPath());
+  ensureUploadsDir();
+  fs.mkdirSync(path.dirname(fileDbPath()), { recursive: true });
+  const sqlite = new Database(fileDbPath());
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   migrate(sqlite);
-  const db = drizzle(sqlite, { schema });
-  globalThis.__castLogDb = { sqlite, db };
-  const owner = ensureDefaultAngler();
-  sqlite
-    .prepare("UPDATE catches SET angler_id = ? WHERE angler_id IS NULL OR angler_id = ''")
-    .run(owner.id);
-  return db;
+  const db = drizzleSqlite(sqlite, { schema });
+  const handle: FileHandle = { kind: "file", sqlite, db };
+  globalThis.__castLogDb = handle;
+  globalThis.__castLogReady = Promise.resolve();
+  seedDefaultAnglerOnSqlite(sqlite);
+  return handle;
+}
+
+function openLibsqlHandle(): LibsqlHandle {
+  const existing = globalThis.__castLogDb;
+  if (existing?.kind === "libsql") return existing;
+  const cfg = databaseConfig();
+  if (!cfg.libsqlUrl) throw new Error("LibSQL URL is missing");
+  const client = createClient({
+    url: cfg.libsqlUrl,
+    authToken: cfg.authToken ?? undefined,
+  });
+  const db = drizzleLibsql(client, { schema });
+  const handle: LibsqlHandle = { kind: "libsql", client, db };
+  globalThis.__castLogDb = handle;
+  globalThis.__castLogReady = (async () => {
+    ensureUploadsDir();
+    await migrateLibsql(client);
+    const { upsertDefaultAngler } = await import("./anglers");
+    const owner = await upsertDefaultAngler(db);
+    await client.execute({
+      sql: "UPDATE catches SET angler_id = ? WHERE angler_id IS NULL OR angler_id = ''",
+      args: [owner.id] as InValue[],
+    });
+  })();
+  return handle;
+}
+
+function openHandle(): DbHandle {
+  return databaseConfig().mode === "libsql" ? openLibsqlHandle() : openFileHandle();
+}
+
+export function getDb(): JournalDatabase {
+  return openHandle().db;
+}
+
+/** Finish LibSQL migrate before the first query. File SQLite is ready immediately. */
+export async function ensureDb(): Promise<JournalDatabase> {
+  const handle = openHandle();
+  if (globalThis.__castLogReady) await globalThis.__castLogReady;
+  return handle.db;
 }
 
 export function getSqlite(): Database.Database {
-  getDb();
-  return globalThis.__castLogDb!.sqlite;
+  const handle = openHandle();
+  if (handle.kind !== "file") {
+    throw new Error("getSqlite() is only available for local file journals");
+  }
+  return handle.sqlite;
 }
 
 export function resetDbForTests() {
-  if (!globalThis.__castLogDb) return;
-  globalThis.__castLogDb.sqlite.close();
+  const handle = globalThis.__castLogDb;
+  if (handle?.kind === "file") handle.sqlite.close();
+  if (handle?.kind === "libsql") handle.client.close();
   globalThis.__castLogDb = undefined;
+  globalThis.__castLogReady = undefined;
 }

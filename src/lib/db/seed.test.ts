@@ -27,16 +27,16 @@ describe("sample catches are opt-in", () => {
     return getDb();
   }
 
-  it("does not insert sample trips on first launch", () => {
+  it("does not insert sample trips on first launch", async () => {
     freshDb();
-    expect(listCatches()).toHaveLength(0);
-    expect(countSampleCatches(getDb())).toBe(0);
+    expect(await listCatches()).toHaveLength(0);
+    expect(await countSampleCatches(getDb())).toBe(0);
   });
 
-  it("load inserts samples once and remove deletes only those", () => {
+  it("load inserts samples once and remove deletes only those", async () => {
     const db = freshDb();
     const owner = ensureDefaultAngler().id;
-    createCatch({
+    await createCatch({
       species: "Redfish",
       latitude: 28.74,
       longitude: -80.75,
@@ -44,16 +44,16 @@ describe("sample catches are opt-in", () => {
       caughtAt: "2026-08-01T14:00:00.000Z",
       photoPath: "user-one.jpg",
     });
-    const first = loadSampleCatches(db, owner);
+    const first = await loadSampleCatches(db, owner);
     expect(first.inserted).toBeGreaterThan(1);
-    expect(loadSampleCatches(db, owner).inserted).toBe(0);
-    const afterLoad = listCatches();
+    expect((await loadSampleCatches(db, owner)).inserted).toBe(0);
+    const afterLoad = await listCatches();
     expect(afterLoad.some((c) => c.placeName === "My hole")).toBe(true);
     expect(afterLoad.some((c) => c.photoPath?.startsWith("/seed/"))).toBe(true);
 
-    const removed = removeSampleCatches(db);
+    const removed = await removeSampleCatches(db);
     expect(removed).toBe(first.inserted);
-    const left = listCatches();
+    const left = await listCatches();
     expect(left).toHaveLength(1);
     expect(left[0].placeName).toBe("My hole");
     expect(left[0].photoPath).toBe("user-one.jpg");

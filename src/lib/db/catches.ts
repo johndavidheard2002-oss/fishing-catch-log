@@ -22,7 +22,8 @@ import { isCatchVisibleToViewer } from "../sharing";
 import { localDateKey } from "../calendar";
 import { rememberNamedArea } from "./areas";
 import { getAngler, linkedBuddyIds } from "./anglers";
-import { getDb } from "./index";
+import { ensureDb } from "./index";
+import { allRows, getRow, runChange } from "./query";
 import { catches } from "./schema";
 
 function nowIso(): string {
@@ -93,10 +94,10 @@ function mapRow(
   };
 }
 
-function ownerNames(ids: string[]): Map<string, string> {
+async function ownerNames(ids: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for (const id of new Set(ids)) {
-    const angler = getAngler(id);
+    const angler = await getAngler(id);
     if (angler) map.set(id, angler.name);
   }
   return map;
@@ -118,13 +119,13 @@ export type ListCatchOptions = {
   includeShared?: boolean;
 };
 
-export function listCatches(opts: ListCatchOptions = {}): CatchRecord[] {
-  const db = getDb();
-  const rows = db.select().from(catches).orderBy(desc(catches.caughtAt)).all();
-  const names = ownerNames(rows.map((r) => r.anglerId || ""));
+export async function listCatches(opts: ListCatchOptions = {}): Promise<CatchRecord[]> {
+  const db = await ensureDb();
+  const rows = await allRows(db.select().from(catches).orderBy(desc(catches.caughtAt)));
+  const names = await ownerNames(rows.map((r) => r.anglerId || ""));
   const records = rows.map((row) => mapRow(row, names));
   if (!opts.viewerId) return records;
-  const buddyIds = opts.includeShared ? linkedBuddyIds(opts.viewerId) : [];
+  const buddyIds = opts.includeShared ? await linkedBuddyIds(opts.viewerId) : [];
   return records.filter((record) =>
     isCatchVisibleToViewer({
       anglerId: record.anglerId,
@@ -136,25 +137,25 @@ export function listCatches(opts: ListCatchOptions = {}): CatchRecord[] {
   );
 }
 
-export function getCatch(id: string): CatchRecord | null {
-  const db = getDb();
-  const row = db.select().from(catches).where(eq(catches.id, id)).get();
+export async function getCatch(id: string): Promise<CatchRecord | null> {
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(catches).where(eq(catches.id, id)));
   if (!row) return null;
-  return mapRow(row, ownerNames([row.anglerId || ""]));
+  return mapRow(row, await ownerNames([row.anglerId || ""]));
 }
 
-export function canViewCatch(record: CatchRecord, viewerId: string): boolean {
+export async function canViewCatch(record: CatchRecord, viewerId: string): Promise<boolean> {
   return isCatchVisibleToViewer({
     anglerId: record.anglerId,
     sharedWithLinked: record.sharedWithLinked,
     viewerId,
     includeShared: true,
-    linkedBuddyIds: linkedBuddyIds(viewerId),
+    linkedBuddyIds: await linkedBuddyIds(viewerId),
   });
 }
 
-export function createCatch(input: CatchInput): CatchRecord {
-  const db = getDb();
+export async function createCatch(input: CatchInput): Promise<CatchRecord> {
+  const db = await ensureDb();
   const id = crypto.randomUUID();
   const stamp = nowIso();
   const derived = withDerived(input);
@@ -168,8 +169,8 @@ export function createCatch(input: CatchInput): CatchRecord {
   );
   const speciesCounts = resolved.speciesCounts;
   const fishCount = resolved.fishCount;
-  db.insert(catches)
-    .values({
+  await runChange(
+    db.insert(catches).values({
       id,
       photoPath: input.photoPath ?? null,
       species,
@@ -209,16 +210,16 @@ export function createCatch(input: CatchInput): CatchRecord {
       sharedWithLinked: input.sharedWithLinked ? 1 : 0,
       createdAt: stamp,
       updatedAt: stamp,
-    })
-    .run();
-  rememberNamedArea(input.anglerId, input.placeName, input.latitude, input.longitude);
-  return getCatch(id)!;
+    }),
+  );
+  await rememberNamedArea(input.anglerId, input.placeName, input.latitude, input.longitude);
+  return (await getCatch(id))!;
 }
 
-export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord | null {
-  const existing = getCatch(id);
+export async function updateCatch(id: string, input: Partial<CatchInput>): Promise<CatchRecord | null> {
+  const existing = await getCatch(id);
   if (!existing) return null;
-  const db = getDb();
+  const db = await ensureDb();
   const caughtAt = input.caughtAt ? new Date(input.caughtAt).toISOString() : existing.caughtAt;
   const speciesList =
     input.speciesList !== undefined || input.species !== undefined
@@ -248,7 +249,8 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
   );
   const speciesCounts = resolved.speciesCounts;
   const fishCount = resolved.fishCount;
-  db.update(catches)
+  await runChange(
+    db.update(catches)
     .set({
       photoPath: input.photoPath === undefined ? existing.photoPath : input.photoPath,
       species,
@@ -321,19 +323,19 @@ export function updateCatch(id: string, input: Partial<CatchInput>): CatchRecord
             : 0,
       updatedAt: nowIso(),
     })
-    .where(eq(catches.id, id))
-    .run();
-  const saved = getCatch(id);
+    .where(eq(catches.id, id)),
+  );
+  const saved = await getCatch(id);
   if (saved) {
-    rememberNamedArea(saved.anglerId, saved.placeName, saved.latitude, saved.longitude);
+    await rememberNamedArea(saved.anglerId, saved.placeName, saved.latitude, saved.longitude);
   }
   return saved;
 }
 
-export function deleteCatch(id: string): boolean {
-  const db = getDb();
-  const result = db.delete(catches).where(eq(catches.id, id)).run();
-  return result.changes > 0;
+export async function deleteCatch(id: string): Promise<boolean> {
+  const db = await ensureDb();
+  const changes = await runChange(db.delete(catches).where(eq(catches.id, id)));
+  return changes > 0;
 }
 
 const CALENDAR_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -343,17 +345,17 @@ export function isCalendarDayKey(value: string): boolean {
 }
 
 /** Share or unshare every catch the angler logged on a local calendar day. */
-export function setSharedForDay(args: {
+export async function setSharedForDay(args: {
   anglerId: string;
   day: string;
   shared: boolean;
-}): { updated: number } {
+}): Promise<{ updated: number }> {
   if (!isCalendarDayKey(args.day)) return { updated: 0 };
-  const mine = listCatches({ viewerId: args.anglerId }).filter(
+  const mine = (await listCatches({ viewerId: args.anglerId })).filter(
     (record) => record.anglerId === args.anglerId && localDateKey(record.caughtAt) === args.day,
   );
   for (const record of mine) {
-    updateCatch(record.id, { sharedWithLinked: args.shared });
+    await updateCatch(record.id, { sharedWithLinked: args.shared });
   }
   return { updated: mine.length };
 }

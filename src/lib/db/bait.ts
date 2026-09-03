@@ -1,7 +1,8 @@
 import { desc, eq } from "drizzle-orm";
 import { rememberNamedArea } from "./areas";
 import { getAngler, linkedBuddyIds } from "./anglers";
-import { getDb } from "./index";
+import { ensureDb } from "./index";
+import { allRows, getRow, runChange } from "./query";
 import { baitSpots } from "./schema";
 import { parseBaitTypes, parseBaitTypesJson } from "../bait";
 import { DEFAULT_HABITAT, isHabitat } from "../habitat";
@@ -58,10 +59,10 @@ function mapRow(
   };
 }
 
-function ownerNames(ids: string[]): Map<string, string> {
+async function ownerNames(ids: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   for (const id of new Set(ids)) {
-    const angler = getAngler(id);
+    const angler = await getAngler(id);
     if (angler) map.set(id, angler.name);
   }
   return map;
@@ -83,13 +84,13 @@ export type ListBaitOptions = {
   includeShared?: boolean;
 };
 
-export function listBaitSpots(opts: ListBaitOptions = {}): BaitSpot[] {
-  const db = getDb();
-  const rows = db.select().from(baitSpots).orderBy(desc(baitSpots.loggedAt)).all();
-  const names = ownerNames(rows.map((r) => r.anglerId));
+export async function listBaitSpots(opts: ListBaitOptions = {}): Promise<BaitSpot[]> {
+  const db = await ensureDb();
+  const rows = await allRows(db.select().from(baitSpots).orderBy(desc(baitSpots.loggedAt)));
+  const names = await ownerNames(rows.map((r) => r.anglerId));
   const records = rows.map((row) => mapRow(row, names));
   if (!opts.viewerId) return records;
-  const buddyIds = opts.includeShared ? linkedBuddyIds(opts.viewerId) : [];
+  const buddyIds = opts.includeShared ? await linkedBuddyIds(opts.viewerId) : [];
   return records.filter((record) =>
     isCatchVisibleToViewer({
       anglerId: record.anglerId,
@@ -101,25 +102,25 @@ export function listBaitSpots(opts: ListBaitOptions = {}): BaitSpot[] {
   );
 }
 
-export function getBaitSpot(id: string): BaitSpot | null {
-  const db = getDb();
-  const row = db.select().from(baitSpots).where(eq(baitSpots.id, id)).get();
+export async function getBaitSpot(id: string): Promise<BaitSpot | null> {
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(baitSpots).where(eq(baitSpots.id, id)));
   if (!row) return null;
-  return mapRow(row, ownerNames([row.anglerId]));
+  return mapRow(row, await ownerNames([row.anglerId]));
 }
 
-export function canViewBaitSpot(record: BaitSpot, viewerId: string): boolean {
+export async function canViewBaitSpot(record: BaitSpot, viewerId: string): Promise<boolean> {
   return isCatchVisibleToViewer({
     anglerId: record.anglerId,
     sharedWithLinked: record.sharedWithLinked,
     viewerId,
     includeShared: true,
-    linkedBuddyIds: linkedBuddyIds(viewerId),
+    linkedBuddyIds: await linkedBuddyIds(viewerId),
   });
 }
 
-export function createBaitSpot(input: BaitSpotInput): BaitSpot {
-  const db = getDb();
+export async function createBaitSpot(input: BaitSpotInput): Promise<BaitSpot> {
+  const db = await ensureDb();
   const id = crypto.randomUUID();
   const stamp = nowIso();
   const derived = withDerived(input);
@@ -127,8 +128,8 @@ export function createBaitSpot(input: BaitSpotInput): BaitSpot {
   const habitat = asHabitat(input.habitat);
   const anglerId = input.anglerId ?? null;
   if (!anglerId) throw new Error("Angler is required");
-  db.insert(baitSpots)
-    .values({
+  await runChange(
+    db.insert(baitSpots).values({
       id,
       photoPath: input.photoPath ?? null,
       placeName: input.placeName ?? null,
@@ -158,16 +159,16 @@ export function createBaitSpot(input: BaitSpotInput): BaitSpot {
       sharedWithLinked: input.sharedWithLinked ? 1 : 0,
       createdAt: stamp,
       updatedAt: stamp,
-    })
-    .run();
-  rememberNamedArea(anglerId, input.placeName, input.latitude, input.longitude);
-  return getBaitSpot(id)!;
+    }),
+  );
+  await rememberNamedArea(anglerId, input.placeName, input.latitude, input.longitude);
+  return (await getBaitSpot(id))!;
 }
 
-export function updateBaitSpot(id: string, input: Partial<BaitSpotInput>): BaitSpot | null {
-  const existing = getBaitSpot(id);
+export async function updateBaitSpot(id: string, input: Partial<BaitSpotInput>): Promise<BaitSpot | null> {
+  const existing = await getBaitSpot(id);
   if (!existing) return null;
-  const db = getDb();
+  const db = await ensureDb();
   const loggedAt = input.loggedAt ? new Date(input.loggedAt).toISOString() : existing.loggedAt;
   const baitTypes =
     input.baitTypes !== undefined ? parseBaitTypes(input.baitTypes) : existing.baitTypes;
@@ -186,7 +187,8 @@ export function updateBaitSpot(id: string, input: Partial<BaitSpotInput>): BaitS
   const placeName = input.placeName === undefined ? existing.placeName : input.placeName;
   const latitude = input.latitude === undefined ? existing.latitude : input.latitude;
   const longitude = input.longitude === undefined ? existing.longitude : input.longitude;
-  db.update(baitSpots)
+  await runChange(
+    db.update(baitSpots)
     .set({
       photoPath: input.photoPath === undefined ? existing.photoPath : input.photoPath,
       placeName,
@@ -235,14 +237,14 @@ export function updateBaitSpot(id: string, input: Partial<BaitSpotInput>): BaitS
             : 0,
       updatedAt: nowIso(),
     })
-    .where(eq(baitSpots.id, id))
-    .run();
-  rememberNamedArea(anglerId, placeName, latitude, longitude);
+    .where(eq(baitSpots.id, id)),
+  );
+  await rememberNamedArea(anglerId, placeName, latitude, longitude);
   return getBaitSpot(id);
 }
 
-export function deleteBaitSpot(id: string): boolean {
-  const db = getDb();
-  const result = db.delete(baitSpots).where(eq(baitSpots.id, id)).run();
-  return result.changes > 0;
+export async function deleteBaitSpot(id: string): Promise<boolean> {
+  const db = await ensureDb();
+  const changes = await runChange(db.delete(baitSpots).where(eq(baitSpots.id, id)));
+  return changes > 0;
 }

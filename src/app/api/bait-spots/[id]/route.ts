@@ -9,19 +9,19 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, ctx: Ctx) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { id } = await ctx.params;
-  const record = getBaitSpot(id);
-  if (!record || !canViewBaitSpot(record, viewerId)) {
+  const record = await getBaitSpot(id);
+  if (!record || !(await canViewBaitSpot(record, viewerId))) {
     return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   }
   return jsonWithViewer({ spot: record }, viewerId);
 }
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { id } = await ctx.params;
-  const existing = getBaitSpot(id);
+  const existing = await getBaitSpot(id);
   if (!existing || existing.anglerId !== viewerId) {
     return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   }
@@ -41,19 +41,19 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       { status: 400 },
     );
   }
-  const spot = updateBaitSpot(id, { ...input, anglerId: existing.anglerId });
+  const spot = await updateBaitSpot(id, { ...input, anglerId: existing.anglerId });
   if (!spot) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   return jsonWithViewer({ spot }, viewerId);
 }
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { id } = await ctx.params;
-  const existing = getBaitSpot(id);
+  const existing = await getBaitSpot(id);
   if (!existing || existing.anglerId !== viewerId) {
     return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   }
-  const ok = deleteBaitSpot(id);
+  const ok = await deleteBaitSpot(id);
   if (!ok) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   return jsonWithViewer({ ok: true }, viewerId);
 }

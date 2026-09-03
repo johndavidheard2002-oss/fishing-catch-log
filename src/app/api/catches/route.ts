@@ -8,19 +8,19 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const filters = parseFilters(request.nextUrl.searchParams);
-  const records = listCatches({
+  const records = (await listCatches({
     viewerId,
     includeShared: includeSharedFrom(request),
-  }).filter((c) => matchesFilters(c, filters));
+  })).filter((c) => matchesFilters(c, filters));
   return jsonWithViewer({ catches: records }, viewerId);
 }
 
 export async function POST(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const body = (await request.json()) as Record<string, unknown>;
   const input = catchInputFromUnknown(body);
-  const record = createCatch({ ...input, anglerId: viewerId });
+  const record = await createCatch({ ...input, anglerId: viewerId });
   return jsonWithViewer({ catch: record }, viewerId, { status: 201 });
 }

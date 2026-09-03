@@ -8,9 +8,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const csv = catchesToCsv(
-    listCatches({ viewerId, includeShared: includeSharedFrom(request) }),
+    await listCatches({ viewerId, includeShared: includeSharedFrom(request) }),
   );
   const res = new NextResponse(csv, {
     headers: {

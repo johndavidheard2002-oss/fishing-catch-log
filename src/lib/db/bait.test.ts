@@ -27,9 +27,9 @@ describe("bait spots", () => {
     return ensureDefaultAngler().id;
   }
 
-  it("creates, lists, edits, and deletes a personal bait spot", () => {
+  it("creates, lists, edits, and deletes a personal bait spot", async () => {
     const anglerId = freshDb();
-    const created = createBaitSpot({
+    const created = await createBaitSpot({
       baitTypes: ["Shrimp", "Finger mullet"],
       placeName: "Haulover Canal",
       latitude: 28.735,
@@ -43,18 +43,18 @@ describe("bait spots", () => {
     });
     expect(created.baitTypes).toEqual(["Shrimp", "Finger mullet"]);
     expect(created.sharedWithLinked).toBe(false);
-    expect(listBaitSpots({ viewerId: anglerId })).toHaveLength(1);
+    expect(await listBaitSpots({ viewerId: anglerId })).toHaveLength(1);
 
-    const edited = updateBaitSpot(created.id, { notes: "Throw net on the flood." });
+    const edited = await updateBaitSpot(created.id, { notes: "Throw net on the flood." });
     expect(edited?.notes).toBe("Throw net on the flood.");
 
-    expect(deleteBaitSpot(created.id)).toBe(true);
-    expect(getBaitSpot(created.id)).toBeNull();
+    expect(await deleteBaitSpot(created.id)).toBe(true);
+    expect(await getBaitSpot(created.id)).toBeNull();
   });
 
-  it("hides another angler’s private bait spots", () => {
+  it("hides another angler’s private bait spots", async () => {
     const anglerId = freshDb();
-    createBaitSpot({
+    await createBaitSpot({
       baitTypes: ["Pogies"],
       placeName: "Secret creek",
       latitude: 28.1,
@@ -62,6 +62,6 @@ describe("bait spots", () => {
       loggedAt: "2026-08-02T14:00:00.000Z",
       anglerId,
     });
-    expect(listBaitSpots({ viewerId: "someone-else", includeShared: true })).toHaveLength(0);
+    expect(await listBaitSpots({ viewerId: "someone-else", includeShared: true })).toHaveLength(0);
   });
 });

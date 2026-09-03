@@ -33,9 +33,9 @@ describe("calendar notes", () => {
     return ensureDefaultAngler().id;
   }
 
-  it("creates, lists, edits, and deletes a planned trip on a day", () => {
+  it("creates, lists, edits, and deletes a planned trip on a day", async () => {
     const anglerId = freshDb();
-    const created = createCalendarNote(anglerId, {
+    const created = await createCalendarNote(anglerId, {
       day: "2026-09-10",
       title: "Dawn flood",
       notes: "Outgoing at the point.",
@@ -44,9 +44,9 @@ describe("calendar notes", () => {
     });
     expect(created.day).toBe("2026-09-10");
     expect(created.speciesTargets).toEqual(["Redfish", "Snook"]);
-    expect(listCalendarNotes(anglerId)).toHaveLength(1);
+    expect(await listCalendarNotes(anglerId)).toHaveLength(1);
 
-    const edited = updateCalendarNote(created.id, anglerId, {
+    const edited = await updateCalendarNote(created.id, anglerId, {
       day: "2026-09-10",
       title: "Dawn flood",
       notes: "Wind east 10.",
@@ -56,21 +56,21 @@ describe("calendar notes", () => {
     expect(edited?.notes).toBe("Wind east 10.");
     expect(edited?.speciesTargets).toEqual(["Redfish"]);
 
-    expect(deleteCalendarNote(created.id, anglerId)).toBe(true);
-    expect(getCalendarNote(created.id)).toBeNull();
-    expect(listCalendarNotes(anglerId)).toEqual([]);
+    expect(await deleteCalendarNote(created.id, anglerId)).toBe(true);
+    expect(await getCalendarNote(created.id)).toBeNull();
+    expect(await listCalendarNotes(anglerId)).toEqual([]);
   });
 
-  it("does not let another angler edit or delete the note", () => {
+  it("does not let another angler edit or delete the note", async () => {
     const anglerId = freshDb();
-    const created = createCalendarNote(anglerId, {
+    const created = await createCalendarNote(anglerId, {
       day: "2026-09-12",
       title: "Private plan",
     });
-    expect(updateCalendarNote(created.id, "someone-else", { day: "2026-09-12", title: "Nope" })).toBe(
-      null,
-    );
-    expect(deleteCalendarNote(created.id, "someone-else")).toBe(false);
-    expect(getCalendarNote(created.id)?.title).toBe("Private plan");
+    expect(
+      await updateCalendarNote(created.id, "someone-else", { day: "2026-09-12", title: "Nope" }),
+    ).toBe(null);
+    expect(await deleteCalendarNote(created.id, "someone-else")).toBe(false);
+    expect((await getCalendarNote(created.id))?.title).toBe("Private plan");
   });
 });

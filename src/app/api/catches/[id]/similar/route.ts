@@ -10,15 +10,15 @@ export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ id: string }> },
 ) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { id } = await ctx.params;
-  const record = getCatch(id);
-  if (!record || !canViewCatch(record, viewerId)) {
+  const record = await getCatch(id);
+  if (!record || !(await canViewCatch(record, viewerId))) {
     return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   }
   const matches = findSimilar(
     record,
-    listCatches({ viewerId, includeShared: includeSharedFrom(request) }),
+    await listCatches({ viewerId, includeShared: includeSharedFrom(request) }),
   );
   return jsonWithViewer({ target: record, matches }, viewerId);
 }

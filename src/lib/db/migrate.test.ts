@@ -46,7 +46,7 @@ describe("migrate older journals", () => {
     tmpDirs.length = 0;
   });
 
-  it("adds habitat, moon, wind, and pressure on a pre-habitat sqlite file", () => {
+  it("adds habitat, moon, wind, and pressure on a pre-habitat sqlite file", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
     tmpDirs.push(dir);
     const file = path.join(dir, "old.sqlite");
@@ -82,7 +82,7 @@ describe("migrate older journals", () => {
     process.env.DATABASE_PATH = file;
     resetDbForTests();
     getDb();
-    const records = listCatches();
+    const records = await listCatches();
     expect(records).toHaveLength(1);
     expect(records[0].habitat).toBe("saltwater-inshore");
     expect(records[0].moonPhase).toBeTruthy();
@@ -95,7 +95,7 @@ describe("migrate older journals", () => {
     expect(records[0].tideDetail).toBeNull();
   });
 
-  it("drops leftover sample trips so a real journal starts empty of demo fish", () => {
+  it("drops leftover sample trips so a real journal starts empty of demo fish", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
     tmpDirs.push(dir);
     const file = path.join(dir, "old.sqlite");
@@ -154,7 +154,7 @@ describe("migrate older journals", () => {
     process.env.DATABASE_PATH = file;
     resetDbForTests();
     getDb();
-    const records = listCatches();
+    const records = await listCatches();
     expect(records).toHaveLength(1);
     expect(records[0].placeName).toBe("My lagoon");
     expect(records[0].photoPath).toBe("real-catch.jpg");

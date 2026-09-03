@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { id } = await ctx.params;
-  const existing = getCalendarNote(id);
+  const existing = await getCalendarNote(id);
   if (!existing || existing.anglerId !== viewerId) {
     return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   }
@@ -24,15 +24,15 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
       { status: 400 },
     );
   }
-  const note = updateCalendarNote(id, viewerId, input);
+  const note = await updateCalendarNote(id, viewerId, input);
   if (!note) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   return jsonWithViewer({ note }, viewerId);
 }
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { id } = await ctx.params;
-  const ok = deleteCalendarNote(id, viewerId);
+  const ok = await deleteCalendarNote(id, viewerId);
   if (!ok) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
   return jsonWithViewer({ ok: true }, viewerId);
 }

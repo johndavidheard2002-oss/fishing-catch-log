@@ -1,8 +1,9 @@
 import { and, desc, eq } from "drizzle-orm";
 import { areaNameKey, mergeNamedAreas, parseAreaName } from "../areas";
 import type { NamedArea, NamedAreaInput } from "../types";
-import { getDb, getSqlite } from "./index";
-import { namedAreas } from "./schema";
+import { ensureDb } from "./index";
+import { allRows, getRow, runChange } from "./query";
+import { baitSpots, catches, namedAreas } from "./schema";
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -20,19 +21,14 @@ function mapRow(row: typeof namedAreas.$inferSelect): NamedArea {
   };
 }
 
-type InferredRow = {
-  place_name: string;
-  latitude: number | null;
-  longitude: number | null;
-  stamp: string;
-};
-
-function inferredFrom(sql: string, anglerId: string, source: NamedArea["source"]): NamedArea[] {
-  const sqlite = getSqlite();
-  const rows = sqlite.prepare(sql).all(anglerId) as InferredRow[];
+function uniqueInferred(
+  rows: { placeName: string | null; latitude: number | null; longitude: number | null; stamp: string }[],
+  anglerId: string,
+  source: NamedArea["source"],
+): NamedArea[] {
   const byKey = new Map<string, NamedArea>();
   for (const row of rows) {
-    const name = parseAreaName(row.place_name);
+    const name = parseAreaName(row.placeName);
     if (!name) continue;
     const key = areaNameKey(name);
     if (byKey.has(key)) continue;
@@ -49,76 +45,78 @@ function inferredFrom(sql: string, anglerId: string, source: NamedArea["source"]
   return [...byKey.values()];
 }
 
-export function listSavedNamedAreas(anglerId: string): NamedArea[] {
-  const db = getDb();
-  const rows = db
-    .select()
-    .from(namedAreas)
-    .where(eq(namedAreas.anglerId, anglerId))
-    .orderBy(desc(namedAreas.updatedAt))
-    .all();
+export async function listSavedNamedAreas(anglerId: string): Promise<NamedArea[]> {
+  const db = await ensureDb();
+  const rows = await allRows(
+    db
+      .select()
+      .from(namedAreas)
+      .where(eq(namedAreas.anglerId, anglerId))
+      .orderBy(desc(namedAreas.updatedAt)),
+  );
   return rows.map(mapRow);
 }
 
-export function listNamedAreas(anglerId: string): NamedArea[] {
-  const fromCatches = inferredFrom(
-    `SELECT place_name, latitude, longitude, caught_at AS stamp
-     FROM catches
-     WHERE angler_id = ? AND place_name IS NOT NULL AND trim(place_name) != ''
-     ORDER BY caught_at DESC`,
-    anglerId,
-    "catch",
-  );
-  let fromBait: NamedArea[] = [];
-  try {
-    fromBait = inferredFrom(
-      `SELECT place_name, latitude, longitude, logged_at AS stamp
-       FROM bait_spots
-       WHERE angler_id = ? AND place_name IS NOT NULL AND trim(place_name) != ''
-       ORDER BY logged_at DESC`,
-      anglerId,
-      "bait",
-    );
-  } catch {
-    fromBait = [];
-  }
-  return mergeNamedAreas(listSavedNamedAreas(anglerId), [...fromCatches, ...fromBait]);
+export async function listNamedAreas(anglerId: string): Promise<NamedArea[]> {
+  const db = await ensureDb();
+  const catchRows = (await allRows(
+    db.select().from(catches).where(eq(catches.anglerId, anglerId)).orderBy(desc(catches.caughtAt)),
+  )).map((row) => ({
+    placeName: row.placeName,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    stamp: row.caughtAt,
+  }));
+  const baitRows = (await allRows(
+    db.select().from(baitSpots).where(eq(baitSpots.anglerId, anglerId)).orderBy(desc(baitSpots.loggedAt)),
+  )).map((row) => ({
+    placeName: row.placeName,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    stamp: row.loggedAt,
+  }));
+  const fromCatches = uniqueInferred(catchRows, anglerId, "catch");
+  const fromBait = uniqueInferred(baitRows, anglerId, "bait");
+  return mergeNamedAreas(await listSavedNamedAreas(anglerId), [...fromCatches, ...fromBait]);
 }
 
-export function getNamedArea(id: string): NamedArea | null {
-  const db = getDb();
-  const row = db.select().from(namedAreas).where(eq(namedAreas.id, id)).get();
+export async function getNamedArea(id: string): Promise<NamedArea | null> {
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(namedAreas).where(eq(namedAreas.id, id)));
   return row ? mapRow(row) : null;
 }
 
-export function upsertNamedArea(anglerId: string, input: NamedAreaInput): NamedArea {
+export async function upsertNamedArea(anglerId: string, input: NamedAreaInput): Promise<NamedArea> {
   const name = parseAreaName(input.name);
   if (!name) throw new Error("Area name is required");
   const key = areaNameKey(name);
-  const db = getDb();
-  const existing = db
-    .select()
-    .from(namedAreas)
-    .where(and(eq(namedAreas.anglerId, anglerId), eq(namedAreas.nameKey, key)))
-    .get();
+  const db = await ensureDb();
+  const existing = await getRow(
+    db
+      .select()
+      .from(namedAreas)
+      .where(and(eq(namedAreas.anglerId, anglerId), eq(namedAreas.nameKey, key))),
+  );
   const stamp = nowIso();
   const latitude = input.latitude ?? existing?.latitude ?? null;
   const longitude = input.longitude ?? existing?.longitude ?? null;
   if (existing) {
-    db.update(namedAreas)
-      .set({
-        name,
-        latitude,
-        longitude,
-        updatedAt: stamp,
-      })
-      .where(eq(namedAreas.id, existing.id))
-      .run();
-    return getNamedArea(existing.id)!;
+    await runChange(
+      db
+        .update(namedAreas)
+        .set({
+          name,
+          latitude,
+          longitude,
+          updatedAt: stamp,
+        })
+        .where(eq(namedAreas.id, existing.id)),
+    );
+    return (await getNamedArea(existing.id))!;
   }
   const id = crypto.randomUUID();
-  db.insert(namedAreas)
-    .values({
+  await runChange(
+    db.insert(namedAreas).values({
       id,
       anglerId,
       name,
@@ -127,30 +125,30 @@ export function upsertNamedArea(anglerId: string, input: NamedAreaInput): NamedA
       longitude,
       createdAt: stamp,
       updatedAt: stamp,
-    })
-    .run();
-  return getNamedArea(id)!;
+    }),
+  );
+  return (await getNamedArea(id))!;
 }
 
 /** Remember a typed/picked place so it is a chip on the next catch. */
-export function rememberNamedArea(
+export async function rememberNamedArea(
   anglerId: string | null | undefined,
   placeName: string | null | undefined,
   latitude?: number | null,
   longitude?: number | null,
-): NamedArea | null {
+): Promise<NamedArea | null> {
   if (!anglerId) return null;
   const name = parseAreaName(placeName);
   if (!name) return null;
   return upsertNamedArea(anglerId, { name, latitude, longitude });
 }
 
-export function updateNamedArea(
+export async function updateNamedArea(
   id: string,
   anglerId: string,
   input: NamedAreaInput,
-): NamedArea | null {
-  const existing = getNamedArea(id);
+): Promise<NamedArea | null> {
+  const existing = await getNamedArea(id);
   if (!existing || existing.anglerId !== anglerId) return null;
   return upsertNamedArea(anglerId, {
     name: input.name,
@@ -159,12 +157,12 @@ export function updateNamedArea(
   });
 }
 
-export function deleteNamedArea(id: string, anglerId: string): boolean {
-  const existing = getNamedArea(id);
+export async function deleteNamedArea(id: string, anglerId: string): Promise<boolean> {
+  const existing = await getNamedArea(id);
   if (!existing || existing.anglerId !== anglerId) return false;
-  const db = getDb();
-  db.delete(namedAreas)
-    .where(and(eq(namedAreas.id, id), eq(namedAreas.anglerId, anglerId)))
-    .run();
+  const db = await ensureDb();
+  await runChange(
+    db.delete(namedAreas).where(and(eq(namedAreas.id, id), eq(namedAreas.anglerId, anglerId))),
+  );
   return true;
 }

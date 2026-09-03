@@ -7,8 +7,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
-  const spots = listBaitSpots({
+  const viewerId = await viewerIdFromRequest(request);
+  const spots = await listBaitSpots({
     viewerId,
     includeShared: includeSharedFrom(request),
   });
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const input = parseBaitSpotInput(body);
   if (!input) {
@@ -27,6 +27,6 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const spot = createBaitSpot({ ...input, anglerId: viewerId });
+  const spot = await createBaitSpot({ ...input, anglerId: viewerId });
   return jsonWithViewer({ spot }, viewerId, { status: 201 });
 }

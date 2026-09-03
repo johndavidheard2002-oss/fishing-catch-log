@@ -1,5 +1,8 @@
-import { and, eq } from "drizzle-orm";
-import { getDb, getSqlite } from "./index";
+import { and, asc, eq } from "drizzle-orm";
+import type Database from "better-sqlite3";
+import { databaseConfig } from "./config";
+import { ensureDb, getDb, getSqlite, type JournalDatabase } from "./index";
+import { allRows, getRow, runChange } from "./query";
 import { anglers, buddyLinks } from "./schema";
 
 export type AnglerRecord = {
@@ -29,14 +32,16 @@ function newInviteCode(): string {
   return `CAST-${code}`;
 }
 
-export function ensureDefaultAngler(): AnglerRecord {
-  const sqlite = getSqlite();
+export function seedDefaultAnglerOnSqlite(sqlite: Database.Database): AnglerRecord {
   const existing = sqlite
     .prepare("SELECT id, name, invite_code, created_at FROM anglers ORDER BY created_at ASC LIMIT 1")
     .get() as
     | { id: string; name: string; invite_code: string; created_at: string }
     | undefined;
   if (existing) {
+    sqlite
+      .prepare("UPDATE catches SET angler_id = ? WHERE angler_id IS NULL OR angler_id = ''")
+      .run(existing.id);
     return {
       id: existing.id,
       name: existing.name,
@@ -53,116 +58,154 @@ export function ensureDefaultAngler(): AnglerRecord {
   sqlite
     .prepare("INSERT INTO anglers (id, name, invite_code, created_at) VALUES (?, ?, ?, ?)")
     .run(row.id, row.name, row.inviteCode, row.createdAt);
+  sqlite
+    .prepare("UPDATE catches SET angler_id = ? WHERE angler_id IS NULL OR angler_id = ''")
+    .run(row.id);
   return row;
 }
 
-export function getAngler(id: string): AnglerRecord | null {
-  const db = getDb();
-  const row = db.select().from(anglers).where(eq(anglers.id, id)).get();
+export function ensureDefaultAngler(): AnglerRecord {
+  if (databaseConfig().mode === "libsql") {
+    throw new Error("ensureDefaultAngler() is sync file-SQLite only; await seedDefaultAngler() for Turso");
+  }
+  getDb();
+  return seedDefaultAnglerOnSqlite(getSqlite());
+}
+
+/** Does not call ensureDb — used while the LibSQL migrate promise is still running. */
+export async function upsertDefaultAngler(db: JournalDatabase): Promise<AnglerRecord> {
+  const existing = await allRows(db.select().from(anglers).orderBy(asc(anglers.createdAt)).limit(1));
+  if (existing[0]) return mapAngler(existing[0]);
+  const row = {
+    id: crypto.randomUUID(),
+    name: "You",
+    inviteCode: newInviteCode(),
+    createdAt: new Date().toISOString(),
+  };
+  await runChange(
+    db.insert(anglers).values({
+      id: row.id,
+      name: row.name,
+      inviteCode: row.inviteCode,
+      createdAt: row.createdAt,
+    }),
+  );
+  return row;
+}
+
+export async function seedDefaultAngler(): Promise<AnglerRecord> {
+  if (databaseConfig().mode === "file") return ensureDefaultAngler();
+  const db = await ensureDb();
+  return upsertDefaultAngler(db);
+}
+
+export async function getAngler(id: string): Promise<AnglerRecord | null> {
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(anglers).where(eq(anglers.id, id)));
   return row ? mapAngler(row) : null;
 }
 
-export function getAnglerByCode(code: string): AnglerRecord | null {
+export async function getAnglerByCode(code: string): Promise<AnglerRecord | null> {
   const normalized = code.trim().toUpperCase();
   if (!normalized) return null;
-  const db = getDb();
-  const row = db.select().from(anglers).where(eq(anglers.inviteCode, normalized)).get();
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(anglers).where(eq(anglers.inviteCode, normalized)));
   return row ? mapAngler(row) : null;
 }
 
-export function listAnglers(): AnglerRecord[] {
-  const db = getDb();
-  return db.select().from(anglers).all().map(mapAngler);
+export async function listAnglers(): Promise<AnglerRecord[]> {
+  const db = await ensureDb();
+  const rows = await allRows(db.select().from(anglers));
+  return rows.map(mapAngler);
 }
 
-export function createAngler(name: string): AnglerRecord {
-  const db = getDb();
+export async function createAngler(name: string): Promise<AnglerRecord> {
+  const db = await ensureDb();
   const id = crypto.randomUUID();
   const stamp = new Date().toISOString();
   const inviteCode = newInviteCode();
-  db.insert(anglers)
-    .values({
+  await runChange(
+    db.insert(anglers).values({
       id,
       name: name.trim() || "Buddy",
       inviteCode,
       createdAt: stamp,
-    })
-    .run();
-  return getAngler(id)!;
+    }),
+  );
+  return (await getAngler(id))!;
 }
 
-export function renameAngler(id: string, name: string): AnglerRecord | null {
-  const existing = getAngler(id);
+export async function renameAngler(id: string, name: string): Promise<AnglerRecord | null> {
+  const existing = await getAngler(id);
   if (!existing) return null;
-  const db = getDb();
-  db.update(anglers)
-    .set({ name: name.trim() || existing.name })
-    .where(eq(anglers.id, id))
-    .run();
+  const db = await ensureDb();
+  await runChange(
+    db.update(anglers)
+      .set({ name: name.trim() || existing.name })
+      .where(eq(anglers.id, id)),
+  );
   return getAngler(id);
 }
 
-export function linkedBuddyIds(anglerId: string): string[] {
-  const db = getDb();
-  return db
-    .select()
-    .from(buddyLinks)
-    .where(eq(buddyLinks.anglerId, anglerId))
-    .all()
-    .map((row) => row.buddyId);
+export async function linkedBuddyIds(anglerId: string): Promise<string[]> {
+  const db = await ensureDb();
+  const rows = await allRows(db.select().from(buddyLinks).where(eq(buddyLinks.anglerId, anglerId)));
+  return rows.map((row) => row.buddyId);
 }
 
-export function listBuddies(anglerId: string): BuddyRecord[] {
-  const ids = linkedBuddyIds(anglerId);
-  const db = getDb();
-  return ids
-    .map((id) => {
-      const angler = getAngler(id);
-      if (!angler) return null;
-      const link = db
+export async function listBuddies(anglerId: string): Promise<BuddyRecord[]> {
+  const ids = await linkedBuddyIds(anglerId);
+  const db = await ensureDb();
+  const out: BuddyRecord[] = [];
+  for (const id of ids) {
+    const angler = await getAngler(id);
+    if (!angler) continue;
+    const link = await getRow(
+      db
         .select()
         .from(buddyLinks)
-        .where(and(eq(buddyLinks.anglerId, anglerId), eq(buddyLinks.buddyId, id)))
-        .get();
-      return { ...angler, linkedAt: link?.createdAt ?? angler.createdAt };
-    })
-    .filter((b): b is BuddyRecord => b != null);
+        .where(and(eq(buddyLinks.anglerId, anglerId), eq(buddyLinks.buddyId, id))),
+    );
+    out.push({ ...angler, linkedAt: link?.createdAt ?? angler.createdAt });
+  }
+  return out;
 }
 
-function insertLink(fromId: string, toId: string) {
-  const db = getDb();
-  const existing = db
-    .select()
-    .from(buddyLinks)
-    .where(and(eq(buddyLinks.anglerId, fromId), eq(buddyLinks.buddyId, toId)))
-    .get();
+async function insertLink(fromId: string, toId: string) {
+  const db = await ensureDb();
+  const existing = await getRow(
+    db
+      .select()
+      .from(buddyLinks)
+      .where(and(eq(buddyLinks.anglerId, fromId), eq(buddyLinks.buddyId, toId))),
+  );
   if (existing) return;
-  db.insert(buddyLinks)
-    .values({
+  await runChange(
+    db.insert(buddyLinks).values({
       id: crypto.randomUUID(),
       anglerId: fromId,
       buddyId: toId,
       createdAt: new Date().toISOString(),
-    })
-    .run();
+    }),
+  );
 }
 
-export function linkAnglers(a: string, b: string): void {
+export async function linkAnglers(a: string, b: string): Promise<void> {
   if (a === b) throw new Error("You cannot link to yourself.");
-  insertLink(a, b);
-  insertLink(b, a);
+  await insertLink(a, b);
+  await insertLink(b, a);
 }
 
-export function unlinkAnglers(a: string, b: string): void {
-  const db = getDb();
-  db.delete(buddyLinks)
-    .where(and(eq(buddyLinks.anglerId, a), eq(buddyLinks.buddyId, b)))
-    .run();
-  db.delete(buddyLinks)
-    .where(and(eq(buddyLinks.anglerId, b), eq(buddyLinks.buddyId, a)))
-    .run();
+export async function unlinkAnglers(a: string, b: string): Promise<void> {
+  const db = await ensureDb();
+  await runChange(
+    db.delete(buddyLinks).where(and(eq(buddyLinks.anglerId, a), eq(buddyLinks.buddyId, b))),
+  );
+  await runChange(
+    db.delete(buddyLinks).where(and(eq(buddyLinks.anglerId, b), eq(buddyLinks.buddyId, a))),
+  );
 }
 
-export function areLinked(a: string, b: string): boolean {
-  return linkedBuddyIds(a).includes(b);
+export async function areLinked(a: string, b: string): Promise<boolean> {
+  return (await linkedBuddyIds(a)).includes(b);
 }

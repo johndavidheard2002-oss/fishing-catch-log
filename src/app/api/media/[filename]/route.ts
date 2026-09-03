@@ -1,7 +1,8 @@
-import fs from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
+import { listBaitSpots } from "@/lib/db/bait";
 import { listCatches } from "@/lib/db/catches";
+import { readUploadedPhoto } from "@/lib/storage";
 import { viewerIdFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -19,25 +20,26 @@ export async function GET(
   request: NextRequest,
   ctx: { params: Promise<{ filename: string }> },
 ) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { filename } = await ctx.params;
   const safe = path.basename(filename);
-  const allowed = listCatches({ viewerId, includeShared: true }).some((record) => {
+  const catches = await listCatches({ viewerId, includeShared: true });
+  const bait = await listBaitSpots({ viewerId, includeShared: true });
+  const allowed = [...catches, ...bait].some((record) => {
     const stored = record.photoPath ?? "";
     return stored === safe || stored.endsWith(`/${safe}`) || stored === filename;
   });
   if (!allowed) {
     return new Response("Not found", { status: 404 });
   }
-  const filePath = path.join(process.cwd(), "data", "uploads", safe);
-  if (!fs.existsSync(filePath)) {
+  const buf = readUploadedPhoto(safe);
+  if (!buf) {
     return new Response("Not found", { status: 404 });
   }
-  const buf = fs.readFileSync(filePath);
   const ext = path.extname(safe).toLowerCase();
   const download = request.nextUrl.searchParams.get("download");
   const downloadName = sanitizeDownloadName(download, safe);
-  return new Response(buf, {
+  return new Response(new Uint8Array(buf), {
     headers: {
       "Content-Type": TYPES[ext] ?? "application/octet-stream",
       "Cache-Control": "private, max-age=31536000, immutable",

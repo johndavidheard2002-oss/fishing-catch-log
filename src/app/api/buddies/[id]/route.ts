@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const viewerId = viewerIdFromRequest(request);
+  const viewerId = await viewerIdFromRequest(request);
   const { id } = await ctx.params;
-  unlinkAnglers(viewerId, id);
-  return jsonWithViewer({ buddies: listBuddies(viewerId) }, viewerId);
+  await unlinkAnglers(viewerId, id);
+  return jsonWithViewer({ buddies: await listBuddies(viewerId) }, viewerId);
 }

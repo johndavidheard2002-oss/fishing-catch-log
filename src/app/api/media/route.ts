@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
@@ -20,12 +18,7 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const ext =
-    mime === "image/png" ? "png" : mime === "image/webp" ? "webp" : mime === "image/gif" ? "gif" : "jpg";
-  const id = crypto.randomUUID();
-  const filename = `${id}.${ext}`;
-  const dest = path.join(process.cwd(), "data", "uploads", filename);
-  fs.mkdirSync(path.join(process.cwd(), "data", "uploads"), { recursive: true });
-  fs.writeFileSync(dest, Buffer.from(await file.arrayBuffer()));
-  return Response.json({ photoPath: filename });
+  const { saveUploadedPhoto } = await import("@/lib/storage");
+  const result = await saveUploadedPhoto(file);
+  return Response.json(result);
 }

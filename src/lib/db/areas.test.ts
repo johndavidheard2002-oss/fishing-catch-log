@@ -29,14 +29,14 @@ describe("named areas", () => {
     return ensureDefaultAngler().id;
   }
 
-  it("upserts by case-insensitive name and lists catch place names as options", () => {
+  it("upserts by case-insensitive name and lists catch place names as options", async () => {
     const anglerId = freshDb();
-    const saved = upsertNamedArea(anglerId, {
+    const saved = await upsertNamedArea(anglerId, {
       name: "Mosquito Lagoon",
       latitude: 28.74,
       longitude: -80.75,
     });
-    const again = upsertNamedArea(anglerId, {
+    const again = await upsertNamedArea(anglerId, {
       name: "mosquito lagoon",
       latitude: 28.741,
       longitude: -80.751,
@@ -44,7 +44,7 @@ describe("named areas", () => {
     expect(again.id).toBe(saved.id);
     expect(again.latitude).toBe(28.741);
 
-    createCatch({
+    await createCatch({
       species: "Redfish",
       placeName: "Haulover Canal",
       latitude: 28.735,
@@ -54,7 +54,7 @@ describe("named areas", () => {
       anglerId,
     });
 
-    const listed = listNamedAreas(anglerId);
+    const listed = await listNamedAreas(anglerId);
     expect(listed.map((a) => a.name)).toEqual(
       expect.arrayContaining(["mosquito lagoon", "Haulover Canal"]),
     );
@@ -63,9 +63,9 @@ describe("named areas", () => {
     expect(haulover?.latitude).toBe(28.735);
   });
 
-  it("includes bait-spot area names in the option list", () => {
+  it("includes bait-spot area names in the option list", async () => {
     const anglerId = freshDb();
-    createBaitSpot({
+    await createBaitSpot({
       baitTypes: ["Shrimp"],
       placeName: "The shrimp hole",
       latitude: 28.7,
@@ -74,7 +74,7 @@ describe("named areas", () => {
       habitat: "saltwater-inshore",
       anglerId,
     });
-    const listed = listNamedAreas(anglerId);
+    const listed = await listNamedAreas(anglerId);
     expect(listed.some((a) => a.name === "The shrimp hole")).toBe(true);
   });
 });

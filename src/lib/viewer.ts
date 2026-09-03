@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureDefaultAngler, getAngler } from "./db/anglers";
+import { getAngler, seedDefaultAngler } from "./db/anglers";
 
 export const ANGLER_COOKIE = "cast-log-angler";
 
-export function viewerIdFromRequest(request: NextRequest): string {
+export async function viewerIdFromRequest(request: NextRequest): Promise<string> {
   const fromCookie = request.cookies.get(ANGLER_COOKIE)?.value;
-  if (fromCookie && getAngler(fromCookie)) return fromCookie;
-  return ensureDefaultAngler().id;
+  if (fromCookie && (await getAngler(fromCookie))) return fromCookie;
+  return (await seedDefaultAngler()).id;
 }
 
 export function jsonWithViewer(

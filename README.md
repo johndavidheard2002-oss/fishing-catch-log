@@ -34,10 +34,14 @@ Copy `.env.example` to `.env.local` in the project root:
 | `OPENAI_VISION_MODEL` | Parked with species auto-ID. | — |
 | `WORLDTIDES_API_KEY` | Optional worldwide tide extremes on the log form and Plan ([WorldTides](https://www.worldtides.info/)) | Catch weather uses free [NOAA CO-OPS](https://tidesandcurrents.noaa.gov/) stations on US coasts (no key). No invented ocean tides on freshwater or inland pins. Plan still uses a labeled demo series when this key is missing. |
 | `DATABASE_PATH` | Optional SQLite file path | `./data/cast-log.sqlite` |
+| `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | Optional Turso/LibSQL remote journal | Local file SQLite |
+| `UPLOADS_DIR` | Optional photo directory | `./data/uploads` |
 
 Place names use OpenStreetMap Nominatim (no key). GPS comes from the browser, or from photo EXIF if you upload from the camera roll.
 
 The header shows **Demo APIs** when weather, forecast, or tides are not live.
+
+**Hosted deploy:** see [docs/SHIPPING.md](docs/SHIPPING.md) for Turso env vars, why Vercel serverless is a poor fit for file SQLite, and how photos work (local disk on the same host, or `http(s)` URLs). The PWA already registers `/sw.js`.
 
 ## What you can do
 
@@ -59,9 +63,11 @@ Everything is editable if GPS or weather fail. Species is always yours to tag.
 
 ## Data
 
-SQLite via Drizzle (`data/cast-log.sqlite`). User photos land in `data/uploads/` (gitignored). Seed illustrations live in `public/seed/`.
+SQLite via Drizzle (`data/cast-log.sqlite` by default). Set `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` to use the same schema on Turso. User photos land in `data/uploads/` (gitignored) unless `UPLOADS_DIR` is set. Seed illustrations live in `public/seed/`.
 
-Delete the `data/` folder to reset the journal and re-seed.
+Delete the `data/` folder to reset a **local** journal. A Turso database is independent of that folder.
+
+Shipping notes: [docs/SHIPPING.md](docs/SHIPPING.md).
 
 ## Stack
 
