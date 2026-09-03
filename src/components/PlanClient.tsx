@@ -4,7 +4,6 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
-import { LocationMapSheet, targetFromBait, targetFromCatch } from "@/components/LocationMapSheet";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
@@ -24,6 +23,9 @@ import type {
   PlanSuggestion,
   SpotGroup,
 } from "@/lib/types";
+
+const TAP_RESET =
+  "outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal";
 
 const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
   ssr: false,
@@ -160,7 +162,7 @@ export function PlanClient({
         <p className="text-sm text-ink-muted">
           Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
           produced — including very strong matches with matching tides. Add a note for that day if
-          you want. Tap a suggested spot for its map.
+          you want. Tap a match photo to open that trip. Show on map for the hole.
         </p>
       </div>
 
@@ -315,18 +317,18 @@ function PlanDayCalendar({
               aria-label={hasNote ? `${cell.date}, has notes` : cell.date}
               aria-current={isSelected ? "date" : undefined}
               data-testid={`plan-day-${cell.date}`}
-              className={`flex min-h-10 flex-col items-center justify-center rounded-xl py-2 text-sm ${
+              className={`flex min-h-10 flex-col items-center justify-center rounded-xl py-2 text-sm ${TAP_RESET} ${
                 isSelected
-                  ? "bg-teal font-semibold text-white"
+                  ? "font-semibold ring-2 ring-inset ring-teal"
                   : isToday
-                    ? "ring-1 ring-copper"
+                    ? "ring-1 ring-inset ring-copper"
                     : "bg-card"
               } ${cell.inMonth ? "" : "opacity-35"}`}
             >
               {cell.day}
               {hasNote ? (
                 <span
-                  className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? "bg-white" : "bg-copper"}`}
+                  className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? "bg-teal" : "bg-copper"}`}
                   data-testid="plan-day-has-note"
                 />
               ) : (
@@ -352,7 +354,6 @@ function SuggestionCard({
   const w = suggestion.window;
   const matchPhotos = suggestion.matches.map((m) => ({
     id: m.catch.id,
-    catch: m.catch,
     src: personalPhotoSrc(m.catch.photoPath),
     species: speciesLabel(m.catch.speciesList?.length ? m.catch.speciesList : m.catch.species),
     date: formatDateOnly(m.catch.caughtAt),
@@ -366,21 +367,20 @@ function SuggestionCard({
   }));
   const firstPhoto = matchPhotos.find((m) => m.src);
   const canMap = suggestion.latitude != null && suggestion.longitude != null;
-  const [photoTarget, setPhotoTarget] = useState<ReturnType<typeof targetFromCatch> | null>(null);
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
       <div className="flex gap-3 p-3">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
           {firstPhoto?.src ? (
-            <button
-              type="button"
-              onClick={() => setPhotoTarget(targetFromCatch(firstPhoto.catch))}
-              className="h-full w-full"
-              aria-label={`${firstPhoto.species} location`}
+            <Link
+              href={`/catch/${firstPhoto.id}`}
+              className={`h-full w-full ${TAP_RESET}`}
+              aria-label={`${firstPhoto.species} catch`}
+              data-testid="plan-match-photo"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={firstPhoto.src} alt={firstPhoto.species} className="h-full w-full object-cover" />
-            </button>
+            </Link>
           ) : (
             <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">
               No photo from that trip
@@ -393,7 +393,7 @@ function SuggestionCard({
               type="button"
               onClick={canMap ? onOpenMap : undefined}
               disabled={!canMap}
-              className="min-w-0 text-left"
+              className={`min-w-0 text-left ${TAP_RESET}`}
             >
               <span className="font-semibold">{suggestion.placeName}</span>
               {canMap ? (
@@ -421,7 +421,7 @@ function SuggestionCard({
         type="button"
         onClick={canMap ? onOpenMap : undefined}
         disabled={!canMap}
-        className="w-full px-3 pb-2 text-left text-sm"
+        className={`w-full px-3 pb-2 text-left text-sm ${TAP_RESET}`}
       >
         {suggestion.headline}
       </button>
@@ -446,22 +446,22 @@ function SuggestionCard({
         {matchPhotos.map((m) => (
           <li key={m.id} className="flex gap-2">
             {m.src ? (
-              <button
-                type="button"
-                onClick={() => setPhotoTarget(targetFromCatch(m.catch))}
-                className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep"
-                aria-label={`${m.species} location`}
+              <Link
+                href={`/catch/${m.id}`}
+                className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep ${TAP_RESET}`}
+                aria-label={`${m.species} catch`}
+                data-testid="plan-match-photo"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={m.src} alt={m.species} className="h-full w-full object-cover" />
-              </button>
+              </Link>
             ) : (
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
                 No photo
               </span>
             )}
             <div className="min-w-0">
-              <Link href={`/catch/${m.id}`} className="text-sm font-semibold text-teal">
+              <Link href={`/catch/${m.id}`} className={`text-sm font-semibold text-teal ${TAP_RESET}`}>
                 {m.species} · {m.date}
               </Link>
               {m.src ? (
@@ -475,7 +475,6 @@ function SuggestionCard({
           </li>
         ))}
       </ul>
-      <LocationMapSheet target={photoTarget} onClose={() => setPhotoTarget(null)} />
     </article>
   );
 }
@@ -493,21 +492,20 @@ function BaitSuggestionCard({
   const first = suggestion.matches[0]?.baitSpot;
   const src = first ? personalPhotoSrc(first.photoPath) : null;
   const canMap = suggestion.latitude != null && suggestion.longitude != null;
-  const [photoTarget, setPhotoTarget] = useState<ReturnType<typeof targetFromBait> | null>(null);
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
       <div className="flex gap-3 p-3">
         <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
           {src && first ? (
-            <button
-              type="button"
-              onClick={() => setPhotoTarget(targetFromBait(first))}
-              className="h-full w-full"
-              aria-label="Bait spot location"
+            <Link
+              href={`/bait/${first.id}`}
+              className={`h-full w-full ${TAP_RESET}`}
+              aria-label={`${baitTypesLabel(first.baitTypes)} bait spot`}
+              data-testid="plan-bait-photo"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="h-full w-full object-cover" />
-            </button>
+            </Link>
           ) : (
             <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">Bait</span>
           )}
@@ -518,7 +516,7 @@ function BaitSuggestionCard({
               type="button"
               onClick={canMap ? onOpenMap : undefined}
               disabled={!canMap}
-              className="min-w-0 text-left"
+              className={`min-w-0 text-left ${TAP_RESET}`}
             >
               <span className="font-semibold">{suggestion.placeName}</span>
               {canMap ? (
@@ -539,7 +537,7 @@ function BaitSuggestionCard({
         type="button"
         onClick={canMap ? onOpenMap : undefined}
         disabled={!canMap}
-        className="w-full px-3 pb-2 text-left text-sm"
+        className={`w-full px-3 pb-2 text-left text-sm ${TAP_RESET}`}
       >
         {suggestion.headline}
       </button>
@@ -554,23 +552,41 @@ function BaitSuggestionCard({
         timeOfDay={w.timeOfDay}
       />
       <ul className="space-y-2 px-3 py-3">
-        {suggestion.matches.map((m) => (
-          <li key={m.baitSpot.id}>
-            <button
-              type="button"
-              onClick={() => setPhotoTarget(targetFromBait(m.baitSpot))}
-              className="text-sm font-semibold text-teal"
-            >
-              {baitTypesLabel(m.baitSpot.baitTypes)} · {formatDateOnly(m.baitSpot.loggedAt)}
-            </button>
-            {showOwner ? (
-              <p className="text-[11px] font-semibold text-copper">{m.baitSpot.ownerName}</p>
-            ) : null}
-            <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
-          </li>
-        ))}
+        {suggestion.matches.map((m) => {
+          const baitSrc = personalPhotoSrc(m.baitSpot.photoPath);
+          return (
+            <li key={m.baitSpot.id} className="flex gap-2">
+              {baitSrc ? (
+                <Link
+                  href={`/bait/${m.baitSpot.id}`}
+                  className={`h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-paper-deep ${TAP_RESET}`}
+                  aria-label={`${baitTypesLabel(m.baitSpot.baitTypes)} bait spot`}
+                  data-testid="plan-bait-photo"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={baitSrc} alt="" className="h-full w-full object-cover" />
+                </Link>
+              ) : (
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
+                  Bait
+                </span>
+              )}
+              <div className="min-w-0">
+                <Link
+                  href={`/bait/${m.baitSpot.id}`}
+                  className={`text-sm font-semibold text-teal ${TAP_RESET}`}
+                >
+                  {baitTypesLabel(m.baitSpot.baitTypes)} · {formatDateOnly(m.baitSpot.loggedAt)}
+                </Link>
+                {showOwner ? (
+                  <p className="text-[11px] font-semibold text-copper">{m.baitSpot.ownerName}</p>
+                ) : null}
+                <p className="text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</p>
+              </div>
+            </li>
+          );
+        })}
       </ul>
-      <LocationMapSheet target={photoTarget} onClose={() => setPhotoTarget(null)} />
     </article>
   );
 }

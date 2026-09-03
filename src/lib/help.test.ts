@@ -13,6 +13,11 @@ describe("HELP_SECTIONS", () => {
       "Backfill",
       "Swipe between tabs",
     ]);
+    expect(
+      HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.some((step) =>
+        step.includes("match photo"),
+      ),
+    ).toBe(true);
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);
       expect(section.steps.every((step) => step.length < 160)).toBe(true);
