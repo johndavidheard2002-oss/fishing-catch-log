@@ -641,19 +641,26 @@ function StrengthBadge({
 }) {
   if (strength === "very-strong") {
     return (
-      <span className="max-w-[11rem] rounded-full bg-good px-2 py-0.5 text-right text-[10px] font-semibold leading-snug text-white">
+      <span className="max-w-[12rem] shrink-0 rounded-full border-2 border-copper bg-good px-2.5 py-1 text-right text-xs font-bold leading-snug text-white">
         {veryStrongMatchChip(atIso)}
       </span>
     );
   }
-  const label = strength === "strong" ? "Strong match" : strength === "good" ? "Good match" : "Lean match";
-  const cls =
-    strength === "strong"
-      ? "bg-good text-white"
-      : strength === "good"
-        ? "bg-teal text-white"
-        : "bg-paper-deep text-ink";
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls}`}>{label}</span>;
+  if (strength === "strong") {
+    return (
+      <span className="shrink-0 rounded-full border-2 border-teal-deep bg-good px-2.5 py-1 text-xs font-bold text-white">
+        Strong match
+      </span>
+    );
+  }
+  if (strength === "good") {
+    return (
+      <span className="rounded-full bg-teal px-2 py-0.5 text-[10px] font-semibold text-white">Good match</span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold text-ink">Lean match</span>
+  );
 }
 
 function mapTargetFromCatch(suggestion: PlanSuggestion): PlanMapTarget | null {

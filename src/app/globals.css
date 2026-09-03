@@ -122,13 +122,22 @@ body::after {
   }
 }
 
-/* White type on filled teal/copper (Home Log bait, Spots Catch/Bait, Log a catch). */
+/* White type on filled teal/copper/good (Home CTAs, Plan strength badges, calendar chips). */
 a.bg-teal,
 a.bg-copper,
 a.bg-good,
 button.bg-teal,
 button.bg-copper,
-button.bg-good {
+button.bg-good,
+span.bg-teal,
+span.bg-copper,
+span.bg-good,
+p.bg-teal,
+p.bg-copper,
+p.bg-good,
+.bg-teal.text-white,
+.bg-copper.text-white,
+.bg-good.text-white {
   color: #fff;
 }
 
@@ -226,16 +235,51 @@ main a.bg-card.text-teal {
   color: var(--teal);
 }
 
-/* Do not halo white-on-teal/copper CTAs (Log a catch / Log bait). */
+/* Do not halo white-on-teal/copper/good CTAs and chips (Log a catch, strength badges).
+   Wash + `.bg-good { color: ink }` would otherwise paint dark type on filled spans. */
 a.bg-teal,
 a.bg-copper,
 a.bg-good,
 button.bg-teal,
 button.bg-copper,
 button.bg-good,
+span.bg-teal,
+span.bg-copper,
+span.bg-good,
+p.bg-teal,
+p.bg-copper,
+p.bg-good,
+.bg-teal.text-white,
+.bg-copper.text-white,
+.bg-good.text-white,
 main a.bg-teal,
 main a.bg-copper,
-main a.bg-good {
+main a.bg-good,
+main span.bg-good,
+main span.bg-teal,
+main span.bg-copper,
+main p.bg-teal,
+main p.bg-copper,
+main p.bg-good,
+main .bg-good.text-white,
+main .bg-teal.text-white,
+main .bg-copper.text-white,
+.journal-card span.bg-good,
+.journal-card span.bg-teal,
+.journal-card span.bg-copper,
+.journal-card p.bg-teal,
+.journal-card p.bg-copper,
+.journal-card p.bg-good,
+.journal-card .bg-good.text-white,
+.journal-card .bg-teal.text-white,
+.journal-card .bg-copper.text-white,
+.bg-card span.bg-good,
+.bg-card span.bg-teal,
+.bg-card span.bg-copper,
+.bg-card p.bg-teal,
+.bg-card .bg-teal.text-white,
+.bg-card .bg-good.text-white,
+.bg-card .bg-copper.text-white {
   color: #fff;
   text-shadow: none;
 }
