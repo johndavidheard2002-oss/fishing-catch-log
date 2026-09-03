@@ -18,6 +18,11 @@ describe("HELP_SECTIONS", () => {
         step.includes("Tap a match"),
       ),
     ).toBe(true);
+    expect(
+      HELP_SECTIONS.find((section) => section.title === "Backfill")?.steps.some((step) =>
+        step.includes("keep the whole batch"),
+      ),
+    ).toBe(true);
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);
       expect(section.steps.every((step) => step.length < 160)).toBe(true);

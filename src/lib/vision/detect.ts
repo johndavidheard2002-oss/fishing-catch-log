@@ -27,7 +27,7 @@ export function demoDetectFish(image: Uint8Array, fileName = ""): FishDetection 
       isFish: false,
       confidence: 0.82,
       source: "demo",
-      note: "Demo detector skipped this filename. Not a real scan.",
+      note: "Demo detector: filename looks unlikely. Still in your batch to confirm.",
     };
   }
   if (FISH_NAME.test(fileName)) {
@@ -46,7 +46,7 @@ export function demoDetectFish(image: Uint8Array, fileName = ""): FishDetection 
     source: "demo",
     note: isFish
       ? "Demo detector (no OpenAI key). Confirm this is actually a fish before adding."
-      : "Demo detector skipped this as likely not a fish. Not a real scan.",
+      : "Demo detector marked this as unlikely. Still in your batch to confirm.",
   };
 }
 

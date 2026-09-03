@@ -19,20 +19,6 @@ export function BackfillClient() {
           {importedPhotoPath ? "Finish this catch" : "Backfill a past catch"}
         </h1>
       </div>
-      <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1">
-        <Link
-          href="/backfill"
-          className="rounded-xl py-2 text-center text-xs font-semibold bg-teal text-white"
-        >
-          One trip
-        </Link>
-        <Link
-          href="/log/scan"
-          className="rounded-xl py-2 text-center text-xs font-semibold text-ink-muted"
-        >
-          Find fish photos
-        </Link>
-      </div>
       {!importedPhotoPath ? (
         <Link
           href="/log/scan"

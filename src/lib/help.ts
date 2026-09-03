@@ -54,7 +54,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Backfill",
     steps: [
       "Add one past catch, or tap Find fish photos and pick a batch.",
-      "We filter likely fish pictures and use the photo’s time when EXIF is there.",
+      "We keep the whole batch, put likely fish first, and use the photo’s time when EXIF is there.",
       "Confirm, pin the water, and save. Help → Setup again opens the same path.",
     ],
   },

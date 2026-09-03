@@ -8,4 +8,10 @@ describe("demoDetectFish", () => {
     expect(demoDetectFish(bytes, "screenshot.png").isFish).toBe(false);
     expect(demoDetectFish(bytes, "screenshot_2024.jpg").isFish).toBe(false);
   });
+
+  it("marks unlikely photos without implying they were discarded", () => {
+    const note = demoDetectFish(new Uint8Array([9, 8, 7, 6]), "screenshot.png").note;
+    expect(note.toLowerCase()).toContain("unlikely");
+    expect(note.toLowerCase()).not.toContain("skipped");
+  });
 });

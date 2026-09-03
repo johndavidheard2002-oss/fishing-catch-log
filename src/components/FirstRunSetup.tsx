@@ -60,7 +60,7 @@ export function FirstRunSetup() {
           </p>
           <ol className="list-decimal space-y-1 pl-4 text-sm text-ink">
             <li>Pick a batch from the camera roll, files, or a folder — not the whole phone.</li>
-            <li>We pick out likely fish photos and read the date from the picture when it is there.</li>
+            <li>We keep every photo you pick, put likely fish first, and read the date when it is there.</li>
             <li>Confirm each one, pin the water, and save. One photo is one trip.</li>
           </ol>
           <button

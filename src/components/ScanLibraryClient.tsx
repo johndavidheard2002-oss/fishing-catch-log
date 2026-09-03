@@ -7,7 +7,12 @@ import exifr from "exifr";
 import { compressImage } from "@/lib/photo";
 import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
-import { peekScanQueue, setScanQueue, type QueuedScanCandidate } from "@/lib/scan-queue";
+import {
+  peekScanQueue,
+  setScanQueue,
+  sortScanReviewList,
+  type QueuedScanCandidate,
+} from "@/lib/scan-queue";
 
 type Candidate = {
   id: string;
@@ -17,6 +22,7 @@ type Candidate = {
   note: string;
   confidence: number;
   demo: boolean;
+  likely: boolean;
   photoTakenLatitude: number | null;
   photoTakenLongitude: number | null;
 };
@@ -28,6 +34,7 @@ function toQueued(c: Candidate): QueuedScanCandidate {
     note: c.note,
     confidence: c.confidence,
     demo: c.demo,
+    likely: c.likely,
     photoTakenLatitude: c.photoTakenLatitude,
     photoTakenLongitude: c.photoTakenLongitude,
   };
@@ -42,6 +49,7 @@ function fromQueued(item: QueuedScanCandidate, i: number): Candidate {
     note: item.note,
     confidence: item.confidence,
     demo: item.demo,
+    likely: item.likely !== false,
     photoTakenLatitude: item.photoTakenLatitude ?? null,
     photoTakenLongitude: item.photoTakenLongitude ?? null,
   };
@@ -54,7 +62,6 @@ export function ScanLibraryClient() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
-  const [filteredOut, setFilteredOut] = useState(0);
   const [heuristic, setHeuristic] = useState(false);
   const [candidates, setCandidates] = useState<Candidate[]>(() => {
     const leftover = peekScanQueue();
@@ -73,17 +80,15 @@ export function ScanLibraryClient() {
     setError(null);
     setBusy(true);
     setSkipped(0);
-    setFilteredOut(0);
     setHeuristic(false);
     setCandidates([]);
     setScanQueue([]);
     const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name));
     const found: Candidate[] = [];
     let skip = 0;
-    let notFish = 0;
     let usedHeuristic = false;
     for (let i = 0; i < files.length; i++) {
-      setProgress(`Looking for fish in ${i + 1} of ${files.length}…`);
+      setProgress(`Opening ${i + 1} of ${files.length}…`);
       const original = files[i];
       try {
         const compressed = await compressImage(original);
@@ -92,10 +97,6 @@ export function ScanLibraryClient() {
         });
         const detection = await detectFishPhoto(file, original.name);
         if (detection.demo) usedHeuristic = true;
-        if (!detection.candidate) {
-          notFish += 1;
-          continue;
-        }
         let caughtAt = new Date();
         let photoTakenLatitude: number | null = null;
         let photoTakenLongitude: number | null = null;
@@ -123,6 +124,7 @@ export function ScanLibraryClient() {
           note: detection.note,
           confidence: detection.confidence,
           demo: detection.demo,
+          likely: detection.candidate,
           photoTakenLatitude,
           photoTakenLongitude,
         });
@@ -131,9 +133,8 @@ export function ScanLibraryClient() {
       }
     }
     setSkipped(skip);
-    setFilteredOut(notFish);
     setHeuristic(usedHeuristic);
-    setCandidates(found);
+    setCandidates(sortScanReviewList(found));
     setBusy(false);
     setProgress("");
   }
@@ -179,21 +180,10 @@ export function ScanLibraryClient() {
       <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Find fish photos</h1>
         <p className="text-sm text-ink-muted">
-          Point us at a batch — camera roll, files, or a folder. We pick out likely fish photos and
-          read the date from the picture when it is there. We cannot scan the whole phone in the
-          background. Nothing is added until you confirm.
+          Point us at a batch — camera roll, files, or a folder. We keep every photo you pick, put
+          likely fish first, and read the date from the picture when it is there. We cannot scan the
+          whole phone in the background. Nothing is added until you confirm.
         </p>
-      </div>
-      <div className="journal-card grid grid-cols-2 overflow-hidden rounded-2xl p-1">
-        <Link
-          href="/backfill"
-          className="rounded-xl py-2 text-center text-xs font-semibold text-ink-muted"
-        >
-          One trip
-        </Link>
-        <span className="rounded-xl bg-teal py-2 text-center text-xs font-semibold text-white">
-          Find fish photos
-        </span>
       </div>
 
       <button
@@ -203,7 +193,7 @@ export function ScanLibraryClient() {
         disabled={busy}
         className="w-full rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
-        {busy ? progress || "Looking for fish…" : "Pick a batch from this phone"}
+        {busy ? progress || "Opening your batch…" : "Pick a batch from this phone"}
       </button>
       <button
         type="button"
@@ -239,32 +229,26 @@ export function ScanLibraryClient() {
 
       {!busy && candidates.length === 0 ? (
         <p className="on-wash-chip text-sm">
-          {filteredOut || skipped
-            ? [
-                filteredOut
-                  ? `Set aside ${filteredOut} that did not look like a catch.`
-                  : null,
-                skipped ? `Could not open ${skipped}.` : null,
-                "None of that batch looked like a fish photo. Try a set that includes trip pictures.",
-              ]
-                .filter(Boolean)
-                .join(" ")
-            : "Pick a batch. We only look at what you select."}
+          {skipped
+            ? `Could not open ${skipped}. Try a different batch.`
+            : "Pick a batch. We keep the whole set for you to confirm."}
         </p>
       ) : null}
 
       {candidates.length ? (
         <div className="space-y-2">
           <p className="on-wash-chip w-fit text-sm">
-            {candidates.length} likely fish photo{candidates.length === 1 ? "" : "s"}. Tap one to
-            finish it the same way as One trip — photo, date, pin, and fields.
+            {candidates.length} photo{candidates.length === 1 ? "" : "s"} from this batch. Likely
+            fish are first — tap one to pin it and finish the trip.
             {heuristic ? " Fish pick is a heuristic unless vision is on." : ""}
+            {skipped ? ` Could not open ${skipped}.` : ""}
           </p>
           {candidates.map((item, i) => (
             <div
               key={item.id}
               className="journal-card relative flex overflow-hidden rounded-2xl"
               data-testid="scan-photo-row"
+              data-likely={item.likely ? "true" : "false"}
             >
               <button
                 type="button"
@@ -278,13 +262,25 @@ export function ScanLibraryClient() {
                 </div>
                 <div className="min-w-0 flex-1 px-3 py-2">
                   <p className="truncate font-semibold text-ink">
-                    {adding === item.id ? "Opening trip…" : "Likely fish photo"}
+                    {adding === item.id
+                      ? "Opening trip…"
+                      : item.likely
+                        ? "Likely fish photo"
+                        : "Unlikely — still yours to log"}
                   </p>
                   <p className="truncate text-sm text-ink-muted">
                     {formatCatchWhen(item.caughtAt.toISOString())}
                   </p>
-                  <p className="mt-1 text-xs text-ink-muted">
-                    Tap for the same trip form — date, pin, and fields.
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink-muted">
+                    <span
+                      data-testid="scan-photo-badge"
+                      className={`rounded-full px-2 py-0.5 font-semibold ${
+                        item.likely ? "bg-teal/15 text-teal" : "border border-line"
+                      }`}
+                    >
+                      {item.likely ? "Likely fish" : "Unlikely"}
+                    </span>
+                    <span>Tap to backfill this photo.</span>
                   </p>
                 </div>
               </button>
@@ -306,7 +302,7 @@ export function ScanLibraryClient() {
         Dates come from the photo when EXIF is there. Nothing is added until you finish the trip form.
       </p>
       <Link href="/backfill" className="on-wash-chip inline-block text-sm font-semibold text-teal">
-        Backfill one photo instead
+        One past trip
       </Link>
     </div>
   );
