@@ -22,6 +22,7 @@ import { isCatchVisibleToViewer } from "../sharing";
 import { localDateKey } from "../calendar";
 import { rememberNamedArea } from "./areas";
 import { getAngler, linkedBuddyIds } from "./anglers";
+import { listBaitSpots, setSharedForBaitIds } from "./bait";
 import { ensureDb } from "./index";
 import { allRows, getRow, runChange } from "./query";
 import { catches } from "./schema";
@@ -344,7 +345,24 @@ export function isCalendarDayKey(value: string): boolean {
   return CALENDAR_DAY_RE.test(value);
 }
 
-/** Share or unshare every catch the angler logged on a local calendar day. */
+/** Share or unshare only the viewer’s own catches. */
+export async function setSharedForCatchIds(args: {
+  anglerId: string;
+  ids: string[];
+  shared: boolean;
+}): Promise<{ updated: number }> {
+  const unique = [...new Set(args.ids.filter(Boolean))];
+  let updated = 0;
+  for (const id of unique) {
+    const record = await getCatch(id);
+    if (!record || record.anglerId !== args.anglerId) continue;
+    await updateCatch(id, { sharedWithLinked: args.shared });
+    updated += 1;
+  }
+  return { updated };
+}
+
+/** Share or unshare every catch and bait hole the angler logged on a local calendar day. */
 export async function setSharedForDay(args: {
   anglerId: string;
   day: string;
@@ -354,8 +372,19 @@ export async function setSharedForDay(args: {
   const mine = (await listCatches({ viewerId: args.anglerId })).filter(
     (record) => record.anglerId === args.anglerId && localDateKey(record.caughtAt) === args.day,
   );
-  for (const record of mine) {
-    await updateCatch(record.id, { sharedWithLinked: args.shared });
-  }
-  return { updated: mine.length };
+  const catchIds = mine.map((record) => record.id);
+  const mineBait = (await listBaitSpots({ viewerId: args.anglerId })).filter(
+    (spot) => spot.anglerId === args.anglerId && localDateKey(spot.loggedAt) === args.day,
+  );
+  const catches = await setSharedForCatchIds({
+    anglerId: args.anglerId,
+    ids: catchIds,
+    shared: args.shared,
+  });
+  const bait = await setSharedForBaitIds({
+    anglerId: args.anglerId,
+    ids: mineBait.map((spot) => spot.id),
+    shared: args.shared,
+  });
+  return { updated: catches.updated + bait.updated };
 }

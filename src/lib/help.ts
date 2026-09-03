@@ -39,6 +39,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Calendar Log",
     steps: [
       "Tap a day to open that date’s map, notes, and trips.",
+      "Select spots to share with a linked buddy. Off until you choose.",
       "Same date across years stays grouped so you can compare.",
     ],
   },

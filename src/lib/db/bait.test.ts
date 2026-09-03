@@ -3,7 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ensureDefaultAngler } from "./anglers";
-import { createBaitSpot, deleteBaitSpot, getBaitSpot, listBaitSpots, updateBaitSpot } from "./bait";
+import { createBaitSpot, deleteBaitSpot, getBaitSpot, listBaitSpots, setSharedForBaitIds, updateBaitSpot } from "./bait";
+import { setSharedForDay } from "./catches";
 import { getDb, resetDbForTests } from "./index";
 
 describe("bait spots", () => {
@@ -63,5 +64,53 @@ describe("bait spots", () => {
       anglerId,
     });
     expect(await listBaitSpots({ viewerId: "someone-else", includeShared: true })).toHaveLength(0);
+  });
+
+  it("shares only the owner’s bait holes", async () => {
+    const anglerId = freshDb();
+    const mine = await createBaitSpot({
+      baitTypes: ["Shrimp"],
+      placeName: "Canal",
+      latitude: 28.735,
+      longitude: -80.754,
+      loggedAt: "2026-08-02T14:00:00.000Z",
+      anglerId,
+    });
+    const other = await createBaitSpot({
+      baitTypes: ["Mullet"],
+      placeName: "Creek",
+      latitude: 28.1,
+      longitude: -80.6,
+      loggedAt: "2026-08-02T15:00:00.000Z",
+      anglerId,
+    });
+    expect(
+      (await setSharedForBaitIds({ anglerId, ids: [mine.id, "missing"], shared: true })).updated,
+    ).toBe(1);
+    expect((await getBaitSpot(mine.id))?.sharedWithLinked).toBe(true);
+    expect((await getBaitSpot(other.id))?.sharedWithLinked).toBe(false);
+  });
+
+  it("setSharedForDay shares bait logged on that calendar day", async () => {
+    const anglerId = freshDb();
+    const onDay = await createBaitSpot({
+      baitTypes: ["Shrimp"],
+      placeName: "Canal",
+      latitude: 28.735,
+      longitude: -80.754,
+      loggedAt: new Date(2026, 7, 2, 10, 0).toISOString(),
+      anglerId,
+    });
+    const otherDay = await createBaitSpot({
+      baitTypes: ["Mullet"],
+      placeName: "Creek",
+      latitude: 28.1,
+      longitude: -80.6,
+      loggedAt: new Date(2026, 7, 3, 10, 0).toISOString(),
+      anglerId,
+    });
+    expect((await setSharedForDay({ anglerId, day: "2026-08-02", shared: true })).updated).toBe(1);
+    expect((await getBaitSpot(onDay.id))?.sharedWithLinked).toBe(true);
+    expect((await getBaitSpot(otherDay.id))?.sharedWithLinked).toBe(false);
   });
 });

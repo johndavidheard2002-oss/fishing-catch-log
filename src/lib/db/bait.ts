@@ -243,6 +243,39 @@ export async function updateBaitSpot(id: string, input: Partial<BaitSpotInput>):
   return getBaitSpot(id);
 }
 
+/** Flip share without re-parsing bait types or map fields. */
+export async function setBaitSpotShared(id: string, shared: boolean): Promise<BaitSpot | null> {
+  const existing = await getBaitSpot(id);
+  if (!existing) return null;
+  const db = await ensureDb();
+  await runChange(
+    db
+      .update(baitSpots)
+      .set({
+        sharedWithLinked: shared ? 1 : 0,
+        updatedAt: nowIso(),
+      })
+      .where(eq(baitSpots.id, id)),
+  );
+  return getBaitSpot(id);
+}
+
+export async function setSharedForBaitIds(args: {
+  anglerId: string;
+  ids: string[];
+  shared: boolean;
+}): Promise<{ updated: number }> {
+  const unique = [...new Set(args.ids.filter(Boolean))];
+  let updated = 0;
+  for (const id of unique) {
+    const record = await getBaitSpot(id);
+    if (!record || record.anglerId !== args.anglerId) continue;
+    await setBaitSpotShared(id, args.shared);
+    updated += 1;
+  }
+  return { updated };
+}
+
 export async function deleteBaitSpot(id: string): Promise<boolean> {
   const db = await ensureDb();
   const changes = await runChange(db.delete(baitSpots).where(eq(baitSpots.id, id)));

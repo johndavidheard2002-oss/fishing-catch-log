@@ -3,6 +3,7 @@
 import { BaitSpotCard } from "@/components/BaitSpotCard";
 import { CatchCard } from "@/components/CatchCard";
 import { DayNotes } from "@/components/CalendarNotes";
+import { DayShareSpots } from "@/components/DayShareSpots";
 import { SpotMap } from "@/components/SpotMap";
 import Link from "next/link";
 import {
@@ -47,6 +48,7 @@ export function HistoryCalendar({
   onMonthChange,
   onSelectDay,
   onShareDay,
+  onShareSpots,
   onCreateNote,
   onUpdateNote,
   onDeleteNote,
@@ -61,6 +63,11 @@ export function HistoryCalendar({
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
   onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
+  onShareSpots?: (args: {
+    catchIds: string[];
+    baitSpotIds: string[];
+    shared: boolean;
+  }) => void | Promise<void>;
   onCreateNote?: (input: CalendarNoteInput) => void | Promise<void>;
   onUpdateNote?: (id: string, input: CalendarNoteInput) => void | Promise<void>;
   onDeleteNote?: (id: string) => void | Promise<void>;
@@ -372,7 +379,16 @@ export function HistoryCalendar({
                   onDelete={onDeleteNote}
                 />
               ) : null}
-              {onShareDay ? (
+              {onShareDay && onShareSpots ? (
+                <DayShareSpots
+                  day={selectedDay}
+                  catches={thisYearSelected}
+                  baitSpots={thisYearBait}
+                  viewerId={viewerId}
+                  onShareSpots={onShareSpots}
+                  onShareDay={onShareDay}
+                />
+              ) : onShareDay ? (
                 <DayShareToggle
                   day={selectedDay}
                   records={thisYearSelected}

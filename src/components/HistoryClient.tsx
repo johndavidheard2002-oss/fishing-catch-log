@@ -219,10 +219,18 @@ export function HistoryClient({
               setMonthOverride(parseYearMonth(day));
             }}
             onShareDay={async (day, shared) => {
-              await fetch("/api/catches/share-day", {
+              await fetch("/api/share", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ day, shared }),
+              });
+              setShareEpoch((n) => n + 1);
+            }}
+            onShareSpots={async ({ catchIds, baitSpotIds, shared }) => {
+              await fetch("/api/share", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ catchIds, baitSpotIds, shared }),
               });
               setShareEpoch((n) => n + 1);
             }}

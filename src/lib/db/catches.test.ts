@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createCatch, getCatch, listCatches, setSharedForDay, updateCatch } from "./catches";
+import { createCatch, getCatch, listCatches, setSharedForCatchIds, setSharedForDay, updateCatch } from "./catches";
 import { getDb, resetDbForTests } from "./index";
 import { loadSampleCatches } from "./seed";
 import { ensureDefaultAngler } from "./anglers";
@@ -123,5 +123,29 @@ describe("setSharedForDay", () => {
     expect((await getCatch(otherDay.id))?.sharedWithLinked).toBe(false);
     expect((await setSharedForDay({ anglerId: owner, day: "2025-07-12", shared: false })).updated).toBe(2);
     expect((await getCatch(sameDawn.id))?.sharedWithLinked).toBe(false);
+  });
+
+  it("shares only the owner’s selected catch ids", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    getDb();
+    const owner = ensureDefaultAngler().id;
+    const keep = await createCatch({
+      species: "Redfish",
+      caughtAt: new Date(2025, 6, 12, 8, 10).toISOString(),
+      anglerId: owner,
+    });
+    const skip = await createCatch({
+      species: "Snook",
+      caughtAt: new Date(2025, 6, 12, 18, 40).toISOString(),
+      anglerId: owner,
+    });
+    expect(
+      (await setSharedForCatchIds({ anglerId: owner, ids: [keep.id, "not-mine"], shared: true })).updated,
+    ).toBe(1);
+    expect((await getCatch(keep.id))?.sharedWithLinked).toBe(true);
+    expect((await getCatch(skip.id))?.sharedWithLinked).toBe(false);
   });
 });

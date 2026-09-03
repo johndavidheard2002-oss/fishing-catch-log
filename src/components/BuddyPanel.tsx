@@ -320,10 +320,10 @@ function SharedDaysList({ ownerId }: { ownerId?: string }) {
     <div className="space-y-2">
       <p className="text-sm font-semibold">Days you shared</p>
       <p className="text-xs text-ink-muted">
-        Pick days on Calendar Log. Unshared days stay private even to linked buddies.
+        Select spots on Calendar Log. Unshared spots stay private even to linked buddies.
       </p>
       {days.length === 0 ? (
-        <p className="text-sm text-ink-muted">None yet — open a day on Calendar Log to share it.</p>
+        <p className="text-sm text-ink-muted">None yet — open a day on Calendar Log to choose spots.</p>
       ) : (
         <ul className="space-y-2">
           {days.map((day) => (

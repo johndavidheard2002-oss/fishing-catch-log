@@ -5,6 +5,7 @@ import { jsonWithViewer, viewerIdFromRequest } from "@/lib/viewer";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Whole-day share — same as POST /api/share with `{ day, shared }`. */
 export async function POST(request: NextRequest) {
   const viewerId = await viewerIdFromRequest(request);
   const body = (await request.json()) as { day?: unknown; shared?: unknown };
