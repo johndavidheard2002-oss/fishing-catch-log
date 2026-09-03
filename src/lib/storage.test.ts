@@ -2,7 +2,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ensureUploadsDir, isHttpPhotoPath, readUploadedPhoto, saveUploadedPhoto, uploadsDir } from "./storage";
+import {
+  ensureUploadsDir,
+  isHttpPhotoPath,
+  loadUploadedMedia,
+  readUploadedPhoto,
+  saveUploadedPhoto,
+  uploadsDir,
+} from "./storage";
 
 describe("uploads storage", () => {
   const previous = process.env.UPLOADS_DIR;
@@ -34,6 +41,19 @@ describe("uploads storage", () => {
     expect(photoPath.endsWith(".jpg")).toBe(true);
     const buf = readUploadedPhoto(photoPath);
     expect(buf?.equals(Buffer.from([1, 2, 3, 4]))).toBe(true);
+  });
+
+  it("serves a pending upload that is not yet on a catch", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cc-up-"));
+    tmpDirs.push(dir);
+    process.env.UPLOADS_DIR = dir;
+    const file = new File([Uint8Array.from([9, 8, 7])], "scan.jpg", { type: "image/jpeg" });
+    const { photoPath } = await saveUploadedPhoto(file);
+    const media = loadUploadedMedia(photoPath);
+    expect(media?.filename).toBe(photoPath);
+    expect(media?.body.equals(Buffer.from([9, 8, 7]))).toBe(true);
+    expect(loadUploadedMedia(`../${photoPath}`)?.filename).toBe(photoPath);
+    expect(loadUploadedMedia("missing-scan.jpg")).toBeNull();
   });
 
   it("treats http(s) photo_path as a reachable URL, not a local file", () => {

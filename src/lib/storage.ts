@@ -35,3 +35,15 @@ export function readUploadedPhoto(filename: string): Buffer | null {
   if (!fs.existsSync(/*turbopackIgnore: true*/ filePath)) return null;
   return fs.readFileSync(/*turbopackIgnore: true*/ filePath);
 }
+
+/**
+ * Pending Find fish uploads live on disk before they are attached to a catch.
+ * Basename-only — missing files are null.
+ */
+export function loadUploadedMedia(filename: string): { filename: string; body: Buffer } | null {
+  const safe = path.basename(filename);
+  if (!safe) return null;
+  const body = readUploadedPhoto(safe);
+  if (!body) return null;
+  return { filename: safe, body };
+}

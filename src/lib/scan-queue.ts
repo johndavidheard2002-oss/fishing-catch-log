@@ -18,12 +18,32 @@ export type ScanReviewSortKey = {
   confidence: number;
 };
 
+/** Missing or false stays unlikely — do not coerce undefined to likely. */
+export function isLikelyScanPhoto(likely: boolean | undefined): boolean {
+  return likely === true;
+}
+
 /** Likely-fish first, then higher confidence. Never drops a photo. */
-export function sortScanReviewList<T extends ScanReviewSortKey>(items: T[]): T[] {
+export function sortScanReviewList<T extends { likely?: boolean; confidence: number }>(items: T[]): T[] {
   return [...items].sort((a, b) => {
-    if (a.likely !== b.likely) return a.likely ? -1 : 1;
+    const aLikely = isLikelyScanPhoto(a.likely);
+    const bLikely = isLikelyScanPhoto(b.likely);
+    if (aLikely !== bLikely) return aLikely ? -1 : 1;
     return b.confidence - a.confidence;
   });
+}
+
+export function partitionScanReview<T extends { likely?: boolean }>(items: T[]): {
+  likely: T[];
+  unlikely: T[];
+} {
+  const likely: T[] = [];
+  const unlikely: T[] = [];
+  for (const item of items) {
+    if (isLikelyScanPhoto(item.likely)) likely.push(item);
+    else unlikely.push(item);
+  }
+  return { likely, unlikely };
 }
 
 /**
@@ -126,8 +146,8 @@ export function getScanQueueCountServerSnapshot() {
 
 export function setScanQueue(items: QueuedScanCandidate[]) {
   loaded = true;
-  queue = items;
-  persist(items);
+  queue = items.map((item) => ({ ...item, likely: isLikelyScanPhoto(item.likely) }));
+  persist(queue);
   notifyScanQueueListeners();
 }
 

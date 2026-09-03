@@ -8,6 +8,8 @@ import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time"
 import { localDateKeyFromDate } from "@/lib/calendar";
 import {
   getScanQueueServerSnapshot,
+  isLikelyScanPhoto,
+  partitionScanReview,
   peekScanQueue,
   setScanQueue,
   sortScanReviewList,
@@ -18,7 +20,6 @@ import {
 type Candidate = {
   id: string;
   photoPath: string;
-  previewUrl: string;
   caughtAt: Date;
   note: string;
   confidence: number;
@@ -35,7 +36,7 @@ function toQueued(c: Candidate): QueuedScanCandidate {
     note: c.note,
     confidence: c.confidence,
     demo: c.demo,
-    likely: c.likely,
+    likely: c.likely === true,
     photoTakenLatitude: c.photoTakenLatitude,
     photoTakenLongitude: c.photoTakenLongitude,
   };
@@ -45,12 +46,11 @@ function fromQueued(item: QueuedScanCandidate): Candidate {
   return {
     id: item.photoPath,
     photoPath: item.photoPath,
-    previewUrl: photoSrc(item.photoPath) ?? "",
     caughtAt: new Date(item.caughtAtIso),
     note: item.note,
     confidence: item.confidence,
     demo: item.demo,
-    likely: item.likely !== false,
+    likely: isLikelyScanPhoto(item.likely),
     photoTakenLatitude: item.photoTakenLatitude ?? null,
     photoTakenLongitude: item.photoTakenLongitude ?? null,
   };
@@ -60,6 +60,7 @@ export function ScanLibraryClient() {
   const router = useRouter();
   const photosRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
+  const blobUrls = useRef(new Map<string, string>());
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [skipped, setSkipped] = useState(0);
@@ -69,6 +70,7 @@ export function ScanLibraryClient() {
     getScanQueueServerSnapshot,
   );
   const candidates = queued.map(fromQueued);
+  const { likely, unlikely } = partitionScanReview(candidates);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -76,11 +78,42 @@ export function ScanLibraryClient() {
     folderRef.current?.setAttribute("webkitdirectory", "true");
   }, []);
 
+  useEffect(() => {
+    const blobs = blobUrls.current;
+    return () => {
+      for (const url of blobs.values()) URL.revokeObjectURL(url);
+      blobs.clear();
+    };
+  }, []);
+
+  function thumbSrc(photoPath: string): string | null {
+    return blobUrls.current.get(photoPath) ?? photoSrc(photoPath);
+  }
+
+  function rememberBlob(photoPath: string, file: File) {
+    const previous = blobUrls.current.get(photoPath);
+    if (previous) URL.revokeObjectURL(previous);
+    blobUrls.current.set(photoPath, URL.createObjectURL(file));
+  }
+
+  function revokeBlob(photoPath: string) {
+    const url = blobUrls.current.get(photoPath);
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    blobUrls.current.delete(photoPath);
+  }
+
+  function revokeAllBlobs() {
+    for (const url of blobUrls.current.values()) URL.revokeObjectURL(url);
+    blobUrls.current.clear();
+  }
+
   async function onFiles(list: FileList | null) {
     if (!list?.length) return;
     setError(null);
     setBusy(true);
     setSkipped(0);
+    revokeAllBlobs();
     setScanQueue([]);
     const files = [...list].filter((f) => f.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(f.name));
     const found: Candidate[] = [];
@@ -118,15 +151,15 @@ export function ScanLibraryClient() {
         const up = await fetch("/api/media", { method: "POST", body: fd });
         const data = (await up.json()) as { photoPath?: string; error?: string };
         if (!up.ok || !data.photoPath) throw new Error(data.error || "Photo upload failed");
+        rememberBlob(data.photoPath, file);
         found.push({
           id: data.photoPath,
           photoPath: data.photoPath,
-          previewUrl: photoSrc(data.photoPath) ?? "",
           caughtAt,
           note: detection.note,
           confidence: detection.confidence,
           demo: detection.demo,
-          likely: detection.candidate,
+          likely: detection.candidate === true,
           photoTakenLatitude,
           photoTakenLongitude,
         });
@@ -141,13 +174,15 @@ export function ScanLibraryClient() {
     setProgress("");
   }
 
-  function dismiss(i: number) {
-    setScanQueue(queued.filter((_, j) => j !== i));
+  function dismiss(photoPath: string) {
+    revokeBlob(photoPath);
+    setScanQueue(queued.filter((c) => c.photoPath !== photoPath));
   }
 
   function openCandidate(item: Candidate) {
     setAdding(item.id);
     setError(null);
+    revokeBlob(item.photoPath);
     setScanQueue(queued.filter((c) => c.photoPath !== item.photoPath));
     const at = item.caughtAt.toISOString();
     const day = localDateKeyFromDate(item.caughtAt);
@@ -221,63 +256,65 @@ export function ScanLibraryClient() {
       ) : null}
 
       {candidates.length ? (
-        <div className="space-y-2">
-          <p className="on-wash-chip w-fit text-sm">
-            {candidates.length} photo{candidates.length === 1 ? "" : "s"} from this batch. Likely
-            fish are first — tap one to pin it and finish the trip.
-            {skipped ? ` Could not open ${skipped}.` : ""}
-          </p>
-          {candidates.map((item, i) => (
-            <div
-              key={item.id}
-              className="journal-card relative flex overflow-hidden rounded-2xl"
-              data-testid="scan-photo-row"
-              data-likely={item.likely ? "true" : "false"}
-            >
-              <button
-                type="button"
-                disabled={adding !== null}
-                onClick={() => openCandidate(item)}
-                className="flex min-w-0 flex-1 text-left disabled:opacity-60"
-              >
-                <div className="h-24 w-24 shrink-0 bg-paper-deep">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
-                </div>
-                <div className="min-w-0 flex-1 px-3 py-2">
-                  <p className="truncate font-semibold text-ink">
-                    {adding === item.id
-                      ? "Opening trip…"
-                      : item.likely
-                        ? "Likely fish photo"
-                        : "Unlikely — still yours to log"}
-                  </p>
-                  <p className="truncate text-sm text-ink-muted">
-                    {formatCatchWhen(item.caughtAt.toISOString())}
-                  </p>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink-muted">
-                    <span
-                      data-testid="scan-photo-badge"
-                      className={`rounded-full px-2 py-0.5 font-semibold ${
-                        item.likely ? "bg-teal/15 text-teal" : "border border-line"
-                      }`}
-                    >
-                      {item.likely ? "Likely fish" : "Unlikely"}
-                    </span>
-                    <span>Tap to backfill this photo.</span>
-                  </p>
-                </div>
-              </button>
-              <button
-                type="button"
-                disabled={adding !== null}
-                onClick={() => dismiss(i)}
-                className="shrink-0 px-3 text-xs font-semibold text-ink-muted"
-              >
-                Skip
-              </button>
+        <div className="space-y-3">
+          {likely.length ? (
+            <div className="space-y-2">
+              <p className="on-wash-chip w-fit text-sm">
+                {likely.length} likely fish photo{likely.length === 1 ? "" : "s"}. Tap one to pin it
+                and finish the trip.
+                {skipped ? ` Could not open ${skipped}.` : ""}
+              </p>
+              {likely.map((item) => (
+                <ScanPhotoRow
+                  key={item.id}
+                  item={item}
+                  src={thumbSrc(item.photoPath)}
+                  adding={adding}
+                  onOpen={openCandidate}
+                  onDismiss={dismiss}
+                />
+              ))}
             </div>
-          ))}
+          ) : null}
+
+          {unlikely.length ? (
+            likely.length ? (
+              <details className="space-y-2" data-testid="scan-unlikely-section">
+                <summary className="on-wash-chip w-fit cursor-pointer text-sm font-semibold">
+                  Unlikely — still yours to log ({unlikely.length})
+                </summary>
+                <div className="space-y-2 pt-2">
+                  {unlikely.map((item) => (
+                    <ScanPhotoRow
+                      key={item.id}
+                      item={item}
+                      src={thumbSrc(item.photoPath)}
+                      adding={adding}
+                      onOpen={openCandidate}
+                      onDismiss={dismiss}
+                    />
+                  ))}
+                </div>
+              </details>
+            ) : (
+              <div className="space-y-2" data-testid="scan-unlikely-section">
+                <p className="on-wash-chip w-fit text-sm">
+                  Unlikely — still yours to log. Tap one to pin it and finish the trip.
+                  {skipped ? ` Could not open ${skipped}.` : ""}
+                </p>
+                {unlikely.map((item) => (
+                  <ScanPhotoRow
+                    key={item.id}
+                    item={item}
+                    src={thumbSrc(item.photoPath)}
+                    adding={adding}
+                    onOpen={openCandidate}
+                    onDismiss={dismiss}
+                  />
+                ))}
+              </div>
+            )
+          ) : null}
         </div>
       ) : null}
 
@@ -285,6 +322,75 @@ export function ScanLibraryClient() {
         Privacy: only the batch you pick is checked. We do not read the rest of the camera roll.
         Dates come from the photo when EXIF is there. Nothing is added until you finish the trip form.
       </p>
+    </div>
+  );
+}
+
+function ScanPhotoRow({
+  item,
+  src,
+  adding,
+  onOpen,
+  onDismiss,
+}: {
+  item: Candidate;
+  src: string | null;
+  adding: string | null;
+  onOpen: (item: Candidate) => void;
+  onDismiss: (photoPath: string) => void;
+}) {
+  return (
+    <div
+      className="journal-card relative flex overflow-hidden rounded-2xl"
+      data-testid="scan-photo-row"
+      data-likely={item.likely ? "true" : "false"}
+    >
+      <button
+        type="button"
+        disabled={adding !== null}
+        onClick={() => onOpen(item)}
+        className="flex min-w-0 flex-1 text-left disabled:opacity-60"
+      >
+        <div className="h-24 w-24 shrink-0 bg-paper-deep">
+          {src ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={src} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-xs text-ink-muted">Photo</div>
+          )}
+        </div>
+        <div className="min-w-0 flex-1 px-3 py-2">
+          <p className="truncate font-semibold text-ink">
+            {adding === item.id
+              ? "Opening trip…"
+              : item.likely
+                ? "Likely fish photo"
+                : "Unlikely — still yours to log"}
+          </p>
+          <p className="truncate text-sm text-ink-muted">
+            {formatCatchWhen(item.caughtAt.toISOString())}
+          </p>
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink-muted">
+            <span
+              data-testid="scan-photo-badge"
+              className={`rounded-full px-2 py-0.5 font-semibold ${
+                item.likely ? "bg-teal/15 text-teal" : "border border-line"
+              }`}
+            >
+              {item.likely ? "Likely fish" : "Unlikely"}
+            </span>
+            <span>Tap to backfill this photo.</span>
+          </p>
+        </div>
+      </button>
+      <button
+        type="button"
+        disabled={adding !== null}
+        onClick={() => onDismiss(item.photoPath)}
+        className="shrink-0 px-3 text-xs font-semibold text-ink-muted"
+      >
+        Skip
+      </button>
     </div>
   );
 }

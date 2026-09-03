@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   forgetScanQueueMemory,
   hydrateScanQueue,
+  isLikelyScanPhoto,
+  partitionScanReview,
   pathAfterScanCatchSave,
   peekScanQueue,
   removeScanQueueByPhotoPath,
@@ -167,5 +169,33 @@ describe("reviewListFromScanResults", () => {
     ]);
     expect(sorted.map((i) => i.id)).toEqual(["c", "b", "a", "d"]);
     expect(sorted).toHaveLength(4);
+  });
+
+  it("does not treat missing likely as likely", () => {
+    expect(isLikelyScanPhoto(undefined)).toBe(false);
+    expect(isLikelyScanPhoto(false)).toBe(false);
+    expect(isLikelyScanPhoto(true)).toBe(true);
+    const sorted = sortScanReviewList([
+      { id: "missing", confidence: 0.95 },
+      { id: "no", likely: false, confidence: 0.9 },
+      { id: "yes", likely: true, confidence: 0.2 },
+    ]);
+    expect(sorted.map((i) => i.id)).toEqual(["yes", "missing", "no"]);
+    const parts = partitionScanReview([
+      { id: "missing" },
+      { id: "no", likely: false },
+      { id: "yes", likely: true },
+    ]);
+    expect(parts.likely.map((i) => i.id)).toEqual(["yes"]);
+    expect(parts.unlikely.map((i) => i.id)).toEqual(["missing", "no"]);
+  });
+
+  it("keeps persisted unlikely false after a reload", () => {
+    setScanQueue([sample("shot.jpg", { likely: false }), sample("fish.jpg", { likely: true })]);
+    forgetScanQueueMemory();
+    const restored = hydrateScanQueue();
+    expect(isLikelyScanPhoto(restored.find((item) => item.photoPath === "shot.jpg")?.likely)).toBe(false);
+    expect(isLikelyScanPhoto(restored.find((item) => item.photoPath === "fish.jpg")?.likely)).toBe(true);
+    expect(partitionScanReview(restored).likely.map((item) => item.photoPath)).toEqual(["fish.jpg"]);
   });
 });
