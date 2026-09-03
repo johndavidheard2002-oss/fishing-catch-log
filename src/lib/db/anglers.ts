@@ -127,7 +127,7 @@ export async function createAngler(name: string): Promise<AnglerRecord> {
   await runChange(
     db.insert(anglers).values({
       id,
-      name: name.trim() || "Buddy",
+      name: name.trim() || "Friend",
       inviteCode,
       createdAt: stamp,
     }),

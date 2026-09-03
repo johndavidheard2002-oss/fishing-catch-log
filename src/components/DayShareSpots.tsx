@@ -64,7 +64,7 @@ export function DayShareSpots({
           Select spots to share
         </p>
         <p className="mt-1.5 text-xs text-ink-muted">
-          Linked buddies can see these spots. Off until you choose.
+          Linked friends can see these spots. Off until you choose.
         </p>
       </div>
       <ul className="space-y-2">

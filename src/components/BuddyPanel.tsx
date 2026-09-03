@@ -110,7 +110,7 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
     });
     const data = await res.json();
     if (!res.ok) {
-      setError(data.error || "Could not create buddy");
+      setError(data.error || "Could not create friend");
       return;
     }
     setBuddyName("");
@@ -134,9 +134,9 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
   return (
     <section className={embedded ? "space-y-3 px-4 pb-4" : "journal-card space-y-3 rounded-2xl p-4"}>
       {embedded ? (
-        <h2 className="text-sm font-semibold">Linked buddies</h2>
+        <h2 className="text-sm font-semibold">Linked friends</h2>
       ) : (
-        <h2 className="font-display text-2xl text-teal">Linked buddies</h2>
+        <h2 className="font-display text-2xl text-teal">Linked friends</h2>
       )}
       <PrivacyBanner />
 
@@ -197,7 +197,7 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
           <input
             value={buddyName}
             onChange={(e) => setBuddyName(e.target.value)}
-            placeholder="Buddy name"
+            placeholder="Friend name"
             className="min-w-0 flex-1 rounded-xl border border-line bg-paper px-3 py-2"
           />
           <button type="submit" className="rounded-xl border border-line px-3 py-2 text-sm font-semibold">
@@ -210,7 +210,7 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
 
       <ul className="space-y-2">
         {buddies.length === 0 ? (
-          <li className="text-sm text-ink-muted">No linked buddies yet.</li>
+          <li className="text-sm text-ink-muted">No linked friends yet.</li>
         ) : (
           buddies.map((b) => (
             <li key={b.id} className="flex items-center justify-between gap-2 text-sm">
@@ -264,7 +264,7 @@ export function SharedToggle({
         className="mt-1"
       />
       <span>
-        <span className="font-semibold">Include shared from linked buddies</span>
+        <span className="font-semibold">Include shared from linked friends</span>
         <span className="mt-0.5 block text-xs text-ink-muted">
           {PRIVACY_LINE} Combined views never include strangers or a public feed.
         </span>
@@ -320,7 +320,7 @@ function SharedDaysList({ ownerId }: { ownerId?: string }) {
     <div className="space-y-2">
       <p className="text-sm font-semibold">Days you shared</p>
       <p className="text-xs text-ink-muted">
-        Select spots on Calendar Log. Unshared spots stay private even to linked buddies.
+        Select spots on Calendar Log. Unshared spots stay private even to linked friends.
       </p>
       {days.length === 0 ? (
         <p className="text-sm text-ink-muted">None yet — open a day on Calendar Log to choose spots.</p>

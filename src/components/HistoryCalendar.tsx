@@ -516,13 +516,13 @@ function DayShareToggle({
         className="mt-1"
       />
       <span>
-        <span className="font-semibold">Share this day with linked buddies</span>
+        <span className="font-semibold">Share this day with linked friends</span>
         <span className="mt-0.5 block text-xs text-ink-muted">
           {allShared
-            ? "Linked buddies can see this day’s trips. Uncheck to keep the day private."
+            ? "Linked friends can see this day’s trips. Uncheck to keep the day private."
             : someShared
               ? "Some trips on this day are already shared. Turn on to share the whole day."
-              : "Off until you choose. Linking a buddy does not share this day."}
+              : "Off until you choose. Linking a friend does not share this day."}
           {selectedYearOnly
             ? ` Shares ${yearFromDateKey(day)} only — other years on this date stay as they are.`
             : ""}

@@ -329,7 +329,7 @@ export function CatchDetail({ id }: { id: string }) {
         </div>
         {isOwner ? (
           <p className="mt-1.5 text-xs text-ink-muted">
-            Linked buddies can see this spot. Off until you choose.
+            Linked friends can see this spot. Off until you choose.
           </p>
         ) : null}
         {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}

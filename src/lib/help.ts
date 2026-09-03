@@ -44,13 +44,13 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
-    title: "Share with a buddy",
+    title: "Share with a friend",
     steps: [
-      "On Home, open More, then Linked buddies. Enter their invite code and tap Link, or copy yours.",
+      "On Home, open More, then Linked friends. Enter their invite code and tap Link, or copy yours.",
       "Linking shares nothing. Never public. They see a spot only after you tap Share or Select spots to share.",
       "Open a catch photo and tap Share next to Edit. It becomes Shared — that spot is what they can see.",
       "On Calendar Log, open a day and use Select spots to share for several pins at once.",
-      "On Calendar Log, your buddy checks Include shared from linked buddies to see your shared spots.",
+      "On Calendar Log, your friend checks Include shared from linked friends to see your shared spots.",
     ],
   },
   {

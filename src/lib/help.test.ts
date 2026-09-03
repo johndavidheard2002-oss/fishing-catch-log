@@ -9,7 +9,7 @@ describe("HELP_SECTIONS", () => {
       "Log bait",
       "Plan a day",
       "Calendar Log",
-      "Share with a buddy",
+      "Share with a friend",
       "Spots",
       "Backfill",
       "Swipe between tabs",
@@ -24,13 +24,13 @@ describe("HELP_SECTIONS", () => {
         step.includes("keep the whole batch"),
       ),
     ).toBe(true);
-    const share = HELP_SECTIONS.find((section) => section.title === "Share with a buddy")?.steps ?? [];
-    expect(share.some((step) => step.includes("More") && step.includes("Linked buddies") && step.includes("Link"))).toBe(
+    const share = HELP_SECTIONS.find((section) => section.title === "Share with a friend")?.steps ?? [];
+    expect(share.some((step) => step.includes("More") && step.includes("Linked friends") && step.includes("Link"))).toBe(
       true,
     );
     expect(share.some((step) => step.includes("Share next to Edit"))).toBe(true);
     expect(share.some((step) => step.includes("Select spots to share"))).toBe(true);
-    expect(share.some((step) => step.includes("Include shared from linked buddies"))).toBe(true);
+    expect(share.some((step) => step.includes("Include shared from linked friends"))).toBe(true);
     expect(share.some((step) => step.includes("Never public") && step.includes("Linking shares nothing"))).toBe(true);
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);

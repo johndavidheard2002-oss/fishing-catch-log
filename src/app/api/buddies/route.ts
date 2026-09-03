@@ -36,12 +36,12 @@ export async function POST(request: NextRequest) {
       await linkAnglers(viewerId, buddy.id);
       return jsonWithViewer({ buddies: await listBuddies(viewerId), linked: buddy }, viewerId);
     }
-    return jsonWithViewer({ error: "Enter an invite code or a buddy name." }, viewerId, {
+    return jsonWithViewer({ error: "Enter an invite code or a friend name." }, viewerId, {
       status: 400,
     });
   } catch (err) {
     return jsonWithViewer(
-      { error: err instanceof Error ? err.message : "Could not link buddy" },
+      { error: err instanceof Error ? err.message : "Could not link friend" },
       viewerId,
       { status: 400 },
     );

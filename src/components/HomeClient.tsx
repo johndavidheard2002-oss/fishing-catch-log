@@ -56,7 +56,7 @@ export function HomeClient() {
           <span>
             <span className="block font-semibold">More</span>
             <span className="mt-0.5 block text-sm font-normal text-ink-muted">
-              Link a buddy or share an invite code
+              Link a friend or share an invite code
             </span>
           </span>
         </summary>
