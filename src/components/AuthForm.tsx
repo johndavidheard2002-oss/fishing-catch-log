@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AUTH_PRIVACY_LINE } from "@/lib/privacy";
+import { notifyAuthChange } from "@/lib/tour";
 
 export function AuthForm({
   defaultName = "",
@@ -43,6 +44,7 @@ export function AuthForm({
         return;
       }
       onSignedIn?.(typeof (data as { me?: { name?: string } }).me?.name === "string" ? (data as { me: { name: string } }).me.name : name);
+      notifyAuthChange();
       router.replace(nextPath);
       router.refresh();
     } catch {
