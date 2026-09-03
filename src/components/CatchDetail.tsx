@@ -19,6 +19,7 @@ import { formatCaughtAt } from "@/lib/time";
 import { groupSpots } from "@/lib/filters";
 import { hasSavedPin } from "@/lib/location-map";
 import { DEFAULT_MAP_FRAME_CLASS } from "@/lib/map-tiles";
+import { APP_DISPLAY_NAME } from "@/lib/brand";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
 
 const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
@@ -243,7 +244,7 @@ export function CatchDetail({ id }: { id: string }) {
                 })}
               />
               <p className="mt-1.5 text-xs text-ink-muted">
-                Save this catch photo to this phone whenever you want. Catch Compass never adds it to
+                Save this catch photo to this phone whenever you want. {APP_DISPLAY_NAME} never adds it to
                 Photos by itself.
               </p>
             </div>

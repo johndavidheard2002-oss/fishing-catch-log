@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { markHelpTipSeen } from "@/lib/help";
 import { markSetupSeen, SETUP_OPEN_EVENT, setupSeen, subscribeSetup } from "@/lib/setup";
+import { APP_DISPLAY_NAME, APP_SUBTITLE } from "@/lib/brand";
 
 export function FirstRunSetup() {
   const router = useRouter();
@@ -48,7 +49,7 @@ export function FirstRunSetup() {
       <div className="journal-card flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-2xl">
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pt-5 pb-4">
           <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
-            Catch Compass · Saltwater Logbook
+            {APP_DISPLAY_NAME} · {APP_SUBTITLE}
           </p>
           <h2 id="first-run-title" className="font-display text-3xl text-teal">
             Start with photos you already have

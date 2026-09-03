@@ -1,10 +1,11 @@
 import type { MetadataRoute } from "next";
+import { APP_DISPLAY_NAME, APP_TAGLINE } from "@/lib/brand";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Catch Compass",
-    short_name: "Catch Compass",
-    description: "Catch Compass Saltwater Logbook — log catches with photo, weather, and similar conditions.",
+    name: APP_DISPLAY_NAME,
+    short_name: APP_DISPLAY_NAME,
+    description: APP_TAGLINE,
     start_url: "/",
     display: "standalone",
     background_color: "#7ecdee",

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
+import { APP_DISPLAY_NAME, APP_TAGLINE } from "@/lib/brand";
 
 const display = Fraunces({
   variable: "--font-display",
@@ -15,13 +16,12 @@ const body = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Catch Compass", template: "%s · Catch Compass" },
-  description:
-    "Catch Compass Saltwater Logbook — log catches with photo, weather, and spot, then find similar conditions later.",
-  applicationName: "Catch Compass",
+  title: { default: APP_DISPLAY_NAME, template: `%s · ${APP_DISPLAY_NAME}` },
+  description: APP_TAGLINE,
+  applicationName: APP_DISPLAY_NAME,
   appleWebApp: {
     capable: true,
-    title: "Catch Compass",
+    title: APP_DISPLAY_NAME,
     statusBarStyle: "default",
   },
   icons: {

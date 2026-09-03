@@ -9,6 +9,7 @@ import {
   subscribeHelpTip,
 } from "@/lib/help";
 import { openSetup, setupSeen, subscribeSetup } from "@/lib/setup";
+import { APP_DISPLAY_NAME } from "@/lib/brand";
 
 export function HelpButton() {
   return (
@@ -63,7 +64,7 @@ export function HelpGuide() {
         <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-2">
           <div>
             <h2 id="help-guide-title" className="font-display text-2xl text-teal">
-              How to use Catch Compass
+              How to use {APP_DISPLAY_NAME}
             </h2>
             <p className="text-sm text-ink-muted">Saltwater Logbook — short steps, anytime.</p>
           </div>

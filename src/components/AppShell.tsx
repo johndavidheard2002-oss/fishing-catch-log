@@ -228,7 +228,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" className="flex min-w-0 items-center gap-2 overflow-hidden text-teal" data-testid="header-lockup">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/icon-192.png"
+              src="/brand/bite-book-logo.png"
               alt=""
               width={32}
               height={32}

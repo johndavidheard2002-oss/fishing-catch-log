@@ -1,5 +1,7 @@
 /** Client-only helpers to put a catch photo in the device library. */
 
+import { APP_DISPLAY_NAME } from "./brand";
+
 export type SavePhotoResult = "shared" | "downloaded" | "opened" | "cancelled";
 
 const MIME: Record<string, string> = {
@@ -73,7 +75,7 @@ export async function savePhotoToDevice(src: string, filename: string): Promise<
     try {
       await navigator.share({
         files: [file],
-        title: "Catch Compass photo",
+        title: `${APP_DISPLAY_NAME} photo`,
         text: "Save this catch photo to your library.",
       });
       return "shared";

@@ -74,10 +74,10 @@ body::after {
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.7), 0 6px 14px -10px rgb(10 90 140 / 0.55);
 }
 
-/* Empty take-a-photo well: Catch Compass logo, not a flat blue panel. */
+/* Empty take-a-photo well: Bite Book trout-logbook logo, not a flat blue panel. */
 .photo-capture-brand {
   background-color: #0a2c38;
-  background-image: url("/brand/catch-compass-logo.png");
+  background-image: url("/brand/bite-book-logo.png");
   background-repeat: no-repeat;
   background-position: center 40%;
   background-size: min(68%, 15.5rem) auto;
