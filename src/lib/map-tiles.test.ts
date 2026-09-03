@@ -7,6 +7,7 @@ import {
   ESRI_ATTRIBUTION,
   ESRI_WORLD_IMAGERY_URL,
   OSM_STREET_URL,
+  OVERVIEW_SINGLE_PIN_ZOOM,
   SELECTED_PIN_ZOOM,
   addBasemapToMap,
   mapBasemapSpec,
@@ -31,15 +32,38 @@ describe("mapCamera", () => {
   const miami: [number, number] = [25.76, -80.19];
   const ohio: [number, number] = [40.21, -82.89];
 
-  it("opens the Texas Gulf frame when empty or in overview mode", () => {
+  it("opens the Texas Gulf frame when empty", () => {
     expect(mapCamera({ pins: [] })).toEqual({
       center: DEFAULT_MAP_CENTER,
       zoom: DEFAULT_MAP_ZOOM,
       fitPins: null,
     });
+  });
+
+  it("fits a tight local cluster in overview the same as Calendar", () => {
+    expect(mapCamera({ pins: [texasCoast, houston], overview: true }).fitPins).toEqual([
+      texasCoast,
+      houston,
+    ]);
+  });
+
+  it("keeps overview on the TX Gulf frame for a continent-scale pin set", () => {
     expect(mapCamera({ pins: [texasCoast, miami, ohio], overview: true })).toEqual({
       center: DEFAULT_MAP_CENTER,
       zoom: DEFAULT_MAP_ZOOM,
+      fitPins: null,
+    });
+  });
+
+  it("zooms an overview single pin a bit wider than a detail pin", () => {
+    expect(mapCamera({ pins: [texasCoast], overview: true })).toEqual({
+      center: texasCoast,
+      zoom: OVERVIEW_SINGLE_PIN_ZOOM,
+      fitPins: null,
+    });
+    expect(mapCamera({ pins: [texasCoast] })).toEqual({
+      center: texasCoast,
+      zoom: 16,
       fitPins: null,
     });
   });

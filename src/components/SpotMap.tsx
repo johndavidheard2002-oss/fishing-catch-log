@@ -48,9 +48,9 @@ export function SpotMap({
   selectedKey: string | null;
   onSelect?: (key: string) => void;
   className?: string;
-  /** Stay on the Texas Gulf frame instead of fitting every pin. */
+  /** Fit all pins when present; empty or continent-scale sets stay on the TX Gulf frame. */
   overview?: boolean;
-  /** When false, a list highlight does not pull the camera off the TX frame. */
+  /** When false, a list highlight does not pull the camera off the all-pins frame. */
   followSelection?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
