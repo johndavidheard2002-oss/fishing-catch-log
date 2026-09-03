@@ -12,7 +12,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Log a catch",
     steps: [
       "Tap Log, then take or pick one photo.",
-      "We’ll ask if the photo was taken where you caught the fish. Yes can drop the pin; No means tap the map.",
+      "A live camera shot pins from this phone’s location. Camera-roll photos still ask Yes or No before a pin.",
       "Drop the pin on the water you fished.",
       "Name the area if you want — leave it blank if the map already named it.",
       "Save. One photo is one trip at one pin.",
@@ -73,7 +73,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Backfill",
     steps: [
       "Add one past catch, or tap Find fish photos and pick a batch.",
-      "We keep the whole batch, put likely fish first, and use the photo’s time when EXIF is there.",
+      "We keep every photo you pick. Photos you choose are not marked unlikely. A folder scan still ranks likely first.",
       "Confirm, pin the water, and save. Help → How this works replays the short tour.",
     ],
   },

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import exifr from "exifr";
 import { MapPicker } from "./MapPicker";
-import { PhotoCapture } from "./PhotoCapture";
+import { PhotoCapture, type PhotoSource } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
 import { AreaNamePicker } from "./AreaNamePicker";
 import { DEFAULT_HABITAT } from "@/lib/habitat";
@@ -20,6 +20,7 @@ import {
   DROP_CATCH_PIN_HINT,
   formatCoords,
   resolveCatchPinAfterPhotoAnswer,
+  resolveLiveCameraCatchPin,
 } from "@/lib/location";
 import { primarySpecies } from "@/lib/species";
 import {
@@ -255,6 +256,10 @@ export function CatchForm({
   const [pinSource, setPinSource] = useState<"photo" | "device" | "manual" | null>(() =>
     initialPinSource(initial),
   );
+  const pendingLiveGpsRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const liveGpsRequestRef = useRef<Promise<{ latitude: number; longitude: number } | null> | null>(
+    null,
+  );
 
   useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
@@ -331,10 +336,56 @@ export function CatchForm({
     };
   }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked]);
 
-  async function handleFile(file: File) {
+  function requestLiveGps() {
+    if (pastMode) return;
+    liveGpsRequestRef.current = getPosition().then((geo) => {
+      if (!geo) {
+        pendingLiveGpsRef.current = null;
+        return null;
+      }
+      const gps = { latitude: geo.coords.latitude, longitude: geo.coords.longitude };
+      pendingLiveGpsRef.current = gps;
+      return gps;
+    });
+  }
+
+  async function applyResolvedPin(next: {
+    latitude: number;
+    longitude: number;
+    source: "photo" | "device" | "manual";
+  }) {
+    patch({
+      latitude: next.latitude.toFixed(5),
+      longitude: next.longitude.toFixed(5),
+    });
+    setPinSource(next.source);
+    if (next.source === "photo") {
+      setPinHint(
+        "Catch pin auto-filled from this photo’s location stamp. Drag it if you caught the fish somewhere else — the pin is not locked.",
+      );
+    } else {
+      setPinHint("Catch pin placed from this phone’s location. Drag it if needed.");
+    }
+    try {
+      const res = await fetch("/api/assist/place", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ latitude: next.latitude, longitude: next.longitude }),
+      });
+      const data = await res.json();
+      const autoPlace = data.place?.placeName as string | undefined;
+      if (autoPlace) {
+        setForm((f) => (f.placeName.trim() ? f : { ...f, placeName: autoPlace }));
+      }
+    } catch {
+      /* place name is optional */
+    }
+  }
+
+  async function handleFile(file: File, source: PhotoSource = "library") {
     setError(null);
     setBusy(true);
-    setPhotoAtCatch(null);
+    setPhotoAtCatch(source === "camera" && !pastMode ? true : null);
     setPinHint(null);
     const compressed = await compressImage(file);
     const nextFile = new File([compressed], file.name.replace(/\.\w+$/, ".jpg"), {
@@ -371,6 +422,29 @@ export function CatchForm({
       }
     } catch {
       pendingPhotoGpsRef.current = null;
+    }
+
+    if (!pastMode && source === "camera") {
+      const deviceGps =
+        pendingLiveGpsRef.current ??
+        (liveGpsRequestRef.current ? await liveGpsRequestRef.current : null) ??
+        (await getPosition().then((geo) =>
+          geo ? { latitude: geo.coords.latitude, longitude: geo.coords.longitude } : null,
+        ));
+      pendingLiveGpsRef.current = deviceGps;
+      const next = resolveLiveCameraCatchPin({
+        userMovedCatchPin: catchPinUserMovedRef.current,
+        deviceGps,
+      });
+      if (next) {
+        await applyResolvedPin(next);
+      } else if (catchPinUserMovedRef.current) {
+        setPinHint(
+          "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
+        );
+      } else {
+        setPinHint("Location was off. Tap the map to pin this catch.");
+      }
     }
 
     setBusy(false);
@@ -419,33 +493,7 @@ export function CatchForm({
         return;
       }
 
-      patch({
-        latitude: next.latitude.toFixed(5),
-        longitude: next.longitude.toFixed(5),
-      });
-      setPinSource(next.source);
-      if (next.source === "photo") {
-        setPinHint(
-          "Catch pin auto-filled from this photo’s location stamp. Drag it if you caught the fish somewhere else — the pin is not locked.",
-        );
-      } else {
-        setPinHint("No GPS in the photo — catch pin placed from this phone’s location. Drag it if needed.");
-      }
-
-      try {
-        const res = await fetch("/api/assist/place", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ latitude: next.latitude, longitude: next.longitude }),
-        });
-        const data = await res.json();
-        const autoPlace = data.place?.placeName as string | undefined;
-        if (autoPlace) {
-          setForm((f) => (f.placeName.trim() ? f : { ...f, placeName: autoPlace }));
-        }
-      } catch {
-        /* place name is optional */
-      }
+      await applyResolvedPin(next);
     } finally {
       setBusy(false);
     }
@@ -552,11 +600,16 @@ export function CatchForm({
       <PhotoCapture
         previewUrl={previewUrl}
         onFile={handleFile}
+        onLiveCapture={pastMode ? undefined : requestLiveGps}
         busy={busy}
         emphasis={pastMode ? "library" : "camera"}
         libraryOnly={pastMode}
-        keepVisible={pastMode && Boolean(previewUrl)}
         compactPreview={pastMode && Boolean(previewUrl)}
+        locationReason={
+          pastMode
+            ? undefined
+            : "Camera uses this phone’s location to pin the catch on the map. Allow location when asked — you can still move the pin."
+        }
       />
 
       {!busy &&

@@ -7,14 +7,17 @@ import { compressImage, photoSrc } from "@/lib/photo";
 import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import {
+  asPickedScanItems,
   getScanQueueServerSnapshot,
   isLikelyScanPhoto,
-  partitionScanReview,
+  normalizeScanOrigin,
   peekScanQueue,
+  presentScanReview,
   setScanQueue,
   sortScanReviewList,
   subscribeScanQueue,
   type QueuedScanCandidate,
+  type ScanBatchOrigin,
 } from "@/lib/scan-queue";
 
 type Candidate = {
@@ -25,24 +28,28 @@ type Candidate = {
   confidence: number;
   demo: boolean;
   likely: boolean;
+  origin: ScanBatchOrigin;
   photoTakenLatitude: number | null;
   photoTakenLongitude: number | null;
 };
 
 function toQueued(c: Candidate): QueuedScanCandidate {
+  const origin = normalizeScanOrigin(c.origin);
   return {
     photoPath: c.photoPath,
     caughtAtIso: c.caughtAt.toISOString(),
     note: c.note,
     confidence: c.confidence,
     demo: c.demo,
-    likely: c.likely === true,
+    likely: origin === "picked" ? true : c.likely === true,
+    origin,
     photoTakenLatitude: c.photoTakenLatitude,
     photoTakenLongitude: c.photoTakenLongitude,
   };
 }
 
 function fromQueued(item: QueuedScanCandidate): Candidate {
+  const origin = normalizeScanOrigin(item.origin);
   return {
     id: item.photoPath,
     photoPath: item.photoPath,
@@ -50,7 +57,8 @@ function fromQueued(item: QueuedScanCandidate): Candidate {
     note: item.note,
     confidence: item.confidence,
     demo: item.demo,
-    likely: isLikelyScanPhoto(item.likely),
+    likely: origin === "picked" ? true : isLikelyScanPhoto(item.likely),
+    origin,
     photoTakenLatitude: item.photoTakenLatitude ?? null,
     photoTakenLongitude: item.photoTakenLongitude ?? null,
   };
@@ -71,7 +79,8 @@ export function ScanLibraryClient() {
     getScanQueueServerSnapshot,
   );
   const candidates = queued.map(fromQueued);
-  const { likely, unlikely } = partitionScanReview(candidates);
+  const { origin: reviewOrigin, likely, unlikely } = presentScanReview(candidates);
+  const pickedBatch = reviewOrigin === "picked";
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
 
@@ -119,7 +128,7 @@ export function ScanLibraryClient() {
     });
   }
 
-  async function onFiles(list: FileList | null) {
+  async function onFiles(list: FileList | null, origin: ScanBatchOrigin) {
     if (!list?.length) return;
     setError(null);
     setBusy(true);
@@ -137,7 +146,10 @@ export function ScanLibraryClient() {
         const file = new File([compressed], original.name.replace(/\.\w+$/, ".jpg"), {
           type: "image/jpeg",
         });
-        const detection = await detectFishPhoto(file, original.name);
+        const detection =
+          origin === "scan"
+            ? await detectFishPhoto(file, original.name)
+            : { candidate: true, confidence: 1, demo: false, note: "" };
         let caughtAt = new Date();
         let photoTakenLatitude: number | null = null;
         let photoTakenLongitude: number | null = null;
@@ -170,19 +182,25 @@ export function ScanLibraryClient() {
           note: detection.note,
           confidence: detection.confidence,
           demo: detection.demo,
-          likely: detection.candidate === true,
+          likely: origin === "picked" ? true : detection.candidate === true,
+          origin,
           photoTakenLatitude,
           photoTakenLongitude,
         });
-        setScanQueue(sortScanReviewList(found).map(toQueued));
+        commitReviewQueue(found, origin);
       } catch {
         skip += 1;
       }
     }
     setSkipped(skip);
-    setScanQueue(sortScanReviewList(found).map(toQueued));
+    commitReviewQueue(found, origin);
     setBusy(false);
     setProgress("");
+  }
+
+  function commitReviewQueue(found: Candidate[], origin: ScanBatchOrigin) {
+    const queuedItems = found.map(toQueued);
+    setScanQueue(origin === "picked" ? asPickedScanItems(queuedItems) : sortScanReviewList(queuedItems));
   }
 
   function dismiss(photoPath: string) {
@@ -211,9 +229,10 @@ export function ScanLibraryClient() {
       <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Find fish photos</h1>
         <p className="text-sm text-ink-muted">
-          Point us at a batch — camera roll, files, or a folder. We keep every photo you pick, put
-          likely fish first, and read the date from the picture when it is there. We cannot scan the
-          whole phone in the background. Nothing is added until you confirm.
+          Point us at a batch — camera roll, files, or a folder. Photos you pick are yours to log —
+          we do not mark them unlikely. A folder scan still puts likely fish first. We read the date
+          from the picture when it is there. We cannot scan the whole phone in the background.
+          Nothing is added until you confirm.
         </p>
       </div>
 
@@ -228,6 +247,7 @@ export function ScanLibraryClient() {
       </button>
       <button
         type="button"
+        data-testid="find-fish-folder"
         onClick={() => folderRef.current?.click()}
         disabled={busy}
         className="w-full rounded-2xl border border-line bg-card px-4 py-3 font-semibold disabled:opacity-60"
@@ -241,7 +261,7 @@ export function ScanLibraryClient() {
         multiple
         className="hidden"
         onChange={(e) => {
-          void onFiles(e.target.files);
+          void onFiles(e.target.files, "picked");
           e.target.value = "";
         }}
       />
@@ -251,7 +271,7 @@ export function ScanLibraryClient() {
         multiple
         className="hidden"
         onChange={(e) => {
-          void onFiles(e.target.files);
+          void onFiles(e.target.files, "scan");
           e.target.value = "";
         }}
       />
@@ -269,10 +289,11 @@ export function ScanLibraryClient() {
       {candidates.length ? (
         <div className="space-y-3">
           {likely.length ? (
-            <div className="space-y-2">
+            <div className="space-y-2" data-testid={pickedBatch ? "scan-picked-section" : undefined}>
               <p className="on-wash-chip w-fit text-sm">
-                {likely.length} likely fish photo{likely.length === 1 ? "" : "s"}. Tap one to pin it
-                and finish the trip.
+                {pickedBatch
+                  ? `${likely.length} photo${likely.length === 1 ? "" : "s"} you picked. Tap one to pin it and finish the trip.`
+                  : `${likely.length} likely fish photo${likely.length === 1 ? "" : "s"}. Tap one to pin it and finish the trip.`}
                 {skipped ? ` Could not open ${skipped}.` : ""}
               </p>
               {likely.map((item) => (
@@ -281,6 +302,7 @@ export function ScanLibraryClient() {
                   item={item}
                   src={thumbSrc(item.photoPath)}
                   adding={adding}
+                  picked={pickedBatch}
                   onOpen={openCandidate}
                   onDismiss={dismiss}
                 />
@@ -288,7 +310,7 @@ export function ScanLibraryClient() {
             </div>
           ) : null}
 
-          {unlikely.length ? (
+          {!pickedBatch && unlikely.length ? (
             likely.length ? (
               <details className="space-y-2" data-testid="scan-unlikely-section">
                 <summary className="on-wash-chip w-fit cursor-pointer text-sm font-semibold">
@@ -301,6 +323,7 @@ export function ScanLibraryClient() {
                       item={item}
                       src={thumbSrc(item.photoPath)}
                       adding={adding}
+                      picked={false}
                       onOpen={openCandidate}
                       onDismiss={dismiss}
                     />
@@ -319,6 +342,7 @@ export function ScanLibraryClient() {
                     item={item}
                     src={thumbSrc(item.photoPath)}
                     adding={adding}
+                    picked={false}
                     onOpen={openCandidate}
                     onDismiss={dismiss}
                   />
@@ -341,20 +365,30 @@ function ScanPhotoRow({
   item,
   src,
   adding,
+  picked,
   onOpen,
   onDismiss,
 }: {
   item: Candidate;
   src: string | null;
   adding: string | null;
+  picked: boolean;
   onOpen: (item: Candidate) => void;
   onDismiss: (photoPath: string) => void;
 }) {
+  const title = adding === item.id
+    ? "Opening trip…"
+    : picked
+      ? "Catch photo"
+      : item.likely
+        ? "Likely fish photo"
+        : "Unlikely — still yours to log";
   return (
     <div
       className="journal-card relative flex overflow-hidden rounded-2xl"
       data-testid="scan-photo-row"
-      data-likely={item.likely ? "true" : "false"}
+      data-likely={picked || item.likely ? "true" : "false"}
+      data-origin={picked ? "picked" : "scan"}
     >
       <button
         type="button"
@@ -371,25 +405,21 @@ function ScanPhotoRow({
           )}
         </div>
         <div className="min-w-0 flex-1 px-3 py-2">
-          <p className="truncate font-semibold text-ink">
-            {adding === item.id
-              ? "Opening trip…"
-              : item.likely
-                ? "Likely fish photo"
-                : "Unlikely — still yours to log"}
-          </p>
+          <p className="truncate font-semibold text-ink">{title}</p>
           <p className="truncate text-sm text-ink-muted">
             {formatCatchWhen(item.caughtAt.toISOString())}
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-ink-muted">
-            <span
-              data-testid="scan-photo-badge"
-              className={`rounded-full px-2 py-0.5 font-semibold ${
-                item.likely ? "bg-teal/15 text-teal" : "border border-line"
-              }`}
-            >
-              {item.likely ? "Likely fish" : "Unlikely"}
-            </span>
+            {picked ? null : (
+              <span
+                data-testid="scan-photo-badge"
+                className={`rounded-full px-2 py-0.5 font-semibold ${
+                  item.likely ? "bg-teal/15 text-teal" : "border border-line"
+                }`}
+              >
+                {item.likely ? "Likely fish" : "Unlikely"}
+              </span>
+            )}
             <span>Tap to backfill this photo.</span>
           </p>
         </div>

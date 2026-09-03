@@ -16,13 +16,18 @@ describe("HELP_SECTIONS", () => {
       "Swipe between tabs",
     ]);
     expect(
+      HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
+        step.includes("this phone’s location"),
+      ),
+    ).toBe(true);
+    expect(
       HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.some((step) =>
         step.includes("Tap a match"),
       ),
     ).toBe(true);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Backfill")?.steps.some((step) =>
-        step.includes("keep the whole batch"),
+        step.includes("not marked unlikely"),
       ),
     ).toBe(true);
     expect(

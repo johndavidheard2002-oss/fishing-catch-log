@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  asPickedScanItems,
   forgetScanQueueMemory,
   hydrateScanQueue,
   isLikelyScanPhoto,
+  isUserPickedScanBatch,
   partitionScanReview,
   pathAfterScanCatchSave,
   peekScanQueue,
+  presentScanReview,
   removeScanQueueByPhotoPath,
   reviewListFromScanResults,
   SCAN_QUEUE_STORAGE_KEY,
@@ -197,5 +200,46 @@ describe("reviewListFromScanResults", () => {
     expect(isLikelyScanPhoto(restored.find((item) => item.photoPath === "shot.jpg")?.likely)).toBe(false);
     expect(isLikelyScanPhoto(restored.find((item) => item.photoPath === "fish.jpg")?.likely)).toBe(true);
     expect(partitionScanReview(restored).likely.map((item) => item.photoPath)).toEqual(["fish.jpg"]);
+  });
+});
+
+describe("user-picked scan batches", () => {
+  it("does not label or sort hand-picked photos as unlikely", () => {
+    const items = asPickedScanItems([
+      { id: "screenshot.jpg", likely: false, confidence: 0.9, origin: "scan" as const },
+      { id: "dock.jpg", likely: false, confidence: 0.1 },
+    ]);
+    expect(items.every((item) => item.likely === true && item.origin === "picked")).toBe(true);
+    expect(isUserPickedScanBatch(items)).toBe(true);
+    const view = presentScanReview(items);
+    expect(view.origin).toBe("picked");
+    expect(view.unlikely).toEqual([]);
+    expect(view.likely.map((item) => item.id)).toEqual(["screenshot.jpg", "dock.jpg"]);
+  });
+
+  it("still splits likely vs unlikely for a folder scan", () => {
+    const view = presentScanReview([
+      { id: "a", likely: false, origin: "scan" as const },
+      { id: "b", likely: true, origin: "scan" as const },
+    ]);
+    expect(view.origin).toBe("scan");
+    expect(view.likely.map((item) => item.id)).toEqual(["b"]);
+    expect(view.unlikely.map((item) => item.id)).toEqual(["a"]);
+  });
+
+  it("keeps leftovers picked so a reload does not invent Unlikely", () => {
+    setScanQueue(
+      asPickedScanItems([
+        sample("chosen.jpg", { likely: false, confidence: 0.2 }),
+        sample("also.jpg", { likely: false, confidence: 0.95 }),
+      ]),
+    );
+    expect(peekScanQueue().every((item) => item.origin === "picked" && item.likely === true)).toBe(true);
+    expect(presentScanReview(peekScanQueue()).unlikely).toEqual([]);
+    forgetScanQueueMemory();
+    const restored = hydrateScanQueue();
+    expect(isUserPickedScanBatch(restored)).toBe(true);
+    expect(presentScanReview(restored).unlikely).toEqual([]);
+    expect(restored.map((item) => item.photoPath)).toEqual(["chosen.jpg", "also.jpg"]);
   });
 });
