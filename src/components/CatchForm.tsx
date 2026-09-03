@@ -28,7 +28,7 @@ import {
   writeSavedLiveLocation,
   type LiveLocationStatus,
 } from "@/lib/location";
-import { primarySpecies } from "@/lib/species";
+import { formPatchFromSuggestion, primarySpecies } from "@/lib/species";
 import {
   alignCountDrafts,
   countsFromDrafts,
@@ -44,7 +44,7 @@ import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } fr
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
-import type { CatchRecord, Habitat, NamedArea, Season, TimeOfDay } from "@/lib/types";
+import type { CatchRecord, Habitat, NamedArea, Season, SpeciesSuggestion, TimeOfDay } from "@/lib/types";
 
 type FormState = {
   speciesList: string[];
@@ -249,6 +249,8 @@ export function CatchForm({
         : null,
   );
   const [busy, setBusy] = useState(false);
+  const [identifying, setIdentifying] = useState(false);
+  const formRef = useRef(form);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -282,6 +284,10 @@ export function CatchForm({
   const useLiveGps = mode === "create" && !pastMode;
 
   useEffect(() => {
+    formRef.current = form;
+  }, [form]);
+
+  useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
   }, [catchPinUserMoved]);
 
@@ -311,6 +317,35 @@ export function CatchForm({
     const src = photoSrc(importedPhotoPath);
     if (src) showPreview(src);
   }, [importedPhotoPath]);
+
+  useEffect(() => {
+    if (!importedPhotoPath || initial) return;
+    const src = photoSrc(importedPhotoPath);
+    if (!src) return;
+    let cancelled = false;
+    void (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setBusy(true);
+      try {
+        const res = await fetch(src);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const file = new File([blob], importedPhotoPath.replace(/^.*[\\/]/, ""), {
+          type: blob.type || "image/jpeg",
+        });
+        if (cancelled) return;
+        await identifyCatchPhoto(file);
+      } catch {
+        /* vision is optional — leave species blank */
+      } finally {
+        if (!cancelled) setBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [importedPhotoPath, initial]);
 
   useEffect(() => {
     if (!focusLocation) return;
@@ -396,6 +431,33 @@ export function CatchForm({
   }
   rememberLiveGpsRef.current = rememberLiveGps;
 
+  async function identifyCatchPhoto(file: File) {
+    setIdentifying(true);
+    try {
+      const current = formRef.current;
+      const fd = new FormData();
+      fd.set("photo", file);
+      fd.set("fileName", file.name);
+      if (current.habitat) fd.set("habitat", current.habitat);
+      if (current.latitude.trim()) fd.set("latitude", current.latitude);
+      if (current.longitude.trim()) fd.set("longitude", current.longitude);
+      if (current.placeName.trim()) fd.set("placeName", current.placeName);
+      const res = await fetch("/api/assist/vision", { method: "POST", body: fd });
+      const data = (await res.json()) as { suggestion?: SpeciesSuggestion };
+      if (!res.ok || !data.suggestion) return;
+      const next = formPatchFromSuggestion(data.suggestion);
+      setForm((f) => ({
+        ...f,
+        ...next,
+        speciesCountDrafts: alignCountDrafts(next.speciesList, f.speciesCountDrafts, f.fishCount),
+      }));
+    } catch {
+      /* leave species blank when vision fails */
+    } finally {
+      setIdentifying(false);
+    }
+  }
+
   async function applyResolvedPin(next: {
     latitude: number;
     longitude: number;
@@ -471,6 +533,8 @@ export function CatchForm({
       pendingPhotoGpsRef.current = null;
     }
 
+    const identify = identifyCatchPhoto(nextFile);
+
     if (!pastMode && source === "camera") {
       const deviceGps =
         pendingLiveGpsRef.current ??
@@ -491,6 +555,7 @@ export function CatchForm({
       }
     }
 
+    await identify;
     setBusy(false);
   }
 
@@ -823,6 +888,7 @@ export function CatchForm({
         speciesList={form.speciesList}
         habitat={form.habitat}
         hideHints
+        identifying={identifying}
         onHabitat={(habitat) => {
           if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
           patch(habitatPatch(habitat));
@@ -1138,7 +1204,7 @@ export function CatchForm({
 
       <button
         type="submit"
-        disabled={saving || busy}
+        disabled={saving || busy || identifying}
         className="rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
         {saving

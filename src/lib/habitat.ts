@@ -101,10 +101,28 @@ export function waterTypeOf(habitat: Habitat): WaterType {
   return habitat === "freshwater" ? "freshwater" : "saltwater";
 }
 
+export const SALTWATER_HABITATS: Habitat[] = ["saltwater-inshore", "saltwater-offshore"];
+
+export function isSaltwaterHabitat(
+  habitat: Habitat | null | undefined,
+): habitat is "saltwater-inshore" | "saltwater-offshore" {
+  return habitat === "saltwater-inshore" || habitat === "saltwater-offshore";
+}
+
 export function habitatsForWaterType(water: WaterType): Habitat[] {
   return water === "freshwater"
     ? ["freshwater"]
     : ["saltwater-inshore", "saltwater-offshore"];
+}
+
+/** Inshore + offshore catalog names. Freshwater bass/trout never appear here. */
+export function saltwaterSpecies(habitat?: Habitat | null): string[] {
+  if (isSaltwaterHabitat(habitat)) return speciesForHabitat(habitat);
+  return SPECIES_CATALOG.filter((s) => s.habitat !== "freshwater").map((s) => s.name);
+}
+
+export function isSaltwaterCatalogSpecies(name: string): boolean {
+  return isSaltwaterHabitat(catalogHabitat(name));
 }
 
 export function habitatLabel(habitat: Habitat): string {
@@ -260,4 +278,14 @@ export function habitatHintFromLocation(
     return "freshwater";
   }
   return null;
+}
+
+/** Vision hint: inshore vs offshore only. Inland/freshwater pins do not unlock FW names. */
+export function saltwaterHintFromLocation(
+  lat?: number | null,
+  lon?: number | null,
+  placeName?: string | null,
+): Habitat | null {
+  const hint = habitatHintFromLocation(lat, lon, placeName);
+  return isSaltwaterHabitat(hint) ? hint : null;
 }

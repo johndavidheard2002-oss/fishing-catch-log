@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { isHabitat } from "@/lib/habitat";
+import { isHabitat, isSaltwaterHabitat } from "@/lib/habitat";
 import { requireViewerId, signInRequired } from "@/lib/viewer";
 import { identifySpecies } from "@/lib/vision";
 
@@ -20,11 +20,14 @@ export async function POST(request: NextRequest) {
   const lonRaw = form.get("longitude");
   const lat = latRaw != null && String(latRaw) !== "" ? Number(latRaw) : null;
   const lon = lonRaw != null && String(lonRaw) !== "" ? Number(lonRaw) : null;
+  const fileName =
+    (typeof form.get("fileName") === "string" ? String(form.get("fileName")) : "") || file.name;
   const suggestion = await identifySpecies(buffer, mimeType, {
-    habitat: isHabitat(habitatRaw) ? habitatRaw : null,
+    habitat: isHabitat(habitatRaw) && isSaltwaterHabitat(habitatRaw) ? habitatRaw : null,
     latitude: Number.isFinite(lat) ? lat : null,
     longitude: Number.isFinite(lon) ? lon : null,
     placeName: String(form.get("placeName") ?? "") || null,
+    fileName,
   });
   return Response.json({ suggestion });
 }

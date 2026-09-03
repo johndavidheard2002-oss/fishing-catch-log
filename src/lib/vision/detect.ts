@@ -17,7 +17,7 @@ function hashBytes(bytes: Uint8Array): number {
 }
 
 const FISH_NAME =
-  /\b(fish|bass|trout|catch|redfish|snapper|walleye|mahi|catfish|flounder|snook|crappie|bluegill)\b/i;
+  /\b(fish|catch|redfish|snapper|mahi|flounder|snook|speckled|tarpon|grouper|tuna|wahoo|drum|pompano|sheepshead|mackerel|cobia|permit|bonefish|striped|tripletail|ladyfish|whiting|bluefish|amberjack|sailfish|marlin|swordfish|triggerfish|barracuda)\b/i;
 const NOT_FISH_NAME = /selfie|screenshot|screen.?shot|receipt|menu|invoice|\bmap\b/i;
 
 /** Demo stand-in: filename hints plus a stable hash. Not a real detector. */

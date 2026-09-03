@@ -3,9 +3,13 @@ import {
   SPECIES_CATALOG,
   catalogHabitat,
   inferHabitat,
+  isSaltwaterCatalogSpecies,
+  isSaltwaterHabitat,
+  saltwaterSpecies,
   speciesForHabitat,
   type Habitat,
 } from "./habitat";
+import type { SpeciesSource, SpeciesSuggestion } from "./types";
 
 const ALIASES: Record<string, string> = {
   "red drum": "Redfish",
@@ -113,6 +117,19 @@ function catalogNames(habitat?: Habitat | null): string[] {
   return SPECIES_CATALOG.map((s) => s.name);
 }
 
+function exactIn(names: string[], target: string) {
+  return names.find((n) => key(n) === target) ?? null;
+}
+
+function containsIn(names: string[], target: string) {
+  return (
+    names.find((n) => {
+      const nk = key(n);
+      return nk.includes(target) || target.includes(nk);
+    }) ?? null
+  );
+}
+
 /** Map a model/common name onto the journal catalog when we can. */
 export function matchCatalogSpecies(
   raw: string | null | undefined,
@@ -126,9 +143,6 @@ export function matchCatalogSpecies(
   const pool = catalogNames(habitat);
   const wider = catalogNames();
 
-  const exactIn = (names: string[], target: string) =>
-    names.find((n) => key(n) === target) ?? null;
-
   if (aliased) {
     return exactIn(pool, key(aliased)) ?? exactIn(wider, key(aliased)) ?? aliased;
   }
@@ -136,13 +150,27 @@ export function matchCatalogSpecies(
   const exact = exactIn(pool, k) ?? exactIn(wider, k);
   if (exact) return exact;
 
-  const contains = (names: string[]) =>
-    names.find((n) => {
-      const nk = key(n);
-      return nk.includes(k) || k.includes(nk);
-    }) ?? null;
+  return containsIn(pool, k) ?? containsIn(wider, k) ?? null;
+}
 
-  return contains(pool) ?? contains(wider) ?? null;
+/** Map a model/common name onto inshore/offshore only. Never returns bass, trout, or other FW names. */
+export function matchSaltwaterCatalogSpecies(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  const k = key(raw);
+  if (!k || k === "unknown" || k === "not a fish" || k === "none") return null;
+
+  const pool = saltwaterSpecies();
+  const aliased = ALIASES[k];
+  if (aliased) {
+    const hit = exactIn(pool, key(aliased));
+    if (hit) return hit;
+  }
+
+  const exact = exactIn(pool, k);
+  if (exact) return exact;
+
+  const contained = containsIn(pool, k);
+  return contained && isSaltwaterCatalogSpecies(contained) ? contained : null;
 }
 
 export function resolveSpeciesName(
@@ -160,6 +188,73 @@ export function habitatForSuggestion(
 }
 
 export const SPECIES_AUTO_FILL_MIN = 0.5;
+
+export function restrictSuggestionToSaltwater(suggestion: SpeciesSuggestion): SpeciesSuggestion {
+  const mapped = matchSaltwaterCatalogSpecies(suggestion.species);
+  const list = normalizeSpeciesList(
+    mapped,
+    (suggestion.speciesList ?? [])
+      .map((name) => matchSaltwaterCatalogSpecies(name))
+      .filter((name): name is string => Boolean(name)),
+  ).filter(isSaltwaterCatalogSpecies);
+  const alternatives = (suggestion.alternatives ?? [])
+    .map((row) => ({
+      species: matchSaltwaterCatalogSpecies(row.species) ?? "",
+      confidence: row.confidence,
+    }))
+    .filter((row) => row.species && isSaltwaterCatalogSpecies(row.species));
+  const top = mapped ?? list[0] ?? null;
+  if (!top) {
+    return {
+      ...suggestion,
+      species: "Unknown",
+      speciesList: [],
+      alternatives,
+      habitat: isSaltwaterHabitat(suggestion.habitat) ? suggestion.habitat : DEFAULT_HABITAT,
+      confidence: Math.min(suggestion.confidence, 0.39),
+    };
+  }
+  return {
+    ...suggestion,
+    species: top,
+    speciesList: list.length ? list : [top],
+    alternatives: alternatives.filter((row) => row.species.toLowerCase() !== top.toLowerCase()),
+    habitat: catalogHabitat(top) ?? DEFAULT_HABITAT,
+  };
+}
+
+export function autoFillSpecies(suggestion: SpeciesSuggestion): string | null {
+  const clean = restrictSuggestionToSaltwater(suggestion);
+  if (clean.confidence < SPECIES_AUTO_FILL_MIN) return null;
+  if (!isSaltwaterCatalogSpecies(clean.species)) return null;
+  return clean.species;
+}
+
+export function formPatchFromSuggestion(suggestion: SpeciesSuggestion): {
+  speciesList: string[];
+  speciesSuggested: string;
+  speciesConfidence: number;
+  speciesSource: SpeciesSource;
+  habitat: Habitat;
+  speciesAlternatives: { species: string; confidence: number }[];
+  speciesSuggestedList: string[];
+} {
+  const clean = restrictSuggestionToSaltwater(suggestion);
+  const fill = autoFillSpecies(clean);
+  return {
+    speciesList: fill ? [fill] : [],
+    speciesSuggested: fill ?? "",
+    speciesConfidence: clean.confidence,
+    speciesSource: fill ? (clean.source === "openai" ? "vision" : "demo") : "manual",
+    habitat: fill
+      ? habitatForSuggestion(fill)
+      : isSaltwaterHabitat(clean.habitat)
+        ? clean.habitat
+        : DEFAULT_HABITAT,
+    speciesAlternatives: clean.alternatives,
+    speciesSuggestedList: clean.speciesList ?? [],
+  };
+}
 
 export function normalizeSpeciesList(
   species?: string | null,

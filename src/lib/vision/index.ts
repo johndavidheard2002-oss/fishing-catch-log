@@ -1,3 +1,4 @@
+import { restrictSuggestionToSaltwater } from "../species";
 import type { SpeciesSuggestion } from "../types";
 import { demoDetectFish, FISH_DETECT_MIN, type FishDetection } from "./detect";
 import { demoIdentifySpecies, type VisionContext } from "./demo";
@@ -10,16 +11,16 @@ export async function identifySpecies(
 ): Promise<SpeciesSuggestion> {
   if (hasOpenAiKey()) {
     try {
-      return await identifyWithOpenAI(image, mimeType, context);
+      return restrictSuggestionToSaltwater(await identifyWithOpenAI(image, mimeType, context));
     } catch {
       const fallback = demoIdentifySpecies(image, context);
-      return {
+      return restrictSuggestionToSaltwater({
         ...fallback,
         note: "Vision API failed — demo guess shown. Edit the species yourself.",
-      };
+      });
     }
   }
-  return demoIdentifySpecies(image, context);
+  return restrictSuggestionToSaltwater(demoIdentifySpecies(image, context));
 }
 
 export async function detectFish(

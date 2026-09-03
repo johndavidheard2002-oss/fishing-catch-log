@@ -29,6 +29,10 @@ export function BackfillClient() {
         <h1 className="font-display text-3xl text-teal">
           {importedPhotoPath ? "Finish this catch" : "Backfill a past catch"}
         </h1>
+        <p className="text-sm text-ink-muted">
+          Pick a photo from your camera roll. Species fills in from the picture — tap the name
+          only if it&apos;s wrong.
+        </p>
       </div>
       {leftover > 0 ? (
         <Link

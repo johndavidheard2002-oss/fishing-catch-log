@@ -3,11 +3,12 @@
 import { useState } from "react";
 import {
   HABITAT_LABELS,
-  speciesForHabitat,
   catalogHabitat,
+  isSaltwaterCatalogSpecies,
+  speciesForHabitat,
   type Habitat,
 } from "@/lib/habitat";
-import { normalizeSpeciesList } from "@/lib/species";
+import { matchSaltwaterCatalogSpecies, normalizeSpeciesList } from "@/lib/species";
 
 const SALT_OPTIONS: Habitat[] = ["saltwater-inshore", "saltwater-offshore"];
 
@@ -21,14 +22,18 @@ export function SpeciesPicker({
   onChange,
   onHabitat,
   hideHints = false,
+  identifying = false,
 }: {
   speciesList: string[];
   habitat: Habitat;
   onChange: (speciesList: string[], habitat: Habitat) => void;
   onHabitat: (habitat: Habitat) => void;
   hideHints?: boolean;
+  identifying?: boolean;
 }) {
   const selected = normalizeSpeciesList(null, speciesList);
+  const filled = selected.find((name) => name.toLowerCase() !== "unknown") ?? "";
+  const [editing, setEditing] = useState(false);
   const [query, setQuery] = useState("");
   const listHabitat = pickerHabitat(habitat);
   const catalog = speciesForHabitat(listHabitat);
@@ -36,22 +41,42 @@ export function SpeciesPicker({
   const filtered = q ? catalog.filter((name) => name.toLowerCase().includes(q)) : catalog;
   const saltSelected = habitat === "saltwater-offshore" || habitat === "saltwater-inshore";
 
-  function toggle(name: string) {
-    const key = name.trim().toLowerCase();
-    const exists = selected.some((s) => s.toLowerCase() === key);
-    const next = exists
-      ? selected.filter((s) => s.toLowerCase() !== key)
-      : [...selected, name.trim()];
+  function nextHabitatFor(name: string): Habitat {
     const inferred = catalogHabitat(name);
-    const nextHabitat =
-      inferred && next.length === 1 && inferred !== "freshwater" ? inferred : habitat;
-    onChange(next, nextHabitat);
+    return inferred && inferred !== "freshwater" ? inferred : habitat;
+  }
+
+  function toggle(name: string) {
+    const mapped = matchSaltwaterCatalogSpecies(name) ?? name.trim();
+    if (!mapped) return;
+    const key = mapped.toLowerCase();
+    const exists = selected.some((s) => s.toLowerCase() === key);
+    if (exists) {
+      onChange(
+        selected.filter((s) => s.toLowerCase() !== key),
+        habitat,
+      );
+      return;
+    }
+    if (selected.length <= 1) {
+      onChange([mapped], nextHabitatFor(mapped));
+      setEditing(false);
+      setQuery("");
+      return;
+    }
+    onChange([...selected, mapped], habitat);
   }
 
   function addTyped() {
-    const name = query.trim();
-    if (!name) return;
-    toggle(name);
+    const raw = query.trim();
+    if (!raw) return;
+    const mapped = matchSaltwaterCatalogSpecies(raw) ?? raw;
+    if (isSaltwaterCatalogSpecies(mapped) || !matchLooksFreshwater(raw)) {
+      const key = mapped.toLowerCase();
+      if (!selected.some((s) => s.toLowerCase() === key)) {
+        onChange(selected.length ? [...selected, mapped] : [mapped], nextHabitatFor(mapped));
+      }
+    }
     setQuery("");
   }
 
@@ -62,8 +87,46 @@ export function SpeciesPicker({
     );
   }
 
+  if (!editing) {
+    return (
+      <div className="space-y-1.5">
+        <p className="on-wash-chip w-fit text-sm font-semibold">Species</p>
+        <button
+          type="button"
+          data-testid="species-field"
+          disabled={identifying}
+          onClick={() => setEditing(true)}
+          className={`w-full rounded-xl border px-3 py-3 text-left text-base font-semibold disabled:opacity-70 ${
+            filled ? "border-teal bg-card text-ink" : "border-line bg-card text-ink-muted"
+          }`}
+        >
+          {identifying ? "Identifying…" : filled || "Unknown"}
+        </button>
+        <p className="on-wash-chip text-xs">
+          {identifying
+            ? "Reading the photo…"
+            : filled
+              ? "Tap the name only if it's wrong."
+              : "Tap to pick or type a saltwater species."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="on-wash-chip w-fit text-sm font-semibold">Species</p>
+        <button
+          type="button"
+          data-testid="species-done"
+          onClick={() => setEditing(false)}
+          className="text-sm font-semibold text-teal"
+        >
+          Done
+        </button>
+      </div>
+
       <div>
         <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Water</p>
         <div className="grid grid-cols-2 gap-2">
@@ -88,12 +151,6 @@ export function SpeciesPicker({
       </div>
 
       <div>
-        <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">Species in this photo</p>
-        {hideHints ? null : (
-          <p className="on-wash-chip mb-2 text-xs">
-            Tag every fish you can see. Tap chips to add or remove — more than one is fine.
-          </p>
-        )}
         {selected.length ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {selected.map((name) => (
@@ -133,7 +190,10 @@ export function SpeciesPicker({
         </div>
       </div>
 
-      <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-2xl border border-line bg-paper p-2">
+      <div
+        data-testid="species-option-chips"
+        className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-2xl border border-line bg-paper p-2"
+      >
         {filtered.length === 0 ? (
           hideHints ? null : (
             <p className="px-1 py-2 text-xs text-ink-muted">
@@ -159,12 +219,11 @@ export function SpeciesPicker({
           })
         )}
       </div>
-      {hideHints ? null : (
-        <p className="on-wash-chip text-xs">
-          Inshore or offshore first so the list stays short. One picture can hold more than one
-          species.
-        </p>
-      )}
     </div>
   );
+}
+
+function matchLooksFreshwater(raw: string): boolean {
+  const habitat = catalogHabitat(raw);
+  return habitat === "freshwater";
 }

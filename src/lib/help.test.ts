@@ -24,6 +24,11 @@ describe("HELP_SECTIONS", () => {
       ),
     ).toBe(true);
     expect(
+      HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
+        step.includes("Species fills in") && step.includes("Tap the name only if it's wrong"),
+      ),
+    ).toBe(true);
+    expect(
       HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.some((step) =>
         step.includes("Tap a match"),
       ),
@@ -31,6 +36,11 @@ describe("HELP_SECTIONS", () => {
     expect(
       HELP_SECTIONS.find((section) => section.title === "Backfill")?.steps.some((step) =>
         step.includes("not marked unlikely"),
+      ),
+    ).toBe(true);
+    expect(
+      HELP_SECTIONS.find((section) => section.title === "Backfill")?.steps.some((step) =>
+        step.includes("No camera on Backfill"),
       ),
     ).toBe(true);
     expect(

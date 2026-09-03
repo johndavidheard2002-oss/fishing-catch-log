@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_HABITAT,
   inferHabitat,
+  isSaltwaterCatalogSpecies,
   matchesHabitatFilters,
+  saltwaterSpecies,
   speciesForHabitat,
   waterTypeOf,
 } from "./habitat";
@@ -26,6 +28,18 @@ describe("inferHabitat", () => {
     expect(inferHabitat("Gulf king mackerel")).toBe("saltwater-offshore");
     expect(inferHabitat("slot redfish")).toBe("saltwater-inshore");
     expect(inferHabitat("pond bluegill")).toBe("freshwater");
+  });
+});
+
+describe("saltwaterSpecies", () => {
+  it("lists inshore and offshore names and excludes freshwater bass and trout", () => {
+    const salt = saltwaterSpecies();
+    expect(salt).toContain("Redfish");
+    expect(salt).toContain("Mahi-mahi");
+    expect(salt).not.toContain("Largemouth Bass");
+    expect(salt).not.toContain("Rainbow Trout");
+    expect(isSaltwaterCatalogSpecies("Snook")).toBe(true);
+    expect(isSaltwaterCatalogSpecies("Largemouth Bass")).toBe(false);
   });
 });
 

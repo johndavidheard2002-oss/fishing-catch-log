@@ -1,6 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { habitatHintFromLocation, speciesForHabitat } from "./habitat";
-import { matchCatalogSpecies, normalizeSpeciesList, resolveSpeciesName, speciesListsOverlap } from "./species";
+import {
+  habitatHintFromLocation,
+  isSaltwaterCatalogSpecies,
+  saltwaterHintFromLocation,
+  saltwaterSpecies,
+  speciesForHabitat,
+} from "./habitat";
+import {
+  autoFillSpecies,
+  formPatchFromSuggestion,
+  matchCatalogSpecies,
+  matchSaltwaterCatalogSpecies,
+  normalizeSpeciesList,
+  resolveSpeciesName,
+  restrictSuggestionToSaltwater,
+  SPECIES_AUTO_FILL_MIN,
+  speciesListsOverlap,
+} from "./species";
 import { demoIdentifySpecies } from "./vision/demo";
 
 describe("matchCatalogSpecies", () => {
@@ -14,6 +30,86 @@ describe("matchCatalogSpecies", () => {
   it("prefers the hinted habitat when names overlap", () => {
     expect(resolveSpeciesName("trout", "freshwater")).toBe("Rainbow Trout");
     expect(resolveSpeciesName("trout", "saltwater-inshore")).toBe("Speckled Trout");
+  });
+});
+
+describe("matchSaltwaterCatalogSpecies", () => {
+  it("maps Gulf names and rejects freshwater catalog names", () => {
+    expect(matchSaltwaterCatalogSpecies("Red drum")).toBe("Redfish");
+    expect(matchSaltwaterCatalogSpecies("trout")).toBe("Speckled Trout");
+    expect(matchSaltwaterCatalogSpecies("bass")).toBe("Striped Bass");
+    expect(matchSaltwaterCatalogSpecies("Largemouth Bass")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("Rainbow Trout")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("Bluegill")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("walleye")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("Unknown")).toBeNull();
+  });
+});
+
+describe("restrictSuggestionToSaltwater", () => {
+  it("drops freshwater guesses instead of auto-filling them", () => {
+    const cleaned = restrictSuggestionToSaltwater({
+      species: "Largemouth Bass",
+      confidence: 0.92,
+      speciesList: ["Largemouth Bass", "Rainbow Trout", "Redfish"],
+      alternatives: [{ species: "Bluegill", confidence: 0.4 }],
+      habitat: "freshwater",
+      source: "openai",
+      note: "test",
+    });
+    expect(cleaned.species).toBe("Redfish");
+    expect(cleaned.speciesList).toEqual(["Redfish"]);
+    expect(cleaned.habitat).toBe("saltwater-inshore");
+    expect(cleaned.alternatives).toEqual([]);
+  });
+
+  it("returns Unknown when nothing in the suggestion is a catalog saltwater fish", () => {
+    const cleaned = restrictSuggestionToSaltwater({
+      species: "Rainbow Trout",
+      confidence: 0.88,
+      speciesList: ["Brown Trout"],
+      alternatives: [{ species: "Brook Trout", confidence: 0.2 }],
+      habitat: "freshwater",
+      source: "openai",
+      note: "test",
+    });
+    expect(cleaned.species).toBe("Unknown");
+    expect(cleaned.speciesList).toEqual([]);
+    expect(cleaned.confidence).toBeLessThan(SPECIES_AUTO_FILL_MIN);
+    expect(autoFillSpecies(cleaned)).toBeNull();
+  });
+});
+
+describe("formPatchFromSuggestion", () => {
+  it("auto-fills the top saltwater match at or above the confidence floor", () => {
+    const patch = formPatchFromSuggestion({
+      species: "Mahi-mahi",
+      confidence: 0.72,
+      speciesList: ["Mahi-mahi"],
+      alternatives: [],
+      habitat: "saltwater-offshore",
+      source: "openai",
+      note: "test",
+    });
+    expect(patch.speciesList).toEqual(["Mahi-mahi"]);
+    expect(patch.speciesSuggested).toBe("Mahi-mahi");
+    expect(patch.speciesSource).toBe("vision");
+    expect(patch.habitat).toBe("saltwater-offshore");
+  });
+
+  it("leaves species blank when confidence is too low", () => {
+    const patch = formPatchFromSuggestion({
+      species: "Snook",
+      confidence: 0.41,
+      speciesList: ["Snook"],
+      alternatives: [],
+      habitat: "saltwater-inshore",
+      source: "openai",
+      note: "test",
+    });
+    expect(patch.speciesList).toEqual([]);
+    expect(patch.speciesSuggested).toBe("");
+    expect(patch.speciesSource).toBe("manual");
   });
 });
 
@@ -46,19 +142,38 @@ describe("habitatHintFromLocation", () => {
       "saltwater-offshore",
     );
     expect(habitatHintFromLocation(30.388, -97.975, "Lake Travis, TX")).toBe("freshwater");
+    expect(saltwaterHintFromLocation(30.388, -97.975, "Lake Travis, TX")).toBeNull();
+    expect(saltwaterHintFromLocation(25.76, -80.02, "Gulf Stream, FL")).toBe(
+      "saltwater-offshore",
+    );
   });
 });
 
 describe("demoIdentifySpecies", () => {
-  it("stays inside the habitat list instead of mixing FW and salt", () => {
+  it("stays inside the saltwater catalog and never returns freshwater names", () => {
     const bytes = new Uint8Array([1, 2, 3, 4, 9, 8, 7]);
     const inshore = demoIdentifySpecies(bytes, { habitat: "saltwater-inshore" });
     const fresh = demoIdentifySpecies(bytes, { habitat: "freshwater" });
-    expect(speciesForHabitat("saltwater-inshore")).toContain(inshore.species);
-    expect(speciesForHabitat("freshwater")).toContain(fresh.species);
+    const salt = saltwaterSpecies();
+    expect(salt).toContain(inshore.species);
+    expect(isSaltwaterCatalogSpecies(inshore.species)).toBe(true);
+    expect(speciesForHabitat("freshwater")).not.toContain(fresh.species);
+    expect(fresh.species === "Unknown" || isSaltwaterCatalogSpecies(fresh.species)).toBe(true);
     expect(inshore.note.toLowerCase()).toContain("demo");
-    expect(inshore.confidence).toBeLessThan(0.5);
-    expect(fresh.confidence).toBeLessThan(0.5);
     expect(inshore.speciesList?.length).toBeGreaterThan(0);
+    expect(autoFillSpecies(inshore)).toBe(inshore.species);
+  });
+
+  it("fills a saltwater filename and ignores a freshwater filename", () => {
+    const bytes = new Uint8Array([9, 8, 7, 6]);
+    const redfish = demoIdentifySpecies(bytes, { fileName: "redfish-slot.jpg" });
+    expect(redfish.species).toBe("Redfish");
+    expect(redfish.confidence).toBeGreaterThanOrEqual(SPECIES_AUTO_FILL_MIN);
+    expect(formPatchFromSuggestion(redfish).speciesList).toEqual(["Redfish"]);
+
+    const bass = demoIdentifySpecies(bytes, { fileName: "largemouth-bass.jpg" });
+    expect(bass.species).toBe("Unknown");
+    expect(autoFillSpecies(bass)).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("Largemouth Bass")).toBeNull();
   });
 });
