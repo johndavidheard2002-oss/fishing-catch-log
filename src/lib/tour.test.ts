@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  LOCATION_DENIED_SETTINGS_STEPS,
+  LOCATION_SERVICES_SETUP_BODY,
+  LOCATION_SERVICES_SETUP_TITLE,
+} from "./location";
+import {
   LEGACY_SETUP_KEY,
   TOUR_KEY,
   TOUR_SCREENS,
@@ -66,8 +71,23 @@ describe("first-sign-in tour", () => {
 
   it("covers the real tabs in a few short screens and says friend, never buddy", () => {
     const titles = TOUR_SCREENS.map((screen) => screen.title);
-    expect(titles).toEqual(["Log a catch", "Calendar Log", "Plan a day", "Old photos and friends"]);
-    expect(TOUR_SCREENS).toHaveLength(4);
+    expect(titles).toEqual([
+      LOCATION_SERVICES_SETUP_TITLE,
+      "Log a catch",
+      "Calendar Log",
+      "Plan a day",
+      "Old photos and friends",
+    ]);
+    expect(TOUR_SCREENS).toHaveLength(5);
+    const location = TOUR_SCREENS[0];
+    expect(location.id).toBe("location");
+    expect(location.body).toBe(LOCATION_SERVICES_SETUP_BODY);
+    expect(location.steps).toEqual([...LOCATION_DENIED_SETTINGS_STEPS]);
+    expect(location.body).toContain("Location Services → Safari Websites");
+    expect(location.body).toContain("Ask or While Using");
+    expect(location.body).not.toContain("Settings → Safari → Location");
+    expect(location.steps?.[0]).toContain("Privacy & Security");
+    expect(location.steps?.[1]).toContain("Safari Websites");
     const text = TOUR_SCREENS.map((screen) => `${screen.title} ${screen.body}`).join(" ");
     expect(text.toLowerCase()).toContain("photo");
     expect(text.toLowerCase()).toContain("pin");

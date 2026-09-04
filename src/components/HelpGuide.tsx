@@ -91,7 +91,7 @@ export function HelpGuide() {
           <div className="rounded-2xl border border-line bg-card px-3 py-3">
             <p className="font-semibold text-ink">How this works</p>
             <p className="mt-0.5 text-sm text-ink-muted">
-              Replay the short tour — Log, Calendar Log, Plan, Backfill, and sharing with a friend.
+              Replay the short tour — iPhone location, Log, Calendar Log, Plan, Backfill, and sharing with a friend.
             </p>
             <button
               type="button"

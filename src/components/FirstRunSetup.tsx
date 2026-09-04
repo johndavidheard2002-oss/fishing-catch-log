@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { markHelpTipSeen } from "@/lib/help";
 import { SETUP_OPEN_EVENT } from "@/lib/setup";
 import { APP_DISPLAY_NAME, APP_SUBTITLE } from "@/lib/brand";
@@ -29,15 +29,21 @@ export function FirstRunSetup() {
   );
   const [forced, setForced] = useState(false);
   const [step, setStep] = useState(0);
-  const [pendingSeen, setPendingSeen] = useState(false);
+  const pendingSeenRef = useRef(false);
 
   useEffect(() => {
     function loadMe() {
       fetch("/api/me", { cache: "no-store" })
         .then((r) => r.json())
         .then((data) => {
-          setAnglerId(typeof data.me?.id === "string" ? data.me.id : "");
-          setSignedIn(Boolean(data.signedIn));
+          const id = typeof data.me?.id === "string" ? data.me.id : "";
+          const inJournal = Boolean(data.signedIn);
+          setAnglerId(id);
+          setSignedIn(inJournal);
+          if (pendingSeenRef.current && id && inJournal) {
+            markTourSeen(id);
+            pendingSeenRef.current = false;
+          }
         })
         .catch(() => {
           setAnglerId("");
@@ -62,12 +68,6 @@ export function FirstRunSetup() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!pendingSeen || !anglerId || !signedIn) return;
-    markTourSeen(anglerId);
-    setPendingSeen(false);
-  }, [pendingSeen, anglerId, signedIn]);
-
   if (!shouldShowTour({ ready, seen, forced, signedIn })) return null;
 
   const screen = TOUR_SCREENS[step] ?? TOUR_SCREENS[0];
@@ -75,7 +75,7 @@ export function FirstRunSetup() {
 
   function finish() {
     if (signedIn && anglerId) markTourSeen(anglerId);
-    else if (signedIn) setPendingSeen(true);
+    else if (signedIn) pendingSeenRef.current = true;
     markHelpTipSeen();
     setForced(false);
     setStep(0);
@@ -102,6 +102,16 @@ export function FirstRunSetup() {
             {screen.title}
           </h2>
           <p className="text-sm text-ink">{screen.body}</p>
+          {screen.steps?.length ? (
+            <ol
+              data-testid="tour-location-steps"
+              className="list-decimal space-y-1 pl-4 text-sm text-ink"
+            >
+              {screen.steps.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          ) : null}
           <div className="flex justify-center gap-1.5 pt-1" aria-hidden>
             {TOUR_SCREENS.map((item, index) => (
               <span

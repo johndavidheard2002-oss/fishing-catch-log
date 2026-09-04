@@ -1,3 +1,9 @@
+import {
+  LOCATION_DENIED_SETTINGS_STEPS,
+  LOCATION_SERVICES_SETUP_BODY,
+  LOCATION_SERVICES_SETUP_TITLE,
+} from "./location";
+
 export const TOUR_KEY = "cast-log-tour-seen";
 export const TOUR_EVENT = "cast-log-tour-change";
 export const TOUR_OPEN_EVENT = "cast-log-open-tour";
@@ -10,10 +16,17 @@ export type TourScreen = {
   id: string;
   title: string;
   body: string;
+  steps?: readonly string[];
 };
 
 /** Short first-sign-in walkthrough — one idea per screen, not a manual. */
 export const TOUR_SCREENS: TourScreen[] = [
+  {
+    id: "location",
+    title: LOCATION_SERVICES_SETUP_TITLE,
+    body: LOCATION_SERVICES_SETUP_BODY,
+    steps: LOCATION_DENIED_SETTINGS_STEPS,
+  },
   {
     id: "log",
     title: "Log a catch",

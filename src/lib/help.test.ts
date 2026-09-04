@@ -6,6 +6,7 @@ describe("HELP_SECTIONS", () => {
     const titles = HELP_SECTIONS.map((section) => section.title);
     expect(titles).toEqual([
       "Log a catch",
+      "Location / map pin won’t drop",
       "Log bait",
       "Plan a day",
       "Calendar Log",
@@ -48,6 +49,18 @@ describe("HELP_SECTIONS", () => {
         step.includes("How this works"),
       ),
     ).toBe(true);
+    const locationHelp =
+      HELP_SECTIONS.find((section) => section.title === "Location / map pin won’t drop")?.steps ?? [];
+    expect(locationHelp[0]).toContain("Privacy & Security");
+    expect(locationHelp[0]).toContain("Location Services");
+    expect(locationHelp[1]).toContain("Safari Websites");
+    expect(locationHelp[1]).toMatch(/Ask or While Using/);
+    expect(locationHelp[1]).toContain("Never");
+    expect(locationHelp.some((step) => step.includes("Private browsing"))).toBe(true);
+    expect(locationHelp.some((step) => step.includes("Turn location on"))).toBe(true);
+    expect(locationHelp.join(" ")).toContain("Safari → Location");
+    expect(locationHelp.join(" ")).toContain("not enough");
+    expect(locationHelp[0]).not.toContain("Settings → Safari → Location");
     const journal = HELP_SECTIONS.find((section) => section.title === "Your journal")?.steps ?? [];
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
     expect(journal.some((step) => step.includes("Allow location") && step.includes("Turn location on"))).toBe(true);

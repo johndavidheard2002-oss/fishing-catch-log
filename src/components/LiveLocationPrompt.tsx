@@ -6,6 +6,7 @@ import {
   GETTING_LOCATION_LABEL,
   skipLocationLabel,
   liveLocationPromptCopy,
+  type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
 
@@ -13,12 +14,16 @@ export function LiveLocationPrompt({
   status,
   onAllow,
   onSkip,
+  privateBrowsing,
+  permission,
 }: {
   status: LiveLocationStatus;
   onAllow: () => void;
   onSkip: () => void;
+  privateBrowsing?: boolean;
+  permission?: GeolocationPermissionState;
 }) {
-  const copy = liveLocationPromptCopy(status);
+  const copy = liveLocationPromptCopy(status, { privateBrowsing, permission });
   const waiting = status === "asking";
 
   return (
@@ -27,7 +32,7 @@ export function LiveLocationPrompt({
       className="rounded-2xl border border-line bg-card px-3 py-3"
     >
       <p className="text-[15px] font-semibold text-ink">{copy.title}</p>
-      <p className="mt-1.5 text-[15px] leading-snug text-ink">{copy.body}</p>
+      <p className="mt-1.5 text-[15px] leading-snug whitespace-pre-line text-ink">{copy.body}</p>
       {status === "ready" ? null : waiting ? (
         <div className="mt-2.5 space-y-2">
           <button

@@ -48,6 +48,8 @@ export type SavedLiveLocationStatus = "ready" | "allowed" | "unavailable" | "den
 
 export type DeviceGpsFailure = "denied" | "timeout" | "unavailable" | "missing";
 
+export type GeolocationPermissionState = "granted" | "prompt" | "denied" | "unknown";
+
 export type DeviceGpsAttempt =
   | { ok: true; gps: PhotoGps }
   | { ok: false; reason: DeviceGpsFailure };
@@ -57,8 +59,40 @@ export const TAP_MAP_PIN_HINT = "Tap the map to drop a pin.";
 export const DROPPING_PIN_HINT = "Dropping pin from this phone…";
 export const GETTING_LOCATION_LABEL = "Getting location…";
 export const PINNED_FROM_PHONE_HINT = "Pinned from this phone";
-export const LOCATION_DENIED_SETTINGS_HINT =
-  "Location is blocked. Open iPhone Settings → Safari → Location → Allow for this site.";
+export const LOCATION_DENIED_SETTINGS_STEPS = [
+  "Settings → Privacy & Security → Location Services → On",
+  "Scroll to Safari Websites → Ask or While Using (not Never)",
+  "Avoid Private browsing, then tap Turn location on again",
+] as const;
+
+export function formatNumberedLocationSteps(
+  steps: readonly string[] = LOCATION_DENIED_SETTINGS_STEPS,
+): string {
+  return steps.map((step, index) => `${index + 1}. ${step}`).join("\n");
+}
+
+export function formatLocationDeniedSettingsHint(
+  steps: readonly string[] = LOCATION_DENIED_SETTINGS_STEPS,
+): string {
+  return ["Location is blocked.", formatNumberedLocationSteps(steps)].join("\n");
+}
+
+/** Numbered iPhone path — Location Services → Safari Websites, not Settings → Safari → Location. */
+export const LOCATION_DENIED_SETTINGS_HINT = formatLocationDeniedSettingsHint();
+export const LOCATION_PRIVATE_BROWSING_HINT =
+  "Private browsing blocks location — open this site in a normal Safari tab.";
+export const ALLOW_LOCATION_SERVICES_HINT =
+  "If Allow doesn’t stick, check Location Services → Safari Websites.";
+export const LOCATION_SERVICES_SETUP_TITLE = "Location on iPhone";
+export const LOCATION_SERVICES_SETUP_BODY =
+  "Before you log a catch, set Location Services → Safari Websites to Ask or While Using. Safari → Location Ask/Allow alone is not enough.";
+
+export function formatLocationServicesSetupHint(
+  lead: string = LOCATION_SERVICES_SETUP_BODY,
+  steps: readonly string[] = LOCATION_DENIED_SETTINGS_STEPS,
+): string {
+  return `${lead}\n${formatNumberedLocationSteps(steps)}`;
+}
 export const ASKING_VISIBLE_MS = 400;
 
 export const ALLOW_LOCATION_LABEL = "Allow location";
@@ -74,9 +108,43 @@ export function shouldShowTurnLocationOn(status: LiveLocationStatus): boolean {
   return status !== "ready";
 }
 
+export type LocationReasonExtras = {
+  osDenied?: boolean;
+  privateBrowsing?: boolean;
+  permission?: GeolocationPermissionState;
+};
+
+export function safariLocationPermissionLine(
+  permission: GeolocationPermissionState | undefined,
+): string | null {
+  if (permission !== "granted" && permission !== "prompt" && permission !== "denied") {
+    return null;
+  }
+  return `Safari says location is ${permission} for this site.`;
+}
+
+export function blockedLocationReason(extras?: {
+  privateBrowsing?: boolean;
+  permission?: GeolocationPermissionState;
+}): string {
+  const base = extras?.privateBrowsing
+    ? LOCATION_PRIVATE_BROWSING_HINT
+    : LOCATION_DENIED_SETTINGS_HINT;
+  const debug = safariLocationPermissionLine(extras?.permission);
+  return debug ? `${base}\n${debug}` : base;
+}
+
+export function isBlockedLocationReason(reason: string): boolean {
+  return (
+    reason.includes(LOCATION_PRIVATE_BROWSING_HINT) ||
+    reason.includes(LOCATION_DENIED_SETTINGS_HINT)
+  );
+}
+
 export function logLocationReason(
   status: LiveLocationStatus,
   osDenied = false,
+  extras?: Omit<LocationReasonExtras, "osDenied">,
 ): string {
   if (status === "ready") {
     return PINNED_FROM_PHONE_HINT;
@@ -85,9 +153,11 @@ export function logLocationReason(
     return GETTING_LOCATION_LABEL;
   }
   if (osDenied || status === "denied") {
-    return LOCATION_DENIED_SETTINGS_HINT;
+    return blockedLocationReason(extras);
   }
-  return "Allow location so a live photo can drop the pin on the water.";
+  const allow = "Allow location so a live photo can drop the pin on the water.";
+  const debug = safariLocationPermissionLine(extras?.permission);
+  return debug ? `${allow} ${debug}` : allow;
 }
 
 /** One Log location surface — never stack Turn location on + off banners. */
@@ -96,12 +166,18 @@ export function logLocationSurface(args: {
   hasPin: boolean;
   photoAtCatch: boolean | null;
   osDenied?: boolean;
+  privateBrowsing?: boolean;
+  permission?: GeolocationPermissionState;
 }): {
   showTurnOn: boolean;
   reason: string | null;
   pinHint: string | null;
   emptyMapBanner: string | null;
 } {
+  const extras = {
+    privateBrowsing: args.privateBrowsing,
+    permission: args.permission,
+  };
   if (args.status === "asking") {
     return {
       showTurnOn: true,
@@ -121,7 +197,7 @@ export function logLocationSurface(args: {
   if (args.osDenied || args.status === "denied") {
     return {
       showTurnOn: true,
-      reason: LOCATION_DENIED_SETTINGS_HINT,
+      reason: blockedLocationReason(extras),
       pinHint: null,
       emptyMapBanner: null,
     };
@@ -136,7 +212,7 @@ export function logLocationSurface(args: {
   }
   return {
     showTurnOn: true,
-    reason: logLocationReason(args.status),
+    reason: logLocationReason(args.status, false, extras),
     pinHint: null,
     emptyMapBanner: null,
   };
@@ -186,8 +262,6 @@ export type DeviceGeolocation = {
 export type DevicePermissions = {
   query: (desc: { name: string }) => Promise<{ state: string }>;
 };
-
-export type GeolocationPermissionState = "granted" | "prompt" | "denied" | "unknown";
 
 function defaultGeolocation(): DeviceGeolocation | null | undefined {
   return typeof navigator !== "undefined" ? navigator.geolocation : undefined;
@@ -442,24 +516,117 @@ export function holdAskingVisible<T>(
   });
 }
 
+const PRIVATE_BROWSING_PROBE_KEY = "__cast-log-pb";
+
+function readWindowStore(name: "localStorage" | "sessionStorage"): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window[name];
+  } catch {
+    return null;
+  }
+}
+
+/** Safari private tabs often throw on storage writes or expose no stores. */
+export function detectPrivateBrowsing(env?: {
+  localStorage?: Storage | null;
+  sessionStorage?: Storage | null;
+}): boolean {
+  if (!env && typeof window === "undefined") return false;
+  const stores = env
+    ? [env.localStorage, env.sessionStorage]
+    : [readWindowStore("localStorage"), readWindowStore("sessionStorage")];
+  let present = false;
+  let writable = false;
+  let blocked = false;
+  for (const store of stores) {
+    if (store == null) continue;
+    present = true;
+    try {
+      store.setItem(PRIVATE_BROWSING_PROBE_KEY, "1");
+      store.removeItem(PRIVATE_BROWSING_PROBE_KEY);
+      writable = true;
+    } catch {
+      blocked = true;
+    }
+  }
+  if (blocked && !writable) return true;
+  return !present;
+}
+
+/** Drop a persisted unavailable/denied/allowed lock so Turn location on can recover. */
+export function clearStickyLocationLock(storage?: Storage | null): void {
+  const status = readSavedLiveLocationStatus(storage);
+  if (status === "denied" || status === "unavailable" || status === "allowed") {
+    clearSavedLiveLocation(storage);
+  }
+}
+
+export type TurnLocationOnOptions = {
+  minAskingMs?: number;
+  storage?: Storage | null;
+  permissions?: DevicePermissions | null;
+};
+
+export type TurnLocationOnStart = {
+  attempt: Promise<DeviceGpsAttempt>;
+  uiStatus: "asking";
+  permission: Promise<GeolocationPermissionState>;
+  privateBrowsing: boolean;
+};
+
+async function settleTurnLocationOnAttempt(args: {
+  first: Promise<DeviceGpsAttempt>;
+  geolocation: DeviceGeolocation | null | undefined;
+  permission: Promise<GeolocationPermissionState>;
+}): Promise<DeviceGpsAttempt> {
+  const [firstResult, permission] = await Promise.all([args.first, args.permission]);
+  if (firstResult.ok) return firstResult;
+  if (permission === "denied") {
+    return firstResult.reason === "denied" ? firstResult : { ok: false, reason: "denied" };
+  }
+  if (firstResult.reason === "denied" || firstResult.reason === "missing") {
+    return firstResult;
+  }
+  return waitForAllowLocationFix({
+    firstAttempt: Promise.resolve(firstResult),
+    geolocation: args.geolocation,
+  });
+}
+
 /**
  * Click path for Turn location on. getCurrentPosition is the first
  * synchronous call — iOS drops the prompt if storage or setState runs first.
  */
 export function handleTurnLocationOnClick(
   geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
-  options?: { minAskingMs?: number },
-): { attempt: Promise<DeviceGpsAttempt>; uiStatus: "asking" } {
+  options?: TurnLocationOnOptions,
+): TurnLocationOnStart {
   const first = requestDeviceGpsAttempt(geolocation, ALLOW_GPS_OPTIONS);
+  let privateBrowsing = false;
   try {
-    writeSavedLiveLocationAllowed();
+    clearStickyLocationLock(options?.storage);
   } catch {
     /* quota / private mode must not swallow the tap */
   }
-  const raw = waitForAllowLocationFix({ firstAttempt: first, geolocation });
+  try {
+    privateBrowsing = detectPrivateBrowsing();
+  } catch {
+    /* ignore probe failures */
+  }
+  const permission = queryGeolocationPermission(
+    options && "permissions" in options ? options.permissions : undefined,
+  );
+  const raw = settleTurnLocationOnAttempt({
+    first,
+    geolocation,
+    permission,
+  });
   return {
     attempt: holdAskingVisible(raw, options?.minAskingMs ?? ASKING_VISIBLE_MS),
     uiStatus: "asking",
+    permission,
+    privateBrowsing,
   };
 }
 
@@ -480,14 +647,16 @@ export function startLogLocationFromGesture(
  */
 export function beginLogLocationFromButtonTap(
   geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
-  options?: { minAskingMs?: number },
-): { attempt: Promise<DeviceGpsAttempt>; uiStatus: "asking" } {
+  options?: TurnLocationOnOptions,
+): TurnLocationOnStart {
   try {
     return handleTurnLocationOnClick(geolocation, options);
   } catch {
     return {
       attempt: Promise.resolve({ ok: false, reason: "unavailable" }),
       uiStatus: "asking",
+      permission: Promise.resolve("unknown"),
+      privateBrowsing: false,
     };
   }
 }
@@ -503,7 +672,10 @@ export function initialLiveLocationStatusFromSaved(
   return "prompt";
 }
 
-export function liveLocationPromptCopy(status: LiveLocationStatus): {
+export function liveLocationPromptCopy(
+  status: LiveLocationStatus,
+  extras?: { privateBrowsing?: boolean; permission?: GeolocationPermissionState },
+): {
   title: string;
   body: string;
 } {
@@ -516,7 +688,7 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
   if (status === "denied") {
     return {
       title: "Location blocked",
-      body: LOCATION_DENIED_SETTINGS_HINT,
+      body: blockedLocationReason(extras),
     };
   }
   if (status === "unavailable") {
@@ -533,7 +705,9 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
   }
   return {
     title: "Allow location",
-    body: "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
+    body: formatLocationServicesSetupHint(
+      "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
+    ),
   };
 }
 
