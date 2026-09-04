@@ -47,6 +47,16 @@ describe("matchesFilters", () => {
     expect(
       matchesFilters(redfish, { habitats: ["saltwater-inshore", "saltwater-offshore"] }),
     ).toBe(true);
+    const pintail = catchOf({
+      id: "p",
+      species: "Pintail",
+      habitat: "duck",
+      placeName: "Marsh, TX",
+    });
+    expect(matchesFilters(pintail, { habitats: ["duck"] })).toBe(true);
+    expect(matchesFilters(pintail, { habitats: ["saltwater-inshore"] })).toBe(false);
+    expect(matchesFilters(redfish, { habitats: ["duck"] })).toBe(false);
+    expect(matchesFilters(pintail, { species: "pintail" })).toBe(true);
   });
 
   it("filters by moon phase and pressure trend", () => {

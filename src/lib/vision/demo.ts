@@ -1,5 +1,6 @@
 import {
   DEFAULT_HABITAT,
+  isDuckCatalogSpecies,
   isSaltwaterCatalogSpecies,
   isSaltwaterHabitat,
   saltwaterHintFromLocation,
@@ -9,6 +10,7 @@ import {
 import {
   habitatForSuggestion,
   matchCatalogSpecies,
+  matchDuckCatalogSpecies,
   matchSaltwaterCatalogSpecies,
   restrictSuggestionToSaltwater,
 } from "../species";
@@ -59,8 +61,15 @@ function freshwaterFileName(fileName?: string | null): boolean {
   const base = fileNameBase(fileName);
   if (!base) return false;
   if (matchSaltwaterCatalogSpecies(base)) return false;
+  if (matchDuckCatalogSpecies(base) || duckFileName(fileName)) return false;
   const any = matchCatalogSpecies(base);
-  return Boolean(any && !isSaltwaterCatalogSpecies(any));
+  return Boolean(any && !isSaltwaterCatalogSpecies(any) && !isDuckCatalogSpecies(any));
+}
+
+function duckFileName(fileName?: string | null): boolean {
+  const base = fileNameBase(fileName);
+  if (!base) return false;
+  return Boolean(matchDuckCatalogSpecies(base));
 }
 
 /** Stable fake ID so the same photo keeps the same suggestion in demo mode. */
@@ -68,6 +77,18 @@ export function demoIdentifySpecies(
   image: Uint8Array,
   context?: VisionContext,
 ): SpeciesSuggestion {
+  if (duckFileName(context?.fileName)) {
+    return restrictSuggestionToSaltwater({
+      species: "Unknown",
+      confidence: 0.2,
+      habitat: DEFAULT_HABITAT,
+      speciesList: [],
+      alternatives: [],
+      source: "demo",
+      note: "Demo species assist (no OpenAI key). Filename looks like a duck — left blank so you can pick Duck.",
+    });
+  }
+
   if (freshwaterFileName(context?.fileName)) {
     return restrictSuggestionToSaltwater({
       species: "Unknown",

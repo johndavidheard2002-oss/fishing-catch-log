@@ -36,6 +36,30 @@ describe("catchInputFromUnknown without a species", () => {
   });
 });
 
+describe("catchInputFromUnknown duck habitat", () => {
+  it("keeps a Pintail log on the duck category", () => {
+    const input = catchInputFromUnknown({
+      species: "Pintail",
+      speciesList: ["Pintail"],
+      habitat: "duck",
+      caughtAt: "2025-11-12T14:10:00.000Z",
+      latitude: 29.15,
+      longitude: -96.88,
+    });
+    expect(input.species).toBe("Pintail");
+    expect(input.speciesList).toEqual(["Pintail"]);
+    expect(input.habitat).toBe("duck");
+  });
+
+  it("infers duck when habitat is omitted for a catalog duck", () => {
+    const input = catchInputFromUnknown({
+      species: "Bluebill",
+      caughtAt: "2025-11-12T14:10:00.000Z",
+    });
+    expect(input.habitat).toBe("duck");
+  });
+});
+
 describe("catchInputFromUnknown species counts", () => {
   it("keeps a distinct count per tagged species", () => {
     const input = catchInputFromUnknown({

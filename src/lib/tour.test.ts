@@ -99,7 +99,7 @@ describe("first-sign-in tour", () => {
     expect(text.toLowerCase()).toContain("friend");
     expect(text.toLowerCase()).not.toContain("buddy");
     expect(text.toLowerCase()).not.toContain("fills in");
-    expect(text.toLowerCase()).toContain("saltwater species");
+    expect(text.toLowerCase()).toContain("pick a species");
     expect(TOUR_SCREENS.every((screen) => screen.body.length < 220)).toBe(true);
   });
 });

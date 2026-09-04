@@ -27,7 +27,7 @@ export function hasOpenAiKey(): boolean {
 function catalogBlock(habitat?: Habitat | null): string {
   const rows = isSaltwaterHabitat(habitat)
     ? SPECIES_CATALOG.filter((s) => s.habitat === habitat)
-    : SPECIES_CATALOG.filter((s) => s.habitat !== "freshwater");
+    : SPECIES_CATALOG.filter((s) => isSaltwaterHabitat(s.habitat));
   return rows.map((s) => `- ${s.name} (${HABITAT_LABELS[s.habitat]})`).join("\n");
 }
 
@@ -185,7 +185,7 @@ export async function detectFishWithOpenAI(
         {
           role: "system",
           content:
-            'You decide whether an angler photo contains a real fish (in hand, on a boat, on ice, or clearly in the frame). Return JSON {"isFish":boolean,"confidence":0-1}. Drawings, empty landscapes, people-only selfies, and food menus are isFish false. A cooked fish plate can be true if a fish is visible.',
+            'You decide whether a Tide Mark log photo contains a real fish or a harvested duck / waterfowl (in hand, on a boat, on ice, or clearly in the frame). Return JSON {"isFish":boolean,"confidence":0-1}. Treat ducks and other waterfowl as isFish true so they can be logged. Drawings, empty landscapes, people-only selfies, and food menus are isFish false. A cooked fish plate can be true if a fish is visible.',
         },
         {
           role: "user",
@@ -211,8 +211,8 @@ export async function detectFishWithOpenAI(
     confidence: clamp01(parsed.confidence ?? (isFish ? 0.6 : 0.5)),
     source: "openai",
     note: isFish
-      ? "Looks like a fish — confirm before it goes in the log."
-      : "Does not look like a fish catch photo.",
+      ? "Looks like a catch photo — confirm before it goes in the log."
+      : "Does not look like a fish or duck log photo.",
   };
 }
 

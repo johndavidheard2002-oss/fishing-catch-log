@@ -2,26 +2,57 @@
 
 import { useState } from "react";
 import {
+  DEFAULT_HABITAT,
   HABITAT_LABELS,
   catalogHabitat,
+  duckSpecies,
+  isDuckCatalogSpecies,
   isSaltwaterCatalogSpecies,
   isSharkCatalogSpecies,
   sharkSpecies,
   speciesForHabitat,
   type Habitat,
 } from "@/lib/habitat";
-import { matchSaltwaterCatalogSpecies, normalizeSpeciesList } from "@/lib/species";
+import {
+  matchCatalogSpecies,
+  matchDuckCatalogSpecies,
+  matchSaltwaterCatalogSpecies,
+  normalizeSpeciesList,
+} from "@/lib/species";
 
-type PickerGroup = "saltwater-inshore" | "saltwater-offshore" | "shark";
+type PickerGroup = "saltwater-inshore" | "saltwater-offshore" | "shark" | "duck";
 
 const PICKER_GROUPS: { id: PickerGroup; label: string }[] = [
   { id: "saltwater-inshore", label: HABITAT_LABELS["saltwater-inshore"] },
   { id: "saltwater-offshore", label: HABITAT_LABELS["saltwater-offshore"] },
   { id: "shark", label: "Shark" },
+  { id: "duck", label: HABITAT_LABELS.duck },
 ];
 
 function initialGroup(habitat: Habitat): PickerGroup {
+  if (habitat === "duck") return "duck";
   return habitat === "saltwater-offshore" ? "saltwater-offshore" : "saltwater-inshore";
+}
+
+function mapPickerSpecies(raw: string): string {
+  return (
+    matchSaltwaterCatalogSpecies(raw) ??
+    matchDuckCatalogSpecies(raw) ??
+    matchCatalogSpecies(raw) ??
+    raw.trim()
+  );
+}
+
+function groupCatalog(group: PickerGroup): string[] {
+  if (group === "shark") return sharkSpecies();
+  if (group === "duck") return duckSpecies();
+  return speciesForHabitat(group);
+}
+
+function searchPlaceholder(group: PickerGroup): string {
+  if (group === "shark") return "Search sharks or type a name";
+  if (group === "duck") return "Search ducks or type a name";
+  return `Search ${HABITAT_LABELS[group].toLowerCase()} or type a name`;
 }
 
 export function SpeciesPicker({
@@ -42,18 +73,23 @@ export function SpeciesPicker({
   );
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState<PickerGroup>(() => initialGroup(habitat));
-  const catalog = group === "shark" ? sharkSpecies() : speciesForHabitat(group);
+  const catalog = groupCatalog(group);
   const q = query.trim().toLowerCase();
   const filtered = q ? catalog.filter((name) => name.toLowerCase().includes(q)) : catalog;
 
   function nextHabitatFor(name: string): Habitat {
-    if (isSharkCatalogSpecies(name) || /shark/i.test(name)) return habitat;
+    if (isDuckCatalogSpecies(name)) return "duck";
+    if (isSharkCatalogSpecies(name) || /shark/i.test(name)) {
+      return habitat === "duck" ? DEFAULT_HABITAT : habitat;
+    }
     const inferred = catalogHabitat(name);
-    return inferred && inferred !== "freshwater" ? inferred : habitat;
+    if (inferred && inferred !== "freshwater") return inferred;
+    if (group === "duck") return "duck";
+    return habitat === "duck" ? DEFAULT_HABITAT : habitat;
   }
 
   function toggle(name: string) {
-    const mapped = matchSaltwaterCatalogSpecies(name) ?? name.trim();
+    const mapped = mapPickerSpecies(name);
     if (!mapped) return;
     const key = mapped.toLowerCase();
     const exists = selected.some((s) => s.toLowerCase() === key);
@@ -75,8 +111,8 @@ export function SpeciesPicker({
   function addTyped() {
     const raw = query.trim();
     if (!raw) return;
-    const mapped = matchSaltwaterCatalogSpecies(raw) ?? raw;
-    if (isSaltwaterCatalogSpecies(mapped) || !matchLooksFreshwater(raw)) {
+    const mapped = mapPickerSpecies(raw);
+    if (isSaltwaterCatalogSpecies(mapped) || isDuckCatalogSpecies(mapped) || !matchLooksFreshwater(raw)) {
       const key = mapped.toLowerCase();
       if (!selected.some((s) => s.toLowerCase() === key)) {
         onChange(selected.length ? [...selected, mapped] : [mapped], nextHabitatFor(mapped));
@@ -94,14 +130,15 @@ export function SpeciesPicker({
 
   function pickGroup(id: PickerGroup) {
     setGroup(id);
-    if (id !== "shark") onHabitat(id);
+    if (id === "shark") return;
+    onHabitat(id);
   }
 
   return (
     <div className="space-y-3">
       <div>
-        <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Water</p>
-        <div className="grid grid-cols-3 gap-2">
+        <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Category</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {PICKER_GROUPS.map((option) => {
             const on = group === option.id;
             return (
@@ -127,7 +164,7 @@ export function SpeciesPicker({
       </div>
 
       <div>
-        <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">Species in this photo</p>
+        <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">Species</p>
         {hideHints ? null : (
           <p className="on-wash-chip mb-2 text-xs">
             Optional — tap chips or type a name. You can save now and add the species later.
@@ -157,11 +194,7 @@ export function SpeciesPicker({
                 addTyped();
               }
             }}
-            placeholder={
-              group === "shark"
-                ? "Search sharks or type a name"
-                : `Search ${HABITAT_LABELS[group].toLowerCase()} or type a name`
-            }
+            placeholder={searchPlaceholder(group)}
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
           <button
@@ -204,8 +237,8 @@ export function SpeciesPicker({
       </div>
       {hideHints ? null : (
         <p className="on-wash-chip text-xs">
-          Inshore, offshore, or shark so the list stays short. One picture can hold more than one
-          species.
+          Inshore, offshore, shark, or duck so the list stays short. One picture can hold more than
+          one species.
         </p>
       )}
     </div>

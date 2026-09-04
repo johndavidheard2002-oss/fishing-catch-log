@@ -113,7 +113,9 @@ function asSeason(value: unknown, fallbackDate: Date, raw: string): Season {
 }
 
 function asHabitat(value: unknown): Habitat {
-  if (typeof value === "string" && isHabitat(value) && value !== "freshwater") return value;
+  if (typeof value === "string" && isHabitat(value) && value !== "freshwater" && value !== "duck") {
+    return value;
+  }
   return DEFAULT_HABITAT;
 }
 

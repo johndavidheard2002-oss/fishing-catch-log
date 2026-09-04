@@ -12,6 +12,7 @@ describe("tidesApplyToHabitat", () => {
     expect(tidesApplyToHabitat("freshwater")).toBe(false);
     expect(tidesApplyToHabitat("saltwater-inshore")).toBe(true);
     expect(tidesApplyToHabitat("saltwater-offshore")).toBe(true);
+    expect(tidesApplyToHabitat("duck")).toBe(false);
     expect(tidesApplyToHabitat(null)).toBe(false);
   });
 });
