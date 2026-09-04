@@ -13,7 +13,7 @@ export async function reverseGeocode(
 
     const res = await fetch(url, {
       headers: {
-        "User-Agent": "CatchCompass/1.0 (logbook)",
+        "User-Agent": "TideMark/1.0 (logbook)",
         Accept: "application/json",
       },
       cache: "no-store",

@@ -6,7 +6,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { FirstRunSetup } from "@/components/FirstRunSetup";
 import { HelpButton, HelpGuide } from "@/components/HelpGuide";
-import { APP_LOGO_SRC } from "@/lib/brand";
+import { APP_DISPLAY_NAME, APP_LOGO_SRC } from "@/lib/brand";
 
 const NAV: {
   href: string;
@@ -249,7 +249,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={APP_LOGO_SRC}
-              alt=""
+              alt={APP_DISPLAY_NAME}
               width={32}
               height={32}
               className="brand-mark"

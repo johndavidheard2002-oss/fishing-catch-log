@@ -50,7 +50,7 @@ export async function fetchNoaaExtremes(
   const end = new Date(at.getTime() + 30 * 60 * 60 * 1000);
   const dataUrl = new URL("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter");
   dataUrl.searchParams.set("product", "predictions");
-  dataUrl.searchParams.set("application", "CatchCompass");
+  dataUrl.searchParams.set("application", "TideMark");
   dataUrl.searchParams.set("begin_date", yyyymmdd(start));
   dataUrl.searchParams.set("end_date", yyyymmdd(end));
   dataUrl.searchParams.set("datum", "MLLW");

@@ -1,6 +1,6 @@
-/** Home-screen / splash colors — match the existing Catch Compass mark. */
-export const PWA_THEME_COLOR = "#0a4e6a";
-export const PWA_BACKGROUND_COLOR = "#7ecdee";
+/** Home-screen / splash colors — match the Tide Mark copper seal. */
+export const PWA_THEME_COLOR = "#040a13";
+export const PWA_BACKGROUND_COLOR = "#040a13";
 
 export const PWA_ICON_192 = "/icon-192.png";
 export const PWA_ICON_512 = "/icon-512.png";
@@ -8,7 +8,7 @@ export const PWA_APPLE_TOUCH_ICON = "/apple-icon.png";
 
 /**
  * iPhone portrait startup images (CSS points × pixel ratio).
- * Files are generated from the existing Catch Compass logo.
+ * Files are generated from the Tide Mark logo.
  */
 export const APPLE_STARTUP_IMAGES = [
   { width: 750, height: 1334, deviceWidth: 375, deviceHeight: 667, ratio: 2 },
@@ -38,7 +38,7 @@ export function appleStartupImageMetadata() {
 }
 
 /** Bump this (and public/sw.js) so leftover home-screen SW caches drop. */
-export const PWA_CACHE_NAME = "catch-compass-static-v2";
+export const PWA_CACHE_NAME = "tide-mark-static-v1";
 
 /** Paths the service worker must never intercept (photos, auth, Turso APIs). */
 export function isPwaApiPath(pathname: string) {

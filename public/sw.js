@@ -1,6 +1,6 @@
-// Catch Compass SW — cache v2. HTML/API stay network-only. Claims clients so leftover
+// Tide Mark SW — cache v1. HTML/API stay network-only. Claims clients so leftover
 // home-screen tabs pick up the sign-in gate instead of a precached pre-login app.
-const CACHE = "catch-compass-static-v2";
+const CACHE = "tide-mark-static-v1";
 
 function isApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/");
