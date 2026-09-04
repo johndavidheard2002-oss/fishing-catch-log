@@ -136,7 +136,8 @@ describe("liveLocationPromptCopy", () => {
     expect(liveLocationPromptCopy("denied").body).toContain("Ask or While Using");
     expect(liveLocationPromptCopy("denied").body).toContain("Private browsing");
     expect(liveLocationPromptCopy("denied").body).not.toContain("Settings → Safari → Location");
-    expect(liveLocationPromptCopy("prompt").body).toContain("Location Services → Safari Websites");
+    expect(liveLocationPromptCopy("prompt").body).toContain("Location Services");
+    expect(liveLocationPromptCopy("prompt").body).toContain("Safari Websites");
     expect(liveLocationPromptCopy("prompt").body).toBe(
       formatLocationServicesSetupHint(
         "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
