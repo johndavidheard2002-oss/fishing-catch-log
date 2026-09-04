@@ -244,10 +244,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       }`}
     >
       <div ref={paneRef} className="tab-swipe-pane flex min-h-0 w-full min-w-0 flex-1 flex-col">
-        <header
-          className={`${onSignIn ? "signin-brand-banner" : "journal-card"} mb-4 flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-2xl px-3 py-2`}
-          data-testid={onSignIn ? "signin-brand-banner" : undefined}
-        >
+        <header className="journal-card mb-4 flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-2xl px-3 py-2">
           <Link href="/" className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-teal" data-testid="header-lockup">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
