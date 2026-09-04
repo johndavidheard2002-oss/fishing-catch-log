@@ -11,9 +11,17 @@ import {
   persistAllowLocationOutcome,
   persistLogLocationOutcome,
   logLocationReason,
+  logLocationSurface,
+  liveCameraTapAction,
+  beginLogLocationFromButtonTap,
+  pinFromTurnedOnLocation,
+  PINNED_FROM_PHONE_HINT,
+  LOCATION_DENIED_SETTINGS_HINT,
+  TAP_MAP_PIN_HINT,
   shouldShowTurnLocationOn,
   skipLocationLabel,
   TURN_LOCATION_ON_LABEL,
+  visibleCatchPinHint,
   waitForAllowLocationFix,
   catchPinFromPhotoGps,
   classifyCatchPinEdit,
@@ -110,6 +118,9 @@ describe("liveLocationPromptCopy", () => {
     expect(liveLocationPromptCopy("asking").body).toContain("finding where you are");
     expect(liveLocationPromptCopy("asking").body).toContain("Not now");
     expect(liveLocationPromptCopy("asking").body.toLowerCase()).not.toContain("buddy");
+    expect(liveLocationPromptCopy("denied").body).toContain("Settings");
+    expect(liveLocationPromptCopy("denied").body).toContain("Safari");
+    expect(liveLocationPromptCopy("denied").body).toContain("Allow");
   });
 });
 
@@ -118,6 +129,7 @@ describe("initialLiveLocationStatusFromSaved", () => {
     expect(initialLiveLocationStatusFromSaved("ready")).toBe("ready");
     expect(initialLiveLocationStatusFromSaved("allowed")).toBe("prompt");
     expect(initialLiveLocationStatusFromSaved("unavailable")).toBe("unavailable");
+    expect(initialLiveLocationStatusFromSaved("denied")).toBe("denied");
     expect(initialLiveLocationStatusFromSaved(null)).toBe("prompt");
   });
 });
@@ -127,7 +139,39 @@ describe("Turn location on from Log", () => {
     expect(shouldShowTurnLocationOn("prompt")).toBe(true);
     expect(shouldShowTurnLocationOn("asking")).toBe(true);
     expect(shouldShowTurnLocationOn("unavailable")).toBe(true);
+    expect(shouldShowTurnLocationOn("denied")).toBe(true);
     expect(shouldShowTurnLocationOn("ready")).toBe(false);
+  });
+
+  it("button path invokes getCurrentPosition in the same tap", async () => {
+    let started = false;
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+      ) {
+        started = true;
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
+      },
+    };
+    const { attempt, uiStatus } = beginLogLocationFromButtonTap(geo);
+    expect(started).toBe(true);
+    expect(uiStatus).toBe("asking");
+    await expect(attempt).resolves.toEqual({
+      ok: true,
+      gps: { latitude: 29.15, longitude: -96.88 },
+    });
+  });
+
+  it("still starts GPS when a later storage write would throw", () => {
+    let started = false;
+    const geo = {
+      getCurrentPosition() {
+        started = true;
+      },
+    };
+    const { uiStatus } = beginLogLocationFromButtonTap(geo);
+    expect(started).toBe(true);
+    expect(uiStatus).toBe("asking");
   });
 
   it("requests GPS in the same gesture and becomes ready", async () => {
@@ -186,6 +230,8 @@ describe("Turn location on from Log", () => {
     expect(logLocationReason("unavailable")).toContain("Allow location");
     expect(logLocationReason("unavailable")).not.toMatch(/Location is off/i);
     expect(logLocationReason("prompt")).toContain("live photo");
+    expect(logLocationReason("ready")).toBe(PINNED_FROM_PHONE_HINT);
+    expect(logLocationReason("denied")).toBe(LOCATION_DENIED_SETTINGS_HINT);
     expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
   });
 });
@@ -198,9 +244,15 @@ describe("Log photo card copy", () => {
     const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
     expect(photo).toContain('data-testid="turn-location-on"');
     expect(photo).toContain("TURN_LOCATION_ON_LABEL");
+    expect(photo).toContain("beginLogLocationFromButtonTap");
+    expect(photo).toContain("onPointerDown");
     expect(photo).not.toContain("Location is off");
     expect(form).toContain("onTurnLocationOn");
+    expect(form).toContain("onLocationAttempt");
+    expect(form).toContain("pinFromTurnedOnLocation");
     expect(form).not.toContain("Location is off");
+    expect(form).not.toContain("LOCATION_OFF_PIN_HINT");
+    expect(form).not.toContain("Tap the map to drop a pin.");
   });
 });
 
@@ -666,12 +718,12 @@ describe("persistAllowLocationOutcome", () => {
     expect(readSavedLiveLocation(storage)).toBeNull();
   });
 
-  it("explicit deny is unavailable, not a leftover allowed hang", () => {
+  it("explicit deny is denied, not a leftover Not now", () => {
     const storage = memoryStorage();
     writeSavedLiveLocationAllowed(storage);
     const outcome = persistAllowLocationOutcome({ ok: false, reason: "denied" }, storage);
-    expect(outcome).toEqual({ savedStatus: "unavailable", enterJournal: true });
-    expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
+    expect(outcome).toEqual({ savedStatus: "denied", enterJournal: true });
+    expect(readSavedLiveLocationStatus(storage)).toBe("denied");
   });
 
   it("success still ready", () => {
@@ -718,8 +770,180 @@ describe("waitForAllowLocationFix", () => {
 });
 
 describe("LOCATION_OFF_PIN_HINT", () => {
-  it("keeps the tap-the-map banner when a live pin could not be placed", () => {
+  it("is never stacked with Turn location on on the live Log surface", () => {
     expect(LOCATION_OFF_PIN_HINT).toBe("Location was off. Tap the map to pin this catch.");
+    for (const status of ["prompt", "asking", "unavailable", "denied"] as const) {
+      const surface = logLocationSurface({
+        status,
+        hasPin: false,
+        photoAtCatch: true,
+      });
+      expect(surface.showTurnOn).toBe(true);
+      expect(surface.pinHint).toBeNull();
+      expect(surface.emptyMapBanner).toBeNull();
+      expect(surface.reason).not.toBe(LOCATION_OFF_PIN_HINT);
+      expect(surface.reason).not.toBe(TAP_MAP_PIN_HINT);
+    }
+  });
+});
+
+describe("logLocationSurface", () => {
+  it("never shows dual off banners with Turn location on", () => {
+    const off = logLocationSurface({
+      status: "prompt",
+      hasPin: false,
+      photoAtCatch: true,
+    });
+    expect(off.showTurnOn).toBe(true);
+    expect(off.reason).toContain("Allow location");
+    expect(off.pinHint).toBeNull();
+    expect(off.emptyMapBanner).toBeNull();
+
+    const asking = logLocationSurface({
+      status: "asking",
+      hasPin: false,
+      photoAtCatch: true,
+    });
+    expect(asking.showTurnOn).toBe(true);
+    expect(asking.reason).toBe(GETTING_LOCATION_LABEL);
+    expect(asking.pinHint).toBeNull();
+    expect(asking.emptyMapBanner).toBeNull();
+
+    const ready = logLocationSurface({
+      status: "ready",
+      hasPin: true,
+      photoAtCatch: true,
+    });
+    expect(ready.showTurnOn).toBe(false);
+    expect(ready.reason).toBe(PINNED_FROM_PHONE_HINT);
+    expect(ready.emptyMapBanner).toBeNull();
+
+    const denied = logLocationSurface({
+      status: "denied",
+      hasPin: false,
+      photoAtCatch: true,
+    });
+    expect(denied.showTurnOn).toBe(true);
+    expect(denied.reason).toBe(LOCATION_DENIED_SETTINGS_HINT);
+    expect(denied.emptyMapBanner).toBeNull();
+  });
+});
+
+describe("visibleCatchPinHint", () => {
+  it("hides Location was off and tap-the-map while location is not ready", () => {
+    expect(
+      visibleCatchPinHint({
+        pinHint: LOCATION_OFF_PIN_HINT,
+        liveLog: true,
+        locationStatus: "prompt",
+      }),
+    ).toBeNull();
+    expect(
+      visibleCatchPinHint({
+        pinHint: TAP_MAP_PIN_HINT,
+        liveLog: true,
+        locationStatus: "unavailable",
+      }),
+    ).toBeNull();
+    expect(
+      visibleCatchPinHint({
+        pinHint: DROPPING_PIN_HINT,
+        liveLog: true,
+        locationStatus: "asking",
+      }),
+    ).toBe(DROPPING_PIN_HINT);
+  });
+});
+
+describe("pinFromTurnedOnLocation", () => {
+  const gps = { latitude: 29.15, longitude: -96.88 };
+
+  it("applies the pin when Turn location on succeeds with an existing photo", () => {
+    expect(
+      pinFromTurnedOnLocation({
+        hasPhoto: true,
+        pinEmpty: true,
+        userMovedCatchPin: false,
+        gps,
+      }),
+    ).toEqual({ ...gps, source: "device" });
+  });
+
+  it("does not pin before a photo is on the form", () => {
+    expect(
+      pinFromTurnedOnLocation({
+        hasPhoto: false,
+        pinEmpty: true,
+        userMovedCatchPin: false,
+        gps,
+      }),
+    ).toBeNull();
+  });
+
+  it("does not overwrite a pin the angler already set", () => {
+    expect(
+      pinFromTurnedOnLocation({
+        hasPhoto: true,
+        pinEmpty: false,
+        userMovedCatchPin: false,
+        gps,
+      }),
+    ).toBeNull();
+    expect(
+      pinFromTurnedOnLocation({
+        hasPhoto: true,
+        pinEmpty: true,
+        userMovedCatchPin: true,
+        gps,
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("live Camera tap", () => {
+  it("starts GPS before opening Camera when location is not ready", () => {
+    expect(liveCameraTapAction("prompt")).toBe("start-gps");
+    expect(liveCameraTapAction("unavailable")).toBe("start-gps");
+    expect(liveCameraTapAction("asking")).toBe("wait");
+    expect(liveCameraTapAction("ready")).toBe("open-camera");
+    expect(liveCameraTapAction("denied")).toBe("open-camera");
+    expect(liveCameraTapAction(undefined)).toBe("open-camera");
+  });
+
+  it("pins from the Camera-tap GPS when the fix arrives", async () => {
+    const gps = { latitude: 29.15, longitude: -96.88 };
+    let started = false;
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+      ) {
+        started = true;
+        success({ coords: gps });
+      },
+    };
+    const { attempt } = beginLogLocationFromButtonTap(geo);
+    expect(started).toBe(true);
+    const result = await attempt;
+    expect(result.ok).toBe(true);
+    const afterPhoto = await resolveLiveCameraPinAfterPhoto({
+      userMovedCatchPin: false,
+      savedGps: result.ok ? result.gps : null,
+      savedStatus: "ready",
+      geolocation: { getCurrentPosition: vi.fn() },
+      permissions: null,
+    });
+    expect(afterPhoto.pin).toEqual({ ...gps, source: "device" });
+  });
+});
+
+describe("persistLogLocationOutcome denied", () => {
+  it("tells the Log form to show Settings, not Not now", () => {
+    const storage = memoryStorage();
+    expect(persistLogLocationOutcome({ ok: false, reason: "denied" }, storage)).toEqual({
+      savedStatus: "denied",
+      uiStatus: "denied",
+    });
+    expect(readSavedLiveLocationStatus(storage)).toBe("denied");
   });
 });
 

@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
           { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
+      {
+        source: "/(.*)",
+        headers: [{ key: "Permissions-Policy", value: "geolocation=(self)" }],
+      },
     ];
   },
 };

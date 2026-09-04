@@ -1,12 +1,15 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import {
   GETTING_LOCATION_LABEL,
   TURN_LOCATION_ON_LABEL,
+  beginLogLocationFromButtonTap,
+  liveCameraTapAction,
   logLocationReason,
   shouldShowTurnLocationOn,
+  type DeviceGpsAttempt,
   type LiveLocationStatus,
 } from "@/lib/location";
 
@@ -38,13 +41,49 @@ export function PhotoCapture({
   libraryOnly?: boolean;
   locationReason?: string;
   locationStatus?: LiveLocationStatus;
-  onTurnLocationOn?: () => void;
+  onTurnLocationOn?: (attempt: Promise<DeviceGpsAttempt>) => void;
   onLiveCamera?: () => void;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
+  const startingRef = useRef(false);
+  const [tapBusy, setTapBusy] = useState(false);
+
+  const waiting = locationStatus === "asking" || tapBusy;
+  const showTurnOn =
+    Boolean(onTurnLocationOn) &&
+    (waiting || (locationStatus != null && shouldShowTurnLocationOn(locationStatus)));
+  const reasonText = waiting
+    ? GETTING_LOCATION_LABEL
+    : (locationReason ?? (locationStatus ? logLocationReason(locationStatus) : null));
+
+  function startLocationFromThisTap(): Promise<DeviceGpsAttempt> | null {
+    if (startingRef.current) return null;
+    startingRef.current = true;
+    setTapBusy(true);
+    const { attempt } = beginLogLocationFromButtonTap();
+    onTurnLocationOn?.(attempt);
+    void attempt.finally(() => {
+      startingRef.current = false;
+      setTapBusy(false);
+    });
+    return attempt;
+  }
+
+  function onTurnLocationGesture(event: { preventDefault: () => void; stopPropagation: () => void }) {
+    if (waiting) return;
+    startLocationFromThisTap();
+    event.preventDefault();
+    event.stopPropagation();
+  }
 
   function openCamera() {
+    const action = liveCameraTapAction(locationStatus);
+    if (action === "wait") return;
+    if (action === "start-gps" && onTurnLocationOn) {
+      startLocationFromThisTap();
+      return;
+    }
     onLiveCamera?.();
     cameraRef.current?.click();
   }
@@ -59,10 +98,6 @@ export function PhotoCapture({
         ? "Pick an old catch photo from your camera roll. We’ll ask if it was taken where you caught the fish before dropping a pin."
         : "Camera opens on this tap. Location from sign-in pins the catch if you allowed it."
       : emptyHint;
-
-  const showTurnOn =
-    Boolean(onTurnLocationOn) && locationStatus != null && shouldShowTurnLocationOn(locationStatus);
-  const waiting = locationStatus === "asking";
 
   return (
     <div
@@ -113,9 +148,17 @@ export function PhotoCapture({
           <button
             type="button"
             data-testid="live-camera"
+            data-no-tab-swipe
             className={`min-w-0 rounded-xl px-3 py-3 text-sm font-semibold ${
               emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
             }`}
+            onPointerDown={(event) => {
+              if (liveCameraTapAction(locationStatus) === "start-gps" && onTurnLocationOn) {
+                startLocationFromThisTap();
+                event.preventDefault();
+                event.stopPropagation();
+              }
+            }}
             onClick={openCamera}
           >
             Camera
@@ -132,16 +175,18 @@ export function PhotoCapture({
         </button>
       </div>
       {showTurnOn ? (
-        <div className="min-w-0 space-y-2 px-3 pb-3">
+        <div className="min-w-0 space-y-2 px-3 pb-3" data-no-tab-swipe>
           <p data-testid="live-location-reason" className="text-xs break-words text-ink-muted">
-            {waiting ? GETTING_LOCATION_LABEL : logLocationReason(locationStatus ?? "prompt")}
+            {reasonText}
           </p>
           <button
             type="button"
             data-testid="turn-location-on"
+            data-no-tab-swipe
             disabled={waiting}
-            onClick={onTurnLocationOn}
-            className="w-full max-w-full rounded-xl bg-teal py-3 text-base font-semibold text-white disabled:opacity-60"
+            onPointerDown={onTurnLocationGesture}
+            onClick={onTurnLocationGesture}
+            className="relative z-10 w-full max-w-full rounded-xl bg-teal py-3 text-base font-semibold text-white disabled:opacity-60"
           >
             {waiting ? GETTING_LOCATION_LABEL : TURN_LOCATION_ON_LABEL}
           </button>

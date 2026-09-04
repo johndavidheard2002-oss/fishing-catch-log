@@ -155,7 +155,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     function ignoreTarget(target: EventTarget | null) {
       return Boolean(
         (target as HTMLElement | null)?.closest?.(
-          ".leaflet-container, input, textarea, select, [data-no-tab-swipe]",
+          ".leaflet-container, input, textarea, select, button, [data-no-tab-swipe]",
         ),
       );
     }

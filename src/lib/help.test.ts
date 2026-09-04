@@ -19,8 +19,8 @@ describe("HELP_SECTIONS", () => {
       HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
         step.includes("After sign-in") &&
         step.includes("Allow location") &&
-        step.includes("this phone’s location") &&
-        step.includes("Then tap Camera"),
+        step.includes("Turn location on") &&
+        step.includes("Camera"),
       ),
     ).toBe(true);
     expect(
