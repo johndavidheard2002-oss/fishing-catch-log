@@ -74,8 +74,8 @@ body::after {
 }
 
 .brand-mark {
-  height: 2rem;
-  width: 2rem;
+  height: 3rem;
+  width: 3rem;
   flex-shrink: 0;
   border-radius: 0.55rem;
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.7), 0 6px 14px -10px rgb(10 90 140 / 0.55);
@@ -86,8 +86,8 @@ body::after {
   background-color: #040a13;
   background-image: url("/brand/tide-mark-logo.png");
   background-repeat: no-repeat;
-  background-position: center 40%;
-  background-size: min(68%, 15.5rem) auto;
+  background-position: center center;
+  background-size: min(88%, 20rem) auto;
 }
 
 /* Spots list/detail thumbs: a photo's intrinsic size must never stretch the row. */
