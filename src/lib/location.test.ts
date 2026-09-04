@@ -10,6 +10,7 @@ import {
   SKIP_LOCATION_LABEL,
   persistAllowLocationOutcome,
   persistLogLocationOutcome,
+  logLocationReason,
   shouldShowTurnLocationOn,
   skipLocationLabel,
   TURN_LOCATION_ON_LABEL,
@@ -174,6 +175,32 @@ describe("Turn location on from Log", () => {
     });
     expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
     expect(shouldShowTurnLocationOn("prompt")).toBe(true);
+  });
+
+  it("clears a leftover unavailable lock and never shows Location is off", () => {
+    const storage = memoryStorage();
+    writeSavedLiveLocation(null, storage);
+    expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
+    writeSavedLiveLocationAllowed(storage);
+    expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
+    expect(logLocationReason("unavailable")).toContain("Allow location");
+    expect(logLocationReason("unavailable")).not.toMatch(/Location is off/i);
+    expect(logLocationReason("prompt")).toContain("live photo");
+    expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
+  });
+});
+
+describe("Log photo card copy", () => {
+  it("replaces the dead Location is off line with Turn location on", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const photo = readFileSync(resolve(__dirname, "../components/PhotoCapture.tsx"), "utf8");
+    const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
+    expect(photo).toContain('data-testid="turn-location-on"');
+    expect(photo).toContain("TURN_LOCATION_ON_LABEL");
+    expect(photo).not.toContain("Location is off");
+    expect(form).toContain("onTurnLocationOn");
+    expect(form).not.toContain("Location is off");
   });
 });
 
