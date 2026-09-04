@@ -1469,15 +1469,7 @@ function CatchLocationFields({
 
   return (
     <section id="catch-location" className="space-y-3">
-      <div>
-        <p className="on-wash-chip w-fit text-sm font-semibold">Catch location</p>
-        {hideHints ? null : (
-          <p className="on-wash-chip text-xs">
-            Pick or name the area, then drop one pin for this catch. Drag if the photo GPS is the
-            truck, not the water.
-          </p>
-        )}
-      </div>
+      <p className="on-wash-chip w-fit text-sm font-semibold">Catch location</p>
       {hideHints ? (
         <>
           {hasPhotoGps && photoDiffers ? (
@@ -1540,7 +1532,6 @@ function CatchLocationFields({
         value={form.placeName}
         onChange={onPlace}
         onPickArea={onSelectArea}
-        hideHints={hideHints}
       />
       <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} hideHints={hideHints} />
       <details className="app-more">
