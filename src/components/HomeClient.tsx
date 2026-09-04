@@ -103,6 +103,9 @@ export function HomeClient() {
         </summary>
         <div className="space-y-3 px-4 pb-2">
           <p className="text-sm font-semibold">Account</p>
+          <Link href="/privacy" className="block text-sm font-semibold text-teal underline" data-testid="home-privacy">
+            Privacy policy
+          </Link>
           <LogOutButton testId="log-out-more" />
         </div>
         <BuddyPanel embedded />

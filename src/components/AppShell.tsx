@@ -6,6 +6,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { FirstRunSetup } from "@/components/FirstRunSetup";
 import { HelpButton, HelpGuide } from "@/components/HelpGuide";
+import { isPublicPagePath } from "@/lib/auth-gate";
 import { APP_DISPLAY_NAME, APP_LOGO_SRC } from "@/lib/brand";
 
 const NAV: {
@@ -64,7 +65,7 @@ function prefersReducedMotion() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const onSignIn = pathname === "/signin" || pathname.startsWith("/signin/");
+  const onSignIn = isPublicPagePath(pathname);
   const shellRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<{

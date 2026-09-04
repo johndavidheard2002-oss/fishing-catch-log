@@ -1,7 +1,15 @@
+/** HTML pages that signed-out visitors may open (no journal data). */
+
+export function isPublicPagePath(pathname: string): boolean {
+  if (pathname === "/signin" || pathname.startsWith("/signin/")) return true;
+  if (pathname === "/privacy" || pathname.startsWith("/privacy/")) return true;
+  return false;
+}
+
 /** Paths that do not need a signed-in session cookie. */
 
 export function isPublicPath(pathname: string): boolean {
-  if (pathname === "/signin" || pathname.startsWith("/signin/")) return true;
+  if (isPublicPagePath(pathname)) return true;
   if (
     pathname === "/api/auth/login" ||
     pathname === "/api/auth/register" ||
