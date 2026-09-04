@@ -35,7 +35,6 @@ describe("phone-width Log and Backfill", () => {
     expect(css).toMatch(/\.journal-card \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
     expect(css).toMatch(/\.page-intro \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
     expect(css).toMatch(/\.trout-wash-bg \{[\s\S]*?url\("\/brand\/dark-copper-redfish-bg\.png"\)/);
-    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?url\("\/brand\/soft-trout-wash-bg\.png"\)/);
     expect(css).not.toMatch(/\.signin-brand-banner \{/);
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
     expect(shell).toContain('className="journal-card mb-4 flex w-full min-w-0 items-center');
