@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
-import { APP_SLUG } from "@/lib/brand";
+import { APP_LOGO_SRC, APP_SLUG } from "@/lib/brand";
 import {
   GETTING_LOCATION_LABEL,
   TURN_LOCATION_ON_LABEL,
@@ -124,20 +124,28 @@ export function PhotoCapture({
         } ${compactPreview && previewUrl ? "h-40" : "aspect-[4/3]"}`}
         data-testid={previewUrl ? undefined : "photo-capture-brand"}
       >
-        <button type="button" onClick={pick} className="block h-full w-full">
+        <button type="button" onClick={pick} className="relative block h-full w-full">
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={previewUrl} alt="Catch photo" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full min-w-0 flex-col items-center justify-end gap-2 bg-gradient-to-t from-ink/75 via-ink/25 to-transparent px-4 pb-5 pt-16 text-center">
-              <p className="max-w-full text-lg font-semibold break-words text-white">
-                {emptyTitle ??
-                  (libraryOnly || emphasis === "library"
-                    ? "Pick a photo from your camera roll"
-                    : "Take a photo")}
-              </p>
-              {hint ? <p className="max-w-full text-sm break-words text-white/90">{hint}</p> : null}
-            </div>
+            <>
+              <span className="photo-capture-brand-seal-wrap" aria-hidden>
+                <span className="photo-capture-brand-seal-frame">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={APP_LOGO_SRC} alt="" className="tide-mark-seal-img" />
+                </span>
+              </span>
+              <span className="photo-capture-brand-copy">
+                <p className="max-w-full text-lg font-semibold break-words text-white">
+                  {emptyTitle ??
+                    (libraryOnly || emphasis === "library"
+                      ? "Pick a photo from your camera roll"
+                      : "Take a photo")}
+                </p>
+                {hint ? <p className="max-w-full text-sm break-words text-white/90">{hint}</p> : null}
+              </span>
+            </>
           )}
         </button>
         {previewUrl ? (
