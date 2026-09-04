@@ -36,7 +36,7 @@ describe("catchPhotoFilename", () => {
         caughtAt: "2024-06-12T13:40:00",
         photoPath: "abc.jpg",
       }),
-    ).toBe("catch-compass-redfish-2024-06-12.jpg");
+    ).toBe("tide-mark-redfish-2024-06-12.jpg");
   });
 
   it("joins two tagged species and maps jpeg to jpg", () => {
@@ -46,7 +46,7 @@ describe("catchPhotoFilename", () => {
         caughtAt: "2024-06-12T13:40:00.000Z",
         photoPath: "shot.JPEG",
       }),
-    ).toBe("catch-compass-speckled-trout-redfish-2024-06-12.jpg");
+    ).toBe("tide-mark-speckled-trout-redfish-2024-06-12.jpg");
   });
 });
 

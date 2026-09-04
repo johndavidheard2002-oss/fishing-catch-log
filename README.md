@@ -1,4 +1,4 @@
-# Catch Compass
+# Tide Mark
 
 **Saltwater Logbook.** Personal inshore and offshore fishing journal. Log a catch with a photo, remember the weather and spot, then look back and find days that felt like this one.
 
@@ -21,7 +21,7 @@ npm run build && npm start
 
 Phone: add to home screen from the browser. The app is a PWA (standalone display, service worker for the shell). A later Capacitor/React Native wrap can reuse the same mobile-first routes, including writing catch photos straight to the camera roll. In the browser, **Save to Photos** uses the share sheet or a download — iPhone may ask you to tap Save Image.
 
-**Find fishing photos in your library** ships with every Catch Compass journal — not a developer extra. Each angler chooses pictures from *their* phone and confirms each one onto *their* calendar. Species is tagged by hand. Only that person’s selected photos are processed. The browser cannot silently scan the whole camera roll; a later native wrap can offer a fuller scan on the same product path.
+**Find fishing photos in your library** ships with every Tide Mark journal — not a developer extra. Each angler chooses pictures from *their* phone and confirms each one onto *their* calendar. Species is tagged by hand. Only that person’s selected photos are processed. The browser cannot silently scan the whole camera roll; a later native wrap can offer a fuller scan on the same product path.
 
 ## Where API keys go
 

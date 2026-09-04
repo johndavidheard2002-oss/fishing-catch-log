@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { APP_SLUG } from "@/lib/brand";
 import {
   GETTING_LOCATION_LABEL,
   TURN_LOCATION_ON_LABEL,
@@ -142,7 +143,7 @@ export function PhotoCapture({
         {previewUrl ? (
           <SaveToPhotosButton
             src={previewUrl}
-            filename="catch-compass-photo.jpg"
+            filename={`${APP_SLUG}-photo.jpg`}
             variant="overlay"
           />
         ) : null}

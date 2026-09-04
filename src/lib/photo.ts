@@ -1,3 +1,4 @@
+import { APP_SLUG } from "./brand";
 import { tideWeatherBits } from "./tides/snapshot";
 import type { CatchRecord } from "./types";
 
@@ -46,7 +47,7 @@ function slugPart(value: string): string {
     .slice(0, 40);
 }
 
-/** Sensible camera-roll filename: catch-compass-{species}-{YYYY-MM-DD}.jpg */
+/** Sensible camera-roll filename: tide-mark-{species}-{YYYY-MM-DD}.jpg */
 export function catchPhotoFilename(args: {
   species?: string | string[] | null;
   caughtAt?: string | null;
@@ -60,7 +61,7 @@ export function catchPhotoFilename(args: {
   const speciesSlug = slugPart(names.slice(0, 2).join("-")) || "catch";
   const date = (args.caughtAt ?? "").slice(0, 10);
   const dateSlug = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "photo";
-  return `catch-compass-${speciesSlug}-${dateSlug}.${extensionFromPath(args.photoPath)}`;
+  return `${APP_SLUG}-${speciesSlug}-${dateSlug}.${extensionFromPath(args.photoPath)}`;
 }
 
 export function weatherLine(

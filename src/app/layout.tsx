@@ -26,6 +26,12 @@ export const metadata: Metadata = {
   title: { default: APP_DISPLAY_NAME, template: `%s · ${APP_DISPLAY_NAME}` },
   description: APP_TAGLINE,
   applicationName: APP_DISPLAY_NAME,
+  openGraph: {
+    title: APP_DISPLAY_NAME,
+    description: APP_TAGLINE,
+    siteName: APP_DISPLAY_NAME,
+    images: [{ url: PWA_ICON_512, width: 512, height: 512, alt: APP_DISPLAY_NAME }],
+  },
   appleWebApp: {
     capable: true,
     title: APP_DISPLAY_NAME,
@@ -45,6 +51,7 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-title": APP_DISPLAY_NAME,
   },
 };
 

@@ -81,10 +81,10 @@ body::after {
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.7), 0 6px 14px -10px rgb(10 90 140 / 0.55);
 }
 
-/* Empty take-a-photo well: Catch Compass speckled-trout + compass mark. */
+/* Empty take-a-photo well: Tide Mark copper fish-eye pin seal. */
 .photo-capture-brand {
-  background-color: #0a2c38;
-  background-image: url("/brand/catch-compass-logo.png");
+  background-color: #040a13;
+  background-image: url("/brand/tide-mark-logo.png");
   background-repeat: no-repeat;
   background-position: center 40%;
   background-size: min(68%, 15.5rem) auto;

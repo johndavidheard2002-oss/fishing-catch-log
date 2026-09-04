@@ -18,10 +18,11 @@ import {
 } from "@/lib/pwa";
 
 describe("PWA install metadata", () => {
-  it("uses standalone display and the existing Catch Compass icons", () => {
+  it("uses standalone display and the Tide Mark icons", () => {
     const web = manifest();
-    expect(web.name).toBe(APP_DISPLAY_NAME);
-    expect(web.short_name).toBe(APP_DISPLAY_NAME);
+    expect(APP_DISPLAY_NAME).toBe("Tide Mark");
+    expect(web.name).toBe("Tide Mark");
+    expect(web.short_name).toBe("Tide Mark");
     expect(web.display).toBe("standalone");
     expect(web.start_url).toBe("/");
     expect(web.scope).toBe("/");
@@ -29,10 +30,15 @@ describe("PWA install metadata", () => {
     expect(web.background_color).toBe(PWA_BACKGROUND_COLOR);
     expect(web.icons?.map((icon) => icon.src)).toEqual([PWA_ICON_192, PWA_ICON_512]);
     expect(PWA_APPLE_TOUCH_ICON).toBe("/apple-icon.png");
-    expect(APP_LOGO_SRC).toBe("/brand/catch-compass-logo.png");
+    expect(APP_LOGO_SRC).toBe("/brand/tide-mark-logo.png");
+    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    for (const rel of [APP_LOGO_SRC, PWA_ICON_192, PWA_ICON_512, PWA_APPLE_TOUCH_ICON]) {
+      const file = resolve(process.cwd(), "public", rel.slice(1));
+      expect(readFileSync(file).subarray(0, 8).equals(png)).toBe(true);
+    }
   });
 
-  it("lists iPhone splash images generated from the existing logo", () => {
+  it("lists iPhone splash images generated from the Tide Mark logo", () => {
     const images = appleStartupImageMetadata();
     expect(images.length).toBe(APPLE_STARTUP_IMAGES.length);
     expect(images[0]).toEqual({
@@ -57,15 +63,15 @@ describe("PWA cache rules", () => {
     expect(isPwaStaticAssetPath("/calendar")).toBe(false);
     expect(isPwaStaticAssetPath("/sw.js")).toBe(false);
     expect(isPwaStaticAssetPath("/_next/static/chunks/app.js")).toBe(true);
-    expect(isPwaStaticAssetPath("/brand/catch-compass-logo.png")).toBe(true);
+    expect(isPwaStaticAssetPath("/brand/tide-mark-logo.png")).toBe(true);
     expect(isPwaStaticAssetPath("/icon-192.png")).toBe(true);
   });
 
   it("keeps the service worker network-first for HTML and API", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(PWA_CACHE_NAME).toBe("catch-compass-static-v2");
+    expect(PWA_CACHE_NAME).toBe("tide-mark-static-v1");
     expect(sw).toContain(`"${PWA_CACHE_NAME}"`);
-    expect(sw).not.toContain("catch-compass-static-v1");
+    expect(sw).not.toContain("catch-compass-static");
     expect(sw).toContain("skipWaiting");
     expect(sw).toContain("clients.claim");
     expect(sw).toMatch(/caches\.delete/);
