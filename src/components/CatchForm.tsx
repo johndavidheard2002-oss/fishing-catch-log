@@ -19,16 +19,18 @@ import {
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
   formatCoords,
+  LOCATION_OFF_PIN_HINT,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
   refreshLiveLocationIfGranted,
   requestDeviceGps,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
+  resolveLiveCameraDeviceGps,
   writeSavedLiveLocation,
   type LiveLocationStatus,
 } from "@/lib/location";
-import { formPatchFromSuggestion, primarySpecies } from "@/lib/species";
+import { primarySpecies } from "@/lib/species";
 import {
   alignCountDrafts,
   countsFromDrafts,
@@ -44,7 +46,7 @@ import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } fr
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
 import { WIND_DIRECTIONS } from "@/lib/wind";
-import type { CatchRecord, Habitat, NamedArea, Season, SpeciesSuggestion, TimeOfDay } from "@/lib/types";
+import type { CatchRecord, Habitat, NamedArea, Season, TimeOfDay } from "@/lib/types";
 
 type FormState = {
   speciesList: string[];
@@ -249,8 +251,6 @@ export function CatchForm({
         : null,
   );
   const [busy, setBusy] = useState(false);
-  const [identifying, setIdentifying] = useState(false);
-  const formRef = useRef(form);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -273,7 +273,7 @@ export function CatchForm({
   const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>(() => {
     if (mode !== "create" || pastMode) return "unavailable";
     const saved = readSavedLiveLocationStatus();
-    if (saved === "ready") return "ready";
+    if (saved === "ready" || saved === "allowed") return "ready";
     if (saved === "unavailable") return "unavailable";
     return "prompt";
   });
@@ -282,10 +282,6 @@ export function CatchForm({
     () => {},
   );
   const useLiveGps = mode === "create" && !pastMode;
-
-  useEffect(() => {
-    formRef.current = form;
-  }, [form]);
 
   useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
@@ -298,9 +294,10 @@ export function CatchForm({
   useEffect(() => {
     if (!useLiveGps) return;
     const saved = readSavedLiveLocation();
+    const savedStatus = readSavedLiveLocationStatus();
     if (saved) rememberLiveGpsRef.current(saved);
     let cancelled = false;
-    const pending = refreshLiveLocationIfGranted();
+    const pending = refreshLiveLocationIfGranted({ savedStatus });
     liveGpsRequestRef.current = pending;
     void pending.then((gps) => {
       if (cancelled || !gps) return;
@@ -317,35 +314,6 @@ export function CatchForm({
     const src = photoSrc(importedPhotoPath);
     if (src) showPreview(src);
   }, [importedPhotoPath]);
-
-  useEffect(() => {
-    if (!importedPhotoPath || initial) return;
-    const src = photoSrc(importedPhotoPath);
-    if (!src) return;
-    let cancelled = false;
-    void (async () => {
-      await Promise.resolve();
-      if (cancelled) return;
-      setBusy(true);
-      try {
-        const res = await fetch(src);
-        if (!res.ok) return;
-        const blob = await res.blob();
-        const file = new File([blob], importedPhotoPath.replace(/^.*[\\/]/, ""), {
-          type: blob.type || "image/jpeg",
-        });
-        if (cancelled) return;
-        await identifyCatchPhoto(file);
-      } catch {
-        /* vision is optional — leave species blank */
-      } finally {
-        if (!cancelled) setBusy(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [importedPhotoPath, initial]);
 
   useEffect(() => {
     if (!focusLocation) return;
@@ -413,8 +381,8 @@ export function CatchForm({
   }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked]);
 
   function rememberLiveGps(gps: { latitude: number; longitude: number } | null) {
-    pendingLiveGpsRef.current = gps;
     if (gps) {
+      pendingLiveGpsRef.current = gps;
       locationStatusRef.current = "ready";
       setLocationStatus("ready");
       const next = resolveLiveCameraCatchPin({
@@ -431,31 +399,16 @@ export function CatchForm({
   }
   rememberLiveGpsRef.current = rememberLiveGps;
 
-  async function identifyCatchPhoto(file: File) {
-    setIdentifying(true);
-    try {
-      const current = formRef.current;
-      const fd = new FormData();
-      fd.set("photo", file);
-      fd.set("fileName", file.name);
-      if (current.habitat) fd.set("habitat", current.habitat);
-      if (current.latitude.trim()) fd.set("latitude", current.latitude);
-      if (current.longitude.trim()) fd.set("longitude", current.longitude);
-      if (current.placeName.trim()) fd.set("placeName", current.placeName);
-      const res = await fetch("/api/assist/vision", { method: "POST", body: fd });
-      const data = (await res.json()) as { suggestion?: SpeciesSuggestion };
-      if (!res.ok || !data.suggestion) return;
-      const next = formPatchFromSuggestion(data.suggestion);
-      setForm((f) => ({
-        ...f,
-        ...next,
-        speciesCountDrafts: alignCountDrafts(next.speciesList, f.speciesCountDrafts, f.fishCount),
-      }));
-    } catch {
-      /* leave species blank when vision fails */
-    } finally {
-      setIdentifying(false);
-    }
+  function startLiveGpsFromCameraTap() {
+    if (!useLiveGps) return;
+    if (readSavedLiveLocationStatus() === "unavailable") return;
+    const pending = requestDeviceGps();
+    liveGpsRequestRef.current = pending;
+    void pending.then((gps) => {
+      if (!gps) return;
+      writeSavedLiveLocation(gps);
+      rememberLiveGps(gps);
+    });
   }
 
   async function applyResolvedPin(next: {
@@ -533,13 +486,24 @@ export function CatchForm({
       pendingPhotoGpsRef.current = null;
     }
 
-    const identify = identifyCatchPhoto(nextFile);
-
     if (!pastMode && source === "camera") {
-      const deviceGps =
-        pendingLiveGpsRef.current ??
-        (liveGpsRequestRef.current ? await liveGpsRequestRef.current : null);
-      pendingLiveGpsRef.current = deviceGps;
+      const savedGps = pendingLiveGpsRef.current ?? readSavedLiveLocation();
+      const savedStatus = readSavedLiveLocationStatus();
+      const fromTap = liveGpsRequestRef.current ? await liveGpsRequestRef.current : null;
+      let deviceGps =
+        (await resolveLiveCameraDeviceGps({
+          savedGps: fromTap ?? savedGps,
+          savedStatus,
+        })) ??
+        fromTap ??
+        savedGps;
+      if (!deviceGps && savedStatus !== "unavailable") {
+        deviceGps = await requestDeviceGps();
+      }
+      if (deviceGps) {
+        pendingLiveGpsRef.current = deviceGps;
+        writeSavedLiveLocation(deviceGps);
+      }
       const next = resolveLiveCameraCatchPin({
         userMovedCatchPin: catchPinUserMovedRef.current,
         deviceGps,
@@ -551,11 +515,10 @@ export function CatchForm({
           "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
         );
       } else {
-        setPinHint("Location was off. Tap the map to pin this catch.");
+        setPinHint(LOCATION_OFF_PIN_HINT);
       }
     }
 
-    await identify;
     setBusy(false);
   }
 
@@ -611,12 +574,6 @@ export function CatchForm({
     savingRef.current = true;
     setSaving(true);
     setError(null);
-    if (!form.speciesList.length) {
-      savingRef.current = false;
-      setSaving(false);
-      setError("Add at least one species.");
-      return;
-    }
     try {
       let photoPath = initial?.photoPath ?? importedPhotoPath ?? null;
       if (photoFile) {
@@ -710,6 +667,7 @@ export function CatchForm({
         emphasis={pastMode ? "library" : "camera"}
         libraryOnly={pastMode}
         compactPreview={pastMode && Boolean(previewUrl)}
+        onLiveCamera={startLiveGpsFromCameraTap}
         locationReason={
           useLiveGps && locationStatus === "ready"
             ? "A live photo pins from the location you allowed at sign-in. You can still move the pin."
@@ -888,7 +846,6 @@ export function CatchForm({
         speciesList={form.speciesList}
         habitat={form.habitat}
         hideHints
-        identifying={identifying}
         onHabitat={(habitat) => {
           if (!tidesApplyToHabitat(habitat)) setTideLocked(false);
           patch(habitatPatch(habitat));
@@ -1204,7 +1161,7 @@ export function CatchForm({
 
       <button
         type="submit"
-        disabled={saving || busy || identifying}
+        disabled={saving || busy}
         className="rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
         {saving

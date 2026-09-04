@@ -12,6 +12,7 @@ import {
   matchCatalogSpecies,
   matchSaltwaterCatalogSpecies,
   normalizeSpeciesList,
+  primarySpecies,
   resolveSpeciesName,
   restrictSuggestionToSaltwater,
   SPECIES_AUTO_FILL_MIN,
@@ -43,6 +44,16 @@ describe("matchSaltwaterCatalogSpecies", () => {
     expect(matchSaltwaterCatalogSpecies("Bluegill")).toBeNull();
     expect(matchSaltwaterCatalogSpecies("walleye")).toBeNull();
     expect(matchSaltwaterCatalogSpecies("Unknown")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("blacktip shark")).toBe("Blacktip");
+    expect(matchSaltwaterCatalogSpecies("Bull shark")).toBe("Bull shark");
+  });
+});
+
+describe("primarySpecies", () => {
+  it("stores Unknown when they save without picking a species", () => {
+    expect(primarySpecies([])).toBe("Unknown");
+    expect(normalizeSpeciesList(null, [])).toEqual([]);
+    expect(normalizeSpeciesList("Unknown", [])).toEqual(["Unknown"]);
   });
 });
 

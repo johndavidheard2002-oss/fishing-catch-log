@@ -3,8 +3,10 @@ import {
   DEFAULT_HABITAT,
   inferHabitat,
   isSaltwaterCatalogSpecies,
+  isSharkCatalogSpecies,
   matchesHabitatFilters,
   saltwaterSpecies,
+  sharkSpecies,
   speciesForHabitat,
   waterTypeOf,
 } from "./habitat";
@@ -52,8 +54,20 @@ describe("speciesForHabitat", () => {
     expect(fresh).not.toContain("Redfish");
     expect(inshore).toContain("Snook");
     expect(inshore).not.toContain("Mahi-mahi");
+    expect(inshore).not.toContain("Blacktip");
     expect(offshore).toContain("Mahi-mahi");
     expect(offshore).not.toContain("Bluegill");
+    expect(offshore).not.toContain("Tiger shark");
+  });
+});
+
+describe("sharkSpecies", () => {
+  it("lists the Shark tab chips and keeps them saltwater", () => {
+    expect(sharkSpecies()).toEqual(["Blacktip", "Bull shark", "Hammerhead", "Tiger shark"]);
+    expect(isSharkCatalogSpecies("Bull shark")).toBe(true);
+    expect(isSharkCatalogSpecies("Redfish")).toBe(false);
+    expect(isSaltwaterCatalogSpecies("Blacktip")).toBe(true);
+    expect(isSaltwaterCatalogSpecies("Hammerhead")).toBe(true);
   });
 });
 

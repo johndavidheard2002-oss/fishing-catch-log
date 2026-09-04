@@ -7,6 +7,7 @@ import {
   coordsLookDifferent,
   clearSavedLiveLocation,
   liveLocationPromptCopy,
+  LOCATION_OFF_PIN_HINT,
   queryGeolocationPermission,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
@@ -15,9 +16,11 @@ import {
   requestLiveLocationFromGesture,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
+  resolveLiveCameraDeviceGps,
   shouldApplyPhotoGpsToCatch,
   shouldAutoPlaceCatchPin,
   writeSavedLiveLocation,
+  writeSavedLiveLocationAllowed,
 } from "./location";
 
 describe("shouldApplyPhotoGpsToCatch", () => {
@@ -139,9 +142,33 @@ describe("refreshLiveLocationIfGranted", () => {
       refreshLiveLocationIfGranted({
         geolocation: { getCurrentPosition },
         permissions: null,
+        savedStatus: null,
       }),
     ).resolves.toBeNull();
     expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+
+  it("refreshes GPS after sign-in Allow even when iPhone cannot report granted", async () => {
+    const getCurrentPosition = vi.fn(
+      (success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
+      },
+    );
+    await expect(
+      refreshLiveLocationIfGranted({
+        geolocation: { getCurrentPosition },
+        permissions: { query: async () => ({ state: "prompt" }) },
+        savedStatus: "allowed",
+      }),
+    ).resolves.toEqual({ latitude: 29.15, longitude: -96.88 });
+    await expect(
+      refreshLiveLocationIfGranted({
+        geolocation: { getCurrentPosition },
+        permissions: null,
+        savedStatus: "ready",
+      }),
+    ).resolves.toEqual({ latitude: 29.15, longitude: -96.88 });
+    expect(getCurrentPosition).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -162,9 +189,14 @@ describe("saved live location", () => {
 
     expect(readSavedLiveLocation(storage)).toBeNull();
     expect(readSavedLiveLocationStatus(storage)).toBeNull();
+    writeSavedLiveLocationAllowed(storage);
+    expect(readSavedLiveLocation(storage)).toBeNull();
+    expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
     writeSavedLiveLocation({ latitude: 29.15, longitude: -96.88 }, storage);
     expect(readSavedLiveLocation(storage)).toEqual({ latitude: 29.15, longitude: -96.88 });
     expect(readSavedLiveLocationStatus(storage)).toBe("ready");
+    writeSavedLiveLocationAllowed(storage);
+    expect(readSavedLiveLocation(storage)).toEqual({ latitude: 29.15, longitude: -96.88 });
     writeSavedLiveLocation(null, storage);
     expect(readSavedLiveLocation(storage)).toBeNull();
     expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
@@ -211,6 +243,85 @@ describe("resolveLiveCameraCatchPin", () => {
 
   it("does not overwrite a pin the angler already moved", () => {
     expect(resolveLiveCameraCatchPin({ userMovedCatchPin: true, deviceGps })).toBeNull();
+  });
+});
+
+describe("resolveLiveCameraDeviceGps", () => {
+  const savedGps = { latitude: 29.15, longitude: -96.88 };
+
+  it("uses current GPS when they already allowed location", async () => {
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+      ) {
+        success({ coords: { latitude: 28.4, longitude: -96.4 } });
+      },
+    };
+    await expect(
+      resolveLiveCameraDeviceGps({
+        savedGps,
+        savedStatus: "ready",
+        geolocation: geo,
+        permissions: { query: async () => ({ state: "prompt" }) },
+      }),
+    ).resolves.toEqual({ latitude: 28.4, longitude: -96.4 });
+  });
+
+  it("falls back to the saved sign-in pin when current GPS is missing", async () => {
+    const geo = {
+      getCurrentPosition(
+        _success: (position: { coords: { latitude: number; longitude: number } }) => void,
+        error?: () => void,
+      ) {
+        error?.();
+      },
+    };
+    await expect(
+      resolveLiveCameraDeviceGps({
+        savedGps,
+        savedStatus: "allowed",
+        geolocation: geo,
+        permissions: null,
+      }),
+    ).resolves.toEqual(savedGps);
+  });
+
+  it("uses a saved pin even when the phone cannot report permission", async () => {
+    const geo = {
+      getCurrentPosition(
+        _success: (position: { coords: { latitude: number; longitude: number } }) => void,
+        error?: () => void,
+      ) {
+        error?.();
+      },
+    };
+    await expect(
+      resolveLiveCameraDeviceGps({
+        savedGps,
+        savedStatus: null,
+        geolocation: geo,
+        permissions: null,
+      }),
+    ).resolves.toEqual(savedGps);
+  });
+
+  it("does not treat a skipped Allow as a live pin", async () => {
+    const getCurrentPosition = vi.fn();
+    await expect(
+      resolveLiveCameraDeviceGps({
+        savedGps: null,
+        savedStatus: "unavailable",
+        geolocation: { getCurrentPosition },
+        permissions: { query: async () => ({ state: "denied" }) },
+      }),
+    ).resolves.toBeNull();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+  });
+});
+
+describe("LOCATION_OFF_PIN_HINT", () => {
+  it("keeps the tap-the-map banner when a live pin could not be placed", () => {
+    expect(LOCATION_OFF_PIN_HINT).toBe("Location was off. Tap the map to pin this catch.");
   });
 });
 

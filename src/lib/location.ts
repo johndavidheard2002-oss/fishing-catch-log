@@ -17,6 +17,11 @@ export const LIVE_LOCATION_STORAGE_KEY = "cast-log-live-gps";
 
 export type LiveLocationStatus = "prompt" | "asking" | "ready" | "unavailable";
 
+/** Persisted after the Allow location tap, even before GPS coords arrive. */
+export type SavedLiveLocationStatus = "ready" | "allowed" | "unavailable";
+
+export const LOCATION_OFF_PIN_HINT = "Location was off. Tap the map to pin this catch.";
+
 export const ALLOW_LOCATION_LABEL = "Allow location";
 export const SKIP_LOCATION_LABEL = "Not now";
 
@@ -101,28 +106,39 @@ export async function queryGeolocationPermission(
 }
 
 /**
- * Refresh GPS only when the phone already allowed it (no iPhone dialog).
+ * Refresh GPS only when location was already allowed (no iPhone dialog).
+ * iPhone often cannot report "granted" — a saved Allow from sign-in is enough.
  * Do not call this to ask for permission — that tap belongs on sign-in.
  */
 export async function refreshLiveLocationIfGranted(args?: {
   geolocation?: DeviceGeolocation | null;
   permissions?: DevicePermissions | null;
+  savedStatus?: SavedLiveLocationStatus | null;
 }): Promise<PhotoGps | null> {
   const state = await queryGeolocationPermission(args?.permissions);
-  if (state !== "granted") return null;
+  if (state === "denied") return null;
+  const saved = args?.savedStatus ?? readSavedLiveLocationStatus();
+  if (state !== "granted" && saved !== "ready" && saved !== "allowed") return null;
   return requestDeviceGps(args?.geolocation);
 }
 
-function sessionStore(): Storage | null {
+function liveLocationStores(): Storage[] {
+  const stores: Storage[] = [];
   try {
-    return typeof sessionStorage === "undefined" ? null : sessionStorage;
+    if (typeof localStorage !== "undefined") stores.push(localStorage);
   } catch {
-    return null;
+    /* private mode */
   }
+  try {
+    if (typeof sessionStorage !== "undefined") stores.push(sessionStorage);
+  } catch {
+    /* private mode */
+  }
+  return stores;
 }
 
 export function readSavedLiveLocation(
-  storage: Storage | null | undefined = sessionStore(),
+  storage?: Storage | null,
 ): PhotoGps | null {
   const parsed = readSavedLiveLocationRecord(storage);
   if (parsed?.status !== "ready") return null;
@@ -130,18 +146,18 @@ export function readSavedLiveLocation(
 }
 
 export function readSavedLiveLocationStatus(
-  storage: Storage | null | undefined = sessionStore(),
-): "ready" | "unavailable" | null {
+  storage?: Storage | null,
+): SavedLiveLocationStatus | null {
   return readSavedLiveLocationRecord(storage)?.status ?? null;
 }
 
-function readSavedLiveLocationRecord(
-  storage: Storage | null | undefined,
+function parseLiveLocationRecord(
+  storage: Storage,
 ):
   | { status: "ready"; latitude: number; longitude: number }
+  | { status: "allowed" }
   | { status: "unavailable" }
   | null {
-  if (!storage) return null;
   try {
     const raw = storage.getItem(LIVE_LOCATION_STORAGE_KEY);
     if (!raw) return null;
@@ -151,6 +167,7 @@ function readSavedLiveLocationRecord(
       longitude?: number;
     };
     if (parsed.status === "unavailable") return { status: "unavailable" };
+    if (parsed.status === "allowed") return { status: "allowed" };
     if (
       parsed.status === "ready" &&
       typeof parsed.latitude === "number" &&
@@ -166,26 +183,90 @@ function readSavedLiveLocationRecord(
   }
 }
 
-/** Persist the sign-in GPS so later Camera taps can pin without asking again. */
-export function writeSavedLiveLocation(
-  gps: PhotoGps | null,
-  storage: Storage | null | undefined = sessionStore(),
+function readSavedLiveLocationRecord(
+  storage?: Storage | null,
+):
+  | { status: "ready"; latitude: number; longitude: number }
+  | { status: "allowed" }
+  | { status: "unavailable" }
+  | null {
+  if (storage === null) return null;
+  if (storage) return parseLiveLocationRecord(storage);
+  for (const store of liveLocationStores()) {
+    const parsed = parseLiveLocationRecord(store);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function writeLiveLocationRecord(
+  value: string,
+  storage?: Storage | null,
 ): void {
-  if (!storage) return;
-  if (gps) {
-    storage.setItem(
-      LIVE_LOCATION_STORAGE_KEY,
-      JSON.stringify({ status: "ready", latitude: gps.latitude, longitude: gps.longitude }),
-    );
-  } else {
-    storage.setItem(LIVE_LOCATION_STORAGE_KEY, JSON.stringify({ status: "unavailable" }));
+  if (storage === null) return;
+  const targets = storage ? [storage] : liveLocationStores();
+  for (const store of targets) {
+    store.setItem(LIVE_LOCATION_STORAGE_KEY, value);
   }
 }
 
-export function clearSavedLiveLocation(
-  storage: Storage | null | undefined = sessionStore(),
+/** Persist the sign-in GPS so later Camera taps can pin without asking again. */
+export function writeSavedLiveLocation(
+  gps: PhotoGps | null,
+  storage?: Storage | null,
 ): void {
-  storage?.removeItem(LIVE_LOCATION_STORAGE_KEY);
+  if (gps) {
+    writeLiveLocationRecord(
+      JSON.stringify({ status: "ready", latitude: gps.latitude, longitude: gps.longitude }),
+      storage,
+    );
+    return;
+  }
+  writeLiveLocationRecord(JSON.stringify({ status: "unavailable" }), storage);
+}
+
+/**
+ * They tapped Allow. Keep that even if this GPS reading times out so a later
+ * Camera tap can still request current GPS and drop the pin.
+ */
+export function writeSavedLiveLocationAllowed(storage?: Storage | null): void {
+  if (readSavedLiveLocation(storage)) return;
+  writeLiveLocationRecord(JSON.stringify({ status: "allowed" }), storage);
+}
+
+export function clearSavedLiveLocation(storage?: Storage | null): void {
+  if (storage === null) return;
+  const targets = storage ? [storage] : liveLocationStores();
+  for (const store of targets) {
+    store.removeItem(LIVE_LOCATION_STORAGE_KEY);
+  }
+}
+
+export function liveLocationWasAllowed(
+  savedStatus: SavedLiveLocationStatus | null | undefined,
+  permission: GeolocationPermissionState = "unknown",
+): boolean {
+  if (savedStatus === "ready" || savedStatus === "allowed") return true;
+  return permission === "granted";
+}
+
+/**
+ * Live Camera: current GPS if the phone will share it, else the saved sign-in pin.
+ * Skipped / denied location with no saved pin returns null so the existing
+ * tap-the-map banner can still show.
+ */
+export async function resolveLiveCameraDeviceGps(args: {
+  savedGps: PhotoGps | null;
+  savedStatus: SavedLiveLocationStatus | null;
+  geolocation?: DeviceGeolocation | null;
+  permissions?: DevicePermissions | null;
+}): Promise<PhotoGps | null> {
+  const permission = await queryGeolocationPermission(args.permissions);
+  const canUsePhone =
+    liveLocationWasAllowed(args.savedStatus, permission) || Boolean(args.savedGps);
+  if (!canUsePhone) return args.savedGps;
+  const current = await requestDeviceGps(args.geolocation);
+  return current ?? args.savedGps;
 }
 
 /**

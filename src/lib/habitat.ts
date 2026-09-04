@@ -86,7 +86,14 @@ export const SPECIES_CATALOG: SpeciesEntry[] = [
   { name: "Swordfish", habitat: "saltwater-offshore" },
   { name: "Triggerfish", habitat: "saltwater-offshore" },
   { name: "Barracuda", habitat: "saltwater-offshore" },
+  { name: "Blacktip", habitat: "saltwater-inshore" },
+  { name: "Bull shark", habitat: "saltwater-inshore" },
+  { name: "Hammerhead", habitat: "saltwater-offshore" },
+  { name: "Tiger shark", habitat: "saltwater-offshore" },
 ];
+
+/** Picker chips on the Shark tab. Typed names still use Add other. */
+export const SHARK_SPECIES = ["Blacktip", "Bull shark", "Hammerhead", "Tiger shark"] as const;
 
 export const COMMON_SPECIES = [
   ...SPECIES_CATALOG.map((s) => s.name),
@@ -130,8 +137,19 @@ export function habitatLabel(habitat: Habitat): string {
   return `Saltwater · ${HABITAT_LABELS[habitat]}`;
 }
 
+export function isSharkCatalogSpecies(name: string): boolean {
+  const key = name.trim().toLowerCase();
+  return SHARK_SPECIES.some((s) => s.toLowerCase() === key);
+}
+
+export function sharkSpecies(): string[] {
+  return [...SHARK_SPECIES];
+}
+
 export function speciesForHabitat(habitat: Habitat): string[] {
-  return SPECIES_CATALOG.filter((s) => s.habitat === habitat).map((s) => s.name);
+  return SPECIES_CATALOG.filter(
+    (s) => s.habitat === habitat && !isSharkCatalogSpecies(s.name),
+  ).map((s) => s.name);
 }
 
 export function catalogHabitat(species: string): Habitat | null {
@@ -158,6 +176,8 @@ const OFFSHORE_HINTS = [
   "tilefish",
   "triggerfish",
   "barracuda",
+  "tiger shark",
+  "hammerhead",
   "offshore",
 ];
 
@@ -184,6 +204,8 @@ const INSHORE_HINTS = [
   "whiting",
   "inshore",
   "red snapper",
+  "blacktip",
+  "bull shark",
 ];
 
 const FRESH_HINTS = [

@@ -5,14 +5,22 @@ import {
   HABITAT_LABELS,
   catalogHabitat,
   isSaltwaterCatalogSpecies,
+  isSharkCatalogSpecies,
+  sharkSpecies,
   speciesForHabitat,
   type Habitat,
 } from "@/lib/habitat";
 import { matchSaltwaterCatalogSpecies, normalizeSpeciesList } from "@/lib/species";
 
-const SALT_OPTIONS: Habitat[] = ["saltwater-inshore", "saltwater-offshore"];
+type PickerGroup = "saltwater-inshore" | "saltwater-offshore" | "shark";
 
-function pickerHabitat(habitat: Habitat): Habitat {
+const PICKER_GROUPS: { id: PickerGroup; label: string }[] = [
+  { id: "saltwater-inshore", label: HABITAT_LABELS["saltwater-inshore"] },
+  { id: "saltwater-offshore", label: HABITAT_LABELS["saltwater-offshore"] },
+  { id: "shark", label: "Shark" },
+];
+
+function initialGroup(habitat: Habitat): PickerGroup {
   return habitat === "saltwater-offshore" ? "saltwater-offshore" : "saltwater-inshore";
 }
 
@@ -22,26 +30,24 @@ export function SpeciesPicker({
   onChange,
   onHabitat,
   hideHints = false,
-  identifying = false,
 }: {
   speciesList: string[];
   habitat: Habitat;
   onChange: (speciesList: string[], habitat: Habitat) => void;
   onHabitat: (habitat: Habitat) => void;
   hideHints?: boolean;
-  identifying?: boolean;
 }) {
-  const selected = normalizeSpeciesList(null, speciesList);
-  const filled = selected.find((name) => name.toLowerCase() !== "unknown") ?? "";
-  const [editing, setEditing] = useState(false);
+  const selected = normalizeSpeciesList(null, speciesList).filter(
+    (name) => name.toLowerCase() !== "unknown",
+  );
   const [query, setQuery] = useState("");
-  const listHabitat = pickerHabitat(habitat);
-  const catalog = speciesForHabitat(listHabitat);
+  const [group, setGroup] = useState<PickerGroup>(() => initialGroup(habitat));
+  const catalog = group === "shark" ? sharkSpecies() : speciesForHabitat(group);
   const q = query.trim().toLowerCase();
   const filtered = q ? catalog.filter((name) => name.toLowerCase().includes(q)) : catalog;
-  const saltSelected = habitat === "saltwater-offshore" || habitat === "saltwater-inshore";
 
   function nextHabitatFor(name: string): Habitat {
+    if (isSharkCatalogSpecies(name) || /shark/i.test(name)) return habitat;
     const inferred = catalogHabitat(name);
     return inferred && inferred !== "freshwater" ? inferred : habitat;
   }
@@ -60,7 +66,6 @@ export function SpeciesPicker({
     }
     if (selected.length <= 1) {
       onChange([mapped], nextHabitatFor(mapped));
-      setEditing(false);
       setQuery("");
       return;
     }
@@ -87,61 +92,32 @@ export function SpeciesPicker({
     );
   }
 
-  if (!editing) {
-    return (
-      <div className="space-y-1.5">
-        <p className="on-wash-chip w-fit text-sm font-semibold">Species</p>
-        <button
-          type="button"
-          data-testid="species-field"
-          disabled={identifying}
-          onClick={() => setEditing(true)}
-          className={`w-full rounded-xl border px-3 py-3 text-left text-base font-semibold disabled:opacity-70 ${
-            filled ? "border-teal bg-card text-ink" : "border-line bg-card text-ink-muted"
-          }`}
-        >
-          {identifying ? "Identifying…" : filled || "Unknown"}
-        </button>
-        <p className="on-wash-chip text-xs">
-          {identifying
-            ? "Reading the photo…"
-            : filled
-              ? "Tap the name only if it's wrong."
-              : "Tap to pick or type a saltwater species."}
-        </p>
-      </div>
-    );
+  function pickGroup(id: PickerGroup) {
+    setGroup(id);
+    if (id !== "shark") onHabitat(id);
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <p className="on-wash-chip w-fit text-sm font-semibold">Species</p>
-        <button
-          type="button"
-          data-testid="species-done"
-          onClick={() => setEditing(false)}
-          className="text-sm font-semibold text-teal"
-        >
-          Done
-        </button>
-      </div>
-
       <div>
         <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Water</p>
-        <div className="grid grid-cols-2 gap-2">
-          {SALT_OPTIONS.map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => onHabitat(id)}
-              className={`rounded-xl px-3 py-2.5 text-sm font-semibold ${
-                saltSelected && habitat === id ? "bg-teal text-white" : "border border-line bg-card"
-              }`}
-            >
-              {HABITAT_LABELS[id]}
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-2">
+          {PICKER_GROUPS.map((option) => {
+            const on = group === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                data-testid={`species-group-${option.id}`}
+                onClick={() => pickGroup(option.id)}
+                className={`rounded-xl px-2 py-2.5 text-sm font-semibold ${
+                  on ? "bg-teal text-white" : "border border-line bg-card"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
         </div>
         {hideHints || habitat !== "freshwater" ? null : (
           <p className="on-wash-chip mt-1.5 text-xs">
@@ -151,6 +127,12 @@ export function SpeciesPicker({
       </div>
 
       <div>
+        <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">Species in this photo</p>
+        {hideHints ? null : (
+          <p className="on-wash-chip mb-2 text-xs">
+            Optional — tap chips or type a name. You can save now and add the species later.
+          </p>
+        )}
         {selected.length ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {selected.map((name) => (
@@ -164,9 +146,7 @@ export function SpeciesPicker({
               </button>
             ))}
           </div>
-        ) : hideHints ? null : (
-          <p className="on-wash-chip mb-2 text-xs text-copper">Add at least one species before you save.</p>
-        )}
+        ) : null}
         <div className="flex gap-2">
           <input
             value={query}
@@ -177,7 +157,11 @@ export function SpeciesPicker({
                 addTyped();
               }
             }}
-            placeholder={`Search ${HABITAT_LABELS[listHabitat].toLowerCase()} or type a name`}
+            placeholder={
+              group === "shark"
+                ? "Search sharks or type a name"
+                : `Search ${HABITAT_LABELS[group].toLowerCase()} or type a name`
+            }
             className="w-full rounded-xl border border-line bg-card px-3 py-3"
           />
           <button
@@ -185,7 +169,7 @@ export function SpeciesPicker({
             onClick={addTyped}
             className="shrink-0 rounded-xl border border-line px-3 text-sm font-semibold text-teal"
           >
-            Add
+            Add other
           </button>
         </div>
       </div>
@@ -197,8 +181,7 @@ export function SpeciesPicker({
         {filtered.length === 0 ? (
           hideHints ? null : (
             <p className="px-1 py-2 text-xs text-ink-muted">
-              No catalog match — type the name and tap Add. Habitat stays{" "}
-              {HABITAT_LABELS[listHabitat].toLowerCase()}.
+              No catalog match — type the name and tap Add other.
             </p>
           )
         ) : (
@@ -219,6 +202,12 @@ export function SpeciesPicker({
           })
         )}
       </div>
+      {hideHints ? null : (
+        <p className="on-wash-chip text-xs">
+          Inshore, offshore, or shark so the list stays short. One picture can hold more than one
+          species.
+        </p>
+      )}
     </div>
   );
 }
