@@ -3,9 +3,12 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { HistoryClient } from "@/components/HistoryClient";
 import { JournalUnavailable } from "@/components/JournalUnavailable";
+import { Paywall } from "@/components/Paywall";
 import { listCatches } from "@/lib/db/catches";
 import { listBaitSpots } from "@/lib/db/bait";
+import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { listCalendarNotes } from "@/lib/db/notes";
+import { journalUnlocked } from "@/lib/entitlement";
 import { redirect } from "next/navigation";
 import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerFromCookies } from "@/lib/viewer";
 
@@ -26,6 +29,10 @@ export default async function CalendarLogPage() {
     );
     if (!viewer.signedIn || !viewer.id) redirect("/signin");
     viewerId = viewer.id;
+    const entitlement = await getEntitlementForAngler(viewerId);
+    if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
+      return <Paywall entitlement={entitlement} />;
+    }
     initialCatches = await listCatches({ viewerId, includeShared: false });
     initialBaitSpots = await listBaitSpots({ viewerId, includeShared: false });
     initialNotes = await listCalendarNotes(viewerId);

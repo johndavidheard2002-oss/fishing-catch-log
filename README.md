@@ -36,6 +36,9 @@ Copy `.env.example` to `.env.local` in the project root:
 | `DATABASE_PATH` | Optional SQLite file path | `./data/cast-log.sqlite` |
 | `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` | Optional Turso/LibSQL remote journal | Local file SQLite |
 | `UPLOADS_DIR` | Optional photo directory | `./data/uploads` |
+| `TIDEMARK_TRIAL_DAYS` | Optional trial length in days (default 30). Fractions are allowed for QA. | 30-day free month |
+| `TIDEMARK_FORCE_ENTITLEMENT` | Optional QA override: `trial`, `active`, or `expired` for every signed-in journal | Real trial clock |
+| `TIDEMARK_QA_SECRET` | Optional. Enables `POST /api/entitlement/qa` for one signed-in journal | Route returns 404 |
 
 Place names use OpenStreetMap Nominatim (no key). GPS comes from the browser, or from photo EXIF if you upload from the camera roll.
 

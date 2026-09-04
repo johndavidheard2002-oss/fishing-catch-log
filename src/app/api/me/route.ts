@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAngler, renameAngler } from "@/lib/db/anglers";
+import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { clearAuthCookies, jsonWithViewer, requireViewerId, signInRequired, viewerFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -14,11 +15,13 @@ export async function GET(request: NextRequest) {
         profiles: [],
         signedIn: false,
         claimable: false,
+        entitlement: null,
       }),
     );
   }
   const me = await getAngler(viewerId, { includeEmail: true });
-  return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true }, viewerId, undefined, true);
+  const entitlement = await getEntitlementForAngler(viewerId);
+  return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true, entitlement }, viewerId, undefined, true);
 }
 
 export async function PATCH(request: NextRequest) {
@@ -30,8 +33,10 @@ export async function PATCH(request: NextRequest) {
   }
   if (body.name != null) {
     const me = await renameAngler(viewerId, body.name);
-    return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true }, viewerId, undefined, true);
+    const entitlement = await getEntitlementForAngler(viewerId);
+    return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true, entitlement }, viewerId, undefined, true);
   }
   const me = await getAngler(viewerId, { includeEmail: true });
-  return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true }, viewerId, undefined, true);
+  const entitlement = await getEntitlementForAngler(viewerId);
+  return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true, entitlement }, viewerId, undefined, true);
 }

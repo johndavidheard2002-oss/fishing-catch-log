@@ -407,7 +407,9 @@ main .home-lockup .text-teal {
 
 /* Home “Plan a day”: opaque fill + dark teal type, not a washed cream ghost. */
 a.home-plan-cta,
-main a.home-plan-cta {
+button.home-plan-cta,
+main a.home-plan-cta,
+main button.home-plan-cta {
   background: #f7fcff;
   border: 2px solid var(--teal);
   color: var(--teal);
@@ -479,6 +481,51 @@ main a.home-plan-cta {
   box-shadow:
     0 0 0 2px #fff,
     0 1px 0 rgb(255 255 255 / 0.35) inset;
+}
+
+.bottom-nav button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+
+.bottom-nav button.nav-idle {
+  color: #f4fbff;
+}
+
+.bottom-nav button.nav-idle .nav-icon {
+  background: transparent;
+  color: #f4fbff;
+}
+
+.bottom-nav button.nav-primary .nav-icon {
+  border-radius: 999px;
+  background: var(--copper);
+  color: #fff;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 1px 0 rgb(255 255 255 / 0.35) inset;
+}
+
+.bottom-nav .nav-locked {
+  opacity: 0.78;
+}
+
+.bottom-nav .nav-lock-badge {
+  position: absolute;
+  right: -0.15rem;
+  bottom: -0.15rem;
+  display: flex;
+  height: 1rem;
+  width: 1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--copper);
+  color: #fff;
+  box-shadow: 0 0 0 1.5px #fff;
 }
 
 .tab-swipe-pane {

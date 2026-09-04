@@ -7,6 +7,7 @@ import {
   setAnglerCredentials,
   type AnglerRecord,
 } from "./db/anglers";
+import { ensureTrialStarted } from "./db/entitlement";
 import { SESSION_COOKIE } from "./viewer-cookie";
 import { SESSION_COOKIE_OPTS, readSession, sessionSecret, signSession } from "./session-token";
 
@@ -96,6 +97,7 @@ export async function registerJournal(args: {
     passwordHash: hash,
   });
   if (!saved) return { ok: false, error: "Could not save this journal.", status: 500 };
+  await ensureTrialStarted(saved.id);
   return { ok: true, angler: saved };
 }
 
@@ -116,6 +118,7 @@ export async function loginJournal(args: {
     return { ok: false, error: AUTH_WRONG, status: 401 };
   }
   clearLoginAttempts(args.ip, email);
+  await ensureTrialStarted(angler.id);
   return { ok: true, angler };
 }
 

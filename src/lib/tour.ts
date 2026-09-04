@@ -45,7 +45,7 @@ export const TOUR_SCREENS: TourScreen[] = [
   {
     id: "more",
     title: "Old photos and friends",
-    body: "Backfill adds past catches from photos you already have. To share a spot, link a friend under More, then tap Share on that catch. Linking shares nothing until you do.",
+    body: "Backfill adds past catches from photos you already have. First month is free, then $39.99/year. Link a friend under More, then tap Share on that catch.",
   },
 ];
 

@@ -15,7 +15,7 @@ export function SignInClient({ nextPath = "/" }: { nextPath?: string }) {
         <p className="text-sm text-ink">
           {phase === "location"
             ? "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin."
-            : "Sign in or create an account to open your journal."}
+            : "Sign in or create an account to open your journal. First month free, then $39.99/year."}
         </p>
       </section>
       <AuthForm defaultMode="signin" nextPath={nextPath} onPhaseChange={setPhase} />

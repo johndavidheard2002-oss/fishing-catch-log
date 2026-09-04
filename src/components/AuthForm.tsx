@@ -17,6 +17,7 @@ import {
   type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
+import { TRIAL_OFFER_LINE } from "@/lib/entitlement";
 import { AUTH_PRIVACY_LINE, PRIVACY_PATH } from "@/lib/privacy";
 import { notifyAuthChange } from "@/lib/tour";
 
@@ -173,6 +174,11 @@ export function AuthForm({
       </div>
       <h2 className="font-display text-2xl text-teal">{mode === "create" ? "Create your journal" : "Sign in"}</h2>
       <p className="text-sm text-ink-muted">{AUTH_PRIVACY_LINE}</p>
+      {mode === "create" ? (
+        <p className="text-sm font-semibold text-ink" data-testid="auth-trial-offer">
+          {TRIAL_OFFER_LINE}
+        </p>
+      ) : null}
       <form onSubmit={(event) => void submit(event)} className="space-y-3">
         {mode === "create" ? (
           <label className="block text-sm">

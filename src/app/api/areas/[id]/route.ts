@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { deleteNamedArea, getNamedArea, updateNamedArea } from "@/lib/db/areas";
 import { parseNamedAreaInput } from "@/lib/areas";
-import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
+import { requireUnlockedViewer } from "@/lib/journal-access";
+import { jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +10,9 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
-  const viewerId = await requireViewerId(request);
-  if (!viewerId) return signInRequired();
+  const access = await requireUnlockedViewer(request);
+  if (!access.ok) return access.response;
+  const { viewerId } = access;
   const { id } = await ctx.params;
   const existing = await getNamedArea(id);
   if (!existing || existing.anglerId !== viewerId) {
@@ -29,8 +31,9 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(request: NextRequest, ctx: Ctx) {
-  const viewerId = await requireViewerId(request);
-  if (!viewerId) return signInRequired();
+  const access = await requireUnlockedViewer(request);
+  if (!access.ok) return access.response;
+  const { viewerId } = access;
   const { id } = await ctx.params;
   const ok = await deleteNamedArea(id, viewerId);
   if (!ok) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });
