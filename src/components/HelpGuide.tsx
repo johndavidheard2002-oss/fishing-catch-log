@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   HELP_OPEN_EVENT,
@@ -8,8 +9,9 @@ import {
   markHelpTipSeen,
   subscribeHelpTip,
 } from "@/lib/help";
-import { AUTH_CHANGE_EVENT, openTour, subscribeTour, tourSeen } from "@/lib/tour";
 import { APP_DISPLAY_NAME } from "@/lib/brand";
+import { PRIVACY_PATH } from "@/lib/privacy";
+import { AUTH_CHANGE_EVENT, openTour, subscribeTour, tourSeen } from "@/lib/tour";
 
 export function HelpButton() {
   return (
@@ -88,6 +90,20 @@ export function HelpGuide() {
               </ol>
             </section>
           ))}
+          <div className="rounded-2xl border border-line bg-card px-3 py-3">
+            <p className="font-semibold text-ink">Privacy</p>
+            <p className="mt-0.5 text-sm text-ink-muted">
+              Account email, catch photos, location pins, friend sharing, and how to delete your journal.
+            </p>
+            <Link
+              href={PRIVACY_PATH}
+              data-testid="help-privacy"
+              onClick={() => setOpen(false)}
+              className="mt-2 inline-block text-sm font-semibold text-teal underline"
+            >
+              Open the privacy policy
+            </Link>
+          </div>
           <div className="rounded-2xl border border-line bg-card px-3 py-3">
             <p className="font-semibold text-ink">How this works</p>
             <p className="mt-0.5 text-sm text-ink-muted">

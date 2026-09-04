@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { LiveLocationPrompt } from "@/components/LiveLocationPrompt";
@@ -16,7 +17,7 @@ import {
   type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
-import { AUTH_PRIVACY_LINE } from "@/lib/privacy";
+import { AUTH_PRIVACY_LINE, PRIVACY_PATH } from "@/lib/privacy";
 import { notifyAuthChange } from "@/lib/tour";
 
 export function AuthForm({
@@ -230,6 +231,11 @@ export function AuthForm({
           {busy ? "Working…" : mode === "create" ? "Create account" : "Sign in"}
         </button>
       </form>
+      <p className="text-center text-xs text-ink-muted">
+        <Link href={PRIVACY_PATH} data-testid="signin-privacy" className="font-semibold text-teal underline">
+          Privacy
+        </Link>
+      </p>
     </section>
   );
 }

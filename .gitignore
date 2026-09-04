@@ -42,3 +42,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Capacitor / Xcode (created on a Mac)
+/ios/App/Pods
+/ios/App/build
+/ios/DerivedData
+/ios/App/App.xcworkspace/xcuserdata
+/ios/App/App.xcodeproj/xcuserdata
+*.xcuserstate
+/android/.gradle
+/android/app/build

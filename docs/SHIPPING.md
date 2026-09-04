@@ -117,4 +117,4 @@ Already wired. `AppShell` registers `/sw.js`. After the real host is up, Add to 
 
 `.env.local`, Turso tokens, or `data/`.
 
-Next on the ship path (not this doc): live weather/tides polish, then PWA extras. Not this turn: creating paid accounts, social features, Capacitor wrap.
+Next on the ship path (not this doc): live weather/tides polish. Capacitor / App Store wrap: [docs/app-store.md](app-store.md) (enrollment can stay Pending; no signing in this repo).
