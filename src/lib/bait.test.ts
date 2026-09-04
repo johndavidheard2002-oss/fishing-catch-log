@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupBaitSpots, parseBaitSpotInput, parseBaitTypes } from "./bait";
+import { BAIT_CATALOG, groupBaitSpots, parseBaitSpotInput, parseBaitTypes } from "./bait";
 import type { BaitSpot } from "./types";
 
 function bait(partial: Partial<BaitSpot> & { id: string }): BaitSpot {
@@ -43,7 +43,29 @@ describe("parseBaitTypes", () => {
       "Shrimp",
       "Finger mullet",
     ]);
-    expect(parseBaitTypes("Shrimp,Pogies")).toEqual(["Shrimp", "Pogies"]);
+    expect(parseBaitTypes("Shrimp,Shad")).toEqual(["Shrimp", "Shad"]);
+  });
+});
+
+describe("BAIT_CATALOG", () => {
+  it("lists current live baits and drops retired names", () => {
+    expect(BAIT_CATALOG).toEqual([
+      "Shrimp",
+      "Finger mullet",
+      "Shad",
+      "Croaker",
+      "Piggy perch",
+      "Pinfish",
+      "Crabs",
+      "Sand fleas",
+      "Squid",
+      "Cut bait",
+    ]);
+    expect(BAIT_CATALOG).toContain("Shad");
+    expect(BAIT_CATALOG).toContain("Piggy perch");
+    expect(BAIT_CATALOG).not.toContain("Pogies");
+    expect(BAIT_CATALOG).not.toContain("Pilchards");
+    expect(BAIT_CATALOG).not.toContain("Whitebait");
   });
 });
 

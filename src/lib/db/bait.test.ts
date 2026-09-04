@@ -56,7 +56,7 @@ describe("bait spots", () => {
   it("hides another angler’s private bait spots", async () => {
     const anglerId = freshDb();
     await createBaitSpot({
-      baitTypes: ["Pogies"],
+      baitTypes: ["Shad"],
       placeName: "Secret creek",
       latitude: 28.1,
       longitude: -80.6,
