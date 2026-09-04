@@ -43,4 +43,22 @@ describe("phone-width Log and Backfill", () => {
     const wash = readFileSync(resolve(process.cwd(), "public/brand/logo-trout-wash-bg.png"));
     expect(wash.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
   });
+
+  it("uses a high-contrast teal bottom nav with white labels", () => {
+    const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?background-color: #0a4e6a/);
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?background-image: none/);
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, env\(safe-area-inset-bottom\)\)/);
+    expect(css).not.toMatch(/\.bottom-nav \{[\s\S]*?soft-trout-wash-bg\.png/);
+    expect(css).toMatch(/\.bottom-nav a \{[\s\S]*?color: #fff/);
+    expect(css).toMatch(/\.bottom-nav a\.nav-idle \{[\s\S]*?color: #f4fbff/);
+    expect(css).toMatch(/\.bottom-nav a\.nav-active \.nav-icon \{[\s\S]*?background: #fff/);
+    expect(css).toMatch(/\.bottom-nav a\.nav-active \.nav-icon \{[\s\S]*?color: #0a4e6a/);
+    expect(css).toMatch(/\.bottom-nav a\.nav-primary \.nav-icon \{[\s\S]*?background: var\(--copper\)/);
+    expect(css).toMatch(/\.bottom-nav a\.nav-primary \.nav-icon \{[\s\S]*?0 0 0 2px #fff/);
+    const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
+    expect(shell).toContain("bottom-nav");
+    expect(shell).toContain("grid-cols-6");
+    expect(shell).toContain("nav-primary");
+  });
 });
