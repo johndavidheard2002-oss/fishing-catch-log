@@ -2,7 +2,9 @@ import {
   DEFAULT_HABITAT,
   SPECIES_CATALOG,
   catalogHabitat,
+  duckSpecies,
   inferHabitat,
+  isDuckCatalogSpecies,
   isSaltwaterCatalogSpecies,
   isSaltwaterHabitat,
   saltwaterSpecies,
@@ -108,6 +110,48 @@ const ALIASES: Record<string, string> = {
   "freshwater drum": "Freshwater Drum",
   "redear sunfish": "Redear Sunfish",
   "cutthroat trout": "Cutthroat Trout",
+  pentel: "Pintail",
+  pintail: "Pintail",
+  "northern pintail": "Pintail",
+  "pintail duck": "Pintail",
+  scaup: "Bluebill",
+  "lesser scaup": "Bluebill",
+  "greater scaup": "Bluebill",
+  bluebill: "Bluebill",
+  "blue bill": "Bluebill",
+  wigeon: "Wigeon",
+  widgeon: "Wigeon",
+  "american wigeon": "Wigeon",
+  "american widgeon": "Wigeon",
+  baldpate: "Wigeon",
+  "northern shoveler": "Shoveler",
+  shoveler: "Shoveler",
+  shoveller: "Shoveler",
+  "green-winged teal": "Green-winged teal",
+  "green winged teal": "Green-winged teal",
+  "greenwing teal": "Green-winged teal",
+  "green-wing teal": "Green-winged teal",
+  greenwing: "Green-winged teal",
+  "blue-winged teal": "Blue-winged teal",
+  "blue winged teal": "Blue-winged teal",
+  "bluewing teal": "Blue-winged teal",
+  "blue-wing teal": "Blue-winged teal",
+  "cinnamon teal": "Cinnamon teal",
+  redhead: "Redhead",
+  "redhead duck": "Redhead",
+  bufflehead: "Bufflehead",
+  butterball: "Bufflehead",
+  mallard: "Mallard",
+  "mallard duck": "Mallard",
+  "mottled duck": "Mottled duck",
+  mottled: "Mottled duck",
+  gadwall: "Gadwall",
+  "gray duck": "Gadwall",
+  "grey duck": "Gadwall",
+  canvasback: "Canvasback",
+  "wood duck": "Wood duck",
+  woodduck: "Wood duck",
+  woodie: "Wood duck",
 };
 
 function key(value: string): string {
@@ -178,6 +222,26 @@ export function matchSaltwaterCatalogSpecies(raw: string | null | undefined): st
 
   const contained = containsIn(pool, k);
   return contained && isSaltwaterCatalogSpecies(contained) ? contained : null;
+}
+
+/** Map a hunter/common name onto the duck catalog. Never returns fish names. */
+export function matchDuckCatalogSpecies(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  const k = key(raw);
+  if (!k || k === "unknown" || k === "not a fish" || k === "none") return null;
+
+  const pool = duckSpecies();
+  const aliased = ALIASES[k];
+  if (aliased) {
+    const hit = exactIn(pool, key(aliased));
+    if (hit) return hit;
+  }
+
+  const exact = exactIn(pool, k);
+  if (exact) return exact;
+
+  const contained = containsIn(pool, k);
+  return contained && isDuckCatalogSpecies(contained) ? contained : null;
 }
 
 export function resolveSpeciesName(

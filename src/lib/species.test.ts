@@ -10,6 +10,7 @@ import {
   autoFillSpecies,
   formPatchFromSuggestion,
   matchCatalogSpecies,
+  matchDuckCatalogSpecies,
   matchSaltwaterCatalogSpecies,
   normalizeSpeciesList,
   primarySpecies,
@@ -26,6 +27,18 @@ describe("matchCatalogSpecies", () => {
     expect(matchCatalogSpecies("spotted seatrout")).toBe("Speckled Trout");
     expect(matchCatalogSpecies("dolphin")).toBe("Mahi-mahi");
     expect(matchCatalogSpecies("gray snapper")).toBe("Mangrove Snapper");
+  });
+
+  it("maps duck hunter names onto the locked catalog labels", () => {
+    expect(matchCatalogSpecies("pentel")).toBe("Pintail");
+    expect(matchCatalogSpecies("scaup")).toBe("Bluebill");
+    expect(matchCatalogSpecies("american wigeon")).toBe("Wigeon");
+    expect(matchCatalogSpecies("northern shoveler")).toBe("Shoveler");
+    expect(matchCatalogSpecies("widgeon")).toBe("Wigeon");
+    expect(matchCatalogSpecies("lesser scaup")).toBe("Bluebill");
+    expect(matchDuckCatalogSpecies("pentel")).toBe("Pintail");
+    expect(matchDuckCatalogSpecies("Bluebill")).toBe("Bluebill");
+    expect(matchDuckCatalogSpecies("Redfish")).toBeNull();
   });
 
   it("prefers the hinted habitat when names overlap", () => {
@@ -46,6 +59,10 @@ describe("matchSaltwaterCatalogSpecies", () => {
     expect(matchSaltwaterCatalogSpecies("Unknown")).toBeNull();
     expect(matchSaltwaterCatalogSpecies("blacktip shark")).toBe("Blacktip");
     expect(matchSaltwaterCatalogSpecies("Bull shark")).toBe("Bull shark");
+    expect(matchSaltwaterCatalogSpecies("Pintail")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("pentel")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("scaup")).toBeNull();
+    expect(matchSaltwaterCatalogSpecies("Mallard")).toBeNull();
   });
 });
 
@@ -186,5 +203,10 @@ describe("demoIdentifySpecies", () => {
     expect(bass.species).toBe("Unknown");
     expect(autoFillSpecies(bass)).toBeNull();
     expect(matchSaltwaterCatalogSpecies("Largemouth Bass")).toBeNull();
+
+    const duck = demoIdentifySpecies(bytes, { fileName: "pintail-marsh.jpg" });
+    expect(duck.species).toBe("Unknown");
+    expect(autoFillSpecies(duck)).toBeNull();
+    expect(isSaltwaterCatalogSpecies("Pintail")).toBe(false);
   });
 });

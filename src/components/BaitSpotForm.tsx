@@ -6,7 +6,7 @@ import { AreaNamePicker } from "./AreaNamePicker";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { BAIT_CATALOG } from "@/lib/bait";
-import { DEFAULT_HABITAT, HABITAT_LABELS, type Habitat } from "@/lib/habitat";
+import { DEFAULT_HABITAT, HABITAT_LABELS, isSaltwaterHabitat, type Habitat } from "@/lib/habitat";
 import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { inHgToMb, mbToInHg } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
@@ -82,7 +82,7 @@ function fromRecord(record: BaitSpot): FormState {
     timeOfDay: record.timeOfDay,
     season: record.season,
     notes: record.notes ?? "",
-    habitat: record.habitat === "freshwater" ? DEFAULT_HABITAT : record.habitat,
+    habitat: isSaltwaterHabitat(record.habitat) ? record.habitat : DEFAULT_HABITAT,
     temperatureF: record.temperatureF != null ? String(record.temperatureF) : "",
     weatherCondition: record.weatherCondition ?? "",
     windSpeedMph: record.windSpeedMph != null ? String(record.windSpeedMph) : "",

@@ -41,7 +41,7 @@ export function FilterPanel({
       <input
         value={filters.species ?? ""}
         onChange={(e) => onChange({ ...filters, species: e.target.value })}
-        placeholder="Species (matches any tagged fish)"
+        placeholder="Species (matches any tagged name)"
         className="w-full rounded-xl border border-line bg-paper px-3 py-2"
       />
       <input
@@ -169,11 +169,11 @@ function HabitatFilters({
   onChange: (next: CatchFilters) => void;
 }) {
   const selected = (filters.habitats ?? []).filter(
-    (h): h is "saltwater-inshore" | "saltwater-offshore" =>
-      h === "saltwater-inshore" || h === "saltwater-offshore",
+    (h): h is "saltwater-inshore" | "saltwater-offshore" | "duck" =>
+      h === "saltwater-inshore" || h === "saltwater-offshore" || h === "duck",
   );
 
-  function toggleSaltKind(kind: "saltwater-inshore" | "saltwater-offshore") {
+  function toggleKind(kind: "saltwater-inshore" | "saltwater-offshore" | "duck") {
     const on = selected.includes(kind);
     const next = on ? selected.filter((h) => h !== kind) : [...selected, kind];
     onChange({ ...filters, habitats: next.length ? next : undefined });
@@ -181,13 +181,14 @@ function HabitatFilters({
 
   return (
     <ChipRow
-      label="Water"
+      label="Category"
       options={[
         { value: "saltwater-inshore", label: HABITAT_LABELS["saltwater-inshore"] },
         { value: "saltwater-offshore", label: HABITAT_LABELS["saltwater-offshore"] },
+        { value: "duck", label: HABITAT_LABELS.duck },
       ]}
       selected={selected}
-      onToggle={(v) => toggleSaltKind(v as "saltwater-inshore" | "saltwater-offshore")}
+      onToggle={(v) => toggleKind(v as "saltwater-inshore" | "saltwater-offshore" | "duck")}
     />
   );
 }

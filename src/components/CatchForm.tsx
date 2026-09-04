@@ -996,7 +996,9 @@ export function CatchForm({
         </div>
       ) : (
         <label className="block">
-          <span className="on-wash-chip mb-1 inline-block text-sm font-semibold">How many fish</span>
+          <span className="on-wash-chip mb-1 inline-block text-sm font-semibold">
+            {form.habitat === "duck" ? "How many" : "How many fish"}
+          </span>
           <input
             type="text"
             inputMode="numeric"
@@ -1209,7 +1211,9 @@ export function CatchForm({
           </>
         ) : pastMode ? null : (
           <p className="col-span-2 text-xs text-ink-muted">
-            Tide does not apply to this older freshwater trip.
+            {form.habitat === "duck"
+              ? "Tide is not used for duck logs."
+              : "Tide does not apply to this older freshwater trip."}
           </p>
         )}
       </div>

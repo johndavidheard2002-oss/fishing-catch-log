@@ -18,6 +18,8 @@ function hashBytes(bytes: Uint8Array): number {
 
 const FISH_NAME =
   /\b(fish|catch|redfish|snapper|mahi|flounder|snook|speckled|tarpon|grouper|tuna|wahoo|drum|pompano|sheepshead|mackerel|cobia|permit|bonefish|striped|tripletail|ladyfish|whiting|bluefish|amberjack|sailfish|marlin|swordfish|triggerfish|barracuda)\b/i;
+const DUCK_NAME =
+  /\b(duck|pintail|pentel|wigeon|widgeon|teal|redhead|bufflehead|shoveler|shoveller|mallard|mottled|gadwall|canvasback|bluebill|scaup|wood.?duck|waterfowl)\b/i;
 const NOT_FISH_NAME = /selfie|screenshot|screen.?shot|receipt|menu|invoice|\bmap\b/i;
 
 /** Demo stand-in: filename hints plus a stable hash. Not a real detector. */
@@ -30,7 +32,7 @@ export function demoDetectFish(image: Uint8Array, fileName = ""): FishDetection 
       note: "Demo detector: filename looks unlikely. Still in your batch to confirm.",
     };
   }
-  if (FISH_NAME.test(fileName)) {
+  if (FISH_NAME.test(fileName) || DUCK_NAME.test(fileName)) {
     return {
       isFish: true,
       confidence: 0.68,

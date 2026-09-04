@@ -13,7 +13,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "Tap Log, then take or pick one photo.",
       "After sign-in, tap Allow location. On Log, Turn location on asks this phone — Camera waits until it answers. Camera-roll still asks Yes or No.",
-      "Pick a saltwater species now, or save and add it later. Tap a chip or type a name.",
+      "Pick a species now, or save and add it later. Tap a chip or type a name.",
       "Drop the pin on the water you fished.",
       "Name the area if you want — leave it blank if the map already named it.",
       "Save. One photo is one trip at one pin.",
@@ -83,7 +83,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Backfill",
     steps: [
       "Add one past catch, or tap Find fish photos and pick a batch.",
-      "Pick a saltwater species, or save and add it later. No camera on Backfill.",
+      "Pick a species, or save and add it later. No camera on Backfill.",
       "We keep every photo you pick. Photos you choose are not marked unlikely. A folder scan still ranks likely first.",
       "Confirm, pin the water, and save. Help → How this works replays the short tour.",
     ],

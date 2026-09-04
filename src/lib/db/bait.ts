@@ -16,7 +16,7 @@ function nowIso(): string {
 }
 
 function asHabitat(value: string | null | undefined): Habitat {
-  if (value && isHabitat(value) && value !== "freshwater") return value;
+  if (value && isHabitat(value) && value !== "freshwater" && value !== "duck") return value;
   return DEFAULT_HABITAT;
 }
 

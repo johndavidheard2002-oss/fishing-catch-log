@@ -2,6 +2,7 @@ export const HABITATS = [
   "freshwater",
   "saltwater-inshore",
   "saltwater-offshore",
+  "duck",
 ] as const;
 
 export type Habitat = (typeof HABITATS)[number];
@@ -16,6 +17,7 @@ export const HABITAT_LABELS: Record<Habitat, string> = {
   freshwater: "Freshwater",
   "saltwater-inshore": "Inshore",
   "saltwater-offshore": "Offshore",
+  duck: "Duck",
 };
 
 export const WATER_TYPE_LABELS: Record<WaterType, string> = {
@@ -90,10 +92,42 @@ export const SPECIES_CATALOG: SpeciesEntry[] = [
   { name: "Bull shark", habitat: "saltwater-inshore" },
   { name: "Hammerhead", habitat: "saltwater-offshore" },
   { name: "Tiger shark", habitat: "saltwater-offshore" },
+  { name: "Pintail", habitat: "duck" },
+  { name: "Wigeon", habitat: "duck" },
+  { name: "Green-winged teal", habitat: "duck" },
+  { name: "Blue-winged teal", habitat: "duck" },
+  { name: "Cinnamon teal", habitat: "duck" },
+  { name: "Redhead", habitat: "duck" },
+  { name: "Bufflehead", habitat: "duck" },
+  { name: "Shoveler", habitat: "duck" },
+  { name: "Mallard", habitat: "duck" },
+  { name: "Mottled duck", habitat: "duck" },
+  { name: "Gadwall", habitat: "duck" },
+  { name: "Canvasback", habitat: "duck" },
+  { name: "Bluebill", habitat: "duck" },
+  { name: "Wood duck", habitat: "duck" },
 ];
 
 /** Picker chips on the Shark tab. Typed names still use Add other. */
 export const SHARK_SPECIES = ["Blacktip", "Bull shark", "Hammerhead", "Tiger shark"] as const;
+
+/** Picker chips on the Duck tab, in user-locked order. */
+export const DUCK_SPECIES = [
+  "Pintail",
+  "Wigeon",
+  "Green-winged teal",
+  "Blue-winged teal",
+  "Cinnamon teal",
+  "Redhead",
+  "Bufflehead",
+  "Shoveler",
+  "Mallard",
+  "Mottled duck",
+  "Gadwall",
+  "Canvasback",
+  "Bluebill",
+  "Wood duck",
+] as const;
 
 export const COMMON_SPECIES = [
   ...SPECIES_CATALOG.map((s) => s.name),
@@ -105,7 +139,7 @@ export function isHabitat(value: string): value is Habitat {
 }
 
 export function waterTypeOf(habitat: Habitat): WaterType {
-  return habitat === "freshwater" ? "freshwater" : "saltwater";
+  return habitat === "freshwater" || habitat === "duck" ? "freshwater" : "saltwater";
 }
 
 export const SALTWATER_HABITATS: Habitat[] = ["saltwater-inshore", "saltwater-offshore"];
@@ -122,10 +156,10 @@ export function habitatsForWaterType(water: WaterType): Habitat[] {
     : ["saltwater-inshore", "saltwater-offshore"];
 }
 
-/** Inshore + offshore catalog names. Freshwater bass/trout never appear here. */
+/** Inshore + offshore catalog names. Freshwater bass/trout and ducks never appear here. */
 export function saltwaterSpecies(habitat?: Habitat | null): string[] {
   if (isSaltwaterHabitat(habitat)) return speciesForHabitat(habitat);
-  return SPECIES_CATALOG.filter((s) => s.habitat !== "freshwater").map((s) => s.name);
+  return SPECIES_CATALOG.filter((s) => isSaltwaterHabitat(s.habitat)).map((s) => s.name);
 }
 
 export function isSaltwaterCatalogSpecies(name: string): boolean {
@@ -134,6 +168,7 @@ export function isSaltwaterCatalogSpecies(name: string): boolean {
 
 export function habitatLabel(habitat: Habitat): string {
   if (habitat === "freshwater") return "Freshwater";
+  if (habitat === "duck") return HABITAT_LABELS.duck;
   return `Saltwater · ${HABITAT_LABELS[habitat]}`;
 }
 
@@ -144,6 +179,21 @@ export function isSharkCatalogSpecies(name: string): boolean {
 
 export function sharkSpecies(): string[] {
   return [...SHARK_SPECIES];
+}
+
+export function isDuckHabitat(
+  habitat: Habitat | null | undefined,
+): habitat is "duck" {
+  return habitat === "duck";
+}
+
+export function isDuckCatalogSpecies(name: string): boolean {
+  const key = name.trim().toLowerCase();
+  return DUCK_SPECIES.some((s) => s.toLowerCase() === key);
+}
+
+export function duckSpecies(): string[] {
+  return [...DUCK_SPECIES];
 }
 
 export function speciesForHabitat(habitat: Habitat): string[] {
@@ -227,6 +277,27 @@ const FRESH_HINTS = [
   "freshwater",
 ];
 
+const DUCK_HINTS = [
+  "pintail",
+  "pentel",
+  "wigeon",
+  "widgeon",
+  "teal",
+  "redhead",
+  "bufflehead",
+  "shoveler",
+  "shoveller",
+  "mallard",
+  "mottled duck",
+  "gadwall",
+  "canvasback",
+  "bluebill",
+  "scaup",
+  "wood duck",
+  "woodduck",
+  "waterfowl",
+];
+
 export function inferHabitat(species: string, fallback: Habitat = DEFAULT_HABITAT): Habitat {
   const exact = catalogHabitat(species);
   if (exact) return exact;
@@ -234,6 +305,7 @@ export function inferHabitat(species: string, fallback: Habitat = DEFAULT_HABITA
   const key = species.trim().toLowerCase();
   if (!key || key === "unknown") return fallback;
 
+  if (DUCK_HINTS.some((h) => key.includes(h))) return "duck";
   if (OFFSHORE_HINTS.some((h) => key.includes(h))) return "saltwater-offshore";
   if (INSHORE_HINTS.some((h) => key.includes(h))) return "saltwater-inshore";
   if (FRESH_HINTS.some((h) => key.includes(h))) return "freshwater";
