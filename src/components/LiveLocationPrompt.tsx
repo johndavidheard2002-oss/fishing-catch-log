@@ -58,8 +58,10 @@ export function LiveLocationPrompt({
           >
             {ALLOW_LOCATION_LABEL}
           </button>
-          {status === "unavailable" ? (
-            <span className="self-center text-sm text-ink-muted">Or drop a pin by hand.</span>
+          {status === "unavailable" || status === "denied" ? (
+            <span className="self-center text-sm text-ink-muted">
+              {status === "denied" ? "Then tap Allow location again." : "Or drop a pin by hand."}
+            </span>
           ) : (
             <button
               type="button"

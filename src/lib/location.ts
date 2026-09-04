@@ -6,7 +6,7 @@ export type PhotoGps = { latitude: number; longitude: number };
 
 export const DROP_CATCH_PIN_HINT = "Drop a pin on the map for where you caught it.";
 
-/** Live Log GPS — asked after sign-in, never inside the Camera tap. */
+/** Live Log GPS — started from Turn location on or Camera, in that tap. */
 export const LIVE_GPS_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
   timeout: 8000,
@@ -41,10 +41,10 @@ export const LIVE_GPS_RETRY_GAP_MS = 250;
 
 export const LIVE_LOCATION_STORAGE_KEY = "cast-log-live-gps";
 
-export type LiveLocationStatus = "prompt" | "asking" | "ready" | "unavailable";
+export type LiveLocationStatus = "prompt" | "asking" | "ready" | "unavailable" | "denied";
 
 /** Persisted after the Allow location tap, even before GPS coords arrive. */
-export type SavedLiveLocationStatus = "ready" | "allowed" | "unavailable";
+export type SavedLiveLocationStatus = "ready" | "allowed" | "unavailable" | "denied";
 
 export type DeviceGpsFailure = "denied" | "timeout" | "unavailable" | "missing";
 
@@ -53,8 +53,13 @@ export type DeviceGpsAttempt =
   | { ok: false; reason: DeviceGpsFailure };
 
 export const LOCATION_OFF_PIN_HINT = "Location was off. Tap the map to pin this catch.";
+export const TAP_MAP_PIN_HINT = "Tap the map to drop a pin.";
 export const DROPPING_PIN_HINT = "Dropping pin from this phone…";
 export const GETTING_LOCATION_LABEL = "Getting location…";
+export const PINNED_FROM_PHONE_HINT = "Pinned from this phone";
+export const LOCATION_DENIED_SETTINGS_HINT =
+  "Location is blocked. Open iPhone Settings → Safari → Location → Allow for this site.";
+export const ASKING_VISIBLE_MS = 400;
 
 export const ALLOW_LOCATION_LABEL = "Allow location";
 export const SKIP_LOCATION_LABEL = "Not now";
@@ -69,14 +74,105 @@ export function shouldShowTurnLocationOn(status: LiveLocationStatus): boolean {
   return status !== "ready";
 }
 
-export function logLocationReason(status: LiveLocationStatus): string {
+export function logLocationReason(
+  status: LiveLocationStatus,
+  osDenied = false,
+): string {
   if (status === "ready") {
-    return "A live photo pins from this phone. You can still move the pin.";
+    return PINNED_FROM_PHONE_HINT;
   }
   if (status === "asking") {
     return GETTING_LOCATION_LABEL;
   }
+  if (osDenied || status === "denied") {
+    return LOCATION_DENIED_SETTINGS_HINT;
+  }
   return "Allow location so a live photo can drop the pin on the water.";
+}
+
+/** One Log location surface — never stack Turn location on + off banners. */
+export function logLocationSurface(args: {
+  status: LiveLocationStatus;
+  hasPin: boolean;
+  photoAtCatch: boolean | null;
+  osDenied?: boolean;
+}): {
+  showTurnOn: boolean;
+  reason: string | null;
+  pinHint: string | null;
+  emptyMapBanner: string | null;
+} {
+  if (args.status === "asking") {
+    return {
+      showTurnOn: true,
+      reason: GETTING_LOCATION_LABEL,
+      pinHint: null,
+      emptyMapBanner: null,
+    };
+  }
+  if (args.status === "ready") {
+    return {
+      showTurnOn: false,
+      reason: args.hasPin ? PINNED_FROM_PHONE_HINT : null,
+      pinHint: null,
+      emptyMapBanner: null,
+    };
+  }
+  if (args.osDenied || args.status === "denied") {
+    return {
+      showTurnOn: true,
+      reason: LOCATION_DENIED_SETTINGS_HINT,
+      pinHint: null,
+      emptyMapBanner: null,
+    };
+  }
+  if (args.photoAtCatch === false && !args.hasPin) {
+    return {
+      showTurnOn: false,
+      reason: null,
+      pinHint: null,
+      emptyMapBanner: DROP_CATCH_PIN_HINT,
+    };
+  }
+  return {
+    showTurnOn: true,
+    reason: logLocationReason(args.status),
+    pinHint: null,
+    emptyMapBanner: null,
+  };
+}
+
+export function visibleCatchPinHint(args: {
+  pinHint: string | null;
+  liveLog: boolean;
+  locationStatus: LiveLocationStatus;
+}): string | null {
+  if (!args.pinHint) return null;
+  if (args.pinHint === DROPPING_PIN_HINT) return args.pinHint;
+  if (!args.liveLog) return args.pinHint;
+  if (args.locationStatus !== "ready") return null;
+  if (args.pinHint === LOCATION_OFF_PIN_HINT || args.pinHint === TAP_MAP_PIN_HINT) return null;
+  return args.pinHint;
+}
+
+/** Camera: start GPS in this tap unless location is already ready or blocked. */
+export function liveCameraTapAction(
+  status: LiveLocationStatus | undefined,
+): "start-gps" | "open-camera" | "wait" {
+  if (status == null || status === "ready" || status === "denied") return "open-camera";
+  if (status === "asking") return "wait";
+  return "start-gps";
+}
+
+/** After Turn location on: pin now if a photo is on the form and the pin is empty. */
+export function pinFromTurnedOnLocation(args: {
+  hasPhoto: boolean;
+  pinEmpty: boolean;
+  userMovedCatchPin: boolean;
+  gps: PhotoGps;
+}): { latitude: number; longitude: number; source: "device" } | null {
+  if (!args.hasPhoto || !args.pinEmpty || args.userMovedCatchPin) return null;
+  return { ...args.gps, source: "device" };
 }
 
 export type DeviceGeolocation = {
@@ -279,7 +375,7 @@ export function waitForAllowLocationFix(args?: {
 
 /**
  * After Allow (or timeout): enter the journal. Timeout / no-fix keeps
- * "allowed" so Camera can still try later. Denied or Not now is unavailable.
+ * "allowed" so Camera can still try later. OS deny is denied, not Not now.
  */
 export function persistAllowLocationOutcome(
   result: DeviceGpsAttempt | { skip: true },
@@ -293,7 +389,11 @@ export function persistAllowLocationOutcome(
     writeSavedLiveLocation(result.gps, storage);
     return { savedStatus: "ready", enterJournal: true };
   }
-  if (result.reason === "denied" || result.reason === "missing") {
+  if (result.reason === "denied") {
+    writeSavedLiveLocationDenied(storage);
+    return { savedStatus: "denied", enterJournal: true };
+  }
+  if (result.reason === "missing") {
     writeSavedLiveLocation(null, storage);
     return { savedStatus: "unavailable", enterJournal: true };
   }
@@ -303,34 +403,93 @@ export function persistAllowLocationOutcome(
 
 /**
  * Log / Camera tap after a timeout or Not now. Timeout stays allowed.
- * Denied stays unavailable. Success is ready. Never leave UI on asking.
+ * OS deny is unavailable + Settings copy — never a silent return.
  */
 export function persistLogLocationOutcome(
   result: DeviceGpsAttempt,
   storage?: Storage | null,
-): { savedStatus: SavedLiveLocationStatus; uiStatus: LiveLocationStatus } {
+): { savedStatus: SavedLiveLocationStatus; uiStatus: LiveLocationStatus; osDenied: boolean } {
   if (result.ok) {
     writeSavedLiveLocation(result.gps, storage);
-    return { savedStatus: "ready", uiStatus: "ready" };
+    return { savedStatus: "ready", uiStatus: "ready", osDenied: false };
   }
-  if (result.reason === "denied" || result.reason === "missing") {
+  if (result.reason === "denied") {
+    writeSavedLiveLocationDenied(storage);
+    return { savedStatus: "denied", uiStatus: "unavailable", osDenied: true };
+  }
+  if (result.reason === "missing") {
     writeSavedLiveLocation(null, storage);
-    return { savedStatus: "unavailable", uiStatus: "unavailable" };
+    return { savedStatus: "unavailable", uiStatus: "unavailable", osDenied: false };
   }
   writeSavedLiveLocationAllowed(storage);
-  return { savedStatus: "allowed", uiStatus: "prompt" };
+  return { savedStatus: "allowed", uiStatus: "prompt", osDenied: false };
+}
+
+/** Keep Getting location… on screen long enough that a <50ms deny is visible. */
+export function holdAskingVisible<T>(
+  work: Promise<T>,
+  minMs: number = ASKING_VISIBLE_MS,
+): Promise<T> {
+  const started = Date.now();
+  return work.then(async (result) => {
+    const wait = minMs - (Date.now() - started);
+    if (wait > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, wait);
+      });
+    }
+    return result;
+  });
 }
 
 /**
- * Start GPS from Turn location on / Allow on Log. Must call getCurrentPosition
- * in the same user gesture. Clears a leftover unavailable lock.
+ * Click path for Turn location on. getCurrentPosition is the first
+ * synchronous call — iOS drops the prompt if storage or setState runs first.
+ */
+export function handleTurnLocationOnClick(
+  geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
+  options?: { minAskingMs?: number },
+): { attempt: Promise<DeviceGpsAttempt>; uiStatus: "asking" } {
+  const first = requestDeviceGpsAttempt(geolocation, ALLOW_GPS_OPTIONS);
+  try {
+    writeSavedLiveLocationAllowed();
+  } catch {
+    /* quota / private mode must not swallow the tap */
+  }
+  const raw = waitForAllowLocationFix({ firstAttempt: first, geolocation });
+  return {
+    attempt: holdAskingVisible(raw, options?.minAskingMs ?? ASKING_VISIBLE_MS),
+    uiStatus: "asking",
+  };
+}
+
+/**
+ * Start GPS from Turn location on / Camera. getCurrentPosition runs first in
+ * this call stack — iOS drops the prompt if anything async happens first.
+ * Storage writes never block that call.
  */
 export function startLogLocationFromGesture(
   geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
 ): Promise<DeviceGpsAttempt> {
-  writeSavedLiveLocationAllowed();
-  const first = requestDeviceGpsAttempt(geolocation, ALLOW_GPS_OPTIONS);
-  return waitForAllowLocationFix({ firstAttempt: first, geolocation });
+  return handleTurnLocationOnClick(geolocation, { minAskingMs: 0 }).attempt;
+}
+
+/**
+ * Button / Camera tap entry. getCurrentPosition is invoked before this
+ * function returns. UI must flip to asking in the same turn.
+ */
+export function beginLogLocationFromButtonTap(
+  geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
+  options?: { minAskingMs?: number },
+): { attempt: Promise<DeviceGpsAttempt>; uiStatus: "asking" } {
+  try {
+    return handleTurnLocationOnClick(geolocation, options);
+  } catch {
+    return {
+      attempt: Promise.resolve({ ok: false, reason: "unavailable" }),
+      uiStatus: "asking",
+    };
+  }
 }
 
 /** Allow-without-coords is not ready — Log shows Turn location on, not a hang. */
@@ -340,6 +499,7 @@ export function initialLiveLocationStatusFromSaved(
   if (saved === "ready") return "ready";
   if (saved === "allowed") return "prompt";
   if (saved === "unavailable") return "unavailable";
+  if (saved === "denied") return "denied";
   return "prompt";
 }
 
@@ -351,6 +511,12 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
     return {
       title: "Location on",
       body: "A live photo will pin this catch. You can still move the pin.",
+    };
+  }
+  if (status === "denied") {
+    return {
+      title: "Location blocked",
+      body: LOCATION_DENIED_SETTINGS_HINT,
     };
   }
   if (status === "unavailable") {
@@ -441,6 +607,7 @@ function parseLiveLocationRecord(
   | { status: "ready"; latitude: number; longitude: number }
   | { status: "allowed" }
   | { status: "unavailable" }
+  | { status: "denied" }
   | null {
   try {
     const raw = storage.getItem(LIVE_LOCATION_STORAGE_KEY);
@@ -451,6 +618,7 @@ function parseLiveLocationRecord(
       longitude?: number;
     };
     if (parsed.status === "unavailable") return { status: "unavailable" };
+    if (parsed.status === "denied") return { status: "denied" };
     if (parsed.status === "allowed") return { status: "allowed" };
     if (
       parsed.status === "ready" &&
@@ -473,6 +641,7 @@ function readSavedLiveLocationRecord(
   | { status: "ready"; latitude: number; longitude: number }
   | { status: "allowed" }
   | { status: "unavailable" }
+  | { status: "denied" }
   | null {
   if (storage === null) return null;
   if (storage) return parseLiveLocationRecord(storage);
@@ -490,7 +659,11 @@ function writeLiveLocationRecord(
   if (storage === null) return;
   const targets = storage ? [storage] : liveLocationStores();
   for (const store of targets) {
-    store.setItem(LIVE_LOCATION_STORAGE_KEY, value);
+    try {
+      store.setItem(LIVE_LOCATION_STORAGE_KEY, value);
+    } catch {
+      /* quota / private mode */
+    }
   }
 }
 
@@ -516,6 +689,11 @@ export function writeSavedLiveLocation(
 export function writeSavedLiveLocationAllowed(storage?: Storage | null): void {
   if (readSavedLiveLocation(storage)) return;
   writeLiveLocationRecord(JSON.stringify({ status: "allowed" }), storage);
+}
+
+/** OS denied location — Settings, not a casual Not now. */
+export function writeSavedLiveLocationDenied(storage?: Storage | null): void {
+  writeLiveLocationRecord(JSON.stringify({ status: "denied" }), storage);
 }
 
 export function clearSavedLiveLocation(storage?: Storage | null): void {

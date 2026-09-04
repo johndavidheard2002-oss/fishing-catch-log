@@ -62,7 +62,7 @@ export function AuthForm({
       onSignedIn?.(typeof (data as { me?: { name?: string } }).me?.name === "string" ? (data as { me: { name: string } }).me.name : name);
       notifyAuthChange();
       const saved = readSavedLiveLocationStatus();
-      if (saved === "ready") {
+      if (saved === "ready" || saved === "denied") {
         enterJournal();
         return;
       }
@@ -85,12 +85,14 @@ export function AuthForm({
 
   function finishAllowWait(result: DeviceGpsAttempt) {
     const outcome = persistAllowLocationOutcome(result);
-    setLocationStatus(
+      setLocationStatus(
       outcome.savedStatus === "ready"
         ? "ready"
-        : outcome.savedStatus === "unavailable"
-          ? "unavailable"
-          : "prompt",
+        : outcome.savedStatus === "denied"
+          ? "denied"
+          : outcome.savedStatus === "unavailable"
+            ? "unavailable"
+            : "prompt",
     );
     enterJournal();
   }

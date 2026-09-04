@@ -25,9 +25,11 @@ import {
   formatCoords,
   initialLiveLocationStatusFromSaved,
   LIVE_CAMERA_GPS_BUDGET_MS,
-  LOCATION_OFF_PIN_HINT,
-  logLocationReason,
+  logLocationSurface,
   persistLogLocationOutcome,
+  pinFromTurnedOnLocation,
+  PINNED_FROM_PHONE_HINT,
+  LOCATION_DENIED_SETTINGS_HINT,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
   refreshLiveLocationIfGranted,
@@ -35,11 +37,11 @@ import {
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
   resolveLiveCameraPinAfterPhoto,
-  startLogLocationFromGesture,
+  visibleCatchPinHint,
   waitForAllowLocationFix,
   waitForLiveLocationFix,
   writeSavedLiveLocation,
-  writeSavedLiveLocationAllowed,
+  type DeviceGpsAttempt,
   type LiveLocationStatus,
 } from "@/lib/location";
 import { readPhotoGps } from "@/lib/photo-gps";
@@ -288,10 +290,17 @@ export function CatchForm({
     if (mode !== "create" || pastMode) return "unavailable";
     return initialLiveLocationStatusFromSaved(readSavedLiveLocationStatus());
   });
+  const [osDenied, setOsDenied] = useState(
+    () => mode === "create" && !pastMode && readSavedLiveLocationStatus() === "denied",
+  );
   const locationStatusRef = useRef<LiveLocationStatus>(locationStatus);
   const rememberLiveGpsRef = useRef<(gps: { latitude: number; longitude: number } | null) => void>(
     () => {},
   );
+  const photoOnFormRef = useRef(Boolean(previewUrl || photoFile || importedPhotoPath));
+  const pinEmptyRef = useRef(!form.latitude.trim());
+  photoOnFormRef.current = Boolean(previewHold.current || photoFile || importedPhotoPath);
+  pinEmptyRef.current = !form.latitude.trim();
   const useLiveGps = mode === "create" && !pastMode;
 
   useEffect(() => {
@@ -405,48 +414,30 @@ export function CatchForm({
     pendingLiveGpsRef.current = gps;
     locationStatusRef.current = "ready";
     setLocationStatus("ready");
-    const next = resolveLiveCameraCatchPin({
+    const next = pinFromTurnedOnLocation({
+      hasPhoto: photoOnFormRef.current,
+      pinEmpty: pinEmptyRef.current,
       userMovedCatchPin: catchPinUserMovedRef.current,
-      deviceGps: gps,
+      gps,
     });
     if (next) void applyResolvedPin(next);
   }
   rememberLiveGpsRef.current = rememberLiveGps;
 
-  function turnLocationOn() {
-    if (!useLiveGps) return;
+  function onLocationAttempt(attempt: Promise<DeviceGpsAttempt>) {
     setLocationStatus("asking");
     locationStatusRef.current = "asking";
-    const pending = startLogLocationFromGesture().then((result) => {
+    setOsDenied(false);
+    const pending = attempt.then((result) => {
       const outcome = persistLogLocationOutcome(result);
       if (result.ok) {
+        setOsDenied(false);
         rememberLiveGps(result.gps);
         return result.gps;
       }
       locationStatusRef.current = outcome.uiStatus;
       setLocationStatus(outcome.uiStatus);
-      return null;
-    });
-    liveGpsRequestRef.current = pending;
-  }
-
-  function startLiveGpsFromCameraTap() {
-    if (!useLiveGps) return;
-    writeSavedLiveLocationAllowed();
-    const first = requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS);
-    const pending = waitForAllowLocationFix({
-      firstAttempt: first,
-      budgetMs: LIVE_CAMERA_GPS_BUDGET_MS,
-    }).then((result) => {
-      const outcome = persistLogLocationOutcome(result);
-      if (result.ok) {
-        rememberLiveGps(result.gps);
-        return result.gps;
-      }
-      if (locationStatusRef.current !== "ready") {
-        locationStatusRef.current = outcome.uiStatus;
-        setLocationStatus(outcome.uiStatus);
-      }
+      setOsDenied(outcome.osDenied);
       return null;
     });
     liveGpsRequestRef.current = pending;
@@ -467,7 +458,7 @@ export function CatchForm({
         "Catch pin auto-filled from this photo’s location stamp. Drag it if you caught the fish somewhere else — the pin is not locked.",
       );
     } else {
-      setPinHint("Catch pin placed from this phone’s location. Drag it if needed.");
+      setPinHint(PINNED_FROM_PHONE_HINT);
     }
     try {
       const res = await fetch("/api/assist/place", {
@@ -558,7 +549,7 @@ export function CatchForm({
           "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
         );
       } else {
-        setPinHint(LOCATION_OFF_PIN_HINT);
+        setPinHint(null);
       }
     }
 
@@ -712,6 +703,18 @@ export function CatchForm({
     }
   }
 
+  const locationUi = logLocationSurface({
+    status: locationStatus,
+    hasPin: Boolean(form.latitude.trim()),
+    photoAtCatch,
+    osDenied,
+  });
+  const copperPinHint = visibleCatchPinHint({
+    pinHint,
+    liveLog: useLiveGps,
+    locationStatus,
+  });
+
   return (
     <form onSubmit={onSubmit} className="flex w-full min-w-0 max-w-full flex-col gap-4">
       <PhotoCapture
@@ -722,10 +725,15 @@ export function CatchForm({
         emphasis={pastMode ? "library" : "camera"}
         libraryOnly={pastMode}
         compactPreview={pastMode && Boolean(previewUrl)}
-        onLiveCamera={startLiveGpsFromCameraTap}
-        locationStatus={useLiveGps ? locationStatus : undefined}
-        onTurnLocationOn={useLiveGps ? turnLocationOn : undefined}
-        locationReason={useLiveGps && locationStatus === "ready" ? logLocationReason("ready") : undefined}
+        locationStatus={useLiveGps && photoAtCatch !== false ? locationStatus : undefined}
+        onTurnLocationOn={useLiveGps && photoAtCatch !== false ? onLocationAttempt : undefined}
+        locationReason={
+          useLiveGps && osDenied
+            ? LOCATION_DENIED_SETTINGS_HINT
+            : useLiveGps && locationStatus === "ready" && Boolean(form.latitude.trim())
+              ? PINNED_FROM_PHONE_HINT
+              : undefined
+        }
       />
 
       {!busy &&
@@ -759,12 +767,12 @@ export function CatchForm({
         </div>
       ) : null}
 
-      {pinHint ? (
+      {copperPinHint ? (
         <p
           data-testid="catch-pin-hint"
           className="rounded-2xl border border-copper bg-paper-deep px-3 py-2 text-sm font-medium text-ink"
         >
-          {pinHint}
+          {copperPinHint}
         </p>
       ) : null}
 
@@ -824,7 +832,13 @@ export function CatchForm({
         form={form}
         pinSource={pinSource}
         hideHints={pastMode}
-        emptyPinHint={photoAtCatch === false && !form.latitude.trim() ? DROP_CATCH_PIN_HINT : null}
+        emptyPinHint={
+          pastMode
+            ? photoAtCatch === false && !form.latitude.trim()
+              ? DROP_CATCH_PIN_HINT
+              : null
+            : locationUi.emptyMapBanner
+        }
         onPlace={(placeName) => patch({ placeName })}
         onSelectArea={(area) => {
           patch({ placeName: area.name });
@@ -1486,9 +1500,9 @@ function CatchLocationFields({
             <span className="font-semibold">From this phone.</span> Drag if that isn’t the water.
           </p>
         </div>
-      ) : catchLat == null ? (
+      ) : catchLat == null && emptyPinHint ? (
         <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
-          {emptyPinHint ?? "Tap the map to drop a pin."}
+          {emptyPinHint}
         </div>
       ) : null}
       {hideHints ? null : hasPhotoGps ? (
