@@ -26,7 +26,7 @@ export function BackfillClient() {
   return (
     <div className="w-full min-w-0 max-w-full space-y-4">
       <div className="page-intro">
-        <h1 className="font-display text-3xl text-teal">
+        <h1 className="font-display text-3xl break-words text-teal">
           {importedPhotoPath ? "Finish this catch" : "Backfill a past catch"}
         </h1>
         <p className="text-sm text-ink-muted">
@@ -38,7 +38,7 @@ export function BackfillClient() {
         <Link
           href="/log/scan"
           data-testid="backfill-continue-scan"
-          className="block rounded-2xl bg-copper px-4 py-3 text-center text-lg font-semibold text-white"
+          className="box-border block w-full max-w-full rounded-2xl px-4 py-3 text-center text-lg font-semibold text-white"
         >
           {leftover} photo{leftover === 1 ? "" : "s"} left — continue
         </Link>

@@ -108,12 +108,12 @@ export function PhotoCapture({
           </div>
         ) : null}
       </div>
-      <div className={`grid gap-2 p-3 ${libraryOnly ? "grid-cols-1" : "grid-cols-2"}`}>
+      <div className={`grid min-w-0 gap-2 p-3 ${libraryOnly ? "grid-cols-1" : "grid-cols-2"}`}>
         {libraryOnly ? null : (
           <button
             type="button"
             data-testid="live-camera"
-            className={`rounded-xl px-3 py-3 text-sm font-semibold ${
+            className={`min-w-0 rounded-xl px-3 py-3 text-sm font-semibold ${
               emphasis === "camera" ? "bg-teal text-white" : "border border-line bg-card"
             }`}
             onClick={openCamera}
@@ -123,7 +123,7 @@ export function PhotoCapture({
         )}
         <button
           type="button"
-          className={`rounded-xl px-3 py-3 text-sm font-semibold ${
+          className={`min-w-0 rounded-xl px-3 py-3 text-sm font-semibold ${
             libraryOnly || emphasis === "library" ? "bg-teal text-white" : "border border-line bg-card"
           }`}
           onClick={() => libraryRef.current?.click()}

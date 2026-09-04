@@ -17,5 +17,11 @@ describe("phone-width Log and Backfill", () => {
     expect(log).toContain("max-w-full");
     const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
     expect(form).toContain("min-w-0 max-w-full");
+    const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
+    expect(shell).toContain("app-shell");
+    expect(shell).toContain("min-w-0");
+    expect(css).toMatch(/\.app-shell \{[\s\S]*?overflow-x: hidden/);
+    const wordmark = readFileSync(resolve(__dirname, "../components/BrandWordmark.tsx"), "utf8");
+    expect(wordmark).toContain("text-[1.35rem]");
   });
 });
