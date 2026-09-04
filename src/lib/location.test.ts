@@ -1,9 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  ALLOW_GPS_BUDGET_MS,
+  ALLOW_GPS_FALLBACK_OPTIONS,
+  ALLOW_GPS_OPTIONS,
   ALLOW_LOCATION_LABEL,
+  CONTINUE_WITHOUT_LOCATION_LABEL,
   DROPPING_PIN_HINT,
   GETTING_LOCATION_LABEL,
   SKIP_LOCATION_LABEL,
+  persistAllowLocationOutcome,
+  persistLogLocationOutcome,
+  logLocationReason,
+  shouldShowTurnLocationOn,
+  skipLocationLabel,
+  TURN_LOCATION_ON_LABEL,
+  waitForAllowLocationFix,
   catchPinFromPhotoGps,
   classifyCatchPinEdit,
   classifyGpsError,
@@ -88,22 +99,108 @@ describe("liveLocationPromptCopy", () => {
     expect(prompt.body.toLowerCase()).not.toContain("buddy");
     expect(ALLOW_LOCATION_LABEL).toBe("Allow location");
     expect(SKIP_LOCATION_LABEL).toBe("Not now");
+    expect(CONTINUE_WITHOUT_LOCATION_LABEL).toBe("Continue without location");
+    expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
+    expect(skipLocationLabel()).toBe("Not now");
     expect(GETTING_LOCATION_LABEL).toBe("Getting location…");
     expect(DROPPING_PIN_HINT).toBe("Dropping pin from this phone…");
     expect(liveLocationPromptCopy("ready").title).toBe("Location on");
     expect(liveLocationPromptCopy("unavailable").body).toContain("Camera still works");
     expect(liveLocationPromptCopy("asking").title).toBe("Getting location…");
     expect(liveLocationPromptCopy("asking").body).toContain("finding where you are");
+    expect(liveLocationPromptCopy("asking").body).toContain("Not now");
     expect(liveLocationPromptCopy("asking").body.toLowerCase()).not.toContain("buddy");
   });
 });
 
 describe("initialLiveLocationStatusFromSaved", () => {
-  it("does not treat Allow-without-coords as ready", () => {
+  it("does not treat Allow-without-coords as ready or a hang", () => {
     expect(initialLiveLocationStatusFromSaved("ready")).toBe("ready");
-    expect(initialLiveLocationStatusFromSaved("allowed")).toBe("asking");
+    expect(initialLiveLocationStatusFromSaved("allowed")).toBe("prompt");
     expect(initialLiveLocationStatusFromSaved("unavailable")).toBe("unavailable");
     expect(initialLiveLocationStatusFromSaved(null)).toBe("prompt");
+  });
+});
+
+describe("Turn location on from Log", () => {
+  it("shows Turn location on whenever the pin is not ready", () => {
+    expect(shouldShowTurnLocationOn("prompt")).toBe(true);
+    expect(shouldShowTurnLocationOn("asking")).toBe(true);
+    expect(shouldShowTurnLocationOn("unavailable")).toBe(true);
+    expect(shouldShowTurnLocationOn("ready")).toBe(false);
+  });
+
+  it("requests GPS in the same gesture and becomes ready", async () => {
+    const storage = memoryStorage();
+    writeSavedLiveLocation(null, storage);
+    let started = false;
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+      ) {
+        started = true;
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
+      },
+    };
+    const first = requestDeviceGpsAttempt(geo, ALLOW_GPS_OPTIONS);
+    expect(started).toBe(true);
+    const result = await waitForAllowLocationFix({
+      firstAttempt: first,
+      geolocation: geo,
+      retryGapMs: 0,
+    });
+    expect(persistLogLocationOutcome(result, storage)).toEqual({
+      savedStatus: "ready",
+      uiStatus: "ready",
+    });
+    expect(readSavedLiveLocationStatus(storage)).toBe("ready");
+  });
+
+  it("timeout after Turn location on stays allowed, not unavailable", async () => {
+    const storage = memoryStorage();
+    writeSavedLiveLocation(null, storage);
+    const geo = {
+      getCurrentPosition() {
+        /* hang */
+      },
+    };
+    const result = await waitForAllowLocationFix({
+      geolocation: geo,
+      retryGapMs: 0,
+      budgetMs: 25,
+    });
+    expect(persistLogLocationOutcome(result, storage)).toEqual({
+      savedStatus: "allowed",
+      uiStatus: "prompt",
+    });
+    expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
+    expect(shouldShowTurnLocationOn("prompt")).toBe(true);
+  });
+
+  it("clears a leftover unavailable lock and never shows Location is off", () => {
+    const storage = memoryStorage();
+    writeSavedLiveLocation(null, storage);
+    expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
+    writeSavedLiveLocationAllowed(storage);
+    expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
+    expect(logLocationReason("unavailable")).toContain("Allow location");
+    expect(logLocationReason("unavailable")).not.toMatch(/Location is off/i);
+    expect(logLocationReason("prompt")).toContain("live photo");
+    expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
+  });
+});
+
+describe("Log photo card copy", () => {
+  it("replaces the dead Location is off line with Turn location on", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const photo = readFileSync(resolve(__dirname, "../components/PhotoCapture.tsx"), "utf8");
+    const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
+    expect(photo).toContain('data-testid="turn-location-on"');
+    expect(photo).toContain("TURN_LOCATION_ON_LABEL");
+    expect(photo).not.toContain("Location is off");
+    expect(form).toContain("onTurnLocationOn");
+    expect(form).not.toContain("Location is off");
   });
 });
 
@@ -503,6 +600,120 @@ describe("waitForLiveLocationFix", () => {
       ok: true,
       gps: { latitude: 29.15, longitude: -96.88 },
     });
+  });
+
+  it("caps a hanging getCurrentPosition so Allow cannot wait forever", async () => {
+    const geo = {
+      getCurrentPosition() {
+        /* never succeeds and never returns denied */
+      },
+    };
+    const started = Date.now();
+    await expect(
+      waitForLiveLocationFix({
+        geolocation: geo,
+        retryGapMs: 0,
+        budgetMs: 30,
+        options: { enableHighAccuracy: true, timeout: 10_000 },
+      }),
+    ).resolves.toEqual({ ok: false, reason: "timeout" });
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+});
+
+function memoryStorage(): Storage {
+  const memory = new Map<string, string>();
+  return {
+    getItem(key: string) {
+      return memory.has(key) ? memory.get(key)! : null;
+    },
+    setItem(key: string, value: string) {
+      memory.set(key, value);
+    },
+    removeItem(key: string) {
+      memory.delete(key);
+    },
+  } as Storage;
+}
+
+describe("persistAllowLocationOutcome", () => {
+  it("Allow timeout enters journal without hanging", async () => {
+    const storage = memoryStorage();
+    const geo = {
+      getCurrentPosition() {
+        /* never succeeds and never returns denied */
+      },
+    };
+    const started = Date.now();
+    const result = await waitForAllowLocationFix({
+      geolocation: geo,
+      retryGapMs: 0,
+      budgetMs: 35,
+    });
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(result).toEqual({ ok: false, reason: "timeout" });
+    const outcome = persistAllowLocationOutcome(result, storage);
+    expect(outcome).toEqual({ savedStatus: "allowed", enterJournal: true });
+    expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
+    expect(readSavedLiveLocation(storage)).toBeNull();
+  });
+
+  it("Not now still unavailable", () => {
+    const storage = memoryStorage();
+    const outcome = persistAllowLocationOutcome({ skip: true }, storage);
+    expect(outcome).toEqual({ savedStatus: "unavailable", enterJournal: true });
+    expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
+    expect(readSavedLiveLocation(storage)).toBeNull();
+  });
+
+  it("explicit deny is unavailable, not a leftover allowed hang", () => {
+    const storage = memoryStorage();
+    writeSavedLiveLocationAllowed(storage);
+    const outcome = persistAllowLocationOutcome({ ok: false, reason: "denied" }, storage);
+    expect(outcome).toEqual({ savedStatus: "unavailable", enterJournal: true });
+    expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
+  });
+
+  it("success still ready", () => {
+    const storage = memoryStorage();
+    const gps = { latitude: 29.15, longitude: -96.88 };
+    const outcome = persistAllowLocationOutcome({ ok: true, gps }, storage);
+    expect(outcome).toEqual({ savedStatus: "ready", enterJournal: true });
+    expect(readSavedLiveLocationStatus(storage)).toBe("ready");
+    expect(readSavedLiveLocation(storage)).toEqual(gps);
+  });
+});
+
+describe("waitForAllowLocationFix", () => {
+  it("retries a slow high-accuracy try with a faster low-accuracy reading", async () => {
+    const optionsSeen: PositionOptions[] = [];
+    let calls = 0;
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+        error?: (err?: { code?: number }) => void,
+        options?: PositionOptions,
+      ) {
+        calls += 1;
+        if (options) optionsSeen.push(options);
+        if (calls === 1) {
+          error?.({ code: 3 });
+          return;
+        }
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
+      },
+    };
+    const first = requestDeviceGpsAttempt(geo, ALLOW_GPS_OPTIONS);
+    await expect(
+      waitForAllowLocationFix({ firstAttempt: first, geolocation: geo, retryGapMs: 0 }),
+    ).resolves.toEqual({ ok: true, gps: { latitude: 29.15, longitude: -96.88 } });
+    expect(calls).toBe(2);
+    expect(optionsSeen[0]?.enableHighAccuracy).toBe(true);
+    expect(optionsSeen[1]?.enableHighAccuracy).toBe(false);
+    expect(ALLOW_GPS_OPTIONS.enableHighAccuracy).toBe(true);
+    expect(ALLOW_GPS_FALLBACK_OPTIONS.enableHighAccuracy).toBe(false);
+    expect(ALLOW_GPS_BUDGET_MS).toBe(12_000);
+    expect(ALLOW_GPS_BUDGET_MS).toBeLessThanOrEqual(15_000);
   });
 });
 

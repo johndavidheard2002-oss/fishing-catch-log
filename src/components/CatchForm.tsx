@@ -15,26 +15,31 @@ import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import {
+  ALLOW_GPS_BUDGET_MS,
+  ALLOW_GPS_FALLBACK_OPTIONS,
   ALLOW_GPS_OPTIONS,
   classifyCatchPinEdit,
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
   DROPPING_PIN_HINT,
   formatCoords,
-  GETTING_LOCATION_LABEL,
   initialLiveLocationStatusFromSaved,
   LIVE_CAMERA_GPS_BUDGET_MS,
   LOCATION_OFF_PIN_HINT,
+  logLocationReason,
+  persistLogLocationOutcome,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
   refreshLiveLocationIfGranted,
-  requestDeviceGps,
   requestDeviceGpsAttempt,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
   resolveLiveCameraPinAfterPhoto,
+  startLogLocationFromGesture,
+  waitForAllowLocationFix,
   waitForLiveLocationFix,
   writeSavedLiveLocation,
+  writeSavedLiveLocationAllowed,
   type LiveLocationStatus,
 } from "@/lib/location";
 import { readPhotoGps } from "@/lib/photo-gps";
@@ -307,9 +312,11 @@ export function CatchForm({
     const ac = new AbortController();
     const pending = saved
       ? refreshLiveLocationIfGranted({ savedStatus })
-      : waitForLiveLocationFix({ signal: ac.signal }).then((result) =>
-          result.ok ? result.gps : null,
-        );
+      : waitForLiveLocationFix({
+          signal: ac.signal,
+          budgetMs: ALLOW_GPS_BUDGET_MS,
+          options: ALLOW_GPS_FALLBACK_OPTIONS,
+        }).then((result) => (result.ok ? result.gps : null));
     liveGpsRequestRef.current = pending;
     void pending.then((gps) => {
       if (cancelled || !gps) return;
@@ -394,34 +401,55 @@ export function CatchForm({
   }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked]);
 
   function rememberLiveGps(gps: { latitude: number; longitude: number } | null) {
-    if (gps) {
-      pendingLiveGpsRef.current = gps;
-      locationStatusRef.current = "ready";
-      setLocationStatus("ready");
-      const next = resolveLiveCameraCatchPin({
-        userMovedCatchPin: catchPinUserMovedRef.current,
-        deviceGps: gps,
-      });
-      if (next) void applyResolvedPin(next);
-      return;
-    }
-    if (locationStatusRef.current !== "ready") {
-      locationStatusRef.current = "unavailable";
-      setLocationStatus("unavailable");
-    }
+    if (!gps) return;
+    pendingLiveGpsRef.current = gps;
+    locationStatusRef.current = "ready";
+    setLocationStatus("ready");
+    const next = resolveLiveCameraCatchPin({
+      userMovedCatchPin: catchPinUserMovedRef.current,
+      deviceGps: gps,
+    });
+    if (next) void applyResolvedPin(next);
   }
   rememberLiveGpsRef.current = rememberLiveGps;
 
+  function turnLocationOn() {
+    if (!useLiveGps) return;
+    setLocationStatus("asking");
+    locationStatusRef.current = "asking";
+    const pending = startLogLocationFromGesture().then((result) => {
+      const outcome = persistLogLocationOutcome(result);
+      if (result.ok) {
+        rememberLiveGps(result.gps);
+        return result.gps;
+      }
+      locationStatusRef.current = outcome.uiStatus;
+      setLocationStatus(outcome.uiStatus);
+      return null;
+    });
+    liveGpsRequestRef.current = pending;
+  }
+
   function startLiveGpsFromCameraTap() {
     if (!useLiveGps) return;
-    if (readSavedLiveLocationStatus() === "unavailable") return;
-    const pending = requestDeviceGps();
-    liveGpsRequestRef.current = pending;
-    void pending.then((gps) => {
-      if (!gps) return;
-      writeSavedLiveLocation(gps);
-      rememberLiveGps(gps);
+    writeSavedLiveLocationAllowed();
+    const first = requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS);
+    const pending = waitForAllowLocationFix({
+      firstAttempt: first,
+      budgetMs: LIVE_CAMERA_GPS_BUDGET_MS,
+    }).then((result) => {
+      const outcome = persistLogLocationOutcome(result);
+      if (result.ok) {
+        rememberLiveGps(result.gps);
+        return result.gps;
+      }
+      if (locationStatusRef.current !== "ready") {
+        locationStatusRef.current = outcome.uiStatus;
+        setLocationStatus(outcome.uiStatus);
+      }
+      return null;
     });
+    liveGpsRequestRef.current = pending;
   }
 
   async function applyResolvedPin(next: {
@@ -501,16 +529,27 @@ export function CatchForm({
     if (!pastMode && source === "camera") {
       setBusyLabel(DROPPING_PIN_HINT);
       setPinHint(DROPPING_PIN_HINT);
-      const savedGps = pendingLiveGpsRef.current ?? readSavedLiveLocation();
+      const fromTap = liveGpsRequestRef.current ? await liveGpsRequestRef.current : null;
+      const savedGps = pendingLiveGpsRef.current ?? readSavedLiveLocation() ?? fromTap;
       const savedStatus = readSavedLiveLocationStatus();
-      const { pin, deviceGps } = await resolveLiveCameraPinAfterPhoto({
-        userMovedCatchPin: catchPinUserMovedRef.current,
-        savedGps,
-        savedStatus,
-      });
+      const { pin, deviceGps } = savedGps
+        ? {
+            deviceGps: savedGps,
+            pin: resolveLiveCameraCatchPin({
+              userMovedCatchPin: catchPinUserMovedRef.current,
+              deviceGps: savedGps,
+            }),
+          }
+        : await resolveLiveCameraPinAfterPhoto({
+            userMovedCatchPin: catchPinUserMovedRef.current,
+            savedGps: null,
+            savedStatus: savedStatus === "unavailable" ? "allowed" : savedStatus,
+          });
       if (deviceGps) {
         pendingLiveGpsRef.current = deviceGps;
         writeSavedLiveLocation(deviceGps);
+        locationStatusRef.current = "ready";
+        setLocationStatus("ready");
       }
       if (pin) {
         await applyResolvedPin(pin);
@@ -541,9 +580,12 @@ export function CatchForm({
       if (!photoGps) {
         setPinHint(DROPPING_PIN_HINT);
         deviceGps = pendingLiveGpsRef.current ?? readSavedLiveLocation();
+        if (!deviceGps && liveGpsRequestRef.current) {
+          deviceGps = await liveGpsRequestRef.current;
+        }
         if (!deviceGps) {
           const first = requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS);
-          const result = await waitForLiveLocationFix({
+          const result = await waitForAllowLocationFix({
             firstAttempt: first,
             budgetMs: LIVE_CAMERA_GPS_BUDGET_MS,
           });
@@ -671,7 +713,7 @@ export function CatchForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+    <form onSubmit={onSubmit} className="flex w-full min-w-0 max-w-full flex-col gap-4">
       <PhotoCapture
         previewUrl={previewUrl}
         onFile={handleFile}
@@ -681,15 +723,9 @@ export function CatchForm({
         libraryOnly={pastMode}
         compactPreview={pastMode && Boolean(previewUrl)}
         onLiveCamera={startLiveGpsFromCameraTap}
-        locationReason={
-          useLiveGps && locationStatus === "ready"
-            ? "A live photo pins from the location you allowed at sign-in. You can still move the pin."
-            : useLiveGps && locationStatus === "asking"
-              ? GETTING_LOCATION_LABEL
-              : useLiveGps && locationStatus === "unavailable"
-                ? "Location is off. Camera still works — drop a pin on the map."
-                : undefined
-        }
+        locationStatus={useLiveGps ? locationStatus : undefined}
+        onTurnLocationOn={useLiveGps ? turnLocationOn : undefined}
+        locationReason={useLiveGps && locationStatus === "ready" ? logLocationReason("ready") : undefined}
       />
 
       {!busy &&
@@ -742,8 +778,8 @@ export function CatchForm({
         <>
           <div>
             <p className="on-wash-chip mb-1 w-fit text-sm font-semibold">When you caught it</p>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block">
+            <div className="grid min-w-0 grid-cols-2 gap-3">
+              <label className="block min-w-0">
                 <span className="on-wash-chip mb-1 inline-block text-xs">Date</span>
                 <input
                   type="date"
@@ -756,11 +792,11 @@ export function CatchForm({
                       ...moonFields(d, moonLocked),
                     });
                   }}
-                  className="w-full rounded-xl border border-line bg-card px-3 py-3"
+                  className="w-full min-w-0 rounded-xl border border-line bg-card px-3 py-3"
                   required
                 />
               </label>
-              <label className="block">
+              <label className="block min-w-0">
                 <span className="on-wash-chip mb-1 inline-block text-xs">Time</span>
                 <input
                   type="time"
@@ -775,7 +811,7 @@ export function CatchForm({
                       ...moonFields(d, moonLocked),
                     });
                   }}
-                  className="w-full rounded-xl border border-line bg-card px-3 py-3"
+                  className="w-full min-w-0 rounded-xl border border-line bg-card px-3 py-3"
                   required
                 />
               </label>
@@ -1477,23 +1513,23 @@ function CatchLocationFields({
       <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} hideHints={hideHints} />
       <details className="app-more">
         <summary className="cursor-pointer text-sm font-semibold text-teal">Coordinates</summary>
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          <label className="block">
+        <div className="mt-3 grid min-w-0 grid-cols-2 gap-3">
+          <label className="block min-w-0">
             <span className="mb-1 block text-sm font-semibold">Catch lat</span>
             <input
               inputMode="decimal"
               value={form.latitude}
               onChange={(e) => onCoords(e.target.value, form.longitude)}
-              className="w-full rounded-xl border border-line bg-card px-3 py-3"
+              className="w-full min-w-0 rounded-xl border border-line bg-card px-3 py-3"
             />
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className="mb-1 block text-sm font-semibold">Catch long</span>
             <input
               inputMode="decimal"
               value={form.longitude}
               onChange={(e) => onCoords(form.latitude, e.target.value)}
-              className="w-full rounded-xl border border-line bg-card px-3 py-3"
+              className="w-full min-w-0 rounded-xl border border-line bg-card px-3 py-3"
             />
           </label>
         </div>

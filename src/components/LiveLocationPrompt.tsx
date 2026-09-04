@@ -2,8 +2,9 @@
 
 import {
   ALLOW_LOCATION_LABEL,
+  CONTINUE_WITHOUT_LOCATION_LABEL,
   GETTING_LOCATION_LABEL,
-  SKIP_LOCATION_LABEL,
+  skipLocationLabel,
   liveLocationPromptCopy,
   type LiveLocationStatus,
 } from "@/lib/location";
@@ -27,16 +28,35 @@ export function LiveLocationPrompt({
     >
       <p className="text-[15px] font-semibold text-ink">{copy.title}</p>
       <p className="mt-1.5 text-[15px] leading-snug text-ink">{copy.body}</p>
-      {status === "ready" ? null : (
+      {status === "ready" ? null : waiting ? (
+        <div className="mt-2.5 space-y-2">
+          <button
+            type="button"
+            data-testid="allow-location"
+            disabled
+            className="w-full rounded-xl bg-teal py-3 text-base font-semibold text-white disabled:opacity-60"
+          >
+            {GETTING_LOCATION_LABEL}
+          </button>
+          <button
+            type="button"
+            data-testid="skip-location"
+            onClick={onSkip}
+            className="w-full rounded-xl bg-copper py-3 text-base font-semibold text-white"
+          >
+            {skipLocationLabel()}
+          </button>
+          <p className="text-center text-sm text-ink-muted">{CONTINUE_WITHOUT_LOCATION_LABEL}</p>
+        </div>
+      ) : (
         <div className="mt-2.5 grid grid-cols-2 gap-2">
           <button
             type="button"
             data-testid="allow-location"
-            disabled={waiting}
             onClick={onAllow}
-            className="rounded-xl bg-teal py-3 text-base font-semibold text-white disabled:opacity-60"
+            className="rounded-xl bg-teal py-3 text-base font-semibold text-white"
           >
-            {waiting ? GETTING_LOCATION_LABEL : ALLOW_LOCATION_LABEL}
+            {ALLOW_LOCATION_LABEL}
           </button>
           {status === "unavailable" ? (
             <span className="self-center text-sm text-ink-muted">Or drop a pin by hand.</span>
@@ -47,7 +67,7 @@ export function LiveLocationPrompt({
               onClick={onSkip}
               className="rounded-xl border border-line bg-paper py-3 text-base font-semibold text-ink"
             >
-              {SKIP_LOCATION_LABEL}
+              {skipLocationLabel()}
             </button>
           )}
         </div>

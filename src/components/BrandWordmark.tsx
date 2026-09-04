@@ -17,7 +17,7 @@ export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
         className={
           home
             ? "block whitespace-nowrap font-display text-4xl leading-[1.05] tracking-tight text-teal sm:text-5xl"
-            : "block whitespace-nowrap font-display text-2xl leading-tight tracking-tight"
+            : "block min-w-0 font-display text-[1.35rem] leading-tight tracking-tight"
         }
       >
         {APP_DISPLAY_NAME}
@@ -26,7 +26,7 @@ export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
         className={
           home
             ? "mt-1 block whitespace-nowrap font-display text-xl leading-snug tracking-tight text-teal sm:text-2xl"
-            : "block whitespace-nowrap font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase"
+            : "block min-w-0 font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase"
         }
       >
         {APP_SUBTITLE}

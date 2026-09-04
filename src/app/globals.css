@@ -36,12 +36,19 @@
 
 html {
   height: 100%;
+  width: 100%;
+  max-width: 100%;
   background: #140c09;
   overflow-x: hidden;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   color: var(--ink);
   background-color: #140c09;
   isolation: isolate;
@@ -152,7 +159,27 @@ textarea {
   background: color-mix(in srgb, var(--teal) 26%, white);
 }
 
+.app-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 32rem;
+  min-width: 0;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  overflow-x: hidden;
+}
+
+.tab-swipe-pane,
+.tab-swipe-pane > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .journal-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   background: rgb(247 252 255 / 0.97);
   backdrop-filter: blur(18px) saturate(1.08);
   -webkit-backdrop-filter: blur(18px) saturate(1.08);
@@ -163,6 +190,11 @@ textarea {
 }
 
 .page-intro {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
   background: rgb(247 252 255 / 0.97);
   backdrop-filter: blur(16px) saturate(1.08);
   -webkit-backdrop-filter: blur(16px) saturate(1.08);

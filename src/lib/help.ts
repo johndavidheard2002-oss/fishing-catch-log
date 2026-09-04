@@ -48,7 +48,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Your journal",
     steps: [
       "Sign in or create an account with email and a password to open your journal.",
-      "After you sign in, tap Allow location so this phone can pin a live photo. Skip and the journal still works.",
+      "After you sign in, tap Allow location so this phone can pin a live photo. Skip and Log still has Turn location on.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
     ],
   },
