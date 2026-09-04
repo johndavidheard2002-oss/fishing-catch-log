@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import manifest from "@/app/manifest";
-import { APP_DISPLAY_NAME, APP_LOGO_SRC } from "@/lib/brand";
+import { APP_DISPLAY_NAME, APP_LOGO_SRC, APP_SUBTITLE } from "@/lib/brand";
 import {
   APPLE_STARTUP_IMAGES,
   PWA_APPLE_TOUCH_ICON,
@@ -21,6 +21,8 @@ describe("PWA install metadata", () => {
   it("uses standalone display and the Tide Mark icons", () => {
     const web = manifest();
     expect(APP_DISPLAY_NAME).toBe("Tide Mark");
+    expect(APP_SUBTITLE).toBe("Private saltwater logbook");
+    expect(APP_SUBTITLE.toLowerCase()).not.toContain("personal");
     expect(web.name).toBe("Tide Mark");
     expect(web.short_name).toBe("Tide Mark");
     expect(web.display).toBe("standalone");
