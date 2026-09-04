@@ -5,7 +5,7 @@ import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import {
   GETTING_LOCATION_LABEL,
   TURN_LOCATION_ON_LABEL,
-  beginLogLocationFromButtonTap,
+  handleTurnLocationOnClick,
   liveCameraTapAction,
   logLocationReason,
   shouldShowTurnLocationOn,
@@ -60,8 +60,8 @@ export function PhotoCapture({
   function startLocationFromThisTap(): Promise<DeviceGpsAttempt> | null {
     if (startingRef.current) return null;
     startingRef.current = true;
+    const { attempt } = handleTurnLocationOnClick();
     setTapBusy(true);
-    const { attempt } = beginLogLocationFromButtonTap();
     onTurnLocationOn?.(attempt);
     void attempt.finally(() => {
       startingRef.current = false;
@@ -175,7 +175,11 @@ export function PhotoCapture({
         </button>
       </div>
       {showTurnOn ? (
-        <div className="min-w-0 space-y-2 px-3 pb-3" data-no-tab-swipe>
+        <div
+          className="relative z-20 isolate min-w-0 space-y-2 px-3 pb-3 pointer-events-auto"
+          data-no-tab-swipe
+          data-testid="turn-location-on-wrap"
+        >
           <p data-testid="live-location-reason" className="text-xs break-words text-ink-muted">
             {reasonText}
           </p>
@@ -186,7 +190,7 @@ export function PhotoCapture({
             disabled={waiting}
             onPointerDown={onTurnLocationGesture}
             onClick={onTurnLocationGesture}
-            className="relative z-10 w-full max-w-full rounded-xl bg-teal py-3 text-base font-semibold text-white disabled:opacity-60"
+            className="relative z-20 w-full max-w-full touch-manipulation pointer-events-auto rounded-xl bg-teal py-3 text-base font-semibold text-white disabled:opacity-60"
           >
             {waiting ? GETTING_LOCATION_LABEL : TURN_LOCATION_ON_LABEL}
           </button>

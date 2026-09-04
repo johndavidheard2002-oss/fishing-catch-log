@@ -58,7 +58,8 @@ export const DROPPING_PIN_HINT = "Dropping pin from this phone…";
 export const GETTING_LOCATION_LABEL = "Getting location…";
 export const PINNED_FROM_PHONE_HINT = "Pinned from this phone";
 export const LOCATION_DENIED_SETTINGS_HINT =
-  "Location is blocked. Open iPhone Settings → Safari → Location → Allow.";
+  "Location is blocked. Open iPhone Settings → Safari → Location → Allow for this site.";
+export const ASKING_VISIBLE_MS = 400;
 
 export const ALLOW_LOCATION_LABEL = "Allow location";
 export const SKIP_LOCATION_LABEL = "Not now";
@@ -73,14 +74,17 @@ export function shouldShowTurnLocationOn(status: LiveLocationStatus): boolean {
   return status !== "ready";
 }
 
-export function logLocationReason(status: LiveLocationStatus): string {
+export function logLocationReason(
+  status: LiveLocationStatus,
+  osDenied = false,
+): string {
   if (status === "ready") {
     return PINNED_FROM_PHONE_HINT;
   }
   if (status === "asking") {
     return GETTING_LOCATION_LABEL;
   }
-  if (status === "denied") {
+  if (osDenied || status === "denied") {
     return LOCATION_DENIED_SETTINGS_HINT;
   }
   return "Allow location so a live photo can drop the pin on the water.";
@@ -91,6 +95,7 @@ export function logLocationSurface(args: {
   status: LiveLocationStatus;
   hasPin: boolean;
   photoAtCatch: boolean | null;
+  osDenied?: boolean;
 }): {
   showTurnOn: boolean;
   reason: string | null;
@@ -113,7 +118,7 @@ export function logLocationSurface(args: {
       emptyMapBanner: null,
     };
   }
-  if (args.status === "denied") {
+  if (args.osDenied || args.status === "denied") {
     return {
       showTurnOn: true,
       reason: LOCATION_DENIED_SETTINGS_HINT,
@@ -398,26 +403,64 @@ export function persistAllowLocationOutcome(
 
 /**
  * Log / Camera tap after a timeout or Not now. Timeout stays allowed.
- * OS deny is denied (Settings copy). Success is ready. Never leave UI on asking.
+ * OS deny is unavailable + Settings copy — never a silent return.
  */
 export function persistLogLocationOutcome(
   result: DeviceGpsAttempt,
   storage?: Storage | null,
-): { savedStatus: SavedLiveLocationStatus; uiStatus: LiveLocationStatus } {
+): { savedStatus: SavedLiveLocationStatus; uiStatus: LiveLocationStatus; osDenied: boolean } {
   if (result.ok) {
     writeSavedLiveLocation(result.gps, storage);
-    return { savedStatus: "ready", uiStatus: "ready" };
+    return { savedStatus: "ready", uiStatus: "ready", osDenied: false };
   }
   if (result.reason === "denied") {
     writeSavedLiveLocationDenied(storage);
-    return { savedStatus: "denied", uiStatus: "denied" };
+    return { savedStatus: "denied", uiStatus: "unavailable", osDenied: true };
   }
   if (result.reason === "missing") {
     writeSavedLiveLocation(null, storage);
-    return { savedStatus: "unavailable", uiStatus: "unavailable" };
+    return { savedStatus: "unavailable", uiStatus: "unavailable", osDenied: false };
   }
   writeSavedLiveLocationAllowed(storage);
-  return { savedStatus: "allowed", uiStatus: "prompt" };
+  return { savedStatus: "allowed", uiStatus: "prompt", osDenied: false };
+}
+
+/** Keep Getting location… on screen long enough that a <50ms deny is visible. */
+export function holdAskingVisible<T>(
+  work: Promise<T>,
+  minMs: number = ASKING_VISIBLE_MS,
+): Promise<T> {
+  const started = Date.now();
+  return work.then(async (result) => {
+    const wait = minMs - (Date.now() - started);
+    if (wait > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, wait);
+      });
+    }
+    return result;
+  });
+}
+
+/**
+ * Click path for Turn location on. getCurrentPosition is the first
+ * synchronous call — iOS drops the prompt if storage or setState runs first.
+ */
+export function handleTurnLocationOnClick(
+  geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
+  options?: { minAskingMs?: number },
+): { attempt: Promise<DeviceGpsAttempt>; uiStatus: "asking" } {
+  const first = requestDeviceGpsAttempt(geolocation, ALLOW_GPS_OPTIONS);
+  try {
+    writeSavedLiveLocationAllowed();
+  } catch {
+    /* quota / private mode must not swallow the tap */
+  }
+  const raw = waitForAllowLocationFix({ firstAttempt: first, geolocation });
+  return {
+    attempt: holdAskingVisible(raw, options?.minAskingMs ?? ASKING_VISIBLE_MS),
+    uiStatus: "asking",
+  };
 }
 
 /**
@@ -428,13 +471,7 @@ export function persistLogLocationOutcome(
 export function startLogLocationFromGesture(
   geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
 ): Promise<DeviceGpsAttempt> {
-  const first = requestDeviceGpsAttempt(geolocation, ALLOW_GPS_OPTIONS);
-  try {
-    writeSavedLiveLocationAllowed();
-  } catch {
-    /* quota / private mode must not swallow the tap */
-  }
-  return waitForAllowLocationFix({ firstAttempt: first, geolocation });
+  return handleTurnLocationOnClick(geolocation, { minAskingMs: 0 }).attempt;
 }
 
 /**
@@ -443,14 +480,16 @@ export function startLogLocationFromGesture(
  */
 export function beginLogLocationFromButtonTap(
   geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
+  options?: { minAskingMs?: number },
 ): { attempt: Promise<DeviceGpsAttempt>; uiStatus: "asking" } {
-  let attempt: Promise<DeviceGpsAttempt>;
   try {
-    attempt = startLogLocationFromGesture(geolocation);
+    return handleTurnLocationOnClick(geolocation, options);
   } catch {
-    attempt = Promise.resolve({ ok: false, reason: "unavailable" });
+    return {
+      attempt: Promise.resolve({ ok: false, reason: "unavailable" }),
+      uiStatus: "asking",
+    };
   }
-  return { attempt, uiStatus: "asking" };
 }
 
 /** Allow-without-coords is not ready — Log shows Turn location on, not a hang. */

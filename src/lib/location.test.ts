@@ -14,6 +14,8 @@ import {
   logLocationSurface,
   liveCameraTapAction,
   beginLogLocationFromButtonTap,
+  handleTurnLocationOnClick,
+  ASKING_VISIBLE_MS,
   pinFromTurnedOnLocation,
   PINNED_FROM_PHONE_HINT,
   LOCATION_DENIED_SETTINGS_HINT,
@@ -153,13 +155,46 @@ describe("Turn location on from Log", () => {
         success({ coords: { latitude: 29.15, longitude: -96.88 } });
       },
     };
-    const { attempt, uiStatus } = beginLogLocationFromButtonTap(geo);
+    const { attempt, uiStatus } = beginLogLocationFromButtonTap(geo, { minAskingMs: 0 });
     expect(started).toBe(true);
     expect(uiStatus).toBe("asking");
     await expect(attempt).resolves.toEqual({
       ok: true,
       gps: { latitude: 29.15, longitude: -96.88 },
     });
+  });
+
+  it("clicking turn-location-on invokes getCurrentPosition", () => {
+    const getCurrentPosition = vi.fn();
+    const click = () => handleTurnLocationOnClick({ getCurrentPosition }, { minAskingMs: 0 });
+    const { uiStatus } = click();
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(uiStatus).toBe("asking");
+  });
+
+  it("keeps Getting location visible for at least 400ms when GPS fails immediately", async () => {
+    vi.useFakeTimers();
+    const geo = {
+      getCurrentPosition(
+        _success: (position: { coords: { latitude: number; longitude: number } }) => void,
+        error?: (err?: { code?: number }) => void,
+      ) {
+        error?.({ code: 1 });
+      },
+    };
+    const { attempt } = handleTurnLocationOnClick(geo);
+    let settled = false;
+    void attempt.then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(ASKING_VISIBLE_MS - 1);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
+    expect(settled).toBe(true);
+    await expect(attempt).resolves.toEqual({ ok: false, reason: "denied" });
+    vi.useRealTimers();
   });
 
   it("still starts GPS when a later storage write would throw", () => {
@@ -196,6 +231,7 @@ describe("Turn location on from Log", () => {
     expect(persistLogLocationOutcome(result, storage)).toEqual({
       savedStatus: "ready",
       uiStatus: "ready",
+      osDenied: false,
     });
     expect(readSavedLiveLocationStatus(storage)).toBe("ready");
   });
@@ -216,6 +252,7 @@ describe("Turn location on from Log", () => {
     expect(persistLogLocationOutcome(result, storage)).toEqual({
       savedStatus: "allowed",
       uiStatus: "prompt",
+      osDenied: false,
     });
     expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
     expect(shouldShowTurnLocationOn("prompt")).toBe(true);
@@ -244,12 +281,25 @@ describe("Log photo card copy", () => {
     const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
     expect(photo).toContain('data-testid="turn-location-on"');
     expect(photo).toContain("TURN_LOCATION_ON_LABEL");
-    expect(photo).toContain("beginLogLocationFromButtonTap");
+    expect(photo).toContain("handleTurnLocationOnClick");
     expect(photo).toContain("onPointerDown");
+    expect(photo).toContain("pointer-events-auto");
+    expect(photo).toContain("touch-manipulation");
+    expect(photo).toContain("z-20");
+    expect(photo).toMatch(/busy[\s\S]*pointer-events-none/);
+    const startFn = photo.slice(photo.indexOf("function startLocationFromThisTap"));
+    expect(startFn.indexOf("handleTurnLocationOnClick")).toBeGreaterThan(-1);
+    expect(startFn.indexOf("handleTurnLocationOnClick")).toBeLessThan(startFn.indexOf("setTapBusy(true)"));
+    const clickPath = readFileSync(resolve(__dirname, "./location.ts"), "utf8");
+    const handler = clickPath.slice(clickPath.indexOf("export function handleTurnLocationOnClick"));
+    expect(handler.indexOf("requestDeviceGpsAttempt")).toBeLessThan(
+      handler.indexOf("writeSavedLiveLocationAllowed"),
+    );
     expect(photo).not.toContain("Location is off");
     expect(form).toContain("onTurnLocationOn");
     expect(form).toContain("onLocationAttempt");
     expect(form).toContain("pinFromTurnedOnLocation");
+    expect(form).toContain("osDenied");
     expect(form).not.toContain("Location is off");
     expect(form).not.toContain("LOCATION_OFF_PIN_HINT");
     expect(form).not.toContain("Tap the map to drop a pin.");
@@ -819,9 +869,10 @@ describe("logLocationSurface", () => {
     expect(ready.emptyMapBanner).toBeNull();
 
     const denied = logLocationSurface({
-      status: "denied",
+      status: "unavailable",
       hasPin: false,
       photoAtCatch: true,
+      osDenied: true,
     });
     expect(denied.showTurnOn).toBe(true);
     expect(denied.reason).toBe(LOCATION_DENIED_SETTINGS_HINT);
@@ -921,7 +972,7 @@ describe("live Camera tap", () => {
         success({ coords: gps });
       },
     };
-    const { attempt } = beginLogLocationFromButtonTap(geo);
+    const { attempt } = beginLogLocationFromButtonTap(geo, { minAskingMs: 0 });
     expect(started).toBe(true);
     const result = await attempt;
     expect(result.ok).toBe(true);
@@ -941,7 +992,8 @@ describe("persistLogLocationOutcome denied", () => {
     const storage = memoryStorage();
     expect(persistLogLocationOutcome({ ok: false, reason: "denied" }, storage)).toEqual({
       savedStatus: "denied",
-      uiStatus: "denied",
+      uiStatus: "unavailable",
+      osDenied: true,
     });
     expect(readSavedLiveLocationStatus(storage)).toBe("denied");
   });

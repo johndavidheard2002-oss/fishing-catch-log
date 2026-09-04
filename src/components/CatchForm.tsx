@@ -29,6 +29,7 @@ import {
   persistLogLocationOutcome,
   pinFromTurnedOnLocation,
   PINNED_FROM_PHONE_HINT,
+  LOCATION_DENIED_SETTINGS_HINT,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
   refreshLiveLocationIfGranted,
@@ -289,6 +290,9 @@ export function CatchForm({
     if (mode !== "create" || pastMode) return "unavailable";
     return initialLiveLocationStatusFromSaved(readSavedLiveLocationStatus());
   });
+  const [osDenied, setOsDenied] = useState(
+    () => mode === "create" && !pastMode && readSavedLiveLocationStatus() === "denied",
+  );
   const locationStatusRef = useRef<LiveLocationStatus>(locationStatus);
   const rememberLiveGpsRef = useRef<(gps: { latitude: number; longitude: number } | null) => void>(
     () => {},
@@ -423,14 +427,17 @@ export function CatchForm({
   function onLocationAttempt(attempt: Promise<DeviceGpsAttempt>) {
     setLocationStatus("asking");
     locationStatusRef.current = "asking";
+    setOsDenied(false);
     const pending = attempt.then((result) => {
       const outcome = persistLogLocationOutcome(result);
       if (result.ok) {
+        setOsDenied(false);
         rememberLiveGps(result.gps);
         return result.gps;
       }
       locationStatusRef.current = outcome.uiStatus;
       setLocationStatus(outcome.uiStatus);
+      setOsDenied(outcome.osDenied);
       return null;
     });
     liveGpsRequestRef.current = pending;
@@ -700,6 +707,7 @@ export function CatchForm({
     status: locationStatus,
     hasPin: Boolean(form.latitude.trim()),
     photoAtCatch,
+    osDenied,
   });
   const copperPinHint = visibleCatchPinHint({
     pinHint,
@@ -720,9 +728,11 @@ export function CatchForm({
         locationStatus={useLiveGps && photoAtCatch !== false ? locationStatus : undefined}
         onTurnLocationOn={useLiveGps && photoAtCatch !== false ? onLocationAttempt : undefined}
         locationReason={
-          useLiveGps && locationStatus === "ready" && Boolean(form.latitude.trim())
-            ? PINNED_FROM_PHONE_HINT
-            : undefined
+          useLiveGps && osDenied
+            ? LOCATION_DENIED_SETTINGS_HINT
+            : useLiveGps && locationStatus === "ready" && Boolean(form.latitude.trim())
+              ? PINNED_FROM_PHONE_HINT
+              : undefined
         }
       />
 
