@@ -15,6 +15,8 @@ import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import {
+  ALLOW_GPS_BUDGET_MS,
+  ALLOW_GPS_FALLBACK_OPTIONS,
   ALLOW_GPS_OPTIONS,
   classifyCatchPinEdit,
   coordsLookDifferent,
@@ -307,9 +309,11 @@ export function CatchForm({
     const ac = new AbortController();
     const pending = saved
       ? refreshLiveLocationIfGranted({ savedStatus })
-      : waitForLiveLocationFix({ signal: ac.signal }).then((result) =>
-          result.ok ? result.gps : null,
-        );
+      : waitForLiveLocationFix({
+          signal: ac.signal,
+          budgetMs: ALLOW_GPS_BUDGET_MS,
+          options: ALLOW_GPS_FALLBACK_OPTIONS,
+        }).then((result) => (result.ok ? result.gps : null));
     liveGpsRequestRef.current = pending;
     void pending.then((gps) => {
       if (cancelled || !gps) return;

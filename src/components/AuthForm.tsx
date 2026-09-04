@@ -5,11 +5,12 @@ import { useRef, useState } from "react";
 import { LiveLocationPrompt } from "@/components/LiveLocationPrompt";
 import {
   ALLOW_GPS_OPTIONS,
-  LIVE_GPS_FOLLOWUP_OPTIONS,
+  persistAllowLocationOutcome,
+  readSavedLiveLocationStatus,
   requestDeviceGpsAttempt,
-  waitForLiveLocationFix,
-  writeSavedLiveLocation,
+  waitForAllowLocationFix,
   writeSavedLiveLocationAllowed,
+  type DeviceGpsAttempt,
   type LiveLocationStatus,
 } from "@/lib/location";
 import { AUTH_PRIVACY_LINE } from "@/lib/privacy";
@@ -60,8 +61,16 @@ export function AuthForm({
       }
       onSignedIn?.(typeof (data as { me?: { name?: string } }).me?.name === "string" ? (data as { me: { name: string } }).me.name : name);
       notifyAuthChange();
+      const saved = readSavedLiveLocationStatus();
+      if (saved === "ready") {
+        enterJournal();
+        return;
+      }
       setPhase("location");
       onPhaseChange?.("location");
+      if (saved === "allowed") {
+        resumeAllowedLocationWait();
+      }
     } catch {
       setError("Could not reach the journal. Try again.");
     } finally {
@@ -74,36 +83,44 @@ export function AuthForm({
     router.refresh();
   }
 
-  function allowLocation() {
+  function finishAllowWait(result: DeviceGpsAttempt) {
+    const outcome = persistAllowLocationOutcome(result);
+    setLocationStatus(
+      outcome.savedStatus === "ready"
+        ? "ready"
+        : outcome.savedStatus === "unavailable"
+          ? "unavailable"
+          : "asking",
+    );
+    enterJournal();
+  }
+
+  function startAllowWait(firstAttempt?: Promise<DeviceGpsAttempt>) {
     allowAbortRef.current?.abort();
     const ac = new AbortController();
     allowAbortRef.current = ac;
     setLocationStatus("asking");
     writeSavedLiveLocationAllowed();
-    const first = requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS);
-    void waitForLiveLocationFix({
-      firstAttempt: first,
-      options: LIVE_GPS_FOLLOWUP_OPTIONS,
+    void waitForAllowLocationFix({
+      firstAttempt,
       signal: ac.signal,
     }).then((result) => {
       if (ac.signal.aborted) return;
-      if (result.ok) {
-        writeSavedLiveLocation(result.gps);
-        setLocationStatus("ready");
-        enterJournal();
-        return;
-      }
-      if (result.reason === "denied" || result.reason === "missing") {
-        writeSavedLiveLocation(null);
-        setLocationStatus("unavailable");
-        enterJournal();
-      }
+      finishAllowWait(result);
     });
+  }
+
+  function allowLocation() {
+    startAllowWait(requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS));
+  }
+
+  function resumeAllowedLocationWait() {
+    startAllowWait();
   }
 
   function skipLocation() {
     allowAbortRef.current?.abort();
-    writeSavedLiveLocation(null);
+    persistAllowLocationOutcome({ skip: true });
     setLocationStatus("unavailable");
     enterJournal();
   }

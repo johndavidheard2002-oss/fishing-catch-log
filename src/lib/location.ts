@@ -13,11 +13,18 @@ export const LIVE_GPS_OPTIONS: PositionOptions = {
   maximumAge: 60_000,
 };
 
-/** First Allow tap — same user gesture. Longer than LIVE_GPS_OPTIONS so iPhone can lock. */
+/** First Allow tap — same user gesture. Short high-accuracy try, then a faster fallback. */
 export const ALLOW_GPS_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
-  timeout: 15_000,
+  timeout: 6_000,
   maximumAge: 60_000,
+};
+
+/** After the first Allow try — phones that never lock a high-accuracy fix can still proceed. */
+export const ALLOW_GPS_FALLBACK_OPTIONS: PositionOptions = {
+  enableHighAccuracy: false,
+  timeout: 8_000,
+  maximumAge: 120_000,
 };
 
 /** After permission is granted — no gesture needed. */
@@ -28,6 +35,8 @@ export const LIVE_GPS_FOLLOWUP_OPTIONS: PositionOptions = {
 };
 
 export const LIVE_CAMERA_GPS_BUDGET_MS = 20_000;
+/** Allow never waits forever. Camera keeps the longer 20s budget. */
+export const ALLOW_GPS_BUDGET_MS = 14_000;
 export const LIVE_GPS_RETRY_GAP_MS = 250;
 
 export const LIVE_LOCATION_STORAGE_KEY = "cast-log-live-gps";
@@ -49,6 +58,11 @@ export const GETTING_LOCATION_LABEL = "Getting location…";
 
 export const ALLOW_LOCATION_LABEL = "Allow location";
 export const SKIP_LOCATION_LABEL = "Not now";
+export const CONTINUE_WITHOUT_LOCATION_LABEL = "Continue without location";
+
+export function skipLocationLabel(status: LiveLocationStatus): string {
+  return status === "asking" ? CONTINUE_WITHOUT_LOCATION_LABEL : SKIP_LOCATION_LABEL;
+}
 
 export type DeviceGeolocation = {
   getCurrentPosition: (
@@ -80,13 +94,26 @@ export function requestDeviceGpsAttempt(
 ): Promise<DeviceGpsAttempt> {
   if (!geolocation) return Promise.resolve({ ok: false, reason: "missing" });
   return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: DeviceGpsAttempt) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    const timeoutMs = options.timeout ?? ALLOW_GPS_BUDGET_MS;
+    const timer = setTimeout(() => finish({ ok: false, reason: "timeout" }), timeoutMs);
     geolocation.getCurrentPosition(
-      (pos) =>
-        resolve({
+      (pos) => {
+        clearTimeout(timer);
+        finish({
           ok: true,
           gps: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
-        }),
-      (err) => resolve({ ok: false, reason: classifyGpsError(err) }),
+        });
+      },
+      (err) => {
+        clearTimeout(timer);
+        finish({ ok: false, reason: classifyGpsError(err) });
+      },
       options,
     );
   });
@@ -105,13 +132,52 @@ export function requestDeviceGps(
   );
 }
 
+function remainingBudgetMs(started: number, budgetMs: number | null): number | null {
+  if (budgetMs == null) return null;
+  return budgetMs - (Date.now() - started);
+}
+
+/** Hard-cap a hanging getCurrentPosition so Allow / Camera never await forever. */
+function raceGpsAttempt(
+  attempt: Promise<DeviceGpsAttempt>,
+  waitMs: number,
+  signal?: AbortSignal,
+): Promise<DeviceGpsAttempt> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: DeviceGpsAttempt) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    if (signal?.aborted) {
+      finish({ ok: false, reason: "unavailable" });
+      return;
+    }
+    const timer = setTimeout(() => finish({ ok: false, reason: "timeout" }), Math.max(waitMs, 1));
+    const onAbort = () => {
+      clearTimeout(timer);
+      finish({ ok: false, reason: "unavailable" });
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    void attempt.then((result) => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      finish(result);
+    });
+  });
+}
+
 /**
  * Keep requesting a fix after Allow or a live Camera photo.
  * Denied / missing geolocation stops immediately. Timeouts retry until
- * budgetMs elapses (camera) or forever (Allow — they can still tap Not now).
+ * budgetMs elapses. Allow defaults to ~14s so Getting location… cannot hang.
+ * getCurrentPosition is also raced against the remaining budget — some phones
+ * never succeed and never return denied when enableHighAccuracy stays on.
  */
 export async function waitForLiveLocationFix(args?: {
   firstAttempt?: Promise<DeviceGpsAttempt>;
+  firstOptions?: PositionOptions;
   geolocation?: DeviceGeolocation | null;
   options?: PositionOptions;
   budgetMs?: number | null;
@@ -120,23 +186,39 @@ export async function waitForLiveLocationFix(args?: {
 }): Promise<DeviceGpsAttempt> {
   const geo = args?.geolocation === undefined ? defaultGeolocation() : args.geolocation;
   const options = args?.options ?? LIVE_GPS_FOLLOWUP_OPTIONS;
-  const budgetMs = args?.budgetMs;
+  const budgetMs = args?.budgetMs === undefined ? ALLOW_GPS_BUDGET_MS : args.budgetMs;
   const retryGapMs = args?.retryGapMs ?? LIVE_GPS_RETRY_GAP_MS;
   const started = Date.now();
+
+  const capFor = (attemptTimeout: number) => {
+    const remaining = remainingBudgetMs(started, budgetMs);
+    if (remaining == null) return attemptTimeout;
+    return Math.min(attemptTimeout, Math.max(remaining, 1));
+  };
+
+  const awaitAttempt = (attempt: Promise<DeviceGpsAttempt>, attemptTimeout: number) =>
+    raceGpsAttempt(attempt, capFor(attemptTimeout), args?.signal);
 
   let attempt =
     args?.firstAttempt ??
     (args?.signal?.aborted
       ? Promise.resolve<DeviceGpsAttempt>({ ok: false, reason: "unavailable" })
       : requestDeviceGpsAttempt(geo, options));
+  let attemptTimeout =
+    args?.firstAttempt != null
+      ? (args.firstOptions?.timeout ?? options.timeout ?? 10_000)
+      : (options.timeout ?? 10_000);
 
   while (true) {
     if (args?.signal?.aborted) return { ok: false, reason: "unavailable" };
-    const result = await attempt;
+    const remaining = remainingBudgetMs(started, budgetMs);
+    if (remaining != null && remaining <= 0) return { ok: false, reason: "timeout" };
+    const result = await awaitAttempt(attempt, attemptTimeout);
     if (result.ok) return result;
     if (result.reason === "denied" || result.reason === "missing") return result;
     if (args?.signal?.aborted) return { ok: false, reason: "unavailable" };
-    if (budgetMs != null && Date.now() - started >= budgetMs) return result;
+    const afterAttempt = remainingBudgetMs(started, budgetMs);
+    if (afterAttempt != null && afterAttempt <= 0) return result;
     if (retryGapMs > 0) {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, retryGapMs);
@@ -148,15 +230,60 @@ export async function waitForLiveLocationFix(args?: {
       });
     }
     if (args?.signal?.aborted) return { ok: false, reason: "unavailable" };
-    if (budgetMs != null && Date.now() - started >= budgetMs) return result;
-    const remaining =
-      budgetMs == null ? (options.timeout ?? 10_000) : budgetMs - (Date.now() - started);
-    if (budgetMs != null && remaining <= 0) return result;
+    const leftover = remainingBudgetMs(started, budgetMs);
+    if (leftover != null && leftover <= 0) return result;
+    attemptTimeout = options.timeout ?? 10_000;
     attempt = requestDeviceGpsAttempt(geo, {
       ...options,
-      timeout: Math.min(options.timeout ?? 10_000, Math.max(remaining, 1)),
+      timeout: leftover == null ? attemptTimeout : Math.min(attemptTimeout, Math.max(leftover, 1)),
     });
   }
+}
+
+/**
+ * Allow-tap wait: short high-accuracy first try, then low-accuracy retries,
+ * hard-capped so the sign-in screen cannot sit on Getting location… forever.
+ */
+export function waitForAllowLocationFix(args?: {
+  firstAttempt?: Promise<DeviceGpsAttempt>;
+  geolocation?: DeviceGeolocation | null;
+  budgetMs?: number;
+  retryGapMs?: number;
+  signal?: AbortSignal;
+}): Promise<DeviceGpsAttempt> {
+  return waitForLiveLocationFix({
+    firstAttempt: args?.firstAttempt,
+    firstOptions: ALLOW_GPS_OPTIONS,
+    geolocation: args?.geolocation,
+    options: ALLOW_GPS_FALLBACK_OPTIONS,
+    budgetMs: args?.budgetMs ?? ALLOW_GPS_BUDGET_MS,
+    retryGapMs: args?.retryGapMs,
+    signal: args?.signal,
+  });
+}
+
+/**
+ * After Allow (or timeout): enter the journal. Timeout / no-fix keeps
+ * "allowed" so Camera can still try later. Denied or Not now is unavailable.
+ */
+export function persistAllowLocationOutcome(
+  result: DeviceGpsAttempt | { skip: true },
+  storage?: Storage | null,
+): { savedStatus: SavedLiveLocationStatus; enterJournal: true } {
+  if ("skip" in result) {
+    writeSavedLiveLocation(null, storage);
+    return { savedStatus: "unavailable", enterJournal: true };
+  }
+  if (result.ok) {
+    writeSavedLiveLocation(result.gps, storage);
+    return { savedStatus: "ready", enterJournal: true };
+  }
+  if (result.reason === "denied" || result.reason === "missing") {
+    writeSavedLiveLocation(null, storage);
+    return { savedStatus: "unavailable", enterJournal: true };
+  }
+  writeSavedLiveLocationAllowed(storage);
+  return { savedStatus: "allowed", enterJournal: true };
 }
 
 /** Allow is not ready until lat/lng are stored. "allowed" keeps showing Getting location… */
@@ -188,7 +315,7 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
   if (status === "asking") {
     return {
       title: GETTING_LOCATION_LABEL,
-      body: "This phone is finding where you are. A live photo can drop the pin once we have it.",
+      body: "This phone is finding where you are. Continue without location if this takes too long — Camera can still try later.",
     };
   }
   return {
