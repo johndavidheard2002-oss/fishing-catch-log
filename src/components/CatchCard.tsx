@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { SharedOwnerBadge } from "@/components/SharedOwnerBadge";
 import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel, yearFromDateKey } from "@/lib/calendar";
 import { formatCatchWhen, formatTimeOnly, TIME_OF_DAY_LABELS } from "@/lib/time";
@@ -32,7 +33,7 @@ export function CatchCard({
   const theirs = viewerId && record.anglerId !== viewerId;
   const body = (
     <>
-        <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 bg-paper-deep`}>
+        <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 overflow-hidden bg-paper-deep`}>
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt="" className="h-full w-full object-cover" />
@@ -41,6 +42,7 @@ export function CatchCard({
               No photo
             </div>
           )}
+          {theirs ? <SharedOwnerBadge name={record.ownerName} compact={compact} /> : null}
         </div>
         <div className="min-w-0 flex-1 px-3 py-2">
           <p className="truncate font-semibold text-ink">
@@ -80,11 +82,6 @@ export function CatchCard({
                 Sample
               </span>
             ) : null}
-            {theirs ? (
-              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
-                {record.ownerName}
-              </span>
-            ) : null}
           </p>
         </div>
     </>
@@ -117,7 +114,7 @@ export function CatchGridCard({
   return (
     <div className="journal-card relative overflow-hidden rounded-2xl">
       <Link href={`/catch/${record.id}`} className="block" data-testid="calendar-catch-open">
-        <div className="aspect-square bg-paper-deep">
+        <div className="relative aspect-square overflow-hidden bg-paper-deep">
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt="" className="h-full w-full object-cover" />
@@ -126,6 +123,7 @@ export function CatchGridCard({
               No photo
             </div>
           )}
+          {theirs ? <SharedOwnerBadge name={record.ownerName} /> : null}
         </div>
         <div className="px-2.5 py-2">
           <p className="truncate text-sm font-semibold">
@@ -139,13 +137,6 @@ export function CatchGridCard({
             {formatCatchWhen(record.caughtAt)} · {habitatLabel(record.habitat)}
             {isSampleCatchPhoto(record.photoPath) ? " · Sample" : ""}
           </p>
-          {theirs ? (
-            <p className="mt-1">
-              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
-                {record.ownerName}
-              </span>
-            </p>
-          ) : null}
         </div>
       </Link>
       {src ? (
