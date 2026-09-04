@@ -39,7 +39,7 @@ export function HomeClient() {
 
   return (
     <div className="space-y-6">
-      <section className="page-intro home-lockup mx-auto w-fit text-center">
+      <section className="page-intro home-lockup mx-auto w-fit text-center" data-testid="home-lockup">
         <BrandWordmark as="h1" size="home" />
       </section>
 

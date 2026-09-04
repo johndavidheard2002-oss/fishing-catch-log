@@ -25,16 +25,21 @@ describe("phone-width Log and Backfill", () => {
     expect(wordmark).toContain("text-[1.35rem]");
   });
 
-  it("puts logo trout wash only on the sign-in Tide Mark banner", () => {
+  it("puts logo trout wash on the Home Tide Mark lockup, not the thin header", () => {
     const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
     expect(css).toMatch(
-      /\.signin-brand-banner \{[\s\S]*?url\("\/brand\/logo-trout-wash-bg\.png"\)/,
+      /\.home-lockup \{[\s\S]*?url\("\/brand\/logo-trout-wash-bg\.png"\)/,
     );
     expect(css).toMatch(/\.journal-card \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
+    expect(css).toMatch(/\.page-intro \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
     expect(css).toMatch(/\.trout-wash-bg \{[\s\S]*?url\("\/brand\/dark-copper-redfish-bg\.png"\)/);
+    expect(css).not.toMatch(/\.signin-brand-banner \{/);
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
-    expect(shell).toContain('onSignIn ? "signin-brand-banner" : "journal-card"');
-    expect(shell).toContain('data-testid={onSignIn ? "signin-brand-banner"');
+    expect(shell).toContain('className="journal-card mb-4 flex w-full min-w-0 items-center');
+    expect(shell).not.toContain("signin-brand-banner");
+    const home = readFileSync(resolve(__dirname, "../components/HomeClient.tsx"), "utf8");
+    expect(home).toContain("page-intro home-lockup");
+    expect(home).toContain('data-testid="home-lockup"');
     const wash = readFileSync(resolve(process.cwd(), "public/brand/logo-trout-wash-bg.png"));
     expect(wash.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))).toBe(true);
   });
