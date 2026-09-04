@@ -2,6 +2,7 @@
 
 import {
   ALLOW_LOCATION_LABEL,
+  CONTINUE_WITHOUT_LOCATION_LABEL,
   GETTING_LOCATION_LABEL,
   skipLocationLabel,
   liveLocationPromptCopy,
@@ -43,8 +44,9 @@ export function LiveLocationPrompt({
             onClick={onSkip}
             className="w-full rounded-xl bg-copper py-3 text-base font-semibold text-white"
           >
-            {skipLocationLabel(status)}
+            {skipLocationLabel()}
           </button>
+          <p className="text-center text-sm text-ink-muted">{CONTINUE_WITHOUT_LOCATION_LABEL}</p>
         </div>
       ) : (
         <div className="mt-2.5 grid grid-cols-2 gap-2">
@@ -65,7 +67,7 @@ export function LiveLocationPrompt({
               onClick={onSkip}
               className="rounded-xl border border-line bg-paper py-3 text-base font-semibold text-ink"
             >
-              {skipLocationLabel(status)}
+              {skipLocationLabel()}
             </button>
           )}
         </div>

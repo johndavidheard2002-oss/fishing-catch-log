@@ -35,8 +35,8 @@ export const LIVE_GPS_FOLLOWUP_OPTIONS: PositionOptions = {
 };
 
 export const LIVE_CAMERA_GPS_BUDGET_MS = 20_000;
-/** Allow never waits forever. Camera keeps the longer 20s budget. */
-export const ALLOW_GPS_BUDGET_MS = 14_000;
+/** Allow / Turn location on never wait forever. Camera keeps the longer 20s budget. */
+export const ALLOW_GPS_BUDGET_MS = 12_000;
 export const LIVE_GPS_RETRY_GAP_MS = 250;
 
 export const LIVE_LOCATION_STORAGE_KEY = "cast-log-live-gps";
@@ -59,9 +59,24 @@ export const GETTING_LOCATION_LABEL = "Getting location…";
 export const ALLOW_LOCATION_LABEL = "Allow location";
 export const SKIP_LOCATION_LABEL = "Not now";
 export const CONTINUE_WITHOUT_LOCATION_LABEL = "Continue without location";
+export const TURN_LOCATION_ON_LABEL = "Turn location on";
 
-export function skipLocationLabel(status: LiveLocationStatus): string {
-  return status === "asking" ? CONTINUE_WITHOUT_LOCATION_LABEL : SKIP_LOCATION_LABEL;
+export function skipLocationLabel(): string {
+  return SKIP_LOCATION_LABEL;
+}
+
+export function shouldShowTurnLocationOn(status: LiveLocationStatus): boolean {
+  return status !== "ready";
+}
+
+export function logLocationReason(status: LiveLocationStatus): string {
+  if (status === "ready") {
+    return "A live photo pins from this phone. You can still move the pin.";
+  }
+  if (status === "asking") {
+    return GETTING_LOCATION_LABEL;
+  }
+  return "Allow location so a live photo can drop the pin on the water.";
 }
 
 export type DeviceGeolocation = {
@@ -171,7 +186,7 @@ function raceGpsAttempt(
 /**
  * Keep requesting a fix after Allow or a live Camera photo.
  * Denied / missing geolocation stops immediately. Timeouts retry until
- * budgetMs elapses. Allow defaults to ~14s so Getting location… cannot hang.
+ * budgetMs elapses. Allow defaults to ~12s so Getting location… cannot hang.
  * getCurrentPosition is also raced against the remaining budget — some phones
  * never succeed and never return denied when enableHighAccuracy stays on.
  */
@@ -286,12 +301,44 @@ export function persistAllowLocationOutcome(
   return { savedStatus: "allowed", enterJournal: true };
 }
 
-/** Allow is not ready until lat/lng are stored. "allowed" keeps showing Getting location… */
+/**
+ * Log / Camera tap after a timeout or Not now. Timeout stays allowed.
+ * Denied stays unavailable. Success is ready. Never leave UI on asking.
+ */
+export function persistLogLocationOutcome(
+  result: DeviceGpsAttempt,
+  storage?: Storage | null,
+): { savedStatus: SavedLiveLocationStatus; uiStatus: LiveLocationStatus } {
+  if (result.ok) {
+    writeSavedLiveLocation(result.gps, storage);
+    return { savedStatus: "ready", uiStatus: "ready" };
+  }
+  if (result.reason === "denied" || result.reason === "missing") {
+    writeSavedLiveLocation(null, storage);
+    return { savedStatus: "unavailable", uiStatus: "unavailable" };
+  }
+  writeSavedLiveLocationAllowed(storage);
+  return { savedStatus: "allowed", uiStatus: "prompt" };
+}
+
+/**
+ * Start GPS from Turn location on / Allow on Log. Must call getCurrentPosition
+ * in the same user gesture. Clears a leftover unavailable lock.
+ */
+export function startLogLocationFromGesture(
+  geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
+): Promise<DeviceGpsAttempt> {
+  writeSavedLiveLocationAllowed();
+  const first = requestDeviceGpsAttempt(geolocation, ALLOW_GPS_OPTIONS);
+  return waitForAllowLocationFix({ firstAttempt: first, geolocation });
+}
+
+/** Allow-without-coords is not ready — Log shows Turn location on, not a hang. */
 export function initialLiveLocationStatusFromSaved(
   saved: SavedLiveLocationStatus | null,
 ): LiveLocationStatus {
   if (saved === "ready") return "ready";
-  if (saved === "allowed") return "asking";
+  if (saved === "allowed") return "prompt";
   if (saved === "unavailable") return "unavailable";
   return "prompt";
 }
@@ -315,7 +362,7 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
   if (status === "asking") {
     return {
       title: GETTING_LOCATION_LABEL,
-      body: "This phone is finding where you are. Continue without location if this takes too long — Camera can still try later.",
+      body: "This phone is finding where you are. Not now is always available if this takes too long — Camera can still try later.",
     };
   }
   return {
@@ -500,15 +547,27 @@ export async function resolveLiveCameraDeviceGps(args: {
   permissions?: DevicePermissions | null;
   budgetMs?: number;
   retryGapMs?: number;
+  firstAttempt?: Promise<DeviceGpsAttempt>;
 }): Promise<PhotoGps | null> {
   if (args.savedGps) return args.savedGps;
+  if (args.firstAttempt) {
+    const result = await waitForLiveLocationFix({
+      firstAttempt: args.firstAttempt,
+      firstOptions: ALLOW_GPS_OPTIONS,
+      geolocation: args.geolocation,
+      options: ALLOW_GPS_FALLBACK_OPTIONS,
+      budgetMs: args.budgetMs ?? LIVE_CAMERA_GPS_BUDGET_MS,
+      retryGapMs: args.retryGapMs,
+    });
+    return result.ok ? result.gps : null;
+  }
   const permission = await queryGeolocationPermission(args.permissions);
   if (!liveLocationWasAllowed(args.savedStatus, permission)) return null;
   const result = await waitForLiveLocationFix({
     geolocation: args.geolocation,
     budgetMs: args.budgetMs ?? LIVE_CAMERA_GPS_BUDGET_MS,
     retryGapMs: args.retryGapMs,
-    options: LIVE_GPS_FOLLOWUP_OPTIONS,
+    options: ALLOW_GPS_FALLBACK_OPTIONS,
   });
   return result.ok ? result.gps : null;
 }
@@ -522,6 +581,7 @@ export async function resolveLiveCameraPinAfterPhoto(args: {
   permissions?: DevicePermissions | null;
   budgetMs?: number;
   retryGapMs?: number;
+  firstAttempt?: Promise<DeviceGpsAttempt>;
 }): Promise<{
   pin: { latitude: number; longitude: number; source: "device" } | null;
   deviceGps: PhotoGps | null;
@@ -533,6 +593,7 @@ export async function resolveLiveCameraPinAfterPhoto(args: {
     permissions: args.permissions,
     budgetMs: args.budgetMs,
     retryGapMs: args.retryGapMs,
+    firstAttempt: args.firstAttempt,
   });
   return {
     deviceGps,

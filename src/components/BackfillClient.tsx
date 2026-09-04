@@ -24,7 +24,7 @@ export function BackfillClient() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 max-w-full space-y-4">
       <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">
           {importedPhotoPath ? "Finish this catch" : "Backfill a past catch"}
@@ -47,7 +47,7 @@ export function BackfillClient() {
         <Link
           href="/log/scan"
           data-testid="backfill-find-fish"
-          className={`block rounded-2xl px-4 py-3 text-center text-lg font-semibold ${
+          className={`box-border block w-full max-w-full rounded-2xl px-4 py-3 text-center text-lg font-semibold ${
             leftover > 0
               ? "border border-line bg-card text-ink"
               : "bg-copper text-white"

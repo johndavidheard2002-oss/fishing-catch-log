@@ -239,11 +239,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="trout-wash-bg" aria-hidden="true" />
     <div
       ref={shellRef}
-      className={`relative z-[1] mx-auto flex min-h-full max-w-lg flex-col overflow-x-clip px-4 pt-4 ${
+      className={`relative z-[1] mx-auto box-border flex min-h-full w-full max-w-lg flex-col overflow-x-clip px-4 pt-4 ${
         onSignIn ? "pb-8" : "pb-36"
       }`}
     >
-      <div ref={paneRef} className="tab-swipe-pane flex min-h-0 flex-1 flex-col">
+      <div ref={paneRef} className="tab-swipe-pane flex min-h-0 w-full min-w-0 flex-1 flex-col">
         <header className="journal-card mb-4 flex items-center justify-between gap-2 rounded-2xl px-3 py-2">
           <Link href="/" className="flex min-w-0 items-center gap-2 overflow-hidden text-teal" data-testid="header-lockup">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -262,7 +262,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
         </header>
-        <main className="flex-1">{children}</main>
+        <main className="min-w-0 w-full max-w-full flex-1">{children}</main>
       </div>
       {onSignIn ? null : (
       <nav className="bottom-nav fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl" data-no-tab-swipe>

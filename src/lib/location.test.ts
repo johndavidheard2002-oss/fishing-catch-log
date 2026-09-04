@@ -9,7 +9,10 @@ import {
   GETTING_LOCATION_LABEL,
   SKIP_LOCATION_LABEL,
   persistAllowLocationOutcome,
+  persistLogLocationOutcome,
+  shouldShowTurnLocationOn,
   skipLocationLabel,
+  TURN_LOCATION_ON_LABEL,
   waitForAllowLocationFix,
   catchPinFromPhotoGps,
   classifyCatchPinEdit,
@@ -96,25 +99,81 @@ describe("liveLocationPromptCopy", () => {
     expect(ALLOW_LOCATION_LABEL).toBe("Allow location");
     expect(SKIP_LOCATION_LABEL).toBe("Not now");
     expect(CONTINUE_WITHOUT_LOCATION_LABEL).toBe("Continue without location");
-    expect(skipLocationLabel("prompt")).toBe("Not now");
-    expect(skipLocationLabel("asking")).toBe("Continue without location");
+    expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
+    expect(skipLocationLabel()).toBe("Not now");
     expect(GETTING_LOCATION_LABEL).toBe("Getting location…");
     expect(DROPPING_PIN_HINT).toBe("Dropping pin from this phone…");
     expect(liveLocationPromptCopy("ready").title).toBe("Location on");
     expect(liveLocationPromptCopy("unavailable").body).toContain("Camera still works");
     expect(liveLocationPromptCopy("asking").title).toBe("Getting location…");
     expect(liveLocationPromptCopy("asking").body).toContain("finding where you are");
-    expect(liveLocationPromptCopy("asking").body).toContain("Continue without location");
+    expect(liveLocationPromptCopy("asking").body).toContain("Not now");
     expect(liveLocationPromptCopy("asking").body.toLowerCase()).not.toContain("buddy");
   });
 });
 
 describe("initialLiveLocationStatusFromSaved", () => {
-  it("does not treat Allow-without-coords as ready", () => {
+  it("does not treat Allow-without-coords as ready or a hang", () => {
     expect(initialLiveLocationStatusFromSaved("ready")).toBe("ready");
-    expect(initialLiveLocationStatusFromSaved("allowed")).toBe("asking");
+    expect(initialLiveLocationStatusFromSaved("allowed")).toBe("prompt");
     expect(initialLiveLocationStatusFromSaved("unavailable")).toBe("unavailable");
     expect(initialLiveLocationStatusFromSaved(null)).toBe("prompt");
+  });
+});
+
+describe("Turn location on from Log", () => {
+  it("shows Turn location on whenever the pin is not ready", () => {
+    expect(shouldShowTurnLocationOn("prompt")).toBe(true);
+    expect(shouldShowTurnLocationOn("asking")).toBe(true);
+    expect(shouldShowTurnLocationOn("unavailable")).toBe(true);
+    expect(shouldShowTurnLocationOn("ready")).toBe(false);
+  });
+
+  it("requests GPS in the same gesture and becomes ready", async () => {
+    const storage = memoryStorage();
+    writeSavedLiveLocation(null, storage);
+    let started = false;
+    const geo = {
+      getCurrentPosition(
+        success: (position: { coords: { latitude: number; longitude: number } }) => void,
+      ) {
+        started = true;
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
+      },
+    };
+    const first = requestDeviceGpsAttempt(geo, ALLOW_GPS_OPTIONS);
+    expect(started).toBe(true);
+    const result = await waitForAllowLocationFix({
+      firstAttempt: first,
+      geolocation: geo,
+      retryGapMs: 0,
+    });
+    expect(persistLogLocationOutcome(result, storage)).toEqual({
+      savedStatus: "ready",
+      uiStatus: "ready",
+    });
+    expect(readSavedLiveLocationStatus(storage)).toBe("ready");
+  });
+
+  it("timeout after Turn location on stays allowed, not unavailable", async () => {
+    const storage = memoryStorage();
+    writeSavedLiveLocation(null, storage);
+    const geo = {
+      getCurrentPosition() {
+        /* hang */
+      },
+    };
+    const result = await waitForAllowLocationFix({
+      geolocation: geo,
+      retryGapMs: 0,
+      budgetMs: 25,
+    });
+    expect(persistLogLocationOutcome(result, storage)).toEqual({
+      savedStatus: "allowed",
+      uiStatus: "prompt",
+    });
+    expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
+    expect(shouldShowTurnLocationOn("prompt")).toBe(true);
   });
 });
 
@@ -626,7 +685,7 @@ describe("waitForAllowLocationFix", () => {
     expect(optionsSeen[1]?.enableHighAccuracy).toBe(false);
     expect(ALLOW_GPS_OPTIONS.enableHighAccuracy).toBe(true);
     expect(ALLOW_GPS_FALLBACK_OPTIONS.enableHighAccuracy).toBe(false);
-    expect(ALLOW_GPS_BUDGET_MS).toBeGreaterThanOrEqual(12_000);
+    expect(ALLOW_GPS_BUDGET_MS).toBe(12_000);
     expect(ALLOW_GPS_BUDGET_MS).toBeLessThanOrEqual(15_000);
   });
 });

@@ -21,7 +21,7 @@ export function LogClient() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 max-w-full space-y-4">
       <div className="page-intro">
         <h1 className="font-display text-3xl text-teal">Log a catch</h1>
         <p className="text-sm text-ink-muted">

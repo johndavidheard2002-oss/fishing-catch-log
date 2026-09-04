@@ -90,7 +90,7 @@ export function AuthForm({
         ? "ready"
         : outcome.savedStatus === "unavailable"
           ? "unavailable"
-          : "asking",
+          : "prompt",
     );
     enterJournal();
   }
