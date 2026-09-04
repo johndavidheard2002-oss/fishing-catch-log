@@ -13,6 +13,23 @@ export const LIVE_GPS_OPTIONS: PositionOptions = {
   maximumAge: 60_000,
 };
 
+/** First Allow tap — same user gesture. Longer than LIVE_GPS_OPTIONS so iPhone can lock. */
+export const ALLOW_GPS_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 15_000,
+  maximumAge: 60_000,
+};
+
+/** After permission is granted — no gesture needed. */
+export const LIVE_GPS_FOLLOWUP_OPTIONS: PositionOptions = {
+  enableHighAccuracy: true,
+  timeout: 10_000,
+  maximumAge: 120_000,
+};
+
+export const LIVE_CAMERA_GPS_BUDGET_MS = 20_000;
+export const LIVE_GPS_RETRY_GAP_MS = 250;
+
 export const LIVE_LOCATION_STORAGE_KEY = "cast-log-live-gps";
 
 export type LiveLocationStatus = "prompt" | "asking" | "ready" | "unavailable";
@@ -20,7 +37,15 @@ export type LiveLocationStatus = "prompt" | "asking" | "ready" | "unavailable";
 /** Persisted after the Allow location tap, even before GPS coords arrive. */
 export type SavedLiveLocationStatus = "ready" | "allowed" | "unavailable";
 
+export type DeviceGpsFailure = "denied" | "timeout" | "unavailable" | "missing";
+
+export type DeviceGpsAttempt =
+  | { ok: true; gps: PhotoGps }
+  | { ok: false; reason: DeviceGpsFailure };
+
 export const LOCATION_OFF_PIN_HINT = "Location was off. Tap the map to pin this catch.";
+export const DROPPING_PIN_HINT = "Dropping pin from this phone…";
+export const GETTING_LOCATION_LABEL = "Getting location…";
 
 export const ALLOW_LOCATION_LABEL = "Allow location";
 export const SKIP_LOCATION_LABEL = "Not now";
@@ -28,7 +53,7 @@ export const SKIP_LOCATION_LABEL = "Not now";
 export type DeviceGeolocation = {
   getCurrentPosition: (
     success: (position: { coords: { latitude: number; longitude: number } }) => void,
-    error?: () => void,
+    error?: (err?: { code?: number }) => void,
     options?: PositionOptions,
   ) => void;
 };
@@ -39,24 +64,109 @@ export type DevicePermissions = {
 
 export type GeolocationPermissionState = "granted" | "prompt" | "denied" | "unknown";
 
+function defaultGeolocation(): DeviceGeolocation | null | undefined {
+  return typeof navigator !== "undefined" ? navigator.geolocation : undefined;
+}
+
+export function classifyGpsError(err?: { code?: number } | null): DeviceGpsFailure {
+  if (err?.code === 1) return "denied";
+  if (err?.code === 3) return "timeout";
+  return "unavailable";
+}
+
+export function requestDeviceGpsAttempt(
+  geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
+  options: PositionOptions = LIVE_GPS_OPTIONS,
+): Promise<DeviceGpsAttempt> {
+  if (!geolocation) return Promise.resolve({ ok: false, reason: "missing" });
+  return new Promise((resolve) => {
+    geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          ok: true,
+          gps: { latitude: pos.coords.latitude, longitude: pos.coords.longitude },
+        }),
+      (err) => resolve({ ok: false, reason: classifyGpsError(err) }),
+      options,
+    );
+  });
+}
+
 /**
  * One-shot GPS. Errors, timeouts, and missing geolocation all resolve null
  * so live Log can still open the camera and let them drop a pin by hand.
  */
 export function requestDeviceGps(
-  geolocation: DeviceGeolocation | null | undefined = typeof navigator !== "undefined"
-    ? navigator.geolocation
-    : undefined,
+  geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
   options: PositionOptions = LIVE_GPS_OPTIONS,
 ): Promise<PhotoGps | null> {
-  if (!geolocation) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    geolocation.getCurrentPosition(
-      (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      () => resolve(null),
-      options,
-    );
-  });
+  return requestDeviceGpsAttempt(geolocation, options).then((result) =>
+    result.ok ? result.gps : null,
+  );
+}
+
+/**
+ * Keep requesting a fix after Allow or a live Camera photo.
+ * Denied / missing geolocation stops immediately. Timeouts retry until
+ * budgetMs elapses (camera) or forever (Allow — they can still tap Not now).
+ */
+export async function waitForLiveLocationFix(args?: {
+  firstAttempt?: Promise<DeviceGpsAttempt>;
+  geolocation?: DeviceGeolocation | null;
+  options?: PositionOptions;
+  budgetMs?: number | null;
+  retryGapMs?: number;
+  signal?: AbortSignal;
+}): Promise<DeviceGpsAttempt> {
+  const geo = args?.geolocation === undefined ? defaultGeolocation() : args.geolocation;
+  const options = args?.options ?? LIVE_GPS_FOLLOWUP_OPTIONS;
+  const budgetMs = args?.budgetMs;
+  const retryGapMs = args?.retryGapMs ?? LIVE_GPS_RETRY_GAP_MS;
+  const started = Date.now();
+
+  let attempt =
+    args?.firstAttempt ??
+    (args?.signal?.aborted
+      ? Promise.resolve<DeviceGpsAttempt>({ ok: false, reason: "unavailable" })
+      : requestDeviceGpsAttempt(geo, options));
+
+  while (true) {
+    if (args?.signal?.aborted) return { ok: false, reason: "unavailable" };
+    const result = await attempt;
+    if (result.ok) return result;
+    if (result.reason === "denied" || result.reason === "missing") return result;
+    if (args?.signal?.aborted) return { ok: false, reason: "unavailable" };
+    if (budgetMs != null && Date.now() - started >= budgetMs) return result;
+    if (retryGapMs > 0) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, retryGapMs);
+        const onAbort = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        args?.signal?.addEventListener("abort", onAbort, { once: true });
+      });
+    }
+    if (args?.signal?.aborted) return { ok: false, reason: "unavailable" };
+    if (budgetMs != null && Date.now() - started >= budgetMs) return result;
+    const remaining =
+      budgetMs == null ? (options.timeout ?? 10_000) : budgetMs - (Date.now() - started);
+    if (budgetMs != null && remaining <= 0) return result;
+    attempt = requestDeviceGpsAttempt(geo, {
+      ...options,
+      timeout: Math.min(options.timeout ?? 10_000, Math.max(remaining, 1)),
+    });
+  }
+}
+
+/** Allow is not ready until lat/lng are stored. "allowed" keeps showing Getting location… */
+export function initialLiveLocationStatusFromSaved(
+  saved: SavedLiveLocationStatus | null,
+): LiveLocationStatus {
+  if (saved === "ready") return "ready";
+  if (saved === "allowed") return "asking";
+  if (saved === "unavailable") return "unavailable";
+  return "prompt";
 }
 
 export function liveLocationPromptCopy(status: LiveLocationStatus): {
@@ -77,8 +187,8 @@ export function liveLocationPromptCopy(status: LiveLocationStatus): {
   }
   if (status === "asking") {
     return {
-      title: "Allow location",
-      body: "Waiting for this phone’s location…",
+      title: GETTING_LOCATION_LABEL,
+      body: "This phone is finding where you are. A live photo can drop the pin once we have it.",
     };
   }
   return {
@@ -226,8 +336,8 @@ export function writeSavedLiveLocation(
 }
 
 /**
- * They tapped Allow. Keep that even if this GPS reading times out so a later
- * Camera tap can still request current GPS and drop the pin.
+ * They tapped Allow. Persist that grant so Camera can keep requesting GPS.
+ * Do not treat this as ready — ready requires stored lat/lng.
  */
 export function writeSavedLiveLocationAllowed(storage?: Storage | null): void {
   if (readSavedLiveLocation(storage)) return;
@@ -251,7 +361,8 @@ export function liveLocationWasAllowed(
 }
 
 /**
- * Live Camera: current GPS if the phone will share it, else the saved sign-in pin.
+ * Live Camera: saved ready coords pin immediately. If they Allowed but the
+ * first reading has not arrived, keep requesting GPS until a fix or ~20s.
  * Skipped / denied location with no saved pin returns null so the existing
  * tap-the-map banner can still show.
  */
@@ -260,13 +371,49 @@ export async function resolveLiveCameraDeviceGps(args: {
   savedStatus: SavedLiveLocationStatus | null;
   geolocation?: DeviceGeolocation | null;
   permissions?: DevicePermissions | null;
+  budgetMs?: number;
+  retryGapMs?: number;
 }): Promise<PhotoGps | null> {
+  if (args.savedGps) return args.savedGps;
   const permission = await queryGeolocationPermission(args.permissions);
-  const canUsePhone =
-    liveLocationWasAllowed(args.savedStatus, permission) || Boolean(args.savedGps);
-  if (!canUsePhone) return args.savedGps;
-  const current = await requestDeviceGps(args.geolocation);
-  return current ?? args.savedGps;
+  if (!liveLocationWasAllowed(args.savedStatus, permission)) return null;
+  const result = await waitForLiveLocationFix({
+    geolocation: args.geolocation,
+    budgetMs: args.budgetMs ?? LIVE_CAMERA_GPS_BUDGET_MS,
+    retryGapMs: args.retryGapMs,
+    options: LIVE_GPS_FOLLOWUP_OPTIONS,
+  });
+  return result.ok ? result.gps : null;
+}
+
+/** After a live Camera file: pin from saved ready coords or a post-photo GPS fix. */
+export async function resolveLiveCameraPinAfterPhoto(args: {
+  userMovedCatchPin: boolean;
+  savedGps: PhotoGps | null;
+  savedStatus: SavedLiveLocationStatus | null;
+  geolocation?: DeviceGeolocation | null;
+  permissions?: DevicePermissions | null;
+  budgetMs?: number;
+  retryGapMs?: number;
+}): Promise<{
+  pin: { latitude: number; longitude: number; source: "device" } | null;
+  deviceGps: PhotoGps | null;
+}> {
+  const deviceGps = await resolveLiveCameraDeviceGps({
+    savedGps: args.savedGps,
+    savedStatus: args.savedStatus,
+    geolocation: args.geolocation,
+    permissions: args.permissions,
+    budgetMs: args.budgetMs,
+    retryGapMs: args.retryGapMs,
+  });
+  return {
+    deviceGps,
+    pin: resolveLiveCameraCatchPin({
+      userMovedCatchPin: args.userMovedCatchPin,
+      deviceGps,
+    }),
+  };
 }
 
 /**
@@ -275,11 +422,9 @@ export async function resolveLiveCameraDeviceGps(args: {
  * Camera must never call this.
  */
 export function requestLiveLocationFromGesture(
-  geolocation: DeviceGeolocation | null | undefined = typeof navigator !== "undefined"
-    ? navigator.geolocation
-    : undefined,
+  geolocation: DeviceGeolocation | null | undefined = defaultGeolocation(),
 ): Promise<PhotoGps | null> {
-  return requestDeviceGps(geolocation);
+  return requestDeviceGps(geolocation, ALLOW_GPS_OPTIONS);
 }
 
 /** Auto-place from the photo unless the angler already moved this catch’s pin. */
@@ -312,7 +457,8 @@ export function resolveLiveCameraCatchPin(args: {
 }
 
 /**
- * After Yes: photo EXIF GPS first, else device GPS (not in past/backfill mode).
+ * After Yes: photo EXIF GPS first (source photo). If Safari stripped GPS,
+ * use this phone’s location (source device) — including Backfill / past mode.
  * Unanswered, No, or a user-moved pin → no auto-place.
  */
 export function resolveCatchPinAfterPhotoAnswer(args: {
@@ -333,7 +479,7 @@ export function resolveCatchPinAfterPhotoAnswer(args: {
   if (args.photoGps) {
     return { ...args.photoGps, source: "photo" };
   }
-  if (!args.pastMode && args.deviceGps) {
+  if (args.deviceGps) {
     return { ...args.deviceGps, source: "device" };
   }
   return null;

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import exifr from "exifr";
 import { compressImage, photoSrc } from "@/lib/photo";
+import { readPhotoGps } from "@/lib/photo-gps";
 import { formatCatchWhen, parseExifStamp, PHOTO_EXIF_OPTIONS } from "@/lib/time";
 import { localDateKeyFromDate } from "@/lib/calendar";
 import {
@@ -142,6 +143,24 @@ export function ScanLibraryClient() {
       setProgress(`Opening ${i + 1} of ${files.length}…`);
       const original = files[i];
       try {
+        let caughtAt = new Date();
+        let photoTakenLatitude: number | null = null;
+        let photoTakenLongitude: number | null = null;
+        try {
+          const photoGps = await readPhotoGps(original);
+          if (photoGps) {
+            photoTakenLatitude = photoGps.latitude;
+            photoTakenLongitude = photoGps.longitude;
+          }
+          const exif = (await exifr.parse(original, PHOTO_EXIF_OPTIONS)) as {
+            DateTimeOriginal?: string | Date;
+            CreateDate?: string | Date;
+          } | undefined;
+          const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
+          if (stamp) caughtAt = stamp;
+        } catch {
+          /* EXIF optional */
+        }
         const compressed = await compressImage(original);
         const file = new File([compressed], original.name.replace(/\.\w+$/, ".jpg"), {
           type: "image/jpeg",
@@ -150,25 +169,6 @@ export function ScanLibraryClient() {
           origin === "scan"
             ? await detectFishPhoto(file, original.name)
             : { candidate: true, confidence: 1, demo: false, note: "" };
-        let caughtAt = new Date();
-        let photoTakenLatitude: number | null = null;
-        let photoTakenLongitude: number | null = null;
-        try {
-          const exif = (await exifr.parse(original, PHOTO_EXIF_OPTIONS)) as {
-            DateTimeOriginal?: string | Date;
-            CreateDate?: string | Date;
-            latitude?: number;
-            longitude?: number;
-          } | undefined;
-          const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
-          if (stamp) caughtAt = stamp;
-          if (exif?.latitude != null && exif.longitude != null) {
-            photoTakenLatitude = exif.latitude;
-            photoTakenLongitude = exif.longitude;
-          }
-        } catch {
-          /* EXIF optional */
-        }
         const fd = new FormData();
         fd.set("photo", file);
         const up = await fetch("/api/media", { method: "POST", body: fd });

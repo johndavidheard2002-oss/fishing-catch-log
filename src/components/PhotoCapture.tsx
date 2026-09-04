@@ -9,6 +9,7 @@ export function PhotoCapture({
   previewUrl,
   onFile,
   busy,
+  busyLabel = "Reading the photo…",
   emphasis = "camera",
   emptyTitle,
   emptyHint,
@@ -20,6 +21,7 @@ export function PhotoCapture({
   previewUrl: string | null;
   onFile: (file: File, source: PhotoSource) => void;
   busy?: boolean;
+  busyLabel?: string;
   emphasis?: "camera" | "library";
   emptyTitle?: string;
   emptyHint?: string;
@@ -83,11 +85,11 @@ export function PhotoCapture({
         ) : null}
         {busy && previewUrl ? (
           <span className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-ink/80 px-2.5 py-1 text-xs font-semibold text-white">
-            Reading the photo…
+            {busyLabel}
           </span>
         ) : busy ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink/40 text-sm font-semibold text-white">
-            Reading the photo…
+            {busyLabel}
           </div>
         ) : null}
       </div>

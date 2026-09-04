@@ -217,7 +217,11 @@ export const TIME_OF_DAY_LABELS: Record<TimeOfDay, string> = {
   night: "Night",
 };
 
-/** Read camera EXIF as the printed clock, not a UTC Date. */
+/**
+ * Clock-only EXIF. reviveValues stays false so DateTimeOriginal is not a UTC Date.
+ * Include real GPS tag names — a pick of only "latitude"/"longitude" disables the GPS block.
+ * Prefer readPhotoGps() for the pin; this list is so a single parse can still see coords.
+ */
 export const PHOTO_EXIF_OPTIONS: {
   gps: boolean;
   reviveValues: boolean;
@@ -225,5 +229,14 @@ export const PHOTO_EXIF_OPTIONS: {
 } = {
   gps: true,
   reviveValues: false,
-  pick: ["DateTimeOriginal", "CreateDate", "latitude", "longitude"],
+  pick: [
+    "DateTimeOriginal",
+    "CreateDate",
+    "latitude",
+    "longitude",
+    "GPSLatitude",
+    "GPSLongitude",
+    "GPSLatitudeRef",
+    "GPSLongitudeRef",
+  ],
 };

@@ -5,6 +5,7 @@ import {
   formatTimeOnly,
   isoFromDatetimeLocal,
   parseExifStamp,
+  PHOTO_EXIF_OPTIONS,
   seasonFromDate,
   timeOfDayFromCaughtAtInput,
   timeOfDayFromDate,
@@ -91,5 +92,21 @@ describe("seasonFromDate", () => {
     expect(seasonFromDate(new Date(2025, 6, 12))).toBe("summer");
     expect(seasonFromDate(new Date(2025, 9, 3))).toBe("fall");
     expect(seasonFromDate(new Date(2025, 0, 12))).toBe("winter");
+  });
+});
+
+describe("PHOTO_EXIF_OPTIONS", () => {
+  it("keeps the naive clock and still picks real GPS tags", () => {
+    expect(PHOTO_EXIF_OPTIONS.reviveValues).toBe(false);
+    expect(PHOTO_EXIF_OPTIONS.gps).toBe(true);
+    expect(PHOTO_EXIF_OPTIONS.pick).toEqual(
+      expect.arrayContaining([
+        "DateTimeOriginal",
+        "GPSLatitude",
+        "GPSLongitude",
+        "GPSLatitudeRef",
+        "GPSLongitudeRef",
+      ]),
+    );
   });
 });

@@ -1,10 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LiveLocationPrompt } from "@/components/LiveLocationPrompt";
 import {
-  requestLiveLocationFromGesture,
+  ALLOW_GPS_OPTIONS,
+  LIVE_GPS_FOLLOWUP_OPTIONS,
+  requestDeviceGpsAttempt,
+  waitForLiveLocationFix,
   writeSavedLiveLocation,
   writeSavedLiveLocationAllowed,
   type LiveLocationStatus,
@@ -35,6 +38,7 @@ export function AuthForm({
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState<"form" | "location">("form");
   const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>("prompt");
+  const allowAbortRef = useRef<AbortController | null>(null);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -71,17 +75,34 @@ export function AuthForm({
   }
 
   function allowLocation() {
+    allowAbortRef.current?.abort();
+    const ac = new AbortController();
+    allowAbortRef.current = ac;
     setLocationStatus("asking");
     writeSavedLiveLocationAllowed();
-    const pending = requestLiveLocationFromGesture();
-    void pending.then((gps) => {
-      if (gps) writeSavedLiveLocation(gps);
-      setLocationStatus("ready");
-      enterJournal();
+    const first = requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS);
+    void waitForLiveLocationFix({
+      firstAttempt: first,
+      options: LIVE_GPS_FOLLOWUP_OPTIONS,
+      signal: ac.signal,
+    }).then((result) => {
+      if (ac.signal.aborted) return;
+      if (result.ok) {
+        writeSavedLiveLocation(result.gps);
+        setLocationStatus("ready");
+        enterJournal();
+        return;
+      }
+      if (result.reason === "denied" || result.reason === "missing") {
+        writeSavedLiveLocation(null);
+        setLocationStatus("unavailable");
+        enterJournal();
+      }
     });
   }
 
   function skipLocation() {
+    allowAbortRef.current?.abort();
     writeSavedLiveLocation(null);
     setLocationStatus("unavailable");
     enterJournal();
