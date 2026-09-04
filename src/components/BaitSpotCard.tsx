@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SharedOwnerBadge } from "@/components/SharedOwnerBadge";
 import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
 import { baitSpotLabel, yearFromDateKey } from "@/lib/calendar";
@@ -24,7 +25,7 @@ export function BaitSpotCard({
   return (
     <div className="journal-card relative flex overflow-hidden rounded-2xl" data-testid="calendar-bait-entry">
       <Link href={`/bait/${spot.id}`} className="flex min-w-0 flex-1" data-testid="calendar-bait-open">
-        <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 bg-paper-deep`}>
+        <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 overflow-hidden bg-paper-deep`}>
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt="" className="h-full w-full object-cover" />
@@ -33,6 +34,7 @@ export function BaitSpotCard({
               Bait
             </div>
           )}
+          {theirs ? <SharedOwnerBadge name={spot.ownerName} compact={compact} /> : null}
         </div>
         <div className="min-w-0 flex-1 px-3 py-2">
           <p className="truncate font-semibold text-ink">{baitTypesLabel(spot.baitTypes)}</p>
@@ -65,11 +67,6 @@ export function BaitSpotCard({
                 {spot.moonPhase}
               </span>
             ) : null}
-            {theirs ? (
-              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
-                {spot.ownerName}
-              </span>
-            ) : null}
           </p>
         </div>
       </Link>
@@ -89,7 +86,7 @@ export function BaitSpotGridCard({
   return (
     <div className="journal-card relative overflow-hidden rounded-2xl" data-testid="calendar-bait-entry">
       <Link href={`/bait/${spot.id}`} className="block" data-testid="calendar-bait-open">
-        <div className="aspect-square bg-paper-deep">
+        <div className="relative aspect-square overflow-hidden bg-paper-deep">
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt="" className="h-full w-full object-cover" />
@@ -98,6 +95,7 @@ export function BaitSpotGridCard({
               Bait
             </div>
           )}
+          {theirs ? <SharedOwnerBadge name={spot.ownerName} /> : null}
         </div>
         <div className="px-2.5 py-2">
           <p className="truncate text-sm font-semibold">{baitTypesLabel(spot.baitTypes)}</p>
@@ -105,13 +103,6 @@ export function BaitSpotGridCard({
           <p className="mt-0.5 text-[10px] text-ink-muted">
             {formatCatchWhen(spot.loggedAt)} · Bait
           </p>
-          {theirs ? (
-            <p className="mt-1">
-              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
-                {spot.ownerName}
-              </span>
-            </p>
-          ) : null}
         </div>
       </Link>
     </div>
