@@ -29,7 +29,9 @@ import {
   persistLogLocationOutcome,
   pinFromTurnedOnLocation,
   PINNED_FROM_PHONE_HINT,
-  LOCATION_DENIED_SETTINGS_HINT,
+  blockedLocationReason,
+  detectPrivateBrowsing,
+  queryGeolocationPermission,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
   refreshLiveLocationIfGranted,
@@ -42,6 +44,7 @@ import {
   waitForLiveLocationFix,
   writeSavedLiveLocation,
   type DeviceGpsAttempt,
+  type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
 import { readPhotoGps } from "@/lib/photo-gps";
@@ -293,6 +296,8 @@ export function CatchForm({
   const [osDenied, setOsDenied] = useState(
     () => mode === "create" && !pastMode && readSavedLiveLocationStatus() === "denied",
   );
+  const [geoPermission, setGeoPermission] = useState<GeolocationPermissionState>("unknown");
+  const [privateBrowsing, setPrivateBrowsing] = useState(false);
   const locationStatusRef = useRef<LiveLocationStatus>(locationStatus);
   const rememberLiveGpsRef = useRef<(gps: { latitude: number; longitude: number } | null) => void>(
     () => {},
@@ -313,6 +318,8 @@ export function CatchForm({
 
   useEffect(() => {
     if (!useLiveGps) return;
+    setPrivateBrowsing(detectPrivateBrowsing());
+    void queryGeolocationPermission().then(setGeoPermission);
     const saved = readSavedLiveLocation();
     const savedStatus = readSavedLiveLocationStatus();
     if (saved) rememberLiveGpsRef.current(saved);
@@ -424,10 +431,18 @@ export function CatchForm({
   }
   rememberLiveGpsRef.current = rememberLiveGps;
 
-  function onLocationAttempt(attempt: Promise<DeviceGpsAttempt>) {
+  function onLocationAttempt(
+    attempt: Promise<DeviceGpsAttempt>,
+    meta?: { permission: Promise<GeolocationPermissionState>; privateBrowsing: boolean },
+  ) {
     setLocationStatus("asking");
     locationStatusRef.current = "asking";
     setOsDenied(false);
+    if (meta?.privateBrowsing) setPrivateBrowsing(true);
+    void meta?.permission.then((state) => {
+      setGeoPermission(state);
+      if (state === "denied") setOsDenied(true);
+    });
     const pending = attempt.then((result) => {
       const outcome = persistLogLocationOutcome(result);
       if (result.ok) {
@@ -708,6 +723,8 @@ export function CatchForm({
     hasPin: Boolean(form.latitude.trim()),
     photoAtCatch,
     osDenied,
+    privateBrowsing,
+    permission: geoPermission,
   });
   const copperPinHint = visibleCatchPinHint({
     pinHint,
@@ -729,7 +746,7 @@ export function CatchForm({
         onTurnLocationOn={useLiveGps && photoAtCatch !== false ? onLocationAttempt : undefined}
         locationReason={
           useLiveGps && osDenied
-            ? LOCATION_DENIED_SETTINGS_HINT
+            ? blockedLocationReason({ privateBrowsing, permission: geoPermission })
             : useLiveGps && locationStatus === "ready" && Boolean(form.latitude.trim())
               ? PINNED_FROM_PHONE_HINT
               : undefined

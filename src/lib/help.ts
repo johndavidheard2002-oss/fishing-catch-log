@@ -20,6 +20,15 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    title: "Location / map pin won’t drop",
+    steps: [
+      "On iPhone: Settings → Privacy & Security → Location Services → On.",
+      "Scroll to Safari Websites → Ask or While Using — not Never.",
+      "Avoid Private browsing. Then open Log and tap Turn location on again.",
+      "Safari → Location Ask/Allow alone is not enough — Location Services must list Safari Websites.",
+    ],
+  },
+  {
     title: "Log bait",
     steps: [
       "Tap Log bait and pin the hole.",

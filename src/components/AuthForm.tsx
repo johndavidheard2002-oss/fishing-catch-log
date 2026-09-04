@@ -5,12 +5,15 @@ import { useRef, useState } from "react";
 import { LiveLocationPrompt } from "@/components/LiveLocationPrompt";
 import {
   ALLOW_GPS_OPTIONS,
+  detectPrivateBrowsing,
   persistAllowLocationOutcome,
+  queryGeolocationPermission,
   readSavedLiveLocationStatus,
   requestDeviceGpsAttempt,
   waitForAllowLocationFix,
   writeSavedLiveLocationAllowed,
   type DeviceGpsAttempt,
+  type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
 import { AUTH_PRIVACY_LINE } from "@/lib/privacy";
@@ -39,6 +42,8 @@ export function AuthForm({
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState<"form" | "location">("form");
   const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>("prompt");
+  const [privateBrowsing, setPrivateBrowsing] = useState(false);
+  const [geoPermission, setGeoPermission] = useState<GeolocationPermissionState>("unknown");
   const allowAbortRef = useRef<AbortController | null>(null);
 
   async function submit(event: React.FormEvent) {
@@ -68,6 +73,8 @@ export function AuthForm({
       }
       setPhase("location");
       onPhaseChange?.("location");
+      setPrivateBrowsing(detectPrivateBrowsing());
+      void queryGeolocationPermission().then(setGeoPermission);
       if (saved === "allowed") {
         resumeAllowedLocationWait();
       }
@@ -134,6 +141,8 @@ export function AuthForm({
           status={locationStatus}
           onAllow={allowLocation}
           onSkip={skipLocation}
+          privateBrowsing={privateBrowsing}
+          permission={geoPermission}
         />
       </section>
     );

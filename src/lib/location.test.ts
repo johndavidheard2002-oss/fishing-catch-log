@@ -14,11 +14,18 @@ import {
   logLocationSurface,
   liveCameraTapAction,
   beginLogLocationFromButtonTap,
+  blockedLocationReason,
+  clearStickyLocationLock,
+  detectPrivateBrowsing,
+  formatLocationDeniedSettingsHint,
   handleTurnLocationOnClick,
   ASKING_VISIBLE_MS,
   pinFromTurnedOnLocation,
   PINNED_FROM_PHONE_HINT,
+  ALLOW_LOCATION_SERVICES_HINT,
   LOCATION_DENIED_SETTINGS_HINT,
+  LOCATION_DENIED_SETTINGS_STEPS,
+  LOCATION_PRIVATE_BROWSING_HINT,
   TAP_MAP_PIN_HINT,
   shouldShowTurnLocationOn,
   skipLocationLabel,
@@ -49,6 +56,7 @@ import {
   waitForLiveLocationFix,
   writeSavedLiveLocation,
   writeSavedLiveLocationAllowed,
+  writeSavedLiveLocationDenied,
 } from "./location";
 
 describe("shouldApplyPhotoGpsToCatch", () => {
@@ -121,8 +129,12 @@ describe("liveLocationPromptCopy", () => {
     expect(liveLocationPromptCopy("asking").body).toContain("Not now");
     expect(liveLocationPromptCopy("asking").body.toLowerCase()).not.toContain("buddy");
     expect(liveLocationPromptCopy("denied").body).toContain("Settings");
-    expect(liveLocationPromptCopy("denied").body).toContain("Safari");
-    expect(liveLocationPromptCopy("denied").body).toContain("Allow");
+    expect(liveLocationPromptCopy("denied").body).toContain("Safari Websites");
+    expect(liveLocationPromptCopy("denied").body).toContain("Ask or While Using");
+    expect(liveLocationPromptCopy("denied").body).toContain("Private browsing");
+    expect(liveLocationPromptCopy("denied").body).not.toContain("Settings → Safari → Location");
+    expect(liveLocationPromptCopy("prompt").body).toContain(ALLOW_LOCATION_SERVICES_HINT);
+    expect(liveLocationPromptCopy("prompt").body).toContain("Location Services → Safari Websites");
   });
 });
 
@@ -293,7 +305,7 @@ describe("Log photo card copy", () => {
     const clickPath = readFileSync(resolve(__dirname, "./location.ts"), "utf8");
     const handler = clickPath.slice(clickPath.indexOf("export function handleTurnLocationOnClick"));
     expect(handler.indexOf("requestDeviceGpsAttempt")).toBeLessThan(
-      handler.indexOf("writeSavedLiveLocationAllowed"),
+      handler.indexOf("clearStickyLocationLock"),
     );
     expect(photo).not.toContain("Location is off");
     expect(form).toContain("onTurnLocationOn");
@@ -834,6 +846,131 @@ describe("LOCATION_OFF_PIN_HINT", () => {
       expect(surface.reason).not.toBe(LOCATION_OFF_PIN_HINT);
       expect(surface.reason).not.toBe(TAP_MAP_PIN_HINT);
     }
+  });
+});
+
+describe("blocked location recovery copy", () => {
+  it("uses numbered Privacy → Location Services → Safari Websites steps", () => {
+    expect(LOCATION_DENIED_SETTINGS_STEPS).toEqual([
+      "Settings → Privacy & Security → Location Services → On",
+      "Scroll to Safari Websites → Ask or While Using (not Never)",
+      "Avoid Private browsing, then tap Turn location on again",
+    ]);
+    expect(formatLocationDeniedSettingsHint()).toBe(LOCATION_DENIED_SETTINGS_HINT);
+    expect(LOCATION_DENIED_SETTINGS_HINT.startsWith("Location is blocked.")).toBe(true);
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("1. Settings → Privacy & Security → Location Services → On");
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("2. Scroll to Safari Websites");
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("Ask or While Using");
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("3. Avoid Private browsing");
+    expect(LOCATION_DENIED_SETTINGS_HINT).not.toContain("Settings → Safari → Location");
+    expect(LOCATION_DENIED_SETTINGS_HINT).not.toContain("Allow this site");
+    expect(LOCATION_DENIED_SETTINGS_HINT.length).toBeLessThan(280);
+    expect(ALLOW_LOCATION_SERVICES_HINT).toContain("Location Services → Safari Websites");
+  });
+
+  it("prefers the private-browsing hint over generic blocked copy", () => {
+    expect(blockedLocationReason({ privateBrowsing: true })).toBe(LOCATION_PRIVATE_BROWSING_HINT);
+    expect(blockedLocationReason({ privateBrowsing: false })).toBe(LOCATION_DENIED_SETTINGS_HINT);
+    expect(blockedLocationReason({ privateBrowsing: true, permission: "denied" })).toBe(
+      `${LOCATION_PRIVATE_BROWSING_HINT} Safari says location is denied for this site.`,
+    );
+    expect(blockedLocationReason({ permission: "denied" })).toBe(
+      `${LOCATION_DENIED_SETTINGS_HINT} Safari says location is denied for this site.`,
+    );
+    expect(blockedLocationReason({ permission: "prompt" })).toContain(
+      "Safari says location is prompt for this site.",
+    );
+    expect(blockedLocationReason({ permission: "granted" })).toContain(
+      "Safari says location is granted for this site.",
+    );
+    expect(
+      logLocationSurface({
+        status: "denied",
+        hasPin: false,
+        photoAtCatch: true,
+        privateBrowsing: true,
+      }).reason,
+    ).toBe(LOCATION_PRIVATE_BROWSING_HINT);
+    const throwing = {
+      getItem() {
+        return null;
+      },
+      setItem() {
+        throw new Error("quota");
+      },
+      removeItem() {},
+    } as unknown as Storage;
+    expect(detectPrivateBrowsing({ localStorage: throwing, sessionStorage: throwing })).toBe(true);
+    expect(detectPrivateBrowsing({ localStorage: memoryStorage(), sessionStorage: memoryStorage() })).toBe(
+      false,
+    );
+    expect(detectPrivateBrowsing({ localStorage: null, sessionStorage: null })).toBe(true);
+  });
+});
+
+describe("clear sticky location lock on tap", () => {
+  it("clears persisted denied, unavailable, and allowed locks and still runs GPS", () => {
+    const storage = memoryStorage();
+    const getCurrentPosition = vi.fn();
+    writeSavedLiveLocationDenied(storage);
+    handleTurnLocationOnClick({ getCurrentPosition }, { storage, minAskingMs: 0, permissions: null });
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(readSavedLiveLocationStatus(storage)).not.toBe("denied");
+
+    writeSavedLiveLocation(null, storage);
+    expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
+    handleTurnLocationOnClick({ getCurrentPosition }, { storage, minAskingMs: 0, permissions: null });
+    expect(readSavedLiveLocationStatus(storage)).not.toBe("unavailable");
+
+    writeSavedLiveLocationAllowed(storage);
+    expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
+    handleTurnLocationOnClick({ getCurrentPosition }, { storage, minAskingMs: 0, permissions: null });
+    expect(readSavedLiveLocationStatus(storage)).not.toBe("allowed");
+    expect(getCurrentPosition).toHaveBeenCalledTimes(3);
+
+    writeSavedLiveLocation({ latitude: 29.15, longitude: -96.88 }, storage);
+    handleTurnLocationOnClick({ getCurrentPosition }, { storage, minAskingMs: 0, permissions: null });
+    expect(readSavedLiveLocationStatus(storage)).toBe("ready");
+    expect(clearStickyLocationLock).toBeTypeOf("function");
+  });
+
+  it("shows blocked immediately when permissions.query is denied but still attempts GPS once", async () => {
+    const recovered = vi.fn(
+      (success: (position: { coords: { latitude: number; longitude: number } }) => void) => {
+        success({ coords: { latitude: 29.15, longitude: -96.88 } });
+      },
+    );
+    const recoveredStart = handleTurnLocationOnClick(
+      { getCurrentPosition: recovered },
+      {
+        minAskingMs: 0,
+        permissions: { query: async () => ({ state: "denied" }) },
+      },
+    );
+    expect(recovered).toHaveBeenCalledOnce();
+    await expect(recoveredStart.attempt).resolves.toEqual({
+      ok: true,
+      gps: { latitude: 29.15, longitude: -96.88 },
+    });
+    await expect(recoveredStart.permission).resolves.toBe("denied");
+
+    const timedOut = vi.fn(
+      (
+        _success: (position: { coords: { latitude: number; longitude: number } }) => void,
+        error?: (err?: { code?: number }) => void,
+      ) => {
+        error?.({ code: 3 });
+      },
+    );
+    const blocked = handleTurnLocationOnClick(
+      { getCurrentPosition: timedOut },
+      {
+        minAskingMs: 0,
+        permissions: { query: async () => ({ state: "denied" }) },
+      },
+    );
+    await expect(blocked.attempt).resolves.toEqual({ ok: false, reason: "denied" });
+    expect(timedOut).toHaveBeenCalledOnce();
   });
 });
 

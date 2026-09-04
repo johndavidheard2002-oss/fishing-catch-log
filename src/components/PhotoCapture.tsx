@@ -6,10 +6,12 @@ import {
   GETTING_LOCATION_LABEL,
   TURN_LOCATION_ON_LABEL,
   handleTurnLocationOnClick,
+  isBlockedLocationReason,
   liveCameraTapAction,
   logLocationReason,
   shouldShowTurnLocationOn,
   type DeviceGpsAttempt,
+  type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
 
@@ -41,7 +43,10 @@ export function PhotoCapture({
   libraryOnly?: boolean;
   locationReason?: string;
   locationStatus?: LiveLocationStatus;
-  onTurnLocationOn?: (attempt: Promise<DeviceGpsAttempt>) => void;
+  onTurnLocationOn?: (
+    attempt: Promise<DeviceGpsAttempt>,
+    meta?: { permission: Promise<GeolocationPermissionState>; privateBrowsing: boolean },
+  ) => void;
   onLiveCamera?: () => void;
 }) {
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -53,16 +58,24 @@ export function PhotoCapture({
   const showTurnOn =
     Boolean(onTurnLocationOn) &&
     (waiting || (locationStatus != null && shouldShowTurnLocationOn(locationStatus)));
-  const reasonText = waiting
-    ? GETTING_LOCATION_LABEL
-    : (locationReason ?? (locationStatus ? logLocationReason(locationStatus) : null));
+  const blockedWhileAsking =
+    waiting && locationReason != null && isBlockedLocationReason(locationReason);
+  const reasonText = blockedWhileAsking
+    ? locationReason
+    : waiting
+      ? GETTING_LOCATION_LABEL
+      : (locationReason ?? (locationStatus ? logLocationReason(locationStatus) : null));
 
   function startLocationFromThisTap(): Promise<DeviceGpsAttempt> | null {
     if (startingRef.current) return null;
     startingRef.current = true;
-    const { attempt } = handleTurnLocationOnClick();
+    const start = handleTurnLocationOnClick();
+    const { attempt } = start;
     setTapBusy(true);
-    onTurnLocationOn?.(attempt);
+    onTurnLocationOn?.(attempt, {
+      permission: start.permission,
+      privateBrowsing: start.privateBrowsing,
+    });
     void attempt.finally(() => {
       startingRef.current = false;
       setTapBusy(false);
@@ -180,7 +193,7 @@ export function PhotoCapture({
           data-no-tab-swipe
           data-testid="turn-location-on-wrap"
         >
-          <p data-testid="live-location-reason" className="text-xs break-words text-ink-muted">
+          <p data-testid="live-location-reason" className="text-xs break-words whitespace-pre-line text-ink-muted">
             {reasonText}
           </p>
           <button
@@ -196,7 +209,7 @@ export function PhotoCapture({
           </button>
         </div>
       ) : locationReason ? (
-        <p data-testid="live-location-reason" className="px-3 pb-3 text-xs break-words text-ink-muted">
+        <p data-testid="live-location-reason" className="px-3 pb-3 text-xs break-words whitespace-pre-line text-ink-muted">
           {locationReason}
         </p>
       ) : null}
