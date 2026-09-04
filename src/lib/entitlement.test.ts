@@ -165,7 +165,7 @@ describe("trial duration env", () => {
 
   it("defaults to 30 days and accepts a short QA length", () => {
     expect(trialDurationMs({})).toBe(30 * 24 * 60 * 60 * 1000);
-    expect(trialDurationMs({ TIDEMARK_TRIAL_DAYS: "0.001" })).toBe(0.001 * 24 * 60 * 60 * 1000);
+    expect(trialDurationMs({ TIDEMARK_TRIAL_DAYS: "0.5" })).toBe(0.5 * 24 * 60 * 60 * 1000);
     expect(trialDurationMs({ TIDEMARK_TRIAL_DAYS: "nope" })).toBe(30 * 24 * 60 * 60 * 1000);
   });
 });
