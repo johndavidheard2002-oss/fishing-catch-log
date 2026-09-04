@@ -250,8 +250,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <img
               src={APP_LOGO_SRC}
               alt={APP_DISPLAY_NAME}
-              width={32}
-              height={32}
+              width={48}
+              height={48}
               className="brand-mark"
             />
             <BrandWordmark size="header" />

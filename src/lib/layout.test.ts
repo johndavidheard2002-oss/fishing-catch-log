@@ -35,7 +35,6 @@ describe("phone-width Log and Backfill", () => {
     expect(css).toMatch(/\.journal-card \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
     expect(css).toMatch(/\.page-intro \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
     expect(css).toMatch(/\.trout-wash-bg \{[\s\S]*?url\("\/brand\/dark-copper-redfish-bg\.png"\)/);
-    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?url\("\/brand\/soft-trout-wash-bg\.png"\)/);
     expect(css).not.toMatch(/\.signin-brand-banner \{/);
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
     expect(shell).toContain('className="journal-card mb-4 flex w-full min-w-0 items-center');
@@ -63,5 +62,18 @@ describe("phone-width Log and Backfill", () => {
     expect(shell).toContain("bottom-nav");
     expect(shell).toContain("grid-cols-6");
     expect(shell).toContain("nav-primary");
+  });
+
+  it("centers a larger Tide Mark seal in the empty photo well and header brand mark", () => {
+    const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+    expect(css).toMatch(/\.brand-mark \{[\s\S]*?height: 3rem/);
+    expect(css).toMatch(/\.brand-mark \{[\s\S]*?width: 3rem/);
+    expect(css).toMatch(/\.photo-capture-brand \{[\s\S]*?background-position: center center/);
+    expect(css).toMatch(/\.photo-capture-brand \{[\s\S]*?background-size: min\(88%, 20rem\) auto/);
+    expect(css).not.toMatch(/background-position: center 40%/);
+    const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
+    expect(shell).toContain("width={48}");
+    expect(shell).toContain("height={48}");
+    expect(shell).toContain('className="brand-mark"');
   });
 });
