@@ -189,6 +189,44 @@ textarea {
     0 12px 30px -16px rgb(10 90 140 / 0.38);
 }
 
+/* Sign-in Tide Mark lockup only: logo outer trout wash, not the white journal card. */
+.signin-brand-banner {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background-color: #0a0e14;
+  background-image: url("/brand/logo-trout-wash-bg.png");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  border: 1px solid rgb(196 140 72 / 0.38);
+  box-shadow:
+    0 1px 0 rgb(212 168 96 / 0.16) inset,
+    0 12px 30px -16px rgb(0 0 0 / 0.55);
+  color: #f4f0e4;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.92),
+    0 0 12px rgb(0 0 0 / 0.55);
+}
+
+.signin-brand-banner a,
+.signin-brand-banner .text-teal,
+.signin-brand-banner a.text-teal {
+  color: #f4f0e4;
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.92),
+    0 0 12px rgb(0 0 0 / 0.55);
+}
+
+.signin-brand-banner .text-ink-muted {
+  color: #e8dcc0;
+}
+
+.signin-brand-banner .brand-mark {
+  box-shadow: 0 1px 0 rgb(212 168 96 / 0.35), 0 6px 14px -8px rgb(0 0 0 / 0.65);
+}
+
 .page-intro {
   box-sizing: border-box;
   width: 100%;

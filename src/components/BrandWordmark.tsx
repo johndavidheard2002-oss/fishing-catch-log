@@ -5,7 +5,7 @@ type BrandWordmarkProps = {
   size: "header" | "home";
 };
 
-/** Display name on top, Saltwater Logbook on one nowrap line underneath. */
+/** Display name on top, Private saltwater logbook on one nowrap line underneath. */
 export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
   const home = size === "home";
   return (
@@ -26,7 +26,7 @@ export function BrandWordmark({ as: Tag = "span", size }: BrandWordmarkProps) {
         className={
           home
             ? "mt-1 block whitespace-nowrap font-display text-xl leading-snug tracking-tight text-teal sm:text-2xl"
-            : "block min-w-0 font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase"
+            : "block min-w-0 whitespace-nowrap font-body text-[11px] font-normal tracking-wide text-ink-muted uppercase"
         }
       >
         {APP_SUBTITLE}

@@ -86,7 +86,7 @@ Leave **unset** (the host provides or the app defaults):
 ### 5. Smoke (before you share)
 
 1. Open the public `https://…` URL.
-2. Header should read **Tide Mark** / **Saltwater Logbook**.
+2. Header should read **Tide Mark** / **Private saltwater logbook**.
 3. Log a catch with a **photo**, reload: the trip and the picture should still be there.
 4. Redeploy once and confirm the photo is still there (proves the disk, not just Turso).
 
