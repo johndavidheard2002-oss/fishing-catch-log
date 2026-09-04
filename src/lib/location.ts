@@ -115,7 +115,7 @@ export function blockedLocationReason(extras?: {
     ? LOCATION_PRIVATE_BROWSING_HINT
     : LOCATION_DENIED_SETTINGS_HINT;
   const debug = safariLocationPermissionLine(extras?.permission);
-  return debug ? `${base} ${debug}` : base;
+  return debug ? `${base}\n${debug}` : base;
 }
 
 export function isBlockedLocationReason(reason: string): boolean {

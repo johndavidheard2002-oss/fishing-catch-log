@@ -872,10 +872,10 @@ describe("blocked location recovery copy", () => {
     expect(blockedLocationReason({ privateBrowsing: true })).toBe(LOCATION_PRIVATE_BROWSING_HINT);
     expect(blockedLocationReason({ privateBrowsing: false })).toBe(LOCATION_DENIED_SETTINGS_HINT);
     expect(blockedLocationReason({ privateBrowsing: true, permission: "denied" })).toBe(
-      `${LOCATION_PRIVATE_BROWSING_HINT} Safari says location is denied for this site.`,
+      `${LOCATION_PRIVATE_BROWSING_HINT}\nSafari says location is denied for this site.`,
     );
     expect(blockedLocationReason({ permission: "denied" })).toBe(
-      `${LOCATION_DENIED_SETTINGS_HINT} Safari says location is denied for this site.`,
+      `${LOCATION_DENIED_SETTINGS_HINT}\nSafari says location is denied for this site.`,
     );
     expect(blockedLocationReason({ permission: "prompt" })).toContain(
       "Safari says location is prompt for this site.",
