@@ -457,7 +457,8 @@ export function resolveLiveCameraCatchPin(args: {
 }
 
 /**
- * After Yes: photo EXIF GPS first, else device GPS (not in past/backfill mode).
+ * After Yes: photo EXIF GPS first (source photo). If Safari stripped GPS,
+ * use this phone’s location (source device) — including Backfill / past mode.
  * Unanswered, No, or a user-moved pin → no auto-place.
  */
 export function resolveCatchPinAfterPhotoAnswer(args: {
@@ -478,7 +479,7 @@ export function resolveCatchPinAfterPhotoAnswer(args: {
   if (args.photoGps) {
     return { ...args.photoGps, source: "photo" };
   }
-  if (!args.pastMode && args.deviceGps) {
+  if (args.deviceGps) {
     return { ...args.deviceGps, source: "device" };
   }
   return null;

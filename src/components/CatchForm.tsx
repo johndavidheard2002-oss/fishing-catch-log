@@ -15,6 +15,7 @@ import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { compressImage, photoSrc } from "@/lib/photo";
 import {
+  ALLOW_GPS_OPTIONS,
   classifyCatchPinEdit,
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
@@ -22,11 +23,13 @@ import {
   formatCoords,
   GETTING_LOCATION_LABEL,
   initialLiveLocationStatusFromSaved,
+  LIVE_CAMERA_GPS_BUDGET_MS,
   LOCATION_OFF_PIN_HINT,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
   refreshLiveLocationIfGranted,
   requestDeviceGps,
+  requestDeviceGpsAttempt,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
   resolveLiveCameraPinAfterPhoto,
@@ -34,6 +37,7 @@ import {
   writeSavedLiveLocation,
   type LiveLocationStatus,
 } from "@/lib/location";
+import { readPhotoGps } from "@/lib/photo-gps";
 import { primarySpecies } from "@/lib/species";
 import {
   alignCountDrafts,
@@ -459,31 +463,22 @@ export function CatchForm({
     setBusyLabel("Reading the photo…");
     setPhotoAtCatch(source === "camera" && !pastMode ? true : null);
     setPinHint(null);
-    const compressed = await compressImage(file);
-    const nextFile = new File([compressed], file.name.replace(/\.\w+$/, ".jpg"), {
-      type: "image/jpeg",
-    });
-    setPhotoFile(nextFile);
-    const url = URL.createObjectURL(nextFile);
-    showPreview(url);
-
     try {
-      const exif = (await exifr.parse(file, PHOTO_EXIF_OPTIONS)) as {
-        latitude?: number;
-        longitude?: number;
-        DateTimeOriginal?: string | Date;
-        CreateDate?: string | Date;
-      } | undefined;
-      if (exif?.latitude != null && exif.longitude != null) {
-        pendingPhotoGpsRef.current = { latitude: exif.latitude, longitude: exif.longitude };
+      const photoGps = await readPhotoGps(file);
+      if (photoGps) {
+        pendingPhotoGpsRef.current = photoGps;
         patch({
-          photoTakenLatitude: exif.latitude.toFixed(5),
-          photoTakenLongitude: exif.longitude.toFixed(5),
+          photoTakenLatitude: photoGps.latitude.toFixed(5),
+          photoTakenLongitude: photoGps.longitude.toFixed(5),
         });
       } else {
         pendingPhotoGpsRef.current = null;
         patch({ photoTakenLatitude: "", photoTakenLongitude: "" });
       }
+      const exif = (await exifr.parse(file, PHOTO_EXIF_OPTIONS)) as {
+        DateTimeOriginal?: string | Date;
+        CreateDate?: string | Date;
+      } | undefined;
       const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
       if (stamp) {
         const caughtAt = datetimeLocalFromDate(stamp);
@@ -495,6 +490,13 @@ export function CatchForm({
     } catch {
       pendingPhotoGpsRef.current = null;
     }
+    const compressed = await compressImage(file);
+    const nextFile = new File([compressed], file.name.replace(/\.\w+$/, ".jpg"), {
+      type: "image/jpeg",
+    });
+    setPhotoFile(nextFile);
+    const url = URL.createObjectURL(nextFile);
+    showPreview(url);
 
     if (!pastMode && source === "camera") {
       setBusyLabel(DROPPING_PIN_HINT);
@@ -536,8 +538,17 @@ export function CatchForm({
     try {
       const photoGps = pendingPhotoGpsRef.current;
       let deviceGps: { latitude: number; longitude: number } | null = null;
-      if (!photoGps && !pastMode) {
-        deviceGps = pendingLiveGpsRef.current ?? (await requestDeviceGps());
+      if (!photoGps) {
+        setPinHint(DROPPING_PIN_HINT);
+        deviceGps = pendingLiveGpsRef.current ?? readSavedLiveLocation();
+        if (!deviceGps) {
+          const first = requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS);
+          const result = await waitForLiveLocationFix({
+            firstAttempt: first,
+            budgetMs: LIVE_CAMERA_GPS_BUDGET_MS,
+          });
+          deviceGps = result.ok ? result.gps : null;
+        }
       }
 
       const next = resolveCatchPinAfterPhotoAnswer({
@@ -553,12 +564,10 @@ export function CatchForm({
           setPinHint(
             "Catch pin left where you moved it. Photo GPS is only “photo taken at,” and re-saving this picture will not overwrite your pin.",
           );
-        } else if (pastMode && !photoGps) {
-          setPinHint(
-            "This photo has no location stamp. Tap the map to pin this catch — we did not use your current location.",
-          );
         } else if (!photoGps && !deviceGps) {
-          setPinHint("No GPS in the photo and this phone did not share a location. Tap the map to place the pin.");
+          setPinHint(
+            "No GPS in the photo and this phone did not share a location. Tap the map to place the pin.",
+          );
         } else {
           setPinHint(DROP_CATCH_PIN_HINT);
         }

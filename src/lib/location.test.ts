@@ -561,7 +561,7 @@ describe("resolveCatchPinAfterPhotoAnswer", () => {
     ).toEqual({ ...deviceGps, source: "device" });
   });
 
-  it("on Yes in past mode does not fill from device GPS", () => {
+  it("on Yes in Backfill still pins from this phone when the file has no GPS", () => {
     expect(
       resolveCatchPinAfterPhotoAnswer({
         photoTakenAtCatch: true,
@@ -570,7 +570,31 @@ describe("resolveCatchPinAfterPhotoAnswer", () => {
         deviceGps,
         pastMode: true,
       }),
-    ).toBeNull();
+    ).toEqual({ ...deviceGps, source: "device" });
+  });
+
+  it("on Yes in Backfill still prefers photo EXIF GPS over this phone", () => {
+    expect(
+      resolveCatchPinAfterPhotoAnswer({
+        photoTakenAtCatch: true,
+        userMovedCatchPin: false,
+        photoGps,
+        deviceGps,
+        pastMode: true,
+      }),
+    ).toEqual({ ...photoGps, source: "photo" });
+  });
+
+  it("on Yes does not invent a photo stamp when only the phone GPS is used", () => {
+    const next = resolveCatchPinAfterPhotoAnswer({
+      photoTakenAtCatch: true,
+      userMovedCatchPin: false,
+      photoGps: null,
+      deviceGps,
+      pastMode: true,
+    });
+    expect(next?.source).toBe("device");
+    expect(next?.source).not.toBe("photo");
   });
 
   it("on Yes still keeps a user-moved pin", () => {
