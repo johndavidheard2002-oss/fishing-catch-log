@@ -297,7 +297,9 @@ export function CatchForm({
     () => mode === "create" && !pastMode && readSavedLiveLocationStatus() === "denied",
   );
   const [geoPermission, setGeoPermission] = useState<GeolocationPermissionState>("unknown");
-  const [privateBrowsing, setPrivateBrowsing] = useState(false);
+  const [privateBrowsing, setPrivateBrowsing] = useState(() =>
+    typeof window === "undefined" ? false : detectPrivateBrowsing(),
+  );
   const locationStatusRef = useRef<LiveLocationStatus>(locationStatus);
   const rememberLiveGpsRef = useRef<(gps: { latitude: number; longitude: number } | null) => void>(
     () => {},
@@ -318,7 +320,6 @@ export function CatchForm({
 
   useEffect(() => {
     if (!useLiveGps) return;
-    setPrivateBrowsing(detectPrivateBrowsing());
     void queryGeolocationPermission().then(setGeoPermission);
     const saved = readSavedLiveLocation();
     const savedStatus = readSavedLiveLocationStatus();
