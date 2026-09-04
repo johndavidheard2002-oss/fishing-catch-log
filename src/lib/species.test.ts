@@ -11,12 +11,14 @@ import {
   formPatchFromSuggestion,
   matchCatalogSpecies,
   matchSaltwaterCatalogSpecies,
+  nextHabitatForSpecies,
   normalizeSpeciesList,
   primarySpecies,
   resolveSpeciesName,
   restrictSuggestionToSaltwater,
   SPECIES_AUTO_FILL_MIN,
   speciesListsOverlap,
+  toggleSelectedSpecies,
 } from "./species";
 import { demoIdentifySpecies } from "./vision/demo";
 
@@ -46,6 +48,40 @@ describe("matchSaltwaterCatalogSpecies", () => {
     expect(matchSaltwaterCatalogSpecies("Unknown")).toBeNull();
     expect(matchSaltwaterCatalogSpecies("blacktip shark")).toBe("Blacktip");
     expect(matchSaltwaterCatalogSpecies("Bull shark")).toBe("Bull shark");
+  });
+});
+
+describe("toggleSelectedSpecies", () => {
+  it("selecting two different chips yields both in speciesList", () => {
+    const first = toggleSelectedSpecies([], "Redfish", "saltwater-inshore");
+    expect(first?.speciesList).toEqual(["Redfish"]);
+    const second = toggleSelectedSpecies(first!.speciesList, "Speckled Trout", first!.habitat);
+    expect(second?.speciesList).toEqual(["Redfish", "Speckled Trout"]);
+  });
+
+  it("removes a chip on the second tap", () => {
+    const next = toggleSelectedSpecies(
+      ["Redfish", "Speckled Trout"],
+      "Redfish",
+      "saltwater-inshore",
+    );
+    expect(next?.speciesList).toEqual(["Speckled Trout"]);
+    expect(next?.habitat).toBe("saltwater-inshore");
+  });
+
+  it("infers habitat on first add and keeps it for another inshore chip", () => {
+    const first = toggleSelectedSpecies([], "Redfish", "saltwater-offshore");
+    expect(first?.habitat).toBe("saltwater-inshore");
+    const second = toggleSelectedSpecies(first!.speciesList, "Snook", first!.habitat);
+    expect(second?.speciesList).toEqual(["Redfish", "Snook"]);
+    expect(second?.habitat).toBe("saltwater-inshore");
+  });
+
+  it("keeps the current habitat when adding a shark", () => {
+    const next = toggleSelectedSpecies(["Redfish"], "Blacktip", "saltwater-inshore");
+    expect(next?.speciesList).toEqual(["Redfish", "Blacktip"]);
+    expect(next?.habitat).toBe("saltwater-inshore");
+    expect(nextHabitatForSpecies("Blacktip", "saltwater-offshore")).toBe("saltwater-offshore");
   });
 });
 

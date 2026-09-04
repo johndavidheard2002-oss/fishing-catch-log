@@ -5,12 +5,16 @@ import {
   HABITAT_LABELS,
   catalogHabitat,
   isSaltwaterCatalogSpecies,
-  isSharkCatalogSpecies,
   sharkSpecies,
   speciesForHabitat,
   type Habitat,
 } from "@/lib/habitat";
-import { matchSaltwaterCatalogSpecies, normalizeSpeciesList } from "@/lib/species";
+import {
+  matchSaltwaterCatalogSpecies,
+  nextHabitatForSpecies,
+  normalizeSpeciesList,
+  toggleSelectedSpecies,
+} from "@/lib/species";
 
 type PickerGroup = "saltwater-inshore" | "saltwater-offshore" | "shark";
 
@@ -46,30 +50,11 @@ export function SpeciesPicker({
   const q = query.trim().toLowerCase();
   const filtered = q ? catalog.filter((name) => name.toLowerCase().includes(q)) : catalog;
 
-  function nextHabitatFor(name: string): Habitat {
-    if (isSharkCatalogSpecies(name) || /shark/i.test(name)) return habitat;
-    const inferred = catalogHabitat(name);
-    return inferred && inferred !== "freshwater" ? inferred : habitat;
-  }
-
   function toggle(name: string) {
-    const mapped = matchSaltwaterCatalogSpecies(name) ?? name.trim();
-    if (!mapped) return;
-    const key = mapped.toLowerCase();
-    const exists = selected.some((s) => s.toLowerCase() === key);
-    if (exists) {
-      onChange(
-        selected.filter((s) => s.toLowerCase() !== key),
-        habitat,
-      );
-      return;
-    }
-    if (selected.length <= 1) {
-      onChange([mapped], nextHabitatFor(mapped));
-      setQuery("");
-      return;
-    }
-    onChange([...selected, mapped], habitat);
+    const next = toggleSelectedSpecies(selected, name, habitat);
+    if (!next) return;
+    onChange(next.speciesList, next.habitat);
+    if (next.speciesList.length > selected.length) setQuery("");
   }
 
   function addTyped() {
@@ -79,7 +64,10 @@ export function SpeciesPicker({
     if (isSaltwaterCatalogSpecies(mapped) || !matchLooksFreshwater(raw)) {
       const key = mapped.toLowerCase();
       if (!selected.some((s) => s.toLowerCase() === key)) {
-        onChange(selected.length ? [...selected, mapped] : [mapped], nextHabitatFor(mapped));
+        onChange(
+          selected.length ? [...selected, mapped] : [mapped],
+          nextHabitatForSpecies(mapped, habitat),
+        );
       }
     }
     setQuery("");
