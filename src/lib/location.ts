@@ -65,10 +65,16 @@ export const LOCATION_DENIED_SETTINGS_STEPS = [
   "Avoid Private browsing, then tap Turn location on again",
 ] as const;
 
+export function formatNumberedLocationSteps(
+  steps: readonly string[] = LOCATION_DENIED_SETTINGS_STEPS,
+): string {
+  return steps.map((step, index) => `${index + 1}. ${step}`).join("\n");
+}
+
 export function formatLocationDeniedSettingsHint(
   steps: readonly string[] = LOCATION_DENIED_SETTINGS_STEPS,
 ): string {
-  return ["Location is blocked.", ...steps.map((step, index) => `${index + 1}. ${step}`)].join("\n");
+  return ["Location is blocked.", formatNumberedLocationSteps(steps)].join("\n");
 }
 
 /** Numbered iPhone path — Location Services → Safari Websites, not Settings → Safari → Location. */
@@ -77,6 +83,16 @@ export const LOCATION_PRIVATE_BROWSING_HINT =
   "Private browsing blocks location — open this site in a normal Safari tab.";
 export const ALLOW_LOCATION_SERVICES_HINT =
   "If Allow doesn’t stick, check Location Services → Safari Websites.";
+export const LOCATION_SERVICES_SETUP_TITLE = "Location on iPhone";
+export const LOCATION_SERVICES_SETUP_BODY =
+  "Before you log a catch, set Location Services → Safari Websites to Ask or While Using. Safari → Location Ask/Allow alone is not enough.";
+
+export function formatLocationServicesSetupHint(
+  lead: string = LOCATION_SERVICES_SETUP_BODY,
+  steps: readonly string[] = LOCATION_DENIED_SETTINGS_STEPS,
+): string {
+  return `${lead}\n${formatNumberedLocationSteps(steps)}`;
+}
 export const ASKING_VISIBLE_MS = 400;
 
 export const ALLOW_LOCATION_LABEL = "Allow location";
@@ -689,7 +705,9 @@ export function liveLocationPromptCopy(
   }
   return {
     title: "Allow location",
-    body: `Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin. ${ALLOW_LOCATION_SERVICES_HINT}`,
+    body: formatLocationServicesSetupHint(
+      "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
+    ),
   };
 }
 

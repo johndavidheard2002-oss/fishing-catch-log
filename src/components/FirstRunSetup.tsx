@@ -102,6 +102,16 @@ export function FirstRunSetup() {
             {screen.title}
           </h2>
           <p className="text-sm text-ink">{screen.body}</p>
+          {screen.steps?.length ? (
+            <ol
+              data-testid="tour-location-steps"
+              className="list-decimal space-y-1 pl-4 text-sm text-ink"
+            >
+              {screen.steps.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          ) : null}
           <div className="flex justify-center gap-1.5 pt-1" aria-hidden>
             {TOUR_SCREENS.map((item, index) => (
               <span

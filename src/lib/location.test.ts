@@ -26,6 +26,9 @@ import {
   LOCATION_DENIED_SETTINGS_HINT,
   LOCATION_DENIED_SETTINGS_STEPS,
   LOCATION_PRIVATE_BROWSING_HINT,
+  LOCATION_SERVICES_SETUP_BODY,
+  formatLocationServicesSetupHint,
+  formatNumberedLocationSteps,
   TAP_MAP_PIN_HINT,
   shouldShowTurnLocationOn,
   skipLocationLabel,
@@ -133,8 +136,15 @@ describe("liveLocationPromptCopy", () => {
     expect(liveLocationPromptCopy("denied").body).toContain("Ask or While Using");
     expect(liveLocationPromptCopy("denied").body).toContain("Private browsing");
     expect(liveLocationPromptCopy("denied").body).not.toContain("Settings → Safari → Location");
-    expect(liveLocationPromptCopy("prompt").body).toContain(ALLOW_LOCATION_SERVICES_HINT);
     expect(liveLocationPromptCopy("prompt").body).toContain("Location Services → Safari Websites");
+    expect(liveLocationPromptCopy("prompt").body).toBe(
+      formatLocationServicesSetupHint(
+        "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
+      ),
+    );
+    expect(liveLocationPromptCopy("prompt").body).toContain(formatNumberedLocationSteps());
+    expect(liveLocationPromptCopy("prompt").body).toContain("1. Settings → Privacy & Security");
+    expect(liveLocationPromptCopy("prompt").body).not.toContain("Settings → Safari → Location");
   });
 });
 
@@ -866,6 +876,18 @@ describe("blocked location recovery copy", () => {
     expect(LOCATION_DENIED_SETTINGS_HINT).not.toContain("Allow this site");
     expect(LOCATION_DENIED_SETTINGS_HINT.length).toBeLessThan(280);
     expect(ALLOW_LOCATION_SERVICES_HINT).toContain("Location Services → Safari Websites");
+    expect(formatNumberedLocationSteps()).toBe(
+      [
+        "1. Settings → Privacy & Security → Location Services → On",
+        "2. Scroll to Safari Websites → Ask or While Using (not Never)",
+        "3. Avoid Private browsing, then tap Turn location on again",
+      ].join("\n"),
+    );
+    expect(formatLocationServicesSetupHint()).toBe(
+      `${LOCATION_SERVICES_SETUP_BODY}\n${formatNumberedLocationSteps()}`,
+    );
+    expect(LOCATION_SERVICES_SETUP_BODY).toContain("Safari Websites");
+    expect(LOCATION_SERVICES_SETUP_BODY).not.toContain("Settings → Safari → Location");
   });
 
   it("prefers the private-browsing hint over generic blocked copy", () => {
