@@ -2,6 +2,7 @@
 
 import {
   ALLOW_LOCATION_LABEL,
+  GETTING_LOCATION_LABEL,
   SKIP_LOCATION_LABEL,
   liveLocationPromptCopy,
   type LiveLocationStatus,
@@ -35,7 +36,7 @@ export function LiveLocationPrompt({
             onClick={onAllow}
             className="rounded-xl bg-teal py-3 text-base font-semibold text-white disabled:opacity-60"
           >
-            {waiting ? "Waiting…" : ALLOW_LOCATION_LABEL}
+            {waiting ? GETTING_LOCATION_LABEL : ALLOW_LOCATION_LABEL}
           </button>
           {status === "unavailable" ? (
             <span className="self-center text-sm text-ink-muted">Or drop a pin by hand.</span>
@@ -43,9 +44,8 @@ export function LiveLocationPrompt({
             <button
               type="button"
               data-testid="skip-location"
-              disabled={waiting}
               onClick={onSkip}
-              className="rounded-xl border border-line bg-paper py-3 text-base font-semibold text-ink disabled:opacity-60"
+              className="rounded-xl border border-line bg-paper py-3 text-base font-semibold text-ink"
             >
               {SKIP_LOCATION_LABEL}
             </button>

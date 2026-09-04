@@ -18,7 +18,10 @@ import {
   classifyCatchPinEdit,
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
+  DROPPING_PIN_HINT,
   formatCoords,
+  GETTING_LOCATION_LABEL,
+  initialLiveLocationStatusFromSaved,
   LOCATION_OFF_PIN_HINT,
   readSavedLiveLocation,
   readSavedLiveLocationStatus,
@@ -26,7 +29,8 @@ import {
   requestDeviceGps,
   resolveCatchPinAfterPhotoAnswer,
   resolveLiveCameraCatchPin,
-  resolveLiveCameraDeviceGps,
+  resolveLiveCameraPinAfterPhoto,
+  waitForLiveLocationFix,
   writeSavedLiveLocation,
   type LiveLocationStatus,
 } from "@/lib/location";
@@ -251,6 +255,7 @@ export function CatchForm({
         : null,
   );
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState("Reading the photo…");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -272,10 +277,7 @@ export function CatchForm({
   );
   const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>(() => {
     if (mode !== "create" || pastMode) return "unavailable";
-    const saved = readSavedLiveLocationStatus();
-    if (saved === "ready" || saved === "allowed") return "ready";
-    if (saved === "unavailable") return "unavailable";
-    return "prompt";
+    return initialLiveLocationStatusFromSaved(readSavedLiveLocationStatus());
   });
   const locationStatusRef = useRef<LiveLocationStatus>(locationStatus);
   const rememberLiveGpsRef = useRef<(gps: { latitude: number; longitude: number } | null) => void>(
@@ -296,8 +298,14 @@ export function CatchForm({
     const saved = readSavedLiveLocation();
     const savedStatus = readSavedLiveLocationStatus();
     if (saved) rememberLiveGpsRef.current(saved);
+    if (savedStatus !== "ready" && savedStatus !== "allowed") return;
     let cancelled = false;
-    const pending = refreshLiveLocationIfGranted({ savedStatus });
+    const ac = new AbortController();
+    const pending = saved
+      ? refreshLiveLocationIfGranted({ savedStatus })
+      : waitForLiveLocationFix({ signal: ac.signal }).then((result) =>
+          result.ok ? result.gps : null,
+        );
     liveGpsRequestRef.current = pending;
     void pending.then((gps) => {
       if (cancelled || !gps) return;
@@ -306,6 +314,7 @@ export function CatchForm({
     });
     return () => {
       cancelled = true;
+      ac.abort();
     };
   }, [useLiveGps]);
 
@@ -447,6 +456,7 @@ export function CatchForm({
   async function handleFile(file: File, source: PhotoSource = "library") {
     setError(null);
     setBusy(true);
+    setBusyLabel("Reading the photo…");
     setPhotoAtCatch(source === "camera" && !pastMode ? true : null);
     setPinHint(null);
     const compressed = await compressImage(file);
@@ -487,29 +497,21 @@ export function CatchForm({
     }
 
     if (!pastMode && source === "camera") {
+      setBusyLabel(DROPPING_PIN_HINT);
+      setPinHint(DROPPING_PIN_HINT);
       const savedGps = pendingLiveGpsRef.current ?? readSavedLiveLocation();
       const savedStatus = readSavedLiveLocationStatus();
-      const fromTap = liveGpsRequestRef.current ? await liveGpsRequestRef.current : null;
-      let deviceGps =
-        (await resolveLiveCameraDeviceGps({
-          savedGps: fromTap ?? savedGps,
-          savedStatus,
-        })) ??
-        fromTap ??
-        savedGps;
-      if (!deviceGps && savedStatus !== "unavailable") {
-        deviceGps = await requestDeviceGps();
-      }
+      const { pin, deviceGps } = await resolveLiveCameraPinAfterPhoto({
+        userMovedCatchPin: catchPinUserMovedRef.current,
+        savedGps,
+        savedStatus,
+      });
       if (deviceGps) {
         pendingLiveGpsRef.current = deviceGps;
         writeSavedLiveLocation(deviceGps);
       }
-      const next = resolveLiveCameraCatchPin({
-        userMovedCatchPin: catchPinUserMovedRef.current,
-        deviceGps,
-      });
-      if (next) {
-        await applyResolvedPin(next);
+      if (pin) {
+        await applyResolvedPin(pin);
       } else if (catchPinUserMovedRef.current) {
         setPinHint(
           "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
@@ -520,6 +522,7 @@ export function CatchForm({
     }
 
     setBusy(false);
+    setBusyLabel("Reading the photo…");
   }
 
   async function answerPhotoAtCatch(yes: boolean) {
@@ -664,6 +667,7 @@ export function CatchForm({
         previewUrl={previewUrl}
         onFile={handleFile}
         busy={busy}
+        busyLabel={busyLabel}
         emphasis={pastMode ? "library" : "camera"}
         libraryOnly={pastMode}
         compactPreview={pastMode && Boolean(previewUrl)}
@@ -671,9 +675,11 @@ export function CatchForm({
         locationReason={
           useLiveGps && locationStatus === "ready"
             ? "A live photo pins from the location you allowed at sign-in. You can still move the pin."
-            : useLiveGps && locationStatus === "unavailable"
-              ? "Location is off. Camera still works — drop a pin on the map."
-              : undefined
+            : useLiveGps && locationStatus === "asking"
+              ? GETTING_LOCATION_LABEL
+              : useLiveGps && locationStatus === "unavailable"
+                ? "Location is off. Camera still works — drop a pin on the map."
+                : undefined
         }
       />
 
