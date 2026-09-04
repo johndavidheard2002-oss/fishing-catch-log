@@ -25,10 +25,9 @@ import { isWindDirection } from "./wind";
 export const BAIT_CATALOG = [
   "Shrimp",
   "Finger mullet",
-  "Pogies",
+  "Shad",
   "Croaker",
-  "Pilchards",
-  "Whitebait",
+  "Piggy perch",
   "Pinfish",
   "Crabs",
   "Sand fleas",
