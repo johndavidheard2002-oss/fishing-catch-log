@@ -25,14 +25,17 @@ describe("phone-width Log and Backfill", () => {
     expect(wordmark).toContain("text-[1.35rem]");
   });
 
-  it("puts logo trout wash on the Home Tide Mark lockup, not the thin header", () => {
+  it("puts the dark navy logo-corner trout wash on the Home Tide Mark lockup, not the thin header", () => {
     const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
-    expect(css).toMatch(
-      /\.home-lockup \{[\s\S]*?url\("\/brand\/logo-trout-wash-bg\.png"\)/,
-    );
+    const homeBlock = css.match(/\.home-lockup \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(homeBlock).toContain('url("/brand/logo-trout-wash-bg.png")');
+    expect(homeBlock).not.toContain("soft-trout-wash-bg.png");
+    expect(homeBlock).toContain("color: #f4f0e4");
+    expect(homeBlock).toMatch(/text-shadow:\s*\n\s*0 1px 2px rgb\(0 0 0 \/ 0\.92\)/);
     expect(css).toMatch(/\.journal-card \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
     expect(css).toMatch(/\.page-intro \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
     expect(css).toMatch(/\.trout-wash-bg \{[\s\S]*?url\("\/brand\/dark-copper-redfish-bg\.png"\)/);
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?url\("\/brand\/soft-trout-wash-bg\.png"\)/);
     expect(css).not.toMatch(/\.signin-brand-banner \{/);
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
     expect(shell).toContain('className="journal-card mb-4 flex w-full min-w-0 items-center');

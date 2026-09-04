@@ -316,7 +316,8 @@ main .bg-copper.text-white,
   text-shadow: none;
 }
 
-/* Home Tide Mark lockup: logo outer trout wash, not the white plaque. */
+/* Home Tide Mark lockup: dark navy field + warm gold speckles from the
+   logo corners (outside the copper dial). Not the olive trout-skin photo. */
 .home-lockup {
   background-color: #0a0e14;
   background-image: url("/brand/logo-trout-wash-bg.png");
