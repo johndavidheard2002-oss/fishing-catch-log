@@ -49,6 +49,9 @@ export const anglers = sqliteTable("anglers", {
   email: text("email"),
   passwordHash: text("password_hash"),
   createdAt: text("created_at").notNull(),
+  trialStartedAt: text("trial_started_at"),
+  subscriptionStatus: text("subscription_status").notNull().default("trial"),
+  subscriptionExpiresAt: text("subscription_expires_at"),
 });
 
 export const buddyLinks = sqliteTable("buddy_links", {

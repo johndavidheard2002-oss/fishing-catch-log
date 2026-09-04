@@ -330,4 +330,43 @@ describe("migrate older journals", () => {
     const bait = getSqlite().prepare("SELECT id FROM bait_spots").all() as { id: string }[];
     expect(bait).toEqual([]);
   });
+
+  it("adds trial columns and backfills a fresh trial for existing anglers", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    const file = path.join(dir, "old-trial.sqlite");
+    const sqlite = new Database(file);
+    sqlite.exec(`
+      CREATE TABLE anglers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        invite_code TEXT NOT NULL UNIQUE,
+        email TEXT,
+        password_hash TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    sqlite
+      .prepare("INSERT INTO anglers (id, name, invite_code, created_at) VALUES (?, ?, ?, ?)")
+      .run("angler-old", "Pat", "CAST-OLD2", "2026-01-01T12:00:00.000Z");
+    sqlite.close();
+
+    process.env.DATABASE_PATH = file;
+    resetDbForTests();
+    getDb();
+    const cols = getSqlite()
+      .prepare(`PRAGMA table_info(anglers)`)
+      .all() as { name: string }[];
+    const names = cols.map((c) => c.name);
+    expect(names).toContain("trial_started_at");
+    expect(names).toContain("subscription_status");
+    expect(names).toContain("subscription_expires_at");
+    const row = getSqlite()
+      .prepare("SELECT trial_started_at, subscription_status FROM anglers WHERE id = ?")
+      .get("angler-old") as { trial_started_at: string; subscription_status: string };
+    expect(row.trial_started_at).toBeTruthy();
+    expect(new Date(row.trial_started_at).getTime()).toBeGreaterThan(Date.parse("2026-08-01T00:00:00.000Z"));
+    expect(row.subscription_status).toBe("trial");
+    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
+  });
 });

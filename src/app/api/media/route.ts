@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { requireViewerId, signInRequired } from "@/lib/viewer";
+import { requireUnlockedViewer } from "@/lib/journal-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic";
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 export async function POST(request: NextRequest) {
-  if (!(await requireViewerId(request))) return signInRequired();
+  const access = await requireUnlockedViewer(request);
+  if (!access.ok) return access.response;
   const form = await request.formData();
   const file = form.get("photo");
   if (!(file instanceof File)) {

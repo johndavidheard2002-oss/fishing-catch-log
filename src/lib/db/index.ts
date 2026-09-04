@@ -70,7 +70,10 @@ CREATE TABLE IF NOT EXISTS anglers (
   invite_code TEXT NOT NULL UNIQUE,
   email TEXT,
   password_hash TEXT,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  trial_started_at TEXT,
+  subscription_status TEXT NOT NULL DEFAULT 'trial',
+  subscription_expires_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS buddy_links (
@@ -148,7 +151,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 `;
 
 /** File SQLite uses PRAGMA user_version. LibSQL/Turso stores the same number in schema_meta. */
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 const SCHEMA_META_KEY = "schema_version";
 
 /**
@@ -470,8 +473,32 @@ function migrate(sqlite: Database.Database) {
     sqlite.exec(`ALTER TABLE anglers ADD COLUMN password_hash TEXT`);
   }
   sqlite.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email)`);
+  const latestAnglerCols = tableColumns(sqlite, "anglers");
+  if (!latestAnglerCols.includes("trial_started_at")) {
+    sqlite.exec(`ALTER TABLE anglers ADD COLUMN trial_started_at TEXT`);
+  }
+  if (!latestAnglerCols.includes("subscription_status")) {
+    sqlite.exec(`ALTER TABLE anglers ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'trial'`);
+  }
+  if (!latestAnglerCols.includes("subscription_expires_at")) {
+    sqlite.exec(`ALTER TABLE anglers ADD COLUMN subscription_expires_at TEXT`);
+  }
   if (version < 13) {
     sqlite.pragma("user_version = 13");
+  }
+  if (version < 14) {
+    const deployNow = new Date().toISOString();
+    sqlite
+      .prepare(
+        `UPDATE anglers
+         SET trial_started_at = ?
+         WHERE trial_started_at IS NULL OR trial_started_at = ''`,
+      )
+      .run(deployNow);
+    sqlite.exec(
+      `UPDATE anglers SET subscription_status = 'trial' WHERE subscription_status IS NULL OR subscription_status = ''`,
+    );
+    sqlite.pragma("user_version = 14");
   }
 }
 
@@ -570,6 +597,17 @@ export async function migrateLibsql(client: Client) {
   }
   await execSoft(client, "CREATE UNIQUE INDEX IF NOT EXISTS idx_anglers_email ON anglers(email)");
 
+  const latestAnglerCols = await libsqlColumns(client, "anglers");
+  if (!latestAnglerCols.includes("trial_started_at")) {
+    await execSoft(client, "ALTER TABLE anglers ADD COLUMN trial_started_at TEXT");
+  }
+  if (!latestAnglerCols.includes("subscription_status")) {
+    await execSoft(client, "ALTER TABLE anglers ADD COLUMN subscription_status TEXT NOT NULL DEFAULT 'trial'");
+  }
+  if (!latestAnglerCols.includes("subscription_expires_at")) {
+    await execSoft(client, "ALTER TABLE anglers ADD COLUMN subscription_expires_at TEXT");
+  }
+
   const version = await libsqlSchemaVersion(client);
   if (version < 7) {
     await client.execute(PURGE_SAMPLE_CATCHES_SQL);
@@ -577,6 +615,19 @@ export async function migrateLibsql(client: Client) {
   if (version < 12) {
     await client.execute(PURGE_SAMPLE_CATCHES_SQL);
     await client.execute(PURGE_SAMPLE_BAIT_SQL);
+  }
+  if (version < 14) {
+    const deployNow = new Date().toISOString();
+    await client.execute({
+      sql: `UPDATE anglers
+            SET trial_started_at = ?
+            WHERE trial_started_at IS NULL OR trial_started_at = ''`,
+      args: [deployNow],
+    });
+    await execSoft(
+      client,
+      `UPDATE anglers SET subscription_status = 'trial' WHERE subscription_status IS NULL OR subscription_status = ''`,
+    );
   }
   if (version < SCHEMA_VERSION) {
     await libsqlSetSchemaVersion(client, SCHEMA_VERSION);

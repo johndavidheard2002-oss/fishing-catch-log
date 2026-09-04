@@ -16,7 +16,7 @@ describe("privacy policy", () => {
     expect(PRIVACY_INTRO.toLowerCase()).toContain("private saltwater logbook");
     expect(PRIVACY_CONTACT_EMAIL).toMatch(/@/);
     const ids = PRIVACY_SECTIONS.map((section) => section.id);
-    expect(ids).toEqual(["account", "photos", "location", "sharing", "hosting", "deletion"]);
+    expect(ids).toEqual(["account", "photos", "location", "sharing", "subscriptions", "hosting", "deletion"]);
     const text = PRIVACY_SECTIONS.map((section) => `${section.title} ${section.paragraphs.join(" ")}`).join(" ");
     expect(text).toMatch(/account email/i);
     expect(text).toMatch(/catch photos/i);
@@ -25,6 +25,9 @@ describe("privacy policy", () => {
     expect(text).toMatch(/Render/);
     expect(text).toMatch(/Turso/);
     expect(text).toMatch(/delete/i);
+    expect(text).toMatch(/\$39\.99\/year/);
+    expect(text).toMatch(/free month/i);
+    expect(text.toLowerCase()).toContain("do not delete");
     expect(text).toContain(PRIVACY_CONTACT_EMAIL);
   });
 

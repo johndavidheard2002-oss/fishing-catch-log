@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { FirstRunSetup } from "@/components/FirstRunSetup";
 import { HelpButton, HelpGuide } from "@/components/HelpGuide";
+import { Paywall } from "@/components/Paywall";
+import { TrialNotice } from "@/components/TrialNotice";
 import { isPublicPagePath } from "@/lib/auth-gate";
 import { APP_DISPLAY_NAME, APP_LOGO_SRC } from "@/lib/brand";
+import {
+  OPEN_PAYWALL_EVENT,
+  isJournalLockedPath,
+  journalUnlocked,
+  type EntitlementSnapshot,
+} from "@/lib/entitlement";
 
 const NAV: {
   href: string;
@@ -66,6 +74,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const onSignIn = isPublicPagePath(pathname);
+  const [entitlement, setEntitlement] = useState<EntitlementSnapshot | null>(null);
+  const [anglerId, setAnglerId] = useState("");
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [entitlementReady, setEntitlementReady] = useState(false);
+  const lockedOut = Boolean(entitlement && !journalUnlocked(entitlement.subscriptionStatus));
+  const hideJournal =
+    !onSignIn &&
+    isJournalLockedPath(pathname) &&
+    (!entitlementReady || lockedOut);
+  const lockedOutRef = useRef(false);
+  lockedOutRef.current = lockedOut;
   const shellRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<{
@@ -102,12 +121,25 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (onSignIn) return;
+    if (onSignIn) {
+      setEntitlementReady(false);
+      setEntitlement(null);
+      setAnglerId("");
+      setPaywallOpen(false);
+      return;
+    }
     let cancelled = false;
     fetch("/api/me", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled && !data.signedIn) router.replace("/signin");
+        if (cancelled) return;
+        if (!data.signedIn) {
+          router.replace("/signin");
+          return;
+        }
+        setAnglerId(typeof data.me?.id === "string" ? data.me.id : "");
+        setEntitlement(data.entitlement ?? null);
+        setEntitlementReady(true);
       })
       .catch(() => {
         if (!cancelled) router.replace("/signin");
@@ -116,6 +148,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [onSignIn, pathname, router]);
+
+  useEffect(() => {
+    function onPaywall() {
+      setPaywallOpen(true);
+    }
+    window.addEventListener(OPEN_PAYWALL_EVENT, onPaywall);
+    return () => window.removeEventListener(OPEN_PAYWALL_EVENT, onPaywall);
+  }, []);
+
+  useEffect(() => {
+    if (hideJournal) setPaywallOpen(false);
+  }, [hideJournal, pathname]);
 
   useEffect(() => {
     const idx = navIndex(pathname);
@@ -203,6 +247,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       const canMove = next >= 0 && next < NAV.length;
       const farEnough = Math.abs(dx) > Math.max(56, width * 0.18);
       const flicked = Math.abs(dx / dt) > 0.42 && Math.abs(dx) > 28;
+      if (canMove && (farEnough || flicked) && lockedOutRef.current && NAV[next]?.href !== "/") {
+        setPaneX(0, true);
+        setPaywallOpen(true);
+        return;
+      }
       if (canMove && (farEnough || flicked) && !prefersReducedMotion()) {
         animating.current = true;
         setPaneX(dx < 0 ? -width : width, true);
@@ -265,7 +314,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           )}
         </header>
-        <main className="min-w-0 w-full max-w-full flex-1">{children}</main>
+        <main className="min-w-0 w-full max-w-full flex-1 space-y-3">
+          {hideJournal ? (
+            lockedOut ? (
+              <Paywall entitlement={entitlement} />
+            ) : (
+              <p className="on-wash-chip text-sm">Opening…</p>
+            )
+          ) : (
+            <>
+              {onSignIn || pathname === "/" || !entitlement?.noticeWindow ? null : (
+                <TrialNotice anglerId={anglerId} entitlement={entitlement} placement="nag" />
+              )}
+              {children}
+            </>
+          )}
+        </main>
       </div>
       {onSignIn ? null : (
       <nav className="bottom-nav fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl" data-no-tab-swipe>
@@ -273,23 +337,41 @@ export function AppShell({ children }: { children: ReactNode }) {
           {NAV.map((item) => {
             const active = navIsActive(item.href, pathname);
             const Icon = item.icon;
+            const tabLocked = lockedOut && item.href !== "/";
             const tone = item.primary ? "nav-primary" : active ? "nav-active" : "nav-idle";
+            const label = item.ariaLabel ?? (typeof item.label === "string" ? item.label : undefined);
+            const className = `flex w-full flex-col items-center gap-1 rounded-xl py-2 text-[13px] leading-[1.15] tracking-tight ${tone}${
+              tabLocked ? " nav-locked" : ""
+            }`;
+            const icon = (
+              <span
+                className={`nav-icon relative flex items-center justify-center ${
+                  item.primary ? "h-14 w-14 rounded-full" : "h-11 w-11 rounded-[0.7rem]"
+                }`}
+              >
+                <Icon />
+                {tabLocked ? <LockBadge /> : null}
+              </span>
+            );
             return (
               <li key={item.href}>
-                <Link
-                  href={item.href}
-                  aria-label={item.ariaLabel ?? (typeof item.label === "string" ? item.label : undefined)}
-                  className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[13px] leading-[1.15] tracking-tight ${tone}`}
-                >
-                  <span
-                    className={`nav-icon flex items-center justify-center ${
-                      item.primary ? "h-14 w-14 rounded-full" : "h-11 w-11 rounded-[0.7rem]"
-                    }`}
+                {tabLocked ? (
+                  <button
+                    type="button"
+                    aria-label={label ? `${label} (locked)` : "Locked tab"}
+                    className={className}
+                    data-testid={`nav-locked-${item.href.replace(/^\//, "") || "home"}`}
+                    onClick={() => setPaywallOpen(true)}
                   >
-                    <Icon />
-                  </span>
-                  {item.label}
-                </Link>
+                    {icon}
+                    {item.label}
+                  </button>
+                ) : (
+                  <Link href={item.href} aria-label={label} className={className}>
+                    {icon}
+                    {item.label}
+                  </Link>
+                )}
               </li>
             );
           })}
@@ -299,7 +381,34 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
     {onSignIn ? null : <HelpGuide />}
     {onSignIn ? null : <FirstRunSetup />}
+    {onSignIn || hideJournal || !paywallOpen ? null : (
+      <div
+        className="fixed inset-0 z-30 flex items-end justify-center bg-black/45 px-3 pb-36 pt-8 sm:items-center sm:pb-8"
+        data-no-tab-swipe
+        data-testid="paywall-overlay"
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setPaywallOpen(false);
+        }}
+      >
+        <div className="w-full max-w-lg">
+          <Paywall entitlement={entitlement} onClose={() => setPaywallOpen(false)} variant="modal" />
+        </div>
+      </div>
+    )}
     </>
+  );
+}
+
+function LockBadge() {
+  return (
+    <span className="nav-lock-badge" aria-hidden>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+        <rect x="6" y="11" width="12" height="9" rx="1.6" stroke="currentColor" strokeWidth="2.2" />
+        <path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11" stroke="currentColor" strokeWidth="2.2" />
+      </svg>
+    </span>
   );
 }
 

@@ -57,8 +57,18 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Your journal",
     steps: [
       "Sign in or create an account with email and a password to open your journal.",
+      "The first month is free. After that, $39.99/year keeps the journal unlocked.",
       "After you sign in, tap Allow location so this phone can pin a live photo. Skip and Log still has Turn location on.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
+    ],
+  },
+  {
+    title: "Free month and yearly journal",
+    steps: [
+      "Your first month is full access — no purchase required.",
+      "We remind you about 7 days, 3 days, and 1 day before it ends.",
+      "After that, Home stays open. Other tabs lock until $39.99/year.",
+      "Your catches and photos stay saved. Nothing is deleted when locked.",
     ],
   },
   {

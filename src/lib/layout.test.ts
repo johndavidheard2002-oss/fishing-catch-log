@@ -62,6 +62,9 @@ describe("phone-width Log and Backfill", () => {
     expect(shell).toContain("bottom-nav");
     expect(shell).toContain("grid-cols-6");
     expect(shell).toContain("nav-primary");
+    expect(shell).toContain("nav-locked");
+    expect(shell).toContain("LockBadge");
+    expect(css).toMatch(/\.bottom-nav \.nav-lock-badge \{[\s\S]*?background: var\(--copper\)/);
   });
 
   it("centers a larger Tide Mark seal in the empty photo well and header brand mark", () => {

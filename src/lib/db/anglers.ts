@@ -63,8 +63,10 @@ export function seedDefaultAnglerOnSqlite(sqlite: Database.Database): AnglerReco
     createdAt: new Date().toISOString(),
   };
   sqlite
-    .prepare("INSERT INTO anglers (id, name, invite_code, created_at) VALUES (?, ?, ?, ?)")
-    .run(row.id, row.name, row.inviteCode, row.createdAt);
+    .prepare(
+      "INSERT INTO anglers (id, name, invite_code, created_at, trial_started_at, subscription_status) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    .run(row.id, row.name, row.inviteCode, row.createdAt, row.createdAt, "trial");
   sqlite
     .prepare("UPDATE catches SET angler_id = ? WHERE angler_id IS NULL OR angler_id = ''")
     .run(row.id);
@@ -95,6 +97,8 @@ export async function upsertDefaultAngler(db: JournalDatabase): Promise<AnglerRe
       name: row.name,
       inviteCode: row.inviteCode,
       createdAt: row.createdAt,
+      trialStartedAt: row.createdAt,
+      subscriptionStatus: "trial",
     }),
   );
   return { ...row, email: null, claimed: false };
@@ -209,6 +213,8 @@ export async function createAngler(name: string, id?: string): Promise<AnglerRec
         name: name.trim() || "Friend",
         inviteCode,
         createdAt: stamp,
+        trialStartedAt: stamp,
+        subscriptionStatus: "trial",
       }),
     );
   } catch {

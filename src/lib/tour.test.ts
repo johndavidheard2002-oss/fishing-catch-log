@@ -100,6 +100,8 @@ describe("first-sign-in tour", () => {
     expect(text.toLowerCase()).not.toContain("buddy");
     expect(text.toLowerCase()).not.toContain("fills in");
     expect(text.toLowerCase()).toContain("pick a species");
+    expect(text).toContain("$39.99/year");
+    expect(text.toLowerCase()).toContain("first month is free");
     expect(TOUR_SCREENS.every((screen) => screen.body.length < 220)).toBe(true);
   });
 });

@@ -17,7 +17,7 @@ export type PrivacySection = {
 };
 
 export const PRIVACY_INTRO =
-  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, and how to ask us to delete it.";
+  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, how the free month and yearly journal work, and how to ask us to delete it.";
 
 export const PRIVACY_SECTIONS: PrivacySection[] = [
   {
@@ -50,6 +50,14 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     paragraphs: [
       "Linking uses invite codes. Linking shares nothing. There is no public feed, no discoverable profile, and no share-with-everyone.",
       "A friend sees a catch, photo, or pin only after you tap Share on that trip or use Select spots to share on Calendar Log. You can unshare or unlink. Unapproved people see nothing.",
+    ],
+  },
+  {
+    id: "subscriptions",
+    title: "Free month and yearly journal",
+    paragraphs: [
+      "New accounts get a free month of full Tide Mark access from the first time the trial starts (account creation, or the first successful sign-in that starts it). After that month, the journal is $39.99/year.",
+      "If the free month ends without a paid year, Home stays open — account, subscribe, help, log out, and export. Other tabs lock. We do not delete your catches, photos, spots, or notes when the trial ends or the journal locks. App Store purchase will ship with the native build.",
     ],
   },
   {

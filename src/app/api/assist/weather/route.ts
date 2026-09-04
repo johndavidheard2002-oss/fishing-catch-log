@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getTideSnapshot } from "@/lib/tides";
-import { requireViewerId, signInRequired } from "@/lib/viewer";
+import { requireUnlockedViewer } from "@/lib/journal-access";
 import { getWeather } from "@/lib/weather";
 import type { Habitat } from "@/lib/types";
 
@@ -8,7 +8,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  if (!(await requireViewerId(request))) return signInRequired();
+  const access = await requireUnlockedViewer(request);
+  if (!access.ok) return access.response;
   const body = (await request.json()) as {
     latitude?: number;
     longitude?: number;

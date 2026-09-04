@@ -1,8 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { JournalUnavailable } from "@/components/JournalUnavailable";
+import { Paywall } from "@/components/Paywall";
 import { PlanClient } from "@/components/PlanClient";
+import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { listCalendarNotes } from "@/lib/db/notes";
+import { journalUnlocked } from "@/lib/entitlement";
 import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerFromCookies } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -24,6 +27,10 @@ export default async function PlanPage({
       jar.get(SESSION_COOKIE)?.value,
     );
     if (!viewer.signedIn || !viewer.id) redirect("/signin");
+    const entitlement = await getEntitlementForAngler(viewer.id);
+    if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
+      return <Paywall entitlement={entitlement} />;
+    }
     initialNotes = await listCalendarNotes(viewer.id);
   } catch {
     return <JournalUnavailable title="Plan a day" />;

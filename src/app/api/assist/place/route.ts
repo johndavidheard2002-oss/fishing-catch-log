@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
 import { reverseGeocode } from "@/lib/geocode";
-import { requireViewerId, signInRequired } from "@/lib/viewer";
+import { requireUnlockedViewer } from "@/lib/journal-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
-  if (!(await requireViewerId(request))) return signInRequired();
+  const access = await requireUnlockedViewer(request);
+  if (!access.ok) return access.response;
   const body = (await request.json()) as {
     latitude?: number;
     longitude?: number;

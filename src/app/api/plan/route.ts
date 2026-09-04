@@ -2,14 +2,16 @@ import { NextRequest } from "next/server";
 import { listBaitSpots } from "@/lib/db/bait";
 import { listCatches } from "@/lib/db/catches";
 import { buildPlan, parsePlanDate } from "@/lib/plan";
-import { includeSharedFrom, jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
+import { requireUnlockedViewer } from "@/lib/journal-access";
+import { includeSharedFrom, jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const viewerId = await requireViewerId(request);
-  if (!viewerId) return signInRequired();
+  const access = await requireUnlockedViewer(request);
+  if (!access.ok) return access.response;
+  const { viewerId } = access;
   const includeShared = includeSharedFrom(request);
   const date = parsePlanDate(request.nextUrl.searchParams.get("date"));
   if (!date) {
