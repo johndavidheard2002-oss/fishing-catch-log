@@ -279,8 +279,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[13px] leading-[1.15] tracking-tight ${tone}`}
                 >
                   <span
-                    className={`nav-icon flex items-center justify-center rounded-full ${
-                      item.primary ? "h-14 w-14" : "h-11 w-11"
+                    className={`nav-icon flex items-center justify-center ${
+                      item.primary ? "h-14 w-14 rounded-full" : "h-11 w-11 rounded-[0.7rem]"
                     }`}
                   >
                     <Icon />
