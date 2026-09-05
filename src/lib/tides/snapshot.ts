@@ -100,6 +100,7 @@ export function formatTideDetail(snap: {
   nextHighFt?: number | null;
   nextLowAt?: string | null;
   nextLowFt?: number | null;
+  stationName?: string | null;
 }): string {
   const bits: string[] = [];
   if (snap.nextHighAt) {
@@ -112,6 +113,7 @@ export function formatTideDetail(snap: {
       `Low ${formatTideClock(snap.nextLowAt)}${snap.nextLowFt != null ? ` ${snap.nextLowFt.toFixed(1)} ft` : ""}`,
     );
   }
+  if (snap.stationName) bits.push(snap.stationName);
   return bits.join(" · ");
 }
 

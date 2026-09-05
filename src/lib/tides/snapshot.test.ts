@@ -102,4 +102,16 @@ describe("formatTideDetail", () => {
     expect(line).toContain("Low");
     expect(line).toContain("2.8");
   });
+
+  it("names the NOAA station so the clock can be checked", () => {
+    const line = formatTideDetail({
+      nextHighAt: "2026-09-06T10:03:00.000Z",
+      nextHighFt: 1.526,
+      nextLowAt: "2026-09-06T23:01:00.000Z",
+      nextLowFt: 0.053,
+      stationName: "Port Aransas",
+    });
+    expect(line).toContain("Port Aransas");
+    expect(line).toContain("1.5");
+  });
 });

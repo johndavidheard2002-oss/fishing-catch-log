@@ -476,6 +476,7 @@ function tideFields(
         nextHighFt?: number | null;
         nextLowAt?: string | null;
         nextLowFt?: number | null;
+        stationName?: string | null;
       }
     | null
     | undefined,
