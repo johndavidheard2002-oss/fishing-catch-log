@@ -52,7 +52,7 @@ export function HelpGuide() {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-black/45 px-3 pb-36 pt-8 sm:items-center sm:pb-8"
+      className="app-fixed-overlay fixed inset-0 z-40 flex items-end justify-center bg-black/45 sm:items-center"
       data-no-tab-swipe
       data-testid="help-guide"
       role="dialog"

@@ -15,6 +15,11 @@
   --good: #2f6b4f;
   --water-deep: #0b6cad;
   --water-horizon: #4ec4ee;
+  /* 0 on desktop / non-notch; Capacitor iOS + viewport-fit=cover fills these. */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
 }
 
 @theme inline {
@@ -220,9 +225,18 @@ textarea {
   width: 100%;
   max-width: 32rem;
   min-width: 0;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-top: calc(var(--safe-area-top) + 1rem);
+  padding-left: max(1rem, var(--safe-area-left));
+  padding-right: max(1rem, var(--safe-area-right));
   overflow-x: hidden;
+}
+
+.app-shell-signin {
+  padding-bottom: calc(2rem + var(--safe-area-bottom));
+}
+
+.app-shell-tabs {
+  padding-bottom: calc(9rem + var(--safe-area-bottom));
 }
 
 .tab-swipe-pane,
@@ -431,7 +445,9 @@ main button.home-plan-cta {
 }
 
 .bottom-nav {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.5rem, var(--safe-area-bottom));
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
   background-color: #0a4e6a;
   background-image: none;
   border: 1px solid rgb(255 255 255 / 0.18);
@@ -526,6 +542,26 @@ main button.home-plan-cta {
   background: var(--copper);
   color: #fff;
   box-shadow: 0 0 0 1.5px #fff;
+}
+
+.app-fixed-overlay {
+  padding-top: max(2rem, calc(var(--safe-area-top) + 0.75rem));
+  padding-right: max(0.75rem, var(--safe-area-right));
+  padding-bottom: calc(9rem + var(--safe-area-bottom));
+  padding-left: max(0.75rem, var(--safe-area-left));
+}
+
+@media (min-width: 640px) {
+  .app-fixed-overlay {
+    padding-bottom: max(2rem, var(--safe-area-bottom));
+  }
+}
+
+.app-fixed-overlay-setup {
+  padding-top: max(2rem, calc(var(--safe-area-top) + 0.75rem));
+  padding-right: max(0.75rem, var(--safe-area-right));
+  padding-bottom: max(1.5rem, calc(var(--safe-area-bottom) + 0.75rem));
+  padding-left: max(0.75rem, var(--safe-area-left));
 }
 
 .tab-swipe-pane {

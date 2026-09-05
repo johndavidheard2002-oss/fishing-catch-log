@@ -59,6 +59,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: PWA_THEME_COLOR,
+  // Required for env(safe-area-inset-*) in Capacitor WKWebView and iOS PWA.
   viewportFit: "cover",
 };
 

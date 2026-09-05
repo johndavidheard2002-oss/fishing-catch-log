@@ -83,7 +83,7 @@ export function FirstRunSetup() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 px-3 pb-6 pt-8 sm:items-center"
+      className="app-fixed-overlay-setup fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
       data-no-tab-swipe
       data-testid="first-run-setup"
       role="dialog"

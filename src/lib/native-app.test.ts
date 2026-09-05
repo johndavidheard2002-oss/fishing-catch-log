@@ -32,6 +32,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(cap).toContain(`appName: "${APP_DISPLAY_NAME}"`);
     expect(cap).toContain(`url: "${APP_STORE_LIVE_URL}"`);
     expect(cap).toContain(NATIVE_ICON_SOURCE);
+    expect(cap).toContain('contentInset: "never"');
 
     const pbx = resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj");
     if (existsSync(pbx)) {
@@ -89,5 +90,16 @@ describe("App Store / Capacitor wrap", () => {
       expect(xml).toContain("NSPhotoLibraryUsageDescription");
       expect(xml).toContain(IOS_USAGE_DESCRIPTIONS.NSPhotoLibraryUsageDescription);
     }
+  });
+
+  it("keeps the recentered 1024 App Store seal as the iOS AppIcon", () => {
+    const icon = resolve(process.cwd(), "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png");
+    const brand = resolve(process.cwd(), "public/brand/tide-mark-logo.png");
+    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    const iconBytes = readFileSync(icon);
+    const brandBytes = readFileSync(brand);
+    expect(existsSync(icon)).toBe(true);
+    expect(iconBytes.subarray(0, 8).equals(png)).toBe(true);
+    expect(iconBytes.equals(brandBytes)).toBe(true);
   });
 });

@@ -50,7 +50,7 @@ describe("phone-width Log and Backfill", () => {
     const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
     expect(css).toMatch(/\.bottom-nav \{[\s\S]*?background-color: #0a4e6a/);
     expect(css).toMatch(/\.bottom-nav \{[\s\S]*?background-image: none/);
-    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, env\(safe-area-inset-bottom\)\)/);
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, var\(--safe-area-bottom\)\)/);
     expect(css).not.toMatch(/\.bottom-nav \{[\s\S]*?soft-trout-wash-bg\.png/);
     expect(css).toMatch(/\.bottom-nav a \{[\s\S]*?color: #fff/);
     expect(css).toMatch(/\.bottom-nav a\.nav-idle \{[\s\S]*?color: #f4fbff/);
@@ -100,5 +100,29 @@ describe("phone-width Log and Backfill", () => {
     expect(shell).toContain('className="tide-mark-seal-img"');
     expect(shell).toContain('className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden text-teal"');
     expect(shell).toContain('className="journal-card mb-4 flex w-full min-w-0 items-center');
+  });
+});
+
+describe("Capacitor iOS safe areas", () => {
+  it("insets the header, bottom nav, and overlays with env(safe-area-inset-*)", () => {
+    const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+    expect(css).toMatch(/--safe-area-top: env\(safe-area-inset-top, 0px\)/);
+    expect(css).toMatch(/--safe-area-bottom: env\(safe-area-inset-bottom, 0px\)/);
+    expect(css).toMatch(/--safe-area-left: env\(safe-area-inset-left, 0px\)/);
+    expect(css).toMatch(/--safe-area-right: env\(safe-area-inset-right, 0px\)/);
+    expect(css).toMatch(/\.app-shell \{[\s\S]*?padding-top: calc\(var\(--safe-area-top\) \+ 1rem\)/);
+    expect(css).toMatch(/\.app-shell \{[\s\S]*?padding-left: max\(1rem, var\(--safe-area-left\)\)/);
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, var\(--safe-area-bottom\)\)/);
+    expect(css).toMatch(/\.app-fixed-overlay \{[\s\S]*?padding-top: max\(2rem, calc\(var\(--safe-area-top\) \+ 0\.75rem\)\)/);
+    const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
+    expect(shell).toContain("app-shell-tabs");
+    expect(shell).toContain("app-shell-signin");
+    expect(shell).toContain("app-fixed-overlay");
+    expect(shell).not.toContain("pt-4");
+    const layout = readFileSync(resolve(__dirname, "../app/layout.tsx"), "utf8");
+    expect(layout).toContain('viewportFit: "cover"');
+    const cap = readFileSync(resolve(process.cwd(), "capacitor.config.ts"), "utf8");
+    expect(cap).toContain('contentInset: "never"');
+    expect(cap).not.toContain('contentInset: "automatic"');
   });
 });
