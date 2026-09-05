@@ -50,7 +50,7 @@ describe("phone-width Log and Backfill", () => {
     const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
     expect(css).toMatch(/\.bottom-nav \{[\s\S]*?background-color: #0a4e6a/);
     expect(css).toMatch(/\.bottom-nav \{[\s\S]*?background-image: none/);
-    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, env\(safe-area-inset-bottom, 0px\)\)/);
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, var\(--safe-area-bottom\)\)/);
     expect(css).not.toMatch(/\.bottom-nav \{[\s\S]*?soft-trout-wash-bg\.png/);
     expect(css).toMatch(/\.bottom-nav a \{[\s\S]*?color: #fff/);
     expect(css).toMatch(/\.bottom-nav a\.nav-idle \{[\s\S]*?color: #f4fbff/);
@@ -112,7 +112,7 @@ describe("Capacitor iOS safe areas", () => {
     expect(css).toMatch(/--safe-area-right: env\(safe-area-inset-right, 0px\)/);
     expect(css).toMatch(/\.app-shell \{[\s\S]*?padding-top: calc\(var\(--safe-area-top\) \+ 1rem\)/);
     expect(css).toMatch(/\.app-shell \{[\s\S]*?padding-left: max\(1rem, var\(--safe-area-left\)\)/);
-    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, env\(safe-area-inset-bottom, 0px\)\)/);
+    expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, var\(--safe-area-bottom\)\)/);
     expect(css).toMatch(/\.app-fixed-overlay \{[\s\S]*?padding-top: max\(2rem, calc\(var\(--safe-area-top\) \+ 0\.75rem\)\)/);
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
     expect(shell).toContain("app-shell-tabs");

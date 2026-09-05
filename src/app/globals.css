@@ -445,9 +445,9 @@ main button.home-plan-cta {
 }
 
 .bottom-nav {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: max(0.5rem, var(--safe-area-bottom));
+  padding-left: var(--safe-area-left);
+  padding-right: var(--safe-area-right);
   background-color: #0a4e6a;
   background-image: none;
   border: 1px solid rgb(255 255 255 / 0.18);
