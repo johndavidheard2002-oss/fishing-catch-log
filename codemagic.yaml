@@ -1,5 +1,6 @@
 # Tide Mark — Capacitor iOS → TestFlight
 # https://docs.codemagic.io/yaml-quick-start/building-an-ionic-app/
+# Signing (API key): https://docs.codemagic.io/yaml-code-signing/signing-ios/
 # Publishing (env-var auth): https://docs.codemagic.io/yaml-publishing/app-store-connect/
 #
 # Personal (free) Codemagic account — do not create a Team (credit card,
@@ -7,9 +8,10 @@
 # `app_store_credentials` on the app’s Environment variables tab, not
 # Team integrations → Developer Portal.
 #
-# Signing: upload an Apple Distribution cert + App Store profile for
-# com.tidemark.logbook under Code signing identities; ios_signing fetches
-# those uploaded files. See docs/app-store.md.
+# Signing files are created/fetched at build time with
+# `app-store-connect fetch-signing-files --create` (no Team, no manual .p12).
+# The CLI authenticates with APP_STORE_CONNECT_ISSUER_ID,
+# APP_STORE_CONNECT_KEY_IDENTIFIER, and APP_STORE_CONNECT_PRIVATE_KEY.
 
 workflows:
   ios-testflight:
@@ -23,12 +25,6 @@ workflows:
         #   APP_STORE_CONNECT_KEY_IDENTIFIER
         #   APP_STORE_CONNECT_PRIVATE_KEY  (full .p8 contents)
         - app_store_credentials
-      # Fetches the Apple Distribution cert + App Store profile uploaded
-      # under Code signing identities on the personal account. Generate/Fetch
-      # via Team Developer Portal is not used.
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.tidemark.logbook
       vars:
         BUNDLE_ID: com.tidemark.logbook
         XCODE_WORKSPACE: ios/App/App.xcworkspace
@@ -49,6 +45,20 @@ workflows:
         script: |
           # Live WebView URL is already in capacitor.config.ts.
           npx cap sync ios
+      - name: Set up keychain
+        script: |
+          keychain initialize
+      - name: Fetch signing files
+        script: |
+          # API key from app_store_credentials (APP_STORE_CONNECT_* env vars).
+          # --create makes the App Store profile and distribution cert if missing.
+          # https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/app-store-connect/fetch-signing-files.md
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: |
+          keychain add-certificates
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles

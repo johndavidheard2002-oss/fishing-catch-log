@@ -133,7 +133,7 @@ Full App Store Server API receipt verification is not in this pass — the nativ
 
 Stay on a **Codemagic personal (free) account**. Do **not** create a Codemagic Team — that asks for a credit card and removes free minutes. Personal accounts cannot use Team integrations → Developer Portal the way `integrations.app_store_connect: Tide Mark` expects.
 
-Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs with an App Store profile, bumps the build number from TestFlight (falling back to the App Store), and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
+Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs via the App Store Connect API (`fetch-signing-files --create`), bumps the build number from TestFlight (falling back to the App Store), and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
 
 1. In App Store Connect → Users and Access → Integrations → App Store Connect API, create a key with **App Manager** access. Download the `.p8` once. Note the Issuer ID and Key ID.
 2. In Codemagic, add application → connect GitHub → `johndavidheard2002-oss/fishing-catch-log`. Scan `codemagic.yaml` on branch `cursor/fishing-catch-log-app-caca`.
@@ -141,11 +141,7 @@ Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs
    - `APP_STORE_CONNECT_ISSUER_ID` — Issuer ID from App Store Connect
    - `APP_STORE_CONNECT_KEY_IDENTIFIER` — Key ID
    - `APP_STORE_CONNECT_PRIVATE_KEY` — full contents of the `.p8`, including the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` lines
-4. Code signing on a personal account does **not** Generate/Fetch certs from Apple via Team Developer Portal. Upload them under **Code signing identities** (Teams → your personal account, or the app’s identities):
-   - Apple Distribution certificate (`.p12`)
-   - App Store provisioning profile for `com.tidemark.logbook`
-   The workflow’s `ios_signing` block (`app_store` / `com.tidemark.logbook`) pulls those uploaded files each build. See [Signing iOS apps](https://docs.codemagic.io/yaml-code-signing/signing-ios/).
-5. Start the **ios-testflight** workflow on that branch. When it finishes, the build appears in App Store Connect → TestFlight. Publishing authenticates with the env vars above (`api_key` / `key_id` / `issuer_id`), not a Team integration. See [App Store Connect publishing](https://docs.codemagic.io/yaml-publishing/app-store-connect/).
+4. Start the **ios-testflight** workflow on that branch. Signing files (Apple Distribution cert + App Store profile for `com.tidemark.logbook`) are created by `app-store-connect fetch-signing-files --type IOS_APP_STORE --create` using those env vars. No Codemagic Team, no Developer Portal integration, and no manual `.p12` upload. When it finishes, the build appears in App Store Connect → TestFlight. Publishing authenticates with the same env vars (`api_key` / `key_id` / `issuer_id`). See [Signing iOS apps](https://docs.codemagic.io/yaml-code-signing/signing-ios/) and [App Store Connect publishing](https://docs.codemagic.io/yaml-publishing/app-store-connect/).
 
 ## Out of scope (this wrap)
 
