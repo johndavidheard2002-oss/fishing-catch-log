@@ -325,7 +325,7 @@ async function windowsForLocated(args: {
     args.times,
   );
   const weatherSource: PlanResult["weatherSource"] = forecast.source === "demo" ? "demo" : "openweather";
-  let tideSource: PlanResult["tideSource"] = hasWorldTidesKey() ? "worldtides" : "demo";
+  let tideSource: PlanResult["tideSource"] = hasWorldTidesKey() ? "worldtides" : "noaa";
   let windows = forecast.windows;
 
   if (forecast.source === "demo" && args.echo) {
@@ -340,7 +340,7 @@ async function windowsForLocated(args: {
 
   if (args.usesTide) {
     const tides = await getTideSeries(args.latitude, args.longitude, args.start, args.days);
-    if (tides.source === "demo") tideSource = "demo";
+    tideSource = tides.source;
     windows = windows.map((w) => {
       const t = tides.at(new Date(w.at));
       return {
@@ -388,7 +388,7 @@ export async function buildPlan(
   let weatherSource: PlanResult["weatherSource"] = hasOpenWeatherKey()
     ? "openweather"
     : "demo";
-  let tideSource: PlanResult["tideSource"] = hasWorldTidesKey() ? "worldtides" : "demo";
+  let tideSource: PlanResult["tideSource"] = hasWorldTidesKey() ? "worldtides" : "noaa";
   const notes: string[] = [];
 
   for (const spot of spots) {

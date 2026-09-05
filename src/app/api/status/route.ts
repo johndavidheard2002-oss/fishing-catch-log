@@ -1,4 +1,3 @@
-import { hasWorldTidesKey } from "@/lib/tides";
 import { hasOpenAiKey } from "@/lib/vision";
 import { hasOpenWeatherKey } from "@/lib/weather";
 import type { ProviderStatus } from "@/lib/types";
@@ -12,7 +11,7 @@ export async function GET() {
     vision: hasOpenAiKey() ? "openai" : "demo",
     geocode: "nominatim",
     forecast: hasOpenWeatherKey() ? "openweather" : "demo",
-    tides: hasWorldTidesKey() ? "worldtides" : "noaa",
+    tides: "noaa",
   };
   return Response.json(status);
 }

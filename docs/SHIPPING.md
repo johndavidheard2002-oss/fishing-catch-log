@@ -30,7 +30,7 @@ First request on the host creates tables and a default angler. Same Drizzle sche
 ### 2. OpenWeather — ~2 min
 
 1. Get a key at [OpenWeather](https://openweathermap.org/api) (current weather + 5-day forecast; free tier is enough).
-2. Optional worldwide tides: [WorldTides](https://www.worldtides.info/). US coasts still use free NOAA CO-OPS with no key.
+2. Optional worldwide tides: [WorldTides](https://www.worldtides.info/). US coasts use the nearest free NOAA CO-OPS station (no key). WorldTides is only a fallback off that network.
 
 Skip these and the app still runs, labeled **Demo APIs**.
 

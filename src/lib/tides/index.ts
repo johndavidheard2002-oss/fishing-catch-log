@@ -16,10 +16,30 @@ export async function getTideSeries(
   start: Date,
   days: number,
 ): Promise<{
-  source: "worldtides" | "demo";
+  source: "noaa" | "worldtides" | "demo";
   note: string;
   at: (when: Date) => { tide: Tide; heightFt: number };
 }> {
+  try {
+    const { extremes, stationName } = await fetchNoaaExtremes(lat, lon, start, { days });
+    return {
+      source: "noaa",
+      note: stationName
+        ? `Tide extremes from NOAA ${stationName}.`
+        : "Tide extremes from the nearest NOAA station.",
+      at: (when) => {
+        const snap = snapshotFromExtremes(extremes, when);
+        if (snap?.tide && snap.heightFt != null) {
+          return { tide: snap.tide, heightFt: snap.heightFt };
+        }
+        const fallback = demoTide(lat, lon, when);
+        return { tide: fallback.tide, heightFt: fallback.heightFt };
+      },
+    };
+  } catch {
+    /* WorldTides, then labeled demo */
+  }
+
   if (hasWorldTidesKey()) {
     try {
       const series = await fetchWorldTides(lat, lon, start, days);
@@ -40,7 +60,7 @@ export async function getTideSeries(
 
   return {
     source: "demo",
-    note: "Demo tide series (no WorldTides key). Not a real station prediction.",
+    note: "Demo tide series (no nearby NOAA station). Not a real station prediction.",
     at: (when) => {
       const t = demoTide(lat, lon, when);
       return { tide: t.tide, heightFt: t.heightFt };
@@ -72,6 +92,23 @@ export async function getTideSnapshot(args: {
   const lon = args.longitude;
   const start = new Date(args.at.getTime() - 12 * 60 * 60 * 1000);
 
+  try {
+    const { extremes, stationName, stationId } = await fetchNoaaExtremes(lat, lon, args.at);
+    const snap = snapshotFromExtremes(extremes, args.at);
+    if (snap) {
+      const label = stationName ? `${stationName} (${stationId})` : stationId;
+      return {
+        applies: true,
+        ...snap,
+        source: "noaa",
+        note: `Tide from NOAA ${label}.`,
+        stationName,
+      };
+    }
+  } catch {
+    /* try WorldTides outside NOAA coverage */
+  }
+
   if (hasWorldTidesKey()) {
     try {
       const series = await fetchWorldTides(lat, lon, start, 2);
@@ -88,26 +125,8 @@ export async function getTideSnapshot(args: {
         };
       }
     } catch {
-      /* try NOAA */
+      /* no invented fallback */
     }
-  }
-
-  try {
-    const { extremes, stationName } = await fetchNoaaExtremes(lat, lon, args.at);
-    const snap = snapshotFromExtremes(extremes, args.at);
-    if (snap) {
-      return {
-        applies: true,
-        ...snap,
-        source: "noaa",
-        note: stationName
-          ? `Tide from NOAA ${stationName}.`
-          : "Tide from the nearest NOAA station.",
-        stationName,
-      };
-    }
-  } catch {
-    /* no invented fallback for inland or missing stations */
   }
 
   return emptyTideSnapshot(
