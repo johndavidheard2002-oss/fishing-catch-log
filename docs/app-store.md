@@ -99,7 +99,7 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 2. **Privacy** — Policy URL `https://fishing-catch-log-ivl7.onrender.com/privacy`. Declare account email, photos, precise location, and friend sharing. Deletion: email from the account address (see the privacy page).
 3. **Certificates / profiles** — In Xcode, enable Automatic Signing and pick the team. Or create an Apple Distribution cert and App Store provisioning profile in the developer portal. Not done in this repo.
 4. **Archive** — Destination: Any iOS Device. Product → Archive.
-5. **TestFlight** — Distribute the archive to App Store Connect, wait for processing, add internal testers.
+5. **TestFlight** — Prefer the Codemagic `ios-testflight` workflow below. Manual path: archive in Xcode, upload to App Store Connect, add internal testers.
 6. **Subscription** — Auto-renewable product **`tidemark_premium_yearly`** in subscription group **TideMarkPremium**, **$39.99/year**, with the **1-month free intro** already configured in App Store Connect. The web journal still runs its own 30-day trial clock; StoreKit purchase/restore is what marks `subscription_status` **active**.
 7. **Review notes** — Demo account if Review cannot create one; explain camera, location, and photo library prompts with the strings above.
 8. **In-App Purchase capability** — In Xcode, add the **In-App Purchase** capability on the App target. StoreKit 2 lives in `ios/App/App/TideMarkStorePlugin.swift` (Capacitor plugin `TideMarkStore`). Minimum iOS is **15.0**.
@@ -129,10 +129,19 @@ In Xcode: enable In-App Purchase, attach a StoreKit Configuration (product id ex
 
 Full App Store Server API receipt verification is not in this pass — the native plugin only forwards a StoreKit 2 transaction the device already verified. Add Apple JWS / server-notification checks later if you need to reject spoofed POSTs.
 
+## Codemagic → TestFlight
+
+Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs with an App Store profile, bumps the build number from TestFlight (falling back to the App Store), and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
+
+1. In App Store Connect → Users and Access → Integrations → App Store Connect API, create a key with **App Manager** access. Download the `.p8` once. Note the Issuer ID and Key ID.
+2. In Codemagic → Team settings → Team integrations → Developer Portal → Manage keys, add that key. The name **must** be exactly **Tide Mark** — that is what `integrations.app_store_connect` in `codemagic.yaml` references.
+3. In Codemagic → Team settings → Code signing identities, use that **Tide Mark** key to **Generate** (or **Fetch**) an Apple Distribution certificate, then **Fetch** the App Store provisioning profile for `com.tidemark.logbook`. The workflow’s `ios_signing` block pulls those files automatically each build.
+4. Add application → connect GitHub → `johndavidheard2002-oss/fishing-catch-log`. Scan `codemagic.yaml` on branch `cursor/fishing-catch-log-app-caca`.
+5. Start the **ios-testflight** workflow on that branch. When it finishes, the build appears in App Store Connect → TestFlight.
+
 ## Out of scope (this wrap)
 
-- Code signing, notarization, or uploading builds
-- TestFlight / Connect API keys
 - Regenerating `public/brand/tide-mark-logo.png` or the PWA icons
 - Teal / bait / share UI changes
 - Compiling or running StoreKit on Linux — use a Mac for the real purchase sheet
+- Submitting the IPA to App Store review (`submit_to_app_store` stays false)
