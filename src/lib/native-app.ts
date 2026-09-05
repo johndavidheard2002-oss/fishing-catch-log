@@ -1,6 +1,6 @@
 /** App Store / Capacitor wrap constants. No signing lives here. */
 
-export const APP_STORE_BUNDLE_ID = "com.tidemark.app";
+export const APP_STORE_BUNDLE_ID = "com.tidemark.logbook";
 export const APP_STORE_LIVE_URL = "https://fishing-catch-log-ivl7.onrender.com";
 export const APP_STORE_PRIVACY_PATH = "/privacy";
 export const APP_STORE_PRIVACY_URL = `${APP_STORE_LIVE_URL}${APP_STORE_PRIVACY_PATH}`;

@@ -8,7 +8,7 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | --- | --- |
 | Display name | Tide Mark |
 | Tagline | Private saltwater logbook |
-| Bundle ID | `com.tidemark.app` |
+| Bundle ID | `com.tidemark.logbook` |
 | Live WebView URL | https://fishing-catch-log-ivl7.onrender.com |
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
 | Pricing draft | **$39.99/year** after a **1-month free trial** |
@@ -94,7 +94,7 @@ Xcode opens `ios/App/App.xcworkspace`. Signing team, archive, and upload wait fo
 
 Do these only after Apple Developer is **Active**. Still no need to change the web app.
 
-1. **App Store Connect app** — New app, name Tide Mark, bundle ID `com.tidemark.app`, SKU of your choice (e.g. `tidemark`).
+1. **App Store Connect app** — New app, name Tide Mark, bundle ID `com.tidemark.logbook`, SKU of your choice (e.g. `tidemark`).
 2. **Privacy** — Policy URL `https://fishing-catch-log-ivl7.onrender.com/privacy`. Declare account email, photos, precise location, and friend sharing. Deletion: email from the account address (see the privacy page).
 3. **Certificates / profiles** — In Xcode, enable Automatic Signing and pick the team. Or create an Apple Distribution cert and App Store provisioning profile in the developer portal. Not done in this repo.
 4. **Archive** — Destination: Any iOS Device. Product → Archive.

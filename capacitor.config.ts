@@ -12,7 +12,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * `npx cap add ios` needs a Mac. See docs/app-store.md.
  */
 const config: CapacitorConfig = {
-  appId: "com.tidemark.app",
+  appId: "com.tidemark.logbook",
   appName: "Tide Mark",
   webDir: "public",
   server: {

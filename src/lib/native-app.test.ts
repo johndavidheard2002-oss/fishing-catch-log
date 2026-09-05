@@ -15,7 +15,7 @@ import {
 describe("App Store / Capacitor wrap", () => {
   it("locks bundle id, live URL, and usage strings into config and docs", () => {
     expect(APP_DISPLAY_NAME).toBe("Tide Mark");
-    expect(APP_STORE_BUNDLE_ID).toBe("com.tidemark.app");
+    expect(APP_STORE_BUNDLE_ID).toBe("com.tidemark.logbook");
     expect(APP_STORE_LIVE_URL).toBe("https://fishing-catch-log-ivl7.onrender.com");
     expect(APP_STORE_PRIVACY_URL).toBe("https://fishing-catch-log-ivl7.onrender.com/privacy");
     expect(NATIVE_ICON_SOURCE).toBe(APP_LOGO_SRC);
@@ -24,12 +24,21 @@ describe("App Store / Capacitor wrap", () => {
 
     const cap = readFileSync(resolve(process.cwd(), "capacitor.config.ts"), "utf8");
     expect(cap).toContain(`appId: "${APP_STORE_BUNDLE_ID}"`);
+    expect(cap).not.toContain("com.tidemark.app");
     expect(cap).toContain(`appName: "${APP_DISPLAY_NAME}"`);
     expect(cap).toContain(`url: "${APP_STORE_LIVE_URL}"`);
     expect(cap).toContain(NATIVE_ICON_SOURCE);
 
+    const pbx = resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj");
+    if (existsSync(pbx)) {
+      const proj = readFileSync(pbx, "utf8");
+      expect(proj).toContain(`PRODUCT_BUNDLE_IDENTIFIER = ${APP_STORE_BUNDLE_ID};`);
+      expect(proj).not.toContain("com.tidemark.app");
+    }
+
     const docs = readFileSync(resolve(process.cwd(), "docs/app-store.md"), "utf8");
     expect(docs).toContain(APP_STORE_BUNDLE_ID);
+    expect(docs).not.toContain("com.tidemark.app");
     expect(docs).toContain(APP_STORE_LIVE_URL);
     expect(docs).toContain(APP_STORE_PRIVACY_URL);
     expect(docs).toContain(IOS_USAGE_DESCRIPTIONS.NSCameraUsageDescription);
