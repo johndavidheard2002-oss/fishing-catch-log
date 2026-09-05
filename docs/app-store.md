@@ -133,7 +133,7 @@ Full App Store Server API receipt verification is not in this pass — the nativ
 
 Stay on a **Codemagic personal (free) account**. Do **not** create a Codemagic Team — that asks for a credit card and removes free minutes. Personal accounts cannot use Team integrations → Developer Portal the way `integrations.app_store_connect: Tide Mark` expects.
 
-Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs via the App Store Connect API (`fetch-signing-files --create`), bumps the build number from TestFlight (falling back to the App Store), and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
+Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs via the App Store Connect API (`fetch-signing-files --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create`), bumps the build number from TestFlight (falling back to the App Store), and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
 
 1. In App Store Connect → Users and Access → Integrations → App Store Connect API, create a key with **App Manager** access. Download the `.p8` once. Note the Issuer ID and Key ID.
 2. In Codemagic, add application → connect GitHub → `johndavidheard2002-oss/fishing-catch-log`. Scan `codemagic.yaml` on branch `cursor/fishing-catch-log-app-caca`.
@@ -141,7 +141,10 @@ Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs
    - `APP_STORE_CONNECT_ISSUER_ID` — Issuer ID from App Store Connect
    - `APP_STORE_CONNECT_KEY_IDENTIFIER` — Key ID
    - `APP_STORE_CONNECT_PRIVATE_KEY` — full contents of the `.p8`, including the `-----BEGIN PRIVATE KEY-----` / `-----END PRIVATE KEY-----` lines
-4. Start the **ios-testflight** workflow on that branch. Signing files (Apple Distribution cert + App Store profile for `com.tidemark.logbook`) are created by `app-store-connect fetch-signing-files --type IOS_APP_STORE --create` using those env vars. No Codemagic Team, no Developer Portal integration, and no manual `.p12` upload. When it finishes, the build appears in App Store Connect → TestFlight. Publishing authenticates with the same env vars (`api_key` / `key_id` / `issuer_id`). See [Signing iOS apps](https://docs.codemagic.io/yaml-code-signing/signing-ios/) and [App Store Connect publishing](https://docs.codemagic.io/yaml-publishing/app-store-connect/).
+   - `CERTIFICATE_PRIVATE_KEY` — PEM RSA private key (including `-----BEGIN RSA PRIVATE KEY-----` / `-----END RSA PRIVATE KEY-----` lines) used only so `--create` can mint a new Apple Distribution certificate whose private key Codemagic holds. **Do not put this key in the repo.** Generate one locally (e.g. `openssl genrsa -out cert_key.pem 2048`) and paste the PEM into the Secret. This is a different key from `APP_STORE_CONNECT_PRIVATE_KEY` (the App Store Connect API `.p8`).
+4. Start the **ios-testflight** workflow on that branch. Signing files (Apple Distribution cert + App Store profile for `com.tidemark.logbook`) are created by `app-store-connect fetch-signing-files --type IOS_APP_STORE --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create` using those env vars. Without `--certificate-key`, the CLI finds existing Apple Distribution certs on the account but cannot save them (`Cannot save Signing Certificates without certificate private key`). No Codemagic Team, no Developer Portal integration, and no manual `.p12` upload. When it finishes, the build appears in App Store Connect → TestFlight. Publishing authenticates with the same env vars (`api_key` / `key_id` / `issuer_id`). See [Signing iOS apps](https://docs.codemagic.io/yaml-code-signing/signing-ios/) and [App Store Connect publishing](https://docs.codemagic.io/yaml-publishing/app-store-connect/).
+
+   If Apple is at the Distribution certificate limit (**3**), revoke an unused **iOS Distribution** cert in [developer.apple.com → Certificates](https://developer.apple.com/account/resources/certificates/list) before re-running the workflow. Revoking a cert invalidates profiles that used it; `--create` will issue a new cert + App Store profile.
 
 ## Out of scope (this wrap)
 
