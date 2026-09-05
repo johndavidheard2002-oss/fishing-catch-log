@@ -13,7 +13,7 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
 | Pricing draft | **$39.99/year** after a **1-month free trial** |
 | In-App Purchase | `tidemark_premium_yearly` (auto-renewable, group **TideMarkPremium**) |
-| Icon / seal | `public/brand/tide-mark-logo.png` (locked — do not regenerate) |
+| Icon / seal | `public/brand/tide-mark-logo.png` (locked — do not redraw; copper ring is centered in the 1024 square) |
 | PWA icons | `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png` |
 | PWA splash | `public/splash/apple-splash-*.png` |
 

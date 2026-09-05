@@ -130,9 +130,9 @@ body::after {
 }
 
 /*
-  Locked PNG is 1024² with the copper dial ~70.5% down the canvas (empty
-  black above the rounded seal). Zoom and pin that point to the frame
-  center so the dial is optically centered without editing the file.
+  Locked 1024² PNG has the copper dial dead-center in the square. Zoom
+  on that midpoint so the in-app header and camera-well crops stay on
+  the seal (trout wash and black field stay outside the frame).
 */
 .tide-mark-seal-img {
   position: absolute;
@@ -143,7 +143,7 @@ body::after {
   height: 168%;
   max-width: none;
   object-fit: cover;
-  transform: translate(-50%, -70.5%);
+  transform: translate(-50%, -50%);
 }
 
 /* Spots list/detail thumbs: a photo's intrinsic size must never stretch the row. */
