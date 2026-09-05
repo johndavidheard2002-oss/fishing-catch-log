@@ -12,6 +12,13 @@
 # `app-store-connect fetch-signing-files --create` (no Team, no manual .p12).
 # The CLI authenticates with APP_STORE_CONNECT_ISSUER_ID,
 # APP_STORE_CONNECT_KEY_IDENTIFIER, and APP_STORE_CONNECT_PRIVATE_KEY.
+# --certificate-key=@env:CERTIFICATE_PRIVATE_KEY lets --create mint a new
+# Apple Distribution cert whose private key Codemagic holds. Without it,
+# fetch-signing-files fails if the account already has Distribution certs
+# Codemagic cannot use: "Cannot save Signing Certificates without
+# certificate private key". Do not commit the key. If Apple is at the
+# Distribution cert limit (3), revoke an unused iOS Distribution cert in
+# developer.apple.com → Certificates before re-running.
 
 workflows:
   ios-testflight:
@@ -24,6 +31,8 @@ workflows:
         #   APP_STORE_CONNECT_ISSUER_ID
         #   APP_STORE_CONNECT_KEY_IDENTIFIER
         #   APP_STORE_CONNECT_PRIVATE_KEY  (full .p8 contents)
+        #   CERTIFICATE_PRIVATE_KEY        (PEM RSA private key, including
+        #     BEGIN/END lines — used only to create a Distribution cert)
         - app_store_credentials
       vars:
         BUNDLE_ID: com.tidemark.logbook
@@ -51,10 +60,12 @@ workflows:
       - name: Fetch signing files
         script: |
           # API key from app_store_credentials (APP_STORE_CONNECT_* env vars).
-          # --create makes the App Store profile and distribution cert if missing.
+          # --certificate-key is required so --create can mint a Distribution
+          # cert Codemagic can actually sign with (CLI holds the matching key).
           # https://github.com/codemagic-ci-cd/cli-tools/blob/master/docs/app-store-connect/fetch-signing-files.md
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key=@env:CERTIFICATE_PRIVATE_KEY \
             --create
       - name: Add certificates to keychain
         script: |
