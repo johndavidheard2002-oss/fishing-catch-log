@@ -1,25 +1,31 @@
 # Tide Mark — Capacitor iOS → TestFlight
 # https://docs.codemagic.io/yaml-quick-start/building-an-ionic-app/
+# Publishing (env-var auth): https://docs.codemagic.io/yaml-publishing/app-store-connect/
 #
-# Secrets stay in the Codemagic UI. This file only references the
-# App Store Connect integration by its human-readable name:
-#   integrations.app_store_connect: Tide Mark
-# Create that key in Codemagic (Team integrations → Developer Portal)
-# using an App Store Connect API key with App Manager access.
-# See docs/app-store.md.
+# Personal (free) Codemagic account — do not create a Team (credit card,
+# no free minutes). App Store Connect auth uses secret env vars in group
+# `app_store_credentials` on the app’s Environment variables tab, not
+# Team integrations → Developer Portal.
+#
+# Signing: upload an Apple Distribution cert + App Store profile for
+# com.tidemark.logbook under Code signing identities; ios_signing fetches
+# those uploaded files. See docs/app-store.md.
 
 workflows:
   ios-testflight:
     name: Tide Mark iOS TestFlight
     max_build_duration: 120
     instance_type: mac_mini_m2
-    integrations:
-      # Must match the App Store Connect API key name in Codemagic UI.
-      app_store_connect: Tide Mark
     environment:
-      # Fetches the Apple Distribution cert + App Store profile that were
-      # generated or fetched in Codemagic Code signing identities using
-      # the Tide Mark API key (bundle id com.tidemark.logbook).
+      groups:
+        # Create this group on the app’s Environment variables tab (Secret):
+        #   APP_STORE_CONNECT_ISSUER_ID
+        #   APP_STORE_CONNECT_KEY_IDENTIFIER
+        #   APP_STORE_CONNECT_PRIVATE_KEY  (full .p8 contents)
+        - app_store_credentials
+      # Fetches the Apple Distribution cert + App Store profile uploaded
+      # under Code signing identities on the personal account. Generate/Fetch
+      # via Team Developer Portal is not used.
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.tidemark.logbook
@@ -69,6 +75,10 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
     publishing:
       app_store_connect:
-        auth: integration
+        # Personal-account auth: API key from app env group (not Team integration).
+        # https://docs.codemagic.io/yaml-publishing/app-store-connect/
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
