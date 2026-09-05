@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { registerJournal } from "../auth";
 import { getDb, getSqlite, resetDbForTests } from "./index";
-import { ensureTrialStarted, getEntitlementForAngler, setStoredSubscription } from "./entitlement";
+import { activateFromStorekit, ensureTrialStarted, getEntitlementForAngler, setStoredSubscription } from "./entitlement";
 import { createAngler } from "./anglers";
 
 describe("persisted entitlement", () => {
@@ -53,6 +53,55 @@ describe("persisted entitlement", () => {
       .get(created.id) as { trial_started_at: string; subscription_status: string };
     expect(row.trial_started_at).toBeTruthy();
     expect(row.subscription_status).toBe("expired");
+  });
+
+  it("marks a journal active from a StoreKit purchase without moving the trial clock", async () => {
+    freshJournal();
+    const created = await createAngler("Pat");
+    const trialStart = await ensureTrialStarted(created.id, new Date("2026-09-01T12:00:00.000Z"));
+    const result = await activateFromStorekit(
+      created.id,
+      {
+        productId: "tidemark_premium_yearly",
+        transactionId: "txn-db",
+        source: "purchase",
+      },
+      new Date("2026-09-10T12:00:00.000Z"),
+    );
+    expect("entitlement" in result).toBe(true);
+    if (!("entitlement" in result)) return;
+    expect(result.entitlement.subscriptionStatus).toBe("active");
+    expect(result.entitlement.trialStartedAt).toBe(trialStart);
+    const again = await getEntitlementForAngler(created.id, new Date("2026-10-15T12:00:00.000Z"));
+    expect(again?.subscriptionStatus).toBe("active");
+    expect(again?.trialStartedAt).toBe(trialStart);
+  });
+
+  it("restores an expired App Store term as expired and rejects the wrong product", async () => {
+    freshJournal();
+    const created = await createAngler("Pat");
+    await ensureTrialStarted(created.id);
+    const restored = await activateFromStorekit(
+      created.id,
+      {
+        productId: "tidemark_premium_yearly",
+        transactionId: "txn-old",
+        expiresAt: "2026-01-01T00:00:00.000Z",
+        source: "restore",
+      },
+      new Date("2026-09-05T00:00:00.000Z"),
+    );
+    expect("entitlement" in restored).toBe(true);
+    if ("entitlement" in restored) {
+      expect(restored.entitlement.subscriptionStatus).toBe("expired");
+    }
+    const wrong = await activateFromStorekit(created.id, {
+      productId: "com.other.premium",
+      transactionId: "txn-x",
+      source: "purchase",
+    });
+    expect("error" in wrong).toBe(true);
+    if ("error" in wrong) expect(wrong.error).toContain("tidemark_premium_yearly");
   });
 
   it("registers a claimed journal already on trial", async () => {

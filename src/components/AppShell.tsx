@@ -16,6 +16,7 @@ import {
   journalUnlocked,
   type EntitlementSnapshot,
 } from "@/lib/entitlement";
+import { ENTITLEMENT_CHANGED_EVENT } from "@/lib/native-iap";
 
 const NAV: {
   href: string;
@@ -129,23 +130,39 @@ export function AppShell({ children }: { children: ReactNode }) {
       return;
     }
     let cancelled = false;
+    function applyMe(data: { signedIn?: boolean; me?: { id?: string }; entitlement?: EntitlementSnapshot | null }) {
+      if (cancelled) return;
+      if (!data.signedIn) {
+        router.replace("/signin");
+        return;
+      }
+      setAnglerId(typeof data.me?.id === "string" ? data.me.id : "");
+      setEntitlement(data.entitlement ?? null);
+      setEntitlementReady(true);
+    }
     fetch("/api/me", { cache: "no-store" })
       .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (!data.signedIn) {
-          router.replace("/signin");
-          return;
-        }
-        setAnglerId(typeof data.me?.id === "string" ? data.me.id : "");
-        setEntitlement(data.entitlement ?? null);
-        setEntitlementReady(true);
-      })
+      .then(applyMe)
       .catch(() => {
         if (!cancelled) router.replace("/signin");
       });
+    function onEntitlement(event: Event) {
+      const next = (event as CustomEvent<EntitlementSnapshot | null>).detail;
+      if (next) {
+        setEntitlement(next);
+        setEntitlementReady(true);
+        setPaywallOpen(false);
+        return;
+      }
+      fetch("/api/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then(applyMe)
+        .catch(() => {});
+    }
+    window.addEventListener(ENTITLEMENT_CHANGED_EVENT, onEntitlement);
     return () => {
       cancelled = true;
+      window.removeEventListener(ENTITLEMENT_CHANGED_EVENT, onEntitlement);
     };
   }, [onSignIn, pathname, router]);
 
@@ -317,7 +334,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="min-w-0 w-full max-w-full flex-1 space-y-3">
           {hideJournal ? (
             lockedOut ? (
-              <Paywall entitlement={entitlement} />
+              <Paywall entitlement={entitlement} onActivated={(next) => setEntitlement(next)} />
             ) : (
               <p className="on-wash-chip text-sm">Opening…</p>
             )
@@ -393,7 +410,15 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       >
         <div className="w-full max-w-lg">
-          <Paywall entitlement={entitlement} onClose={() => setPaywallOpen(false)} variant="modal" />
+          <Paywall
+            entitlement={entitlement}
+            onClose={() => setPaywallOpen(false)}
+            onActivated={(next) => {
+              setEntitlement(next);
+              setPaywallOpen(false);
+            }}
+            variant="modal"
+          />
         </div>
       </div>
     )}

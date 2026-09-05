@@ -23,3 +23,7 @@ export const IOS_USAGE_DESCRIPTIONS = {
 
 export const APP_STORE_PRICE_YEARLY = "$39.99/year";
 export const APP_STORE_TRIAL = "1-month free trial";
+
+/** App Store Connect auto-renewable subscription. Do not rename. */
+export const APP_STORE_PRODUCT_YEARLY = "tidemark_premium_yearly";
+export const APP_STORE_SUBSCRIPTION_GROUP = "TideMarkPremium";

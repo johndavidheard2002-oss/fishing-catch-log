@@ -7,7 +7,7 @@ import { BrandWordmark } from "@/components/BrandWordmark";
 import { BuddyPanel } from "@/components/BuddyPanel";
 import { FirstHelpTip } from "@/components/HelpGuide";
 import { LogOutButton } from "@/components/LogOutButton";
-import { Paywall } from "@/components/Paywall";
+import { Paywall, SubscribeActions } from "@/components/Paywall";
 import { TrialNotice, TrialNoticeModal } from "@/components/TrialNotice";
 import {
   TRIAL_OFFER_LINE,
@@ -16,6 +16,7 @@ import {
   openPaywall,
   type EntitlementSnapshot,
 } from "@/lib/entitlement";
+import { ENTITLEMENT_CHANGED_EVENT } from "@/lib/native-iap";
 
 type MeState = {
   signedIn: boolean;
@@ -54,23 +55,41 @@ export function HomeClient() {
   });
 
   useEffect(() => {
-    fetch("/api/me", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.signedIn) {
-          router.replace("/signin");
-          return;
-        }
-        setMe({
-          signedIn: true,
-          id: typeof data.me?.id === "string" ? data.me.id : "",
-          name: data.me?.name ?? "",
-          email: typeof data.me?.email === "string" ? data.me.email : "",
-          ready: true,
-          entitlement: data.entitlement ?? null,
-        });
-      })
-      .catch(() => router.replace("/signin"));
+    function applyMe(data: {
+      signedIn?: boolean;
+      me?: { id?: string; name?: string; email?: string };
+      entitlement?: EntitlementSnapshot | null;
+    }) {
+      if (!data.signedIn) {
+        router.replace("/signin");
+        return;
+      }
+      setMe({
+        signedIn: true,
+        id: typeof data.me?.id === "string" ? data.me.id : "",
+        name: data.me?.name ?? "",
+        email: typeof data.me?.email === "string" ? data.me.email : "",
+        ready: true,
+        entitlement: data.entitlement ?? null,
+      });
+    }
+    function load() {
+      fetch("/api/me", { cache: "no-store" })
+        .then((r) => r.json())
+        .then(applyMe)
+        .catch(() => router.replace("/signin"));
+    }
+    load();
+    function onEntitlement(event: Event) {
+      const next = (event as CustomEvent<EntitlementSnapshot | null>).detail;
+      if (next) {
+        setMe((prev) => ({ ...prev, entitlement: next }));
+        return;
+      }
+      load();
+    }
+    window.addEventListener(ENTITLEMENT_CHANGED_EVENT, onEntitlement);
+    return () => window.removeEventListener(ENTITLEMENT_CHANGED_EVENT, onEntitlement);
   }, [router]);
 
   const locked = Boolean(me.entitlement && !journalUnlocked(me.entitlement.subscriptionStatus));
@@ -101,7 +120,7 @@ export function HomeClient() {
             {locked
               ? `Free month ended. Subscribe for ${YEARLY_PRICE_LABEL} to unlock the journal. Your data is safe.`
               : me.entitlement?.subscriptionStatus === "active"
-                ? `Journal unlocked. ${YEARLY_PRICE_LABEL} via the App Store when billing ships.`
+                ? `Journal unlocked with Tide Mark Premium. ${YEARLY_PRICE_LABEL} through the App Store.`
                 : `Free month: ${trialDays ?? "—"} day${trialDays === 1 ? "" : "s"} left. Then ${YEARLY_PRICE_LABEL}.`}
           </p>
           <LogOutButton />
@@ -110,21 +129,20 @@ export function HomeClient() {
 
       {locked ? (
         <div data-testid="home-subscribe">
-          <Paywall entitlement={me.entitlement} showHomeLink={false} />
+          <Paywall
+            entitlement={me.entitlement}
+            showHomeLink={false}
+            onActivated={(next) => setMe((prev) => ({ ...prev, entitlement: next }))}
+          />
         </div>
       ) : (
         <section className="journal-card space-y-2 rounded-2xl p-4" data-testid="home-subscribe">
           <p className="font-display text-xl text-teal">Your journal</p>
           <p className="text-sm text-ink">{TRIAL_OFFER_LINE}</p>
-          <p className="text-xs text-ink-muted">Purchase will be through the App Store. Coming with the App Store build.</p>
-          <button
-            type="button"
-            disabled
-            className="w-full rounded-2xl bg-copper px-4 py-3 font-semibold text-white disabled:opacity-60"
-            data-testid="subscribe-disabled"
-          >
-            Subscribe — {YEARLY_PRICE_LABEL}
-          </button>
+          <SubscribeActions
+            entitlement={me.entitlement}
+            onActivated={(next) => setMe((prev) => ({ ...prev, entitlement: next }))}
+          />
         </section>
       )}
 

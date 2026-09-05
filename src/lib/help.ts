@@ -68,6 +68,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Your first month is full access — no purchase required.",
       "We remind you about 7 days, 3 days, and 1 day before it ends.",
       "After that, Home stays open. Other tabs lock until $39.99/year.",
+      "On the Tide Mark iPhone app, Subscribe and Restore use the App Store. Browser buy stays coming soon.",
       "Your catches and photos stay saved. Nothing is deleted when locked.",
     ],
   },

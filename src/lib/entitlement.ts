@@ -29,6 +29,9 @@ export const PAYWALL_HEADLINE = "Your free month ended";
 export const PAYWALL_BODY = `Renew for ${YEARLY_PRICE_LABEL} to keep your private saltwater logbook unlocked. Your catches, photos, and spots are safe — nothing was deleted.`;
 export const PAYWALL_STORE_NOTE =
   "Purchase will be through the App Store. Coming with the App Store build.";
+export const PAYWALL_STORE_NOTE_NATIVE =
+  "Billed through the App Store as Tide Mark Premium. Restore purchases if you already subscribed on this Apple ID.";
+export const PAYWALL_RESTORE_LABEL = "Restore purchases";
 export const TRIAL_OFFER_LINE = `First month free. Then ${YEARLY_PRICE_LABEL} to keep the journal unlocked.`;
 export const OPEN_PAYWALL_EVENT = "tidemark-open-paywall";
 export const TRIAL_NOTICE_EVENT = "tidemark-trial-notice";
@@ -171,14 +174,16 @@ export function trialNoticeDismissKey(anglerId: string, window: TrialNoticeWindo
   return `tidemark-trial-notice:${anglerId}:${window}:${dayKey}`;
 }
 
-export function paywallCopy() {
+export function paywallCopy(opts?: { native?: boolean }) {
+  const native = opts?.native === true;
   return {
     brand: APP_DISPLAY_NAME,
     subtitle: APP_SUBTITLE,
     headline: PAYWALL_HEADLINE,
     body: PAYWALL_BODY,
     yearlyPrice: YEARLY_PRICE_LABEL,
-    storeNote: PAYWALL_STORE_NOTE,
+    storeNote: native ? PAYWALL_STORE_NOTE_NATIVE : PAYWALL_STORE_NOTE,
     subscribeLabel: `Subscribe — ${YEARLY_PRICE_LABEL}`,
+    restoreLabel: PAYWALL_RESTORE_LABEL,
   };
 }

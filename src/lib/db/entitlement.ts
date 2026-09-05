@@ -7,6 +7,7 @@ import {
   type EntitlementSnapshot,
   type SubscriptionStatus,
 } from "../entitlement";
+import { parseStorekitClaim, resolveStorekitActivation, type StorekitClaim } from "../storekit";
 import { getAngler } from "./anglers";
 import { ensureDb } from "./index";
 import { getRow, runChange } from "./query";
@@ -98,4 +99,22 @@ export async function setStoredSubscription(
 
 export function parseQaStatus(value: unknown): SubscriptionStatus | null {
   return isSubscriptionStatus(value) ? value : null;
+}
+
+/** Mark Tide Mark Premium active (or expired if StoreKit says the term ended). Trial clock is left in place. */
+export async function activateFromStorekit(
+  anglerId: string,
+  body: unknown,
+  now = new Date(),
+): Promise<{ entitlement: EntitlementSnapshot; claim: StorekitClaim } | { error: string }> {
+  const parsed = parseStorekitClaim(body, now);
+  if (!parsed.ok) return { error: parsed.error };
+  const resolved = resolveStorekitActivation(parsed.claim, now);
+  if (!resolved.ok) return { error: resolved.error };
+  const entitlement = await setStoredSubscription(anglerId, {
+    status: resolved.status,
+    subscriptionExpiresAt: resolved.expiresAt,
+  });
+  if (!entitlement) return { error: "Journal was not found." };
+  return { entitlement, claim: resolved.claim };
 }
