@@ -67,6 +67,34 @@ describe("snapshotFromExtremes", () => {
     const snap = snapshotFromExtremes(extremes, new Date("2025-07-12T16:10:00.000Z"));
     expect(snap?.tide).toBe("high");
   });
+
+  it("stamps Lynchburg's NOAA civil-day hi/lo, not the next future high", () => {
+    // NOAA 8770733 2026-09-05 lst_ldt: H 07:35 1.867, L 22:59 -0.17
+    // Catch screenshot was logged 8:34 AM CDT (13:34Z) — after the morning high.
+    const lynchburg = [
+      { at: new Date("2026-09-05T12:35:00.000Z"), type: "high" as const, heightFt: 1.867 },
+      { at: new Date("2026-09-06T03:59:00.000Z"), type: "low" as const, heightFt: -0.17 },
+      { at: new Date("2026-09-06T14:06:00.000Z"), type: "high" as const, heightFt: 1.905 },
+    ];
+    const snap = snapshotFromExtremes(
+      lynchburg,
+      new Date("2026-09-05T13:34:00.000Z"),
+      "America/Chicago",
+    );
+    expect(snap?.tide).toBe("outgoing");
+    expect(snap?.heightFt).toBeGreaterThan(1.5);
+    expect(snap?.nextHighAt).toBe("2026-09-05T12:35:00.000Z");
+    expect(snap?.nextHighFt).toBe(1.867);
+    expect(snap?.nextLowAt).toBe("2026-09-06T03:59:00.000Z");
+    expect(snap?.nextLowFt).toBe(-0.17);
+    const line = formatTideDetail({ ...snap, longitude: -95.0804 });
+    expect(line).toContain("7:35 AM");
+    expect(line).toContain("1.9");
+    expect(line).toContain("10:59 PM");
+    expect(line).toContain("-0.2");
+    expect(line).not.toContain("4:48");
+    expect(line).not.toContain("8:37");
+  });
 });
 
 describe("tideWeatherBits", () => {

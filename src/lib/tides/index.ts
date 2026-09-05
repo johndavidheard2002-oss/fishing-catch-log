@@ -4,6 +4,7 @@ import { fetchNoaaExtremes } from "./noaa";
 import {
   emptyTideSnapshot,
   snapshotFromExtremes,
+  timeZoneFromLongitude,
   tidesApplyToHabitat,
   type TideExtreme,
   type TideSnapshot,
@@ -94,7 +95,7 @@ export async function getTideSnapshot(args: {
 
   try {
     const { extremes, stationName, stationId } = await fetchNoaaExtremes(lat, lon, args.at);
-    const snap = snapshotFromExtremes(extremes, args.at);
+    const snap = snapshotFromExtremes(extremes, args.at, timeZoneFromLongitude(lon));
     if (snap) {
       const label = stationName ? `${stationName} (${stationId})` : stationId;
       return {
@@ -115,7 +116,7 @@ export async function getTideSnapshot(args: {
       const extremes: TideExtreme[] = series
         .filter((p) => p.tide === "high" || p.tide === "low")
         .map((p) => ({ at: p.at, type: p.tide as "high" | "low", heightFt: p.heightFt }));
-      const snap = snapshotFromExtremes(extremes, args.at);
+      const snap = snapshotFromExtremes(extremes, args.at, timeZoneFromLongitude(lon));
       if (snap) {
         return {
           applies: true,

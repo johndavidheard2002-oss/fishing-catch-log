@@ -42,9 +42,38 @@ export function tidesApplyToHabitat(habitat: Habitat | string | null | undefined
   return habitat === "saltwater-inshore" || habitat === "saltwater-offshore";
 }
 
+export function civilDateKey(at: Date, timeZone?: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timeZone ?? "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(at);
+  const year = parts.find((p) => p.type === "year")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const day = parts.find((p) => p.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
+
+function extremeOnCivilDay(
+  sorted: TideExtreme[],
+  at: Date,
+  type: "high" | "low",
+  timeZone?: string,
+): TideExtreme | null {
+  const day = civilDateKey(at, timeZone);
+  const onDay = sorted.filter((e) => e.type === type && civilDateKey(e.at, timeZone) === day);
+  if (!onDay.length) return null;
+  return onDay.reduce((best, cur) => {
+    if (type === "high") return cur.heightFt > best.heightFt ? cur : best;
+    return cur.heightFt < best.heightFt ? cur : best;
+  });
+}
+
 export function snapshotFromExtremes(
   extremes: TideExtreme[],
   at: Date,
+  timeZone?: string,
 ): Omit<TideSnapshot, "source" | "note" | "applies" | "stationName"> | null {
   const sorted = [...extremes]
     .filter((e) => Number.isFinite(e.at.getTime()) && Number.isFinite(e.heightFt))
@@ -77,14 +106,16 @@ export function snapshotFromExtremes(
 
   const nextHigh = sorted.find((e) => e.type === "high" && e.at.getTime() >= t) ?? null;
   const nextLow = sorted.find((e) => e.type === "low" && e.at.getTime() >= t) ?? null;
+  const dayHigh = extremeOnCivilDay(sorted, at, "high", timeZone) ?? nextHigh;
+  const dayLow = extremeOnCivilDay(sorted, at, "low", timeZone) ?? nextLow;
 
   return {
     tide,
     heightFt,
-    nextHighAt: nextHigh ? nextHigh.at.toISOString() : null,
-    nextHighFt: nextHigh ? nextHigh.heightFt : null,
-    nextLowAt: nextLow ? nextLow.at.toISOString() : null,
-    nextLowFt: nextLow ? nextLow.heightFt : null,
+    nextHighAt: dayHigh ? dayHigh.at.toISOString() : null,
+    nextHighFt: dayHigh ? dayHigh.heightFt : null,
+    nextLowAt: dayLow ? dayLow.at.toISOString() : null,
+    nextLowFt: dayLow ? dayLow.heightFt : null,
   };
 }
 
