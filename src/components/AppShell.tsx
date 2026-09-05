@@ -306,8 +306,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="trout-wash-bg" aria-hidden="true" />
     <div
       ref={shellRef}
-      className={`app-shell relative z-[1] mx-auto flex min-h-full flex-col pt-4 ${
-        onSignIn ? "pb-8" : "pb-36"
+      className={`app-shell relative z-[1] mx-auto flex min-h-full flex-col ${
+        onSignIn ? "app-shell-signin" : "app-shell-tabs"
       }`}
     >
       <div ref={paneRef} className="tab-swipe-pane flex min-h-0 w-full min-w-0 flex-1 flex-col">
@@ -400,7 +400,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {onSignIn ? null : <FirstRunSetup />}
     {onSignIn || hideJournal || !paywallOpen ? null : (
       <div
-        className="fixed inset-0 z-30 flex items-end justify-center bg-black/45 px-3 pb-36 pt-8 sm:items-center sm:pb-8"
+        className="app-fixed-overlay fixed inset-0 z-30 flex items-end justify-center bg-black/45 sm:items-center"
         data-no-tab-swipe
         data-testid="paywall-overlay"
         role="dialog"
