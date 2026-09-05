@@ -28,7 +28,14 @@ const ROCKPORT: NoaaStation = {
   lng: -97.0467,
 };
 
-const CATALOG = [NIIHAU, PORT_ARANSAS, ROCKPORT];
+const LYNCHBURG: NoaaStation = {
+  id: "8770733",
+  name: "Lynchburg Landing, San Jacinto River",
+  lat: 29.7647,
+  lng: -95.078,
+};
+
+const CATALOG = [NIIHAU, PORT_ARANSAS, ROCKPORT, LYNCHBURG];
 
 afterEach(() => {
   resetNoaaStationCache();
@@ -53,6 +60,10 @@ describe("pickNearestTideStation", () => {
   it("maps Rockport and Aransas Pass pins to local Texas stations", () => {
     expect(pickNearestTideStation(CATALOG, 28.0206, -97.0544)?.id).toBe("8774770");
     expect(pickNearestTideStation(CATALOG, 27.9095, -97.15)?.id).toBe("8775237");
+  });
+
+  it("maps Lynchburg Landing to 8770733, not the Hawaii catalog head", () => {
+    expect(pickNearestTideStation(CATALOG, 29.7647, -95.078)?.id).toBe("8770733");
   });
 
   it("returns null when every station is outside the search radius", () => {

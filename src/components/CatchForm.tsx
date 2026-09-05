@@ -406,7 +406,7 @@ export function CatchForm({
         setForm((f) => ({
           ...f,
           ...(data.weather ? weatherFields(data.weather, { includeMoon: !moonLocked }) : {}),
-          ...tideFields(data.tide, tideLocked),
+          ...tideFields(data.tide, tideLocked, lon),
         }));
         const notes = [data.weather?.note, data.tide?.note].filter(Boolean);
         if (notes.length) setAssistNote(notes.join(" "));
@@ -915,7 +915,7 @@ export function CatchForm({
             const w = weatherData.weather;
             patch({
               ...(w ? weatherFields(w, { includeMoon: !moonLocked }) : {}),
-              ...tideFields(weatherData.tide, tideLocked),
+              ...tideFields(weatherData.tide, tideLocked, lng),
             });
             const notes = [w?.note, weatherData.tide?.note].filter(Boolean);
             if (notes.length) setAssistNote(notes.join(" "));
@@ -1383,12 +1383,13 @@ function tideFields(
     | null
     | undefined,
   locked: boolean,
+  longitude?: number | null,
 ): Partial<FormState> {
   if (locked || !t) return {};
   if (t.applies === false) {
     return { tide: "", tideHeightFt: "", tideDetail: "" };
   }
-  const detail = formatTideDetail(t);
+  const detail = formatTideDetail({ ...t, longitude });
   return {
     ...(t.tide ? { tide: t.tide } : {}),
     ...(t.heightFt != null ? { tideHeightFt: String(t.heightFt) } : {}),

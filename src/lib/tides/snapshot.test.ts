@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getTideSnapshot } from "./index";
 import {
+  formatTideClock,
   formatTideDetail,
   snapshotFromExtremes,
+  timeZoneFromLongitude,
   tidesApplyToHabitat,
   tideWeatherBits,
 } from "./snapshot";
@@ -110,8 +112,39 @@ describe("formatTideDetail", () => {
       nextLowAt: "2026-09-06T23:01:00.000Z",
       nextLowFt: 0.053,
       stationName: "Port Aransas",
+      longitude: -97.0611,
     });
     expect(line).toContain("Port Aransas");
     expect(line).toContain("1.5");
+    expect(line).toContain("5:03 AM");
+    expect(line).toContain("6:01 PM");
+  });
+
+  it("prints Lynchburg NOAA GMT highs in America/Chicago, not UTC", () => {
+    const line = formatTideDetail({
+      nextHighAt: "2026-09-05T12:35:00.000Z",
+      nextHighFt: 1.867,
+      nextLowAt: "2026-09-06T03:59:00.000Z",
+      nextLowFt: -0.17,
+      longitude: -95.078,
+    });
+    expect(line).toContain("7:35 AM");
+    expect(line).toContain("10:59 PM");
+    expect(line).not.toContain("12:35 PM");
+  });
+});
+
+describe("timeZoneFromLongitude", () => {
+  it("uses Central time for Texas pins", () => {
+    expect(timeZoneFromLongitude(-95.078)).toBe("America/Chicago");
+    expect(timeZoneFromLongitude(-97.0611)).toBe("America/Chicago");
+  });
+});
+
+describe("formatTideClock", () => {
+  it("shows the user-reported Hawaii stamp when a Niihau GMT high is printed in Chicago", () => {
+    // NOAA 1610367 2026-09-05 11:48 HST high 1.721 ft = 21:48Z
+    expect(formatTideClock("2026-09-05T21:48:00.000Z", "America/Chicago")).toBe("4:48 PM");
+    expect(formatTideClock("2026-09-05T13:37:00.000Z", "America/Chicago")).toBe("8:37 AM");
   });
 });

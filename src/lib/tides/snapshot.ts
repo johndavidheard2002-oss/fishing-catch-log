@@ -88,29 +88,52 @@ export function snapshotFromExtremes(
   };
 }
 
-export function formatTideClock(iso: string | null | undefined): string {
+/** Civil timezone for a US/Gulf pin so tide clocks are not the host's UTC. */
+export function timeZoneFromLongitude(lon: number | null | undefined): string | undefined {
+  if (lon == null || !Number.isFinite(lon)) return undefined;
+  if (lon <= -129 && lon >= -162) return "Pacific/Honolulu";
+  if (lon < -115 && lon > -129) return "America/Los_Angeles";
+  if (lon < -102 && lon >= -115) return "America/Denver";
+  if (lon < -85 && lon >= -102) return "America/Chicago";
+  if (lon < -66 && lon >= -85) return "America/New_York";
+  return undefined;
+}
+
+export function formatTideClock(
+  iso: string | null | undefined,
+  timeZone?: string,
+): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
+  });
 }
 
-export function formatTideDetail(snap: {
-  nextHighAt?: string | null;
-  nextHighFt?: number | null;
-  nextLowAt?: string | null;
-  nextLowFt?: number | null;
-  stationName?: string | null;
-}): string {
+export function formatTideDetail(
+  snap: {
+    nextHighAt?: string | null;
+    nextHighFt?: number | null;
+    nextLowAt?: string | null;
+    nextLowFt?: number | null;
+    stationName?: string | null;
+    longitude?: number | null;
+  },
+  timeZone?: string,
+): string {
+  const zone = timeZone ?? timeZoneFromLongitude(snap.longitude);
   const bits: string[] = [];
   if (snap.nextHighAt) {
     bits.push(
-      `High ${formatTideClock(snap.nextHighAt)}${snap.nextHighFt != null ? ` ${snap.nextHighFt.toFixed(1)} ft` : ""}`,
+      `High ${formatTideClock(snap.nextHighAt, zone)}${snap.nextHighFt != null ? ` ${snap.nextHighFt.toFixed(1)} ft` : ""}`,
     );
   }
   if (snap.nextLowAt) {
     bits.push(
-      `Low ${formatTideClock(snap.nextLowAt)}${snap.nextLowFt != null ? ` ${snap.nextLowFt.toFixed(1)} ft` : ""}`,
+      `Low ${formatTideClock(snap.nextLowAt, zone)}${snap.nextLowFt != null ? ` ${snap.nextLowFt.toFixed(1)} ft` : ""}`,
     );
   }
   if (snap.stationName) bits.push(snap.stationName);
