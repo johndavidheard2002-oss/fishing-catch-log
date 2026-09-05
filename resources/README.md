@@ -1,6 +1,10 @@
 # Native icon / splash sources
 
-Do **not** regenerate the Tide Mark copper seal.
+Do **not** regenerate the Tide Mark copper seal. The 1024 master
+(`public/brand/tide-mark-logo.png`, copied to
+`ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`)
+is the locked artwork with the circular seal shifted so the copper
+ring is dead-center in the square — do not redraw it.
 
 On a Mac, copy these existing files (same pixels, new filename only) before `npx @capacitor/assets generate`:
 
