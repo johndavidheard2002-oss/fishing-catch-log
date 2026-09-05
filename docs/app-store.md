@@ -12,6 +12,7 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Live WebView URL | https://fishing-catch-log-ivl7.onrender.com |
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
 | Pricing draft | **$39.99/year** after a **1-month free trial** |
+| In-App Purchase | `tidemark_premium_yearly` (auto-renewable, group **TideMarkPremium**) |
 | Icon / seal | `public/brand/tide-mark-logo.png` (locked — do not regenerate) |
 | PWA icons | `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png` |
 | PWA splash | `public/splash/apple-splash-*.png` |
@@ -99,8 +100,34 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 3. **Certificates / profiles** — In Xcode, enable Automatic Signing and pick the team. Or create an Apple Distribution cert and App Store provisioning profile in the developer portal. Not done in this repo.
 4. **Archive** — Destination: Any iOS Device. Product → Archive.
 5. **TestFlight** — Distribute the archive to App Store Connect, wait for processing, add internal testers.
-6. **Subscription** — Create an auto-renewable yearly product at **$39.99/year** with a **1-month free trial**. StoreKit / paywall wiring is a later pass; this wrap only loads the live site.
+6. **Subscription** — Auto-renewable product **`tidemark_premium_yearly`** in subscription group **TideMarkPremium**, **$39.99/year**, with the **1-month free intro** already configured in App Store Connect. The web journal still runs its own 30-day trial clock; StoreKit purchase/restore is what marks `subscription_status` **active**.
 7. **Review notes** — Demo account if Review cannot create one; explain camera, location, and photo library prompts with the strings above.
+8. **In-App Purchase capability** — In Xcode, add the **In-App Purchase** capability on the App target. StoreKit 2 lives in `ios/App/App/TideMarkStorePlugin.swift` (Capacitor plugin `TideMarkStore`). Minimum iOS is **15.0**.
+
+## StoreKit / paywall
+
+The live site still shows a disabled “Coming with the App Store build” Subscribe button in Safari and Add to Home Screen. Inside the Capacitor iOS WebView (`Capacitor.isNativePlatform()` + `ios`), Subscribe and Restore call StoreKit for **`tidemark_premium_yearly`** only, then `POST /api/entitlement/storekit` so the server marks the signed-in journal `active` (or `expired` if StoreKit’s expiration is already past). The web trial clock is not reset.
+
+| | |
+| --- | --- |
+| Product ID | `tidemark_premium_yearly` |
+| Subscription group | TideMarkPremium |
+| Price | $39.99/year |
+| Intro | 1-month free (App Store Connect) |
+| Capacitor plugin | `TideMarkStore` (`getProduct`, `purchase`, `restore`) |
+| Server | `POST /api/entitlement/storekit` (signed-in cookie) |
+| Web | Buy stays disabled / coming soon |
+
+Linux CI can run the TypeScript tests (claim parsing, entitlement activate/restore, Capacitor detection). They do **not** talk to StoreKit. On a Mac, verify the real sheet:
+
+```bash
+npx cap sync ios
+npx cap open ios
+```
+
+In Xcode: enable In-App Purchase, attach a StoreKit Configuration (product id exactly `tidemark_premium_yearly`, group TideMarkPremium, $39.99/year, 1-month free intro) or use a sandbox Apple ID against App Store Connect. Confirm purchase and Restore unlock the journal, and that Safari still shows the disabled Subscribe button.
+
+Full App Store Server API receipt verification is not in this pass — the native plugin only forwards a StoreKit 2 transaction the device already verified. Add Apple JWS / server-notification checks later if you need to reject spoofed POSTs.
 
 ## Out of scope (this wrap)
 
@@ -108,3 +135,4 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 - TestFlight / Connect API keys
 - Regenerating `public/brand/tide-mark-logo.png` or the PWA icons
 - Teal / bait / share UI changes
+- Compiling or running StoreKit on Linux — use a Mac for the real purchase sheet

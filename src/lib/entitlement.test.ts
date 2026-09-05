@@ -134,6 +134,12 @@ describe("trial notices", () => {
     expect(copy.yearlyPrice).toBe(YEARLY_PRICE_LABEL);
     expect(copy.body).toContain("nothing was deleted");
     expect(copy.storeNote).toContain("App Store");
+    expect(copy.storeNote).toContain("Coming with the App Store build");
+    expect(copy.restoreLabel).toBe("Restore purchases");
+    const native = paywallCopy({ native: true });
+    expect(native.storeNote).toContain("Tide Mark Premium");
+    expect(native.storeNote).toContain("Restore");
+    expect(native.storeNote).not.toContain("Coming with the App Store build");
   });
 });
 

@@ -70,6 +70,9 @@ describe("HELP_SECTIONS", () => {
     const billing = HELP_SECTIONS.find((section) => section.title === "Free month and yearly journal")?.steps ?? [];
     expect(billing.some((step) => step.includes("Home stays open") && step.includes("$39.99/year"))).toBe(true);
     expect(billing.some((step) => step.includes("Nothing is deleted"))).toBe(true);
+    expect(
+      billing.some((step) => step.includes("iPhone") && step.includes("App Store") && step.includes("Restore")),
+    ).toBe(true);
     const share = HELP_SECTIONS.find((section) => section.title === "Share with a friend")?.steps ?? [];
     expect(share.some((step) => step.includes("More") && step.includes("Linked friends") && step.includes("Link"))).toBe(
       true,
