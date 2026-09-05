@@ -163,7 +163,7 @@ export function BaitSpotForm({
         setForm((f) => ({
           ...f,
           ...weatherFields(data.weather),
-          ...tideFields(data.tide, form.habitat),
+          ...tideFields(data.tide, form.habitat, lon),
         }));
         const notes = [data.weather?.note, data.tide?.note].filter(Boolean);
         if (notes.length) setAssistNote(notes.join(" "));
@@ -476,14 +476,16 @@ function tideFields(
         nextHighFt?: number | null;
         nextLowAt?: string | null;
         nextLowFt?: number | null;
+        stationName?: string | null;
       }
     | null
     | undefined,
   habitat: Habitat,
+  longitude?: number | null,
 ): Partial<FormState> {
   if (!t || !tidesApplyToHabitat(habitat)) return {};
   if (t.applies === false) return { tide: "", tideHeightFt: "", tideDetail: "" };
-  const detail = formatTideDetail(t);
+  const detail = formatTideDetail({ ...t, longitude });
   return {
     ...(t.tide ? { tide: t.tide } : {}),
     ...(t.heightFt != null ? { tideHeightFt: String(t.heightFt) } : {}),

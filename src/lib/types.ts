@@ -239,7 +239,7 @@ export type ForecastWindow = {
   tide: Tide | null;
   tideHeightFt: number | null;
   weatherSource: "openweather" | "demo";
-  tideSource: "worldtides" | "demo" | "none";
+  tideSource: "noaa" | "worldtides" | "demo" | "none";
 };
 
 export type PlanMatch = {
@@ -267,7 +267,7 @@ export type PlanResult = {
   days: number;
   generatedAt: string;
   weatherSource: "openweather" | "demo";
-  tideSource: "worldtides" | "demo";
+  tideSource: "noaa" | "worldtides" | "demo";
   note: string;
   suggestions: PlanSuggestion[];
   baitSuggestions: BaitPlanSuggestion[];
