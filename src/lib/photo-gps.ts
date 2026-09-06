@@ -90,3 +90,19 @@ export async function readPhotoGps(
     return null;
   }
 }
+
+export const MISSING_PHOTO_EXIF_NOTE =
+  "This photo is missing date, time, and location EXIF. Set the date and drop a pin so tides, weather, and the spot can load — they will not fill in from the picture.";
+
+/** Shown when a library photo has no clock stamp and no GPS. */
+export function missingPhotoExifNote(args: {
+  hasDateTime: boolean;
+  hasLocation: boolean;
+}): string | null {
+  if (args.hasDateTime && args.hasLocation) return null;
+  if (!args.hasDateTime && !args.hasLocation) return MISSING_PHOTO_EXIF_NOTE;
+  if (!args.hasDateTime) {
+    return "This photo is missing date and time EXIF. Set the date so tides and weather can load — they will not fill in from the picture.";
+  }
+  return "This photo is missing location EXIF. Drop a pin so tides, weather, and the spot can load — they will not fill in from the picture.";
+}

@@ -144,6 +144,18 @@ CREATE TABLE IF NOT EXISTS bait_spots (
 CREATE INDEX IF NOT EXISTS idx_bait_spots_angler ON bait_spots(angler_id);
 CREATE INDEX IF NOT EXISTS idx_bait_spots_logged_at ON bait_spots(logged_at);
 
+CREATE TABLE IF NOT EXISTS spot_shares (
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  buddy_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE (kind, record_id, buddy_id)
+);
+CREATE INDEX IF NOT EXISTS idx_spot_shares_record ON spot_shares(kind, record_id);
+CREATE INDEX IF NOT EXISTS idx_spot_shares_buddy ON spot_shares(buddy_id);
+
 CREATE TABLE IF NOT EXISTS schema_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -151,7 +163,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 `;
 
 /** File SQLite uses PRAGMA user_version. LibSQL/Turso stores the same number in schema_meta. */
-export const SCHEMA_VERSION = 14;
+export const SCHEMA_VERSION = 15;
 const SCHEMA_META_KEY = "schema_version";
 
 /**
@@ -499,6 +511,22 @@ function migrate(sqlite: Database.Database) {
       `UPDATE anglers SET subscription_status = 'trial' WHERE subscription_status IS NULL OR subscription_status = ''`,
     );
     sqlite.pragma("user_version = 14");
+  }
+  if (version < 15) {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS spot_shares (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        buddy_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE (kind, record_id, buddy_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_spot_shares_record ON spot_shares(kind, record_id);
+      CREATE INDEX IF NOT EXISTS idx_spot_shares_buddy ON spot_shares(buddy_id);
+    `);
+    sqlite.pragma("user_version = 15");
   }
 }
 

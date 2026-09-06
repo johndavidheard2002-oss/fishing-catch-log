@@ -37,6 +37,33 @@ export function shiftMonth(
   return { year: next.getFullYear(), month: next.getMonth() };
 }
 
+export function shiftYear(
+  year: number,
+  month: number,
+  delta: number,
+): { year: number; month: number } {
+  return { year: year + delta, month };
+}
+
+/** Wheel/trackpad on the month header: vertical = months, Shift or horizontal = years. */
+export function calendarHeaderScrollDelta(event: {
+  deltaX?: number;
+  deltaY?: number;
+  shiftKey?: boolean;
+}): { year: number; month: number } | null {
+  const dx = event.deltaX ?? 0;
+  const dy = event.deltaY ?? 0;
+  if (event.shiftKey || Math.abs(dx) > Math.abs(dy) + 4) {
+    const raw = event.shiftKey && Math.abs(dx) < 1 ? dy : dx;
+    const steps = Math.trunc(raw / 40) || (raw ? Math.sign(raw) : 0);
+    if (!steps) return null;
+    return { year: steps, month: 0 };
+  }
+  const steps = Math.trunc(dy / 40) || (dy ? Math.sign(dy) : 0);
+  if (!steps) return null;
+  return { year: 0, month: steps };
+}
+
 export type CalendarCell = {
   date: string;
   day: number;
@@ -250,3 +277,16 @@ export function yearsOnMonthDay(
 }
 
 export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
+
+export const CALENDAR_LOG_VIEWS = ["grid", "list", "calendar"] as const;
+export type CalendarLogView = (typeof CALENDAR_LOG_VIEWS)[number];
+export const DEFAULT_CALENDAR_LOG_VIEW: CalendarLogView = "grid";
+
+export function resolveCalendarLogView(
+  viewParam: string | null | undefined,
+): CalendarLogView {
+  if (viewParam === "list" || viewParam === "calendar" || viewParam === "grid") {
+    return viewParam;
+  }
+  return DEFAULT_CALENDAR_LOG_VIEW;
+}

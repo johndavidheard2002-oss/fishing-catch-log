@@ -96,6 +96,7 @@ describe("baitGroupThumbSrc", () => {
           habitat: "saltwater-inshore",
           anglerId: "me",
           sharedWithLinked: false,
+          sharedWithBuddyIds: [],
           ownerName: "You",
           createdAt: "2025-07-12T20:00:00.000Z",
           updatedAt: "2025-07-12T20:00:00.000Z",

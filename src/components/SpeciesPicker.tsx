@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import {
-  DEFAULT_HABITAT,
   HABITAT_LABELS,
   catalogHabitat,
   duckSpecies,
   isDuckCatalogSpecies,
   isSaltwaterCatalogSpecies,
-  isSharkCatalogSpecies,
   sharkSpecies,
   speciesForHabitat,
   type Habitat,
@@ -17,7 +15,9 @@ import {
   matchCatalogSpecies,
   matchDuckCatalogSpecies,
   matchSaltwaterCatalogSpecies,
+  nextHabitatForSpecies,
   normalizeSpeciesList,
+  toggleSelectedSpecies,
 } from "@/lib/species";
 
 type PickerGroup = "saltwater-inshore" | "saltwater-offshore" | "shark" | "duck";
@@ -77,35 +77,11 @@ export function SpeciesPicker({
   const q = query.trim().toLowerCase();
   const filtered = q ? catalog.filter((name) => name.toLowerCase().includes(q)) : catalog;
 
-  function nextHabitatFor(name: string): Habitat {
-    if (isDuckCatalogSpecies(name)) return "duck";
-    if (isSharkCatalogSpecies(name) || /shark/i.test(name)) {
-      return habitat === "duck" ? DEFAULT_HABITAT : habitat;
-    }
-    const inferred = catalogHabitat(name);
-    if (inferred && inferred !== "freshwater") return inferred;
-    if (group === "duck") return "duck";
-    return habitat === "duck" ? DEFAULT_HABITAT : habitat;
-  }
-
   function toggle(name: string) {
-    const mapped = mapPickerSpecies(name);
-    if (!mapped) return;
-    const key = mapped.toLowerCase();
-    const exists = selected.some((s) => s.toLowerCase() === key);
-    if (exists) {
-      onChange(
-        selected.filter((s) => s.toLowerCase() !== key),
-        habitat,
-      );
-      return;
-    }
-    if (selected.length <= 1) {
-      onChange([mapped], nextHabitatFor(mapped));
-      setQuery("");
-      return;
-    }
-    onChange([...selected, mapped], habitat);
+    const next = toggleSelectedSpecies(selected, name, habitat);
+    if (!next) return;
+    onChange(next.speciesList, next.habitat);
+    if (next.speciesList.length > selected.length) setQuery("");
   }
 
   function addTyped() {
@@ -115,7 +91,10 @@ export function SpeciesPicker({
     if (isSaltwaterCatalogSpecies(mapped) || isDuckCatalogSpecies(mapped) || !matchLooksFreshwater(raw)) {
       const key = mapped.toLowerCase();
       if (!selected.some((s) => s.toLowerCase() === key)) {
-        onChange(selected.length ? [...selected, mapped] : [mapped], nextHabitatFor(mapped));
+        onChange(
+          selected.length ? [...selected, mapped] : [mapped],
+          nextHabitatForSpecies(mapped, habitat),
+        );
       }
     }
     setQuery("");

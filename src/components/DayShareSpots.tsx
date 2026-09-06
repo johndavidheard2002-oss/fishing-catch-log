@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ShareFriendPicker, type ShareFriend } from "@/components/ShareFriendPicker";
 import { dayShareSpots, type DayShareSpot } from "@/lib/sharing";
 import type { BaitSpot, CatchRecord } from "@/lib/types";
 
@@ -20,10 +21,25 @@ export function DayShareSpots({
     catchIds: string[];
     baitSpotIds: string[];
     shared: boolean;
+    buddyIds?: string[];
   }) => void | Promise<void>;
-  onShareDay: (day: string, shared: boolean) => void | Promise<void>;
+  onShareDay: (day: string, shared: boolean, buddyIds?: string[]) => void | Promise<void>;
 }) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [buddies, setBuddies] = useState<ShareFriend[]>([]);
+  const [friendIds, setFriendIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    fetch("/api/buddies")
+      .then((r) => r.json())
+      .then((data) =>
+        setBuddies(
+          ((data.buddies ?? []) as { id?: string; name?: string }[])
+            .filter((buddy): buddy is ShareFriend => Boolean(buddy.id && buddy.name)),
+        ),
+      )
+      .catch(() => {});
+  }, []);
   const owners = new Set(
     [...catches.map((record) => record.anglerId), ...baitSpots.map((spot) => spot.anglerId)].filter(
       Boolean,
@@ -42,6 +58,7 @@ export function DayShareSpots({
         catchIds: row.catchIds,
         baitSpotIds: row.baitSpotIds,
         shared,
+        ...(friendIds?.length ? { buddyIds: friendIds } : {}),
       });
     } finally {
       setBusyKey(null);
@@ -51,7 +68,7 @@ export function DayShareSpots({
   async function toggleDay(shared: boolean) {
     setBusyKey("day");
     try {
-      await onShareDay(day, shared);
+            await onShareDay(day, shared, friendIds?.length ? friendIds : undefined);
     } finally {
       setBusyKey(null);
     }
@@ -64,8 +81,14 @@ export function DayShareSpots({
           Select spots to share
         </p>
         <p className="mt-1.5 text-xs text-ink-muted">
-          Linked friends can see these spots. Off until you choose.
+          Pick who sees each spot. Leave friends unchecked to share with all linked friends.
         </p>
+        <ShareFriendPicker
+          buddies={buddies}
+          disabled={busyKey !== null}
+          selectedIds={friendIds ?? []}
+          onChange={setFriendIds}
+        />
       </div>
       <ul className="space-y-2">
         {rows.map((row) => (

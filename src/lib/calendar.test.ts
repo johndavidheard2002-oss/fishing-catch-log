@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baitSpotsOnMonthDay, baitSpotsWithPins, catchesOnMonthDay, fullDateLabel, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, shiftMonth, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
+import { baitSpotsOnMonthDay, baitSpotsWithPins, calendarHeaderScrollDelta, catchesOnMonthDay, DEFAULT_CALENDAR_LOG_VIEW, fullDateLabel, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, resolveCalendarLogView, shiftMonth, shiftYear, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
 import { baitOf, catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
@@ -242,5 +242,27 @@ describe("yearsOnMonthDay", () => {
     const catch25 = catchOn(new Date(2025, 8, 2, 7, 0), "c25");
     const bait24 = baitOn(new Date(2024, 8, 2, 12, 0), "b24");
     expect(yearsOnMonthDay([catch25], [bait24], "2026-09-02")).toEqual([2025, 2024]);
+  });
+});
+
+describe("calendar month and year scroll", () => {
+  it("shifts years without changing the month", () => {
+    expect(shiftYear(2026, 8, -1)).toEqual({ year: 2025, month: 8 });
+    expect(shiftMonth(2026, 0, -1)).toEqual({ year: 2025, month: 11 });
+  });
+
+  it("maps wheel deltas to months or years", () => {
+    expect(calendarHeaderScrollDelta({ deltaY: 80 })).toEqual({ year: 0, month: 2 });
+    expect(calendarHeaderScrollDelta({ deltaX: 80 })).toEqual({ year: 2, month: 0 });
+    expect(calendarHeaderScrollDelta({ deltaY: 80, shiftKey: true })).toEqual({ year: 2, month: 0 });
+    expect(calendarHeaderScrollDelta({ deltaY: 0, deltaX: 0 })).toBeNull();
+  });
+
+  it("defaults Calendar Log to Grid", () => {
+    expect(DEFAULT_CALENDAR_LOG_VIEW).toBe("grid");
+    expect(resolveCalendarLogView(null)).toBe("grid");
+    expect(resolveCalendarLogView("list")).toBe("list");
+    expect(resolveCalendarLogView("calendar")).toBe("calendar");
+    expect(resolveCalendarLogView("grid")).toBe("grid");
   });
 });

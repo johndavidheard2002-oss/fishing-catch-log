@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
+import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { SimilarList } from "@/components/SimilarList";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { habitatLabel } from "@/lib/habitat";
@@ -20,6 +21,7 @@ import { groupSpots } from "@/lib/filters";
 import { hasSavedPin } from "@/lib/location-map";
 import { DEFAULT_MAP_FRAME_CLASS } from "@/lib/map-tiles";
 import { APP_DISPLAY_NAME } from "@/lib/brand";
+import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
 
 const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
@@ -41,11 +43,22 @@ export function CatchDetail({ id }: { id: string }) {
   const [viewerId, setViewerId] = useState<string | undefined>();
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
+  const [buddies, setBuddies] = useState<ShareFriend[]>([]);
 
   useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => setViewerId(data.me?.id))
+      .catch(() => {});
+    fetch("/api/buddies")
+      .then((r) => r.json())
+      .then((data) =>
+        setBuddies(
+          ((data.buddies ?? []) as { id?: string; name?: string }[])
+            .filter((buddy): buddy is ShareFriend => Boolean(buddy.id && buddy.name)),
+        ),
+      )
       .catch(() => {});
     fetch(`/api/catches/${id}`)
       .then(async (r) => {
@@ -69,7 +82,7 @@ export function CatchDetail({ id }: { id: string }) {
     router.push("/calendar");
   }
 
-  async function onShare(shared: boolean) {
+  async function onShare(shared: boolean, buddyIds?: string[]) {
     if (!record) return;
     setShareBusy(true);
     setShareError(null);
@@ -77,14 +90,22 @@ export function CatchDetail({ id }: { id: string }) {
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ catchIds: [record.id], shared }),
+        body: JSON.stringify({
+          catchIds: [record.id],
+          shared,
+          ...(buddyIds ? { buddyIds } : {}),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { catchUpdated?: number };
       if (!res.ok || data.catchUpdated === 0) {
         setShareError("Could not update sharing.");
         return;
       }
-      setRecord({ ...record, sharedWithLinked: shared });
+      setRecord({
+        ...record,
+        sharedWithLinked: shared && !buddyIds,
+        sharedWithBuddyIds: shared ? (buddyIds ?? []) : [],
+      });
     } catch {
       setShareError("Could not update sharing.");
     } finally {
@@ -105,7 +126,17 @@ export function CatchDetail({ id }: { id: string }) {
         <button type="button" className="on-wash-chip w-fit text-sm text-teal" onClick={() => setEditing(false)}>
           ← Cancel
         </button>
-        <CatchForm mode="edit" initial={record} focusLocation={focusSpot} />
+        <CatchForm
+          mode="edit"
+          initial={record}
+          focusLocation={focusSpot}
+          onSaved={(next) => {
+            setRecord(next);
+            setEditing(false);
+            setFocusSpot(false);
+            setSavedNotice(true);
+          }}
+        />
       </div>
     );
   }
@@ -120,6 +151,14 @@ export function CatchDetail({ id }: { id: string }) {
       >
         ← Back
       </button>
+      {savedNotice ? (
+        <p
+          data-testid="changes-saved"
+          className="rounded-2xl border border-teal bg-teal/10 px-3 py-2 text-sm font-semibold text-teal"
+        >
+          {CHANGES_SAVED_LABEL}
+        </p>
+      ) : null}
 
       <div className="journal-card overflow-hidden rounded-3xl" data-testid="catch-trip">
         <div className="relative aspect-[4/3] bg-paper-deep">
@@ -297,11 +336,13 @@ export function CatchDetail({ id }: { id: string }) {
             <button
               type="button"
               disabled={shareBusy}
-              aria-pressed={record.sharedWithLinked}
+              aria-pressed={record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0}
               data-testid="catch-share"
-              onClick={() => void onShare(!record.sharedWithLinked)}
+              onClick={() =>
+                void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
+              }
               className={`rounded-xl px-5 py-3 font-semibold ${
-                record.sharedWithLinked
+                record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
                   ? "border-2 border-teal bg-teal/15 text-teal"
                   : "bg-teal text-white"
               } disabled:opacity-50`}
@@ -315,6 +356,7 @@ export function CatchDetail({ id }: { id: string }) {
               setFocusSpot(true);
               setEditing(true);
             }}
+            data-testid="catch-edit-spot"
             className="rounded-xl border border-line px-4 py-3 font-semibold"
           >
             Edit spot
@@ -328,9 +370,25 @@ export function CatchDetail({ id }: { id: string }) {
           </button>
         </div>
         {isOwner ? (
-          <p className="mt-1.5 text-xs text-ink-muted">
-            Linked friends can see this spot. Off until you choose.
-          </p>
+          <>
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Pick who sees this spot. Off until you choose.
+            </p>
+            <ShareFriendPicker
+              buddies={buddies}
+              disabled={shareBusy}
+              selectedIds={selectedShareBuddyIds({
+                sharedWithLinked: record.sharedWithLinked,
+                sharedWithBuddyIds: record.sharedWithBuddyIds,
+                buddyIds: buddies.map((buddy) => buddy.id),
+              })}
+              onChange={(ids) => {
+                if (!ids.length) void onShare(false);
+                else if (ids.length === buddies.length) void onShare(true);
+                else void onShare(true, ids);
+              }}
+            />
+          </>
         ) : null}
         {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>

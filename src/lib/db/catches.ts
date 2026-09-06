@@ -18,7 +18,8 @@ import type {
   TimeOfDay,
   WeatherCondition,
 } from "../types";
-import { isCatchVisibleToViewer } from "../sharing";
+import { isCatchVisibleToViewer, resolveShareTargets } from "../sharing";
+import { clearRecordShares, recordIdsSharedWith, setRecordShares, sharesByRecord } from "./shares";
 import { localDateKey } from "../calendar";
 import { rememberNamedArea } from "./areas";
 import { getAngler, linkedBuddyIds } from "./anglers";
@@ -89,6 +90,7 @@ function mapRow(
     }),
     anglerId,
     sharedWithLinked: Boolean(row.sharedWithLinked),
+    sharedWithBuddyIds: [],
     ownerName: ownerNameById.get(anglerId) ?? "Angler",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -124,9 +126,12 @@ export async function listCatches(opts: ListCatchOptions = {}): Promise<CatchRec
   const db = await ensureDb();
   const rows = await allRows(db.select().from(catches).orderBy(desc(catches.caughtAt)));
   const names = await ownerNames(rows.map((r) => r.anglerId || ""));
-  const records = rows.map((row) => mapRow(row, names));
+  const records = await attachCatchShares(rows.map((row) => mapRow(row, names)));
   if (!opts.viewerId) return records;
   const buddyIds = opts.includeShared ? await linkedBuddyIds(opts.viewerId) : [];
+  const sharedWithViewer = opts.includeShared
+    ? await recordIdsSharedWith("catch", opts.viewerId)
+    : new Set<string>();
   return records.filter((record) =>
     isCatchVisibleToViewer({
       anglerId: record.anglerId,
@@ -134,24 +139,41 @@ export async function listCatches(opts: ListCatchOptions = {}): Promise<CatchRec
       viewerId: opts.viewerId!,
       includeShared: Boolean(opts.includeShared),
       linkedBuddyIds: buddyIds,
+      sharedWithBuddyIds: record.sharedWithBuddyIds,
+      sharedWithViewer: sharedWithViewer.has(record.id),
     }),
   );
+}
+
+async function attachCatchShares(records: CatchRecord[]): Promise<CatchRecord[]> {
+  const shares = await sharesByRecord(
+    "catch",
+    records.map((record) => record.id),
+  );
+  return records.map((record) => ({
+    ...record,
+    sharedWithBuddyIds: shares.get(record.id) ?? [],
+  }));
 }
 
 export async function getCatch(id: string): Promise<CatchRecord | null> {
   const db = await ensureDb();
   const row = await getRow(db.select().from(catches).where(eq(catches.id, id)));
   if (!row) return null;
-  return mapRow(row, await ownerNames([row.anglerId || ""]));
+  const [record] = await attachCatchShares([mapRow(row, await ownerNames([row.anglerId || ""]))]);
+  return record ?? null;
 }
 
 export async function canViewCatch(record: CatchRecord, viewerId: string): Promise<boolean> {
+  const sharedIds = await recordIdsSharedWith("catch", viewerId);
   return isCatchVisibleToViewer({
     anglerId: record.anglerId,
     sharedWithLinked: record.sharedWithLinked,
     viewerId,
     includeShared: true,
     linkedBuddyIds: await linkedBuddyIds(viewerId),
+    sharedWithBuddyIds: record.sharedWithBuddyIds,
+    sharedWithViewer: sharedIds.has(record.id),
   });
 }
 
@@ -350,13 +372,30 @@ export async function setSharedForCatchIds(args: {
   anglerId: string;
   ids: string[];
   shared: boolean;
+  buddyIds?: string[] | null;
 }): Promise<{ updated: number }> {
   const unique = [...new Set(args.ids.filter(Boolean))];
+  const linked = await linkedBuddyIds(args.anglerId);
+  const target = resolveShareTargets({
+    shared: args.shared,
+    buddyIds: args.buddyIds,
+    linkedBuddyIds: linked,
+  });
   let updated = 0;
   for (const id of unique) {
     const record = await getCatch(id);
     if (!record || record.anglerId !== args.anglerId) continue;
-    await updateCatch(id, { sharedWithLinked: args.shared });
+    await updateCatch(id, { sharedWithLinked: target.sharedWithLinked });
+    if (target.buddyIds.length) {
+      await setRecordShares({
+        kind: "catch",
+        recordId: id,
+        ownerId: args.anglerId,
+        buddyIds: target.buddyIds,
+      });
+    } else {
+      await clearRecordShares("catch", id);
+    }
     updated += 1;
   }
   return { updated };
@@ -367,6 +406,7 @@ export async function setSharedForDay(args: {
   anglerId: string;
   day: string;
   shared: boolean;
+  buddyIds?: string[] | null;
 }): Promise<{ updated: number }> {
   if (!isCalendarDayKey(args.day)) return { updated: 0 };
   const mine = (await listCatches({ viewerId: args.anglerId })).filter(
@@ -380,11 +420,13 @@ export async function setSharedForDay(args: {
     anglerId: args.anglerId,
     ids: catchIds,
     shared: args.shared,
+    buddyIds: args.buddyIds,
   });
   const bait = await setSharedForBaitIds({
     anglerId: args.anglerId,
     ids: mineBait.map((spot) => spot.id),
     shared: args.shared,
+    buddyIds: args.buddyIds,
   });
   return { updated: catches.updated + bait.updated };
 }

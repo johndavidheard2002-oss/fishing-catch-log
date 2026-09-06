@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { baitOf, catchOf } from "./testing";
-import { dayShareSpots, isCatchVisibleToViewer, sharePlaceName } from "./sharing";
+import { dayShareSpots, isCatchVisibleToViewer, resolveShareTargets, sharePlaceName } from "./sharing";
 
 describe("isCatchVisibleToViewer", () => {
   const you = "you";
@@ -30,6 +30,29 @@ describe("isCatchVisibleToViewer", () => {
     expect(isCatchVisibleToViewer({ ...shared, sharedWithLinked: false })).toBe(false);
     expect(isCatchVisibleToViewer({ ...shared, includeShared: false })).toBe(false);
     expect(isCatchVisibleToViewer({ ...shared, linkedBuddyIds: [] })).toBe(false);
+  });
+
+  it("shows a spot only to the friend it was shared with", () => {
+    const samOnly = {
+      anglerId: you,
+      sharedWithLinked: false,
+      viewerId: buddy,
+      includeShared: true,
+      linkedBuddyIds: [you],
+      sharedWithBuddyIds: [buddy],
+    };
+    expect(isCatchVisibleToViewer(samOnly)).toBe(true);
+    expect(isCatchVisibleToViewer({ ...samOnly, viewerId: "pat", linkedBuddyIds: [you] })).toBe(
+      false,
+    );
+    expect(isCatchVisibleToViewer({ ...samOnly, sharedWithBuddyIds: ["pat"] })).toBe(false);
+    expect(
+      resolveShareTargets({ shared: true, buddyIds: [buddy], linkedBuddyIds: [buddy, "pat"] }),
+    ).toEqual({ sharedWithLinked: false, buddyIds: [buddy] });
+    expect(resolveShareTargets({ shared: true, linkedBuddyIds: [buddy] })).toEqual({
+      sharedWithLinked: true,
+      buddyIds: [],
+    });
   });
 
   it("never shows a stranger's catch", () => {

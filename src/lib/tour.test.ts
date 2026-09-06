@@ -83,11 +83,11 @@ describe("first-sign-in tour", () => {
     expect(location.id).toBe("location");
     expect(location.body).toBe(LOCATION_SERVICES_SETUP_BODY);
     expect(location.steps).toEqual([...LOCATION_DENIED_SETTINGS_STEPS]);
-    expect(location.body).toContain("Location Services → Safari Websites");
-    expect(location.body).toContain("Ask or While Using");
+    expect(location.body).toContain("Private Relay");
+    expect(location.body).toContain("Tide Mark → While Using");
     expect(location.body).not.toContain("Settings → Safari → Location");
-    expect(location.steps?.[0]).toContain("Privacy & Security");
-    expect(location.steps?.[1]).toContain("Safari Websites");
+    expect(location.steps?.[0]).toContain("Private Relay");
+    expect(location.steps?.[2]).toContain("Tide Mark");
     const text = TOUR_SCREENS.map((screen) => `${screen.title} ${screen.body}`).join(" ");
     expect(text.toLowerCase()).toContain("photo");
     expect(text.toLowerCase()).toContain("pin");

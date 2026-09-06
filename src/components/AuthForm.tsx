@@ -69,7 +69,7 @@ export function AuthForm({
       onSignedIn?.(typeof (data as { me?: { name?: string } }).me?.name === "string" ? (data as { me: { name: string } }).me.name : name);
       notifyAuthChange();
       const saved = readSavedLiveLocationStatus();
-      if (saved === "ready" || saved === "denied") {
+      if (saved === "ready") {
         enterJournal();
         return;
       }
@@ -77,6 +77,10 @@ export function AuthForm({
       onPhaseChange?.("location");
       setPrivateBrowsing(detectPrivateBrowsing());
       void queryGeolocationPermission().then(setGeoPermission);
+      if (saved === "denied") {
+        setLocationStatus("denied");
+        return;
+      }
       if (saved === "allowed") {
         resumeAllowedLocationWait();
       }
@@ -94,15 +98,16 @@ export function AuthForm({
 
   function finishAllowWait(result: DeviceGpsAttempt) {
     const outcome = persistAllowLocationOutcome(result);
-      setLocationStatus(
+    const nextStatus: LiveLocationStatus =
       outcome.savedStatus === "ready"
         ? "ready"
         : outcome.savedStatus === "denied"
           ? "denied"
           : outcome.savedStatus === "unavailable"
             ? "unavailable"
-            : "prompt",
-    );
+            : "prompt";
+    setLocationStatus(nextStatus);
+    if (nextStatus === "denied") return;
     enterJournal();
   }
 

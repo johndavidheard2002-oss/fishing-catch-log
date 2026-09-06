@@ -39,7 +39,9 @@ export function emptyTideSnapshot(
 }
 
 export function tidesApplyToHabitat(habitat: Habitat | string | null | undefined): boolean {
-  return habitat === "saltwater-inshore" || habitat === "saltwater-offshore";
+  return (
+    habitat === "saltwater-inshore" || habitat === "saltwater-offshore" || habitat === "duck"
+  );
 }
 
 export function civilDateKey(at: Date, timeZone?: string): string {

@@ -1,5 +1,6 @@
 "use client";
 
+import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { calendarNoteHasContent, noteHeadline, planNoteInput } from "@/lib/notes";
 import type { CalendarNote, CalendarNoteInput } from "@/lib/types";
 import { useState } from "react";
@@ -28,9 +29,15 @@ export function DayNotes({
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
 
   return (
     <div className="space-y-2">
+      {savedNotice ? (
+        <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
+          {CHANGES_SAVED_LABEL}
+        </p>
+      ) : null}
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display text-lg text-teal">Planned trips</h3>
         {adding ? null : (
@@ -62,6 +69,7 @@ export function DayNotes({
             onSubmit={async (input) => {
               await onUpdate(note.id, input);
               setEditingId(null);
+              setSavedNotice(true);
             }}
           />
         ) : (
@@ -113,6 +121,7 @@ export function DayNotes({
           onSubmit={async (input) => {
             await onCreate(input);
             setAdding(false);
+            setSavedNotice(true);
           }}
         />
       ) : null}
@@ -135,9 +144,15 @@ export function PlanDayNotes({
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
 
   return (
     <section className="journal-card space-y-2 rounded-2xl p-3" data-testid="plan-day-notes">
+      {savedNotice ? (
+        <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
+          {CHANGES_SAVED_LABEL}
+        </p>
+      ) : null}
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display text-lg text-teal">Notes</h3>
         {adding ? null : (
@@ -170,6 +185,7 @@ export function PlanDayNotes({
             onSubmit={async (input) => {
               await onUpdate(note.id, input);
               setEditingId(null);
+              setSavedNotice(true);
             }}
           />
         ) : (
@@ -214,6 +230,7 @@ export function PlanDayNotes({
           onSubmit={async (input) => {
             await onCreate(input);
             setAdding(false);
+            setSavedNotice(true);
           }}
         />
       ) : null}

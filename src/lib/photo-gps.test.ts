@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { decimalFromDms, gpsFromExifRecord, readPhotoGps } from "./photo-gps";
+import {
+  decimalFromDms,
+  gpsFromExifRecord,
+  MISSING_PHOTO_EXIF_NOTE,
+  missingPhotoExifNote,
+  readPhotoGps,
+} from "./photo-gps";
 
 describe("decimalFromDms", () => {
   it("converts EXIF GPS arrays and hemisphere refs", () => {
@@ -67,5 +73,19 @@ describe("readPhotoGps", () => {
       latitude: expect.closeTo(29.15, 5),
       longitude: expect.closeTo(-96.88, 5),
     });
+  });
+});
+
+describe("missingPhotoExifNote", () => {
+  it("tells them to set date, time, and location when the photo has no EXIF", () => {
+    expect(missingPhotoExifNote({ hasDateTime: false, hasLocation: false })).toBe(
+      MISSING_PHOTO_EXIF_NOTE,
+    );
+    expect(MISSING_PHOTO_EXIF_NOTE).toMatch(/date, time, and location/i);
+    expect(MISSING_PHOTO_EXIF_NOTE).toMatch(/drop a pin/i);
+    expect(MISSING_PHOTO_EXIF_NOTE).toMatch(/tides/i);
+    expect(missingPhotoExifNote({ hasDateTime: true, hasLocation: true })).toBeNull();
+    expect(missingPhotoExifNote({ hasDateTime: false, hasLocation: true })).toMatch(/date and time/i);
+    expect(missingPhotoExifNote({ hasDateTime: true, hasLocation: false })).toMatch(/location/i);
   });
 });

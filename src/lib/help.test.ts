@@ -52,15 +52,15 @@ describe("HELP_SECTIONS", () => {
     ).toBe(true);
     const locationHelp =
       HELP_SECTIONS.find((section) => section.title === "Location / map pin won’t drop")?.steps ?? [];
-    expect(locationHelp[0]).toContain("Privacy & Security");
-    expect(locationHelp[0]).toContain("Location Services");
-    expect(locationHelp[1]).toContain("Safari Websites");
-    expect(locationHelp[1]).toMatch(/Ask or While Using/);
-    expect(locationHelp[1]).toContain("Never");
-    expect(locationHelp.some((step) => step.includes("Private browsing"))).toBe(true);
-    expect(locationHelp.some((step) => step.includes("Turn location on"))).toBe(true);
-    expect(locationHelp.join(" ")).toContain("Safari → Location");
-    expect(locationHelp.join(" ")).toContain("not enough");
+    expect(locationHelp[0]).toContain("Private Relay");
+    expect(locationHelp[1]).toContain("Location Services");
+    expect(locationHelp[2]).toContain("Tide Mark");
+    expect(locationHelp[2]).toContain("While Using");
+    expect(locationHelp.some((step) => step.includes("delete the app"))).toBe(true);
+    expect(locationHelp.some((step) => step.includes("clear sky"))).toBe(true);
+    expect(locationHelp.some((step) => step.includes("Open Settings"))).toBe(true);
+    expect(locationHelp.some((step) => step.includes("Safari Websites"))).toBe(true);
+    expect(locationHelp.join(" ")).not.toContain("Settings → Safari → Location");
     expect(locationHelp[0]).not.toContain("Settings → Safari → Location");
     const journal = HELP_SECTIONS.find((section) => section.title === "Your journal")?.steps ?? [];
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
@@ -77,7 +77,7 @@ describe("HELP_SECTIONS", () => {
     expect(share.some((step) => step.includes("More") && step.includes("Linked friends") && step.includes("Link"))).toBe(
       true,
     );
-    expect(share.some((step) => step.includes("Share next to Edit"))).toBe(true);
+    expect(share.some((step) => step.includes("Share next to Edit") && step.includes("Choose the friend"))).toBe(true);
     expect(share.some((step) => step.includes("Select spots to share"))).toBe(true);
     expect(share.some((step) => step.includes("Include shared from linked friends"))).toBe(true);
     expect(share.some((step) => step.includes("Never public") && step.includes("Linking shares nothing"))).toBe(true);

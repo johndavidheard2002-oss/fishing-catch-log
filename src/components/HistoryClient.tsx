@@ -5,7 +5,7 @@ import { BaitSpotCard, BaitSpotGridCard } from "@/components/BaitSpotCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
-import { parseYearMonth } from "@/lib/calendar";
+import { parseYearMonth, resolveCalendarLogView, type CalendarLogView } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import { mergeJournalFeed } from "@/lib/journal";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
@@ -18,12 +18,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
-type LogView = "calendar" | "list" | "grid";
-
-const VIEW_TABS: { id: LogView; label: string }[] = [
-  { id: "calendar", label: "Calendar" },
-  { id: "list", label: "List" },
+const VIEW_TABS: { id: CalendarLogView; label: string }[] = [
   { id: "grid", label: "Grid" },
+  { id: "list", label: "List" },
+  { id: "calendar", label: "Calendar" },
 ];
 
 function logPath(params: URLSearchParams): string {
@@ -51,8 +49,7 @@ export function HistoryClient({
   const [filters, setFilters] = useState<CatchFilters>(() => ({
     species: searchParams.get("species") || undefined,
   }));
-  const viewParam = searchParams.get("view");
-  const view: LogView = viewParam === "list" || viewParam === "grid" ? viewParam : "calendar";
+  const view = resolveCalendarLogView(searchParams.get("view"));
   const [showFilters, setShowFilters] = useState(Boolean(searchParams.get("species")));
   const [loading, setLoading] = useState(initialCatches === undefined);
   const [includeShared, setIncludeShared] = useIncludeShared();
@@ -130,14 +127,14 @@ export function HistoryClient({
     const next = new URLSearchParams();
     const view = searchParams.get("view");
     const day = searchParams.get("day");
-    if (view === "list" || view === "grid") next.set("view", view);
+    if (view === "list" || view === "calendar") next.set("view", view);
     if (day) next.set("day", day);
     router.replace(logPath(next));
   }
 
-  function changeView(id: LogView) {
+  function changeView(id: CalendarLogView) {
     const next = new URLSearchParams(searchParams.toString());
-    if (id === "calendar") next.delete("view");
+    if (id === "grid") next.delete("view");
     else next.set("view", id);
     router.replace(logPath(next));
   }
@@ -229,19 +226,19 @@ export function HistoryClient({
               setSelectedDay(day);
               setMonthOverride(parseYearMonth(day));
             }}
-            onShareDay={async (day, shared) => {
+            onShareDay={async (day, shared, buddyIds) => {
               await fetch("/api/share", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ day, shared }),
+                body: JSON.stringify({ day, shared, buddyIds }),
               });
               setShareEpoch((n) => n + 1);
             }}
-            onShareSpots={async ({ catchIds, baitSpotIds, shared }) => {
+            onShareSpots={async ({ catchIds, baitSpotIds, shared, buddyIds }) => {
               await fetch("/api/share", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ catchIds, baitSpotIds, shared }),
+                body: JSON.stringify({ catchIds, baitSpotIds, shared, buddyIds }),
               });
               setShareEpoch((n) => n + 1);
             }}

@@ -7,6 +7,7 @@ import {
   isDuckCatalogSpecies,
   isSaltwaterCatalogSpecies,
   isSaltwaterHabitat,
+  isSharkCatalogSpecies,
   saltwaterSpecies,
   speciesForHabitat,
   type Habitat,
@@ -324,6 +325,48 @@ export function formPatchFromSuggestion(suggestion: SpeciesSuggestion): {
         : DEFAULT_HABITAT,
     speciesAlternatives: clean.alternatives,
     speciesSuggestedList: clean.speciesList ?? [],
+  };
+}
+
+/** Keep sharks on the current water; ducks and catalog fish follow their group. */
+export function nextHabitatForSpecies(name: string, habitat: Habitat): Habitat {
+  if (isDuckCatalogSpecies(name)) return "duck";
+  if (isSharkCatalogSpecies(name) || /shark/i.test(name)) {
+    return habitat === "duck" ? DEFAULT_HABITAT : habitat;
+  }
+  const inferred = catalogHabitat(name);
+  if (inferred && inferred !== "freshwater") return inferred;
+  if (habitat === "duck") return DEFAULT_HABITAT;
+  return habitat;
+}
+
+function mapToggleSpecies(raw: string): string {
+  return (
+    matchSaltwaterCatalogSpecies(raw) ??
+    matchDuckCatalogSpecies(raw) ??
+    matchCatalogSpecies(raw) ??
+    raw.trim()
+  );
+}
+
+/** Chip tap: append a new species, or remove it on a second tap. Never replaces the list. */
+export function toggleSelectedSpecies(
+  selected: string[],
+  name: string,
+  habitat: Habitat,
+): { speciesList: string[]; habitat: Habitat } | null {
+  const mapped = mapToggleSpecies(name);
+  if (!mapped) return null;
+  const key = mapped.toLowerCase();
+  if (selected.some((s) => s.toLowerCase() === key)) {
+    return {
+      speciesList: selected.filter((s) => s.toLowerCase() !== key),
+      habitat,
+    };
+  }
+  return {
+    speciesList: [...selected, mapped],
+    habitat: nextHabitatForSpecies(mapped, habitat),
   };
 }
 

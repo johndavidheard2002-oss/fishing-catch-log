@@ -18,9 +18,11 @@ import {
   groupCatchesByYear,
   fullDateLabel,
   monthDayLabel,
+  calendarHeaderScrollDelta,
   monthGrid,
   monthLabel,
   shiftMonth,
+  shiftYear,
   spotsWithPins,
   todayKey,
   WEEKDAY_LABELS,
@@ -62,11 +64,12 @@ export function HistoryCalendar({
   selectedDay: string | null;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
-  onShareDay?: (day: string, shared: boolean) => void | Promise<void>;
+  onShareDay?: (day: string, shared: boolean, buddyIds?: string[]) => void | Promise<void>;
   onShareSpots?: (args: {
     catchIds: string[];
     baitSpotIds: string[];
     shared: boolean;
+    buddyIds?: string[];
   }) => void | Promise<void>;
   onCreateNote?: (input: CalendarNoteInput) => void | Promise<void>;
   onUpdateNote?: (id: string, input: CalendarNoteInput) => void | Promise<void>;
@@ -114,7 +117,17 @@ export function HistoryCalendar({
   return (
     <div className="space-y-3">
       <div className="journal-card rounded-2xl p-3">
-        <div className="mb-3 flex items-center justify-between gap-2">
+        <div
+          className="mb-3 flex items-center justify-between gap-2"
+          data-testid="calendar-month-header"
+          onWheel={(event) => {
+            const delta = calendarHeaderScrollDelta(event);
+            if (!delta) return;
+            event.preventDefault();
+            if (delta.year) onMonthChange(shiftYear(year, month, delta.year));
+            else onMonthChange(shiftMonth(year, month, delta.month));
+          }}
+        >
           <button
             type="button"
             aria-label="Previous month"
@@ -125,6 +138,29 @@ export function HistoryCalendar({
           </button>
           <div className="text-center">
             <p className="font-display text-xl text-teal">{monthLabel(year, month)}</p>
+            <div className="mt-1 flex items-center justify-center gap-1">
+              <button
+                type="button"
+                aria-label="Previous year"
+                data-testid="calendar-prev-year"
+                onClick={() => onMonthChange(shiftYear(year, month, -1))}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-paper text-sm font-semibold"
+              >
+                ‹
+              </button>
+              <span data-testid="calendar-year" className="min-w-12 text-sm font-semibold text-ink">
+                {year}
+              </span>
+              <button
+                type="button"
+                aria-label="Next year"
+                data-testid="calendar-next-year"
+                onClick={() => onMonthChange(shiftYear(year, month, 1))}
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-paper text-sm font-semibold"
+              >
+                ›
+              </button>
+            </div>
           </div>
           <button
             type="button"

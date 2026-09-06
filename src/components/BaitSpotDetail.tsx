@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BaitSpotForm } from "./BaitSpotForm";
+import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { hasSavedPin } from "@/lib/location-map";
 
 const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
@@ -15,6 +16,7 @@ const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotM
     </div>
   ),
 });
+import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
 import { CONDITION_LABELS } from "@/lib/labels";
@@ -31,11 +33,23 @@ export function BaitSpotDetail({ id }: { id: string }) {
   const [viewerId, setViewerId] = useState<string | undefined>();
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
+  const [focusSpot, setFocusSpot] = useState(false);
+  const [buddies, setBuddies] = useState<ShareFriend[]>([]);
 
   useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => setViewerId(data.me?.id))
+      .catch(() => {});
+    fetch("/api/buddies")
+      .then((r) => r.json())
+      .then((data) =>
+        setBuddies(
+          ((data.buddies ?? []) as { id?: string; name?: string }[])
+            .filter((buddy): buddy is ShareFriend => Boolean(buddy.id && buddy.name)),
+        ),
+      )
       .catch(() => {});
     fetch(`/api/bait-spots/${id}`)
       .then(async (r) => {
@@ -55,7 +69,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
     router.push("/spots?kind=bait");
   }
 
-  async function onShare(shared: boolean) {
+  async function onShare(shared: boolean, buddyIds?: string[]) {
     if (!record) return;
     setShareBusy(true);
     setShareError(null);
@@ -63,14 +77,22 @@ export function BaitSpotDetail({ id }: { id: string }) {
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ baitSpotIds: [record.id], shared }),
+        body: JSON.stringify({
+          baitSpotIds: [record.id],
+          shared,
+          ...(buddyIds ? { buddyIds } : {}),
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { baitUpdated?: number };
       if (!res.ok || data.baitUpdated === 0) {
         setShareError("Could not update sharing.");
         return;
       }
-      setRecord({ ...record, sharedWithLinked: shared });
+      setRecord({
+        ...record,
+        sharedWithLinked: shared && !buddyIds,
+        sharedWithBuddyIds: shared ? (buddyIds ?? []) : [],
+      });
     } catch {
       setShareError("Could not update sharing.");
     } finally {
@@ -99,7 +121,17 @@ export function BaitSpotDetail({ id }: { id: string }) {
         <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={() => setEditing(false)}>
           Cancel
         </button>
-        <BaitSpotForm mode="edit" initial={record} />
+        <BaitSpotForm
+          mode="edit"
+          initial={record}
+          focusLocation={focusSpot}
+          onSaved={(next) => {
+            setRecord(next);
+            setEditing(false);
+            setFocusSpot(false);
+            setSavedNotice(true);
+          }}
+        />
       </div>
     );
   }
@@ -111,6 +143,14 @@ export function BaitSpotDetail({ id }: { id: string }) {
       <Link href="/spots?kind=bait" className="on-wash-chip w-fit text-sm font-semibold text-teal">
         ← Bait
       </Link>
+      {savedNotice ? (
+        <p
+          data-testid="changes-saved"
+          className="rounded-2xl border border-teal bg-teal/10 px-3 py-2 text-sm font-semibold text-teal"
+        >
+          {CHANGES_SAVED_LABEL}
+        </p>
+      ) : null}
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt="" className="w-full rounded-3xl object-cover" />
@@ -142,7 +182,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
           />
         ) : (
           <p className="journal-card rounded-2xl px-3 py-6 text-sm text-ink-muted">
-            This bait hole has no saved pin. Edit it to drop one on the map.
+            This bait hole has no saved pin. Tap Edit spot to drop one on the map.
           </p>
         )}
       </section>
@@ -161,15 +201,28 @@ export function BaitSpotDetail({ id }: { id: string }) {
           >
             Edit
           </button>
+          <button
+            type="button"
+            data-testid="bait-edit-spot"
+            onClick={() => {
+              setFocusSpot(true);
+              setEditing(true);
+            }}
+            className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
+          >
+            Edit spot
+          </button>
           {isOwner ? (
             <button
               type="button"
               disabled={shareBusy}
-              aria-pressed={record.sharedWithLinked}
+              aria-pressed={record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0}
               data-testid="bait-share"
-              onClick={() => void onShare(!record.sharedWithLinked)}
+              onClick={() =>
+                void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
+              }
               className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                record.sharedWithLinked
+                record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
                   ? "border-2 border-teal bg-teal/15 text-teal"
                   : "bg-teal text-white"
               } disabled:opacity-50`}
@@ -186,9 +239,25 @@ export function BaitSpotDetail({ id }: { id: string }) {
           </button>
         </div>
         {isOwner ? (
-          <p className="mt-1.5 text-xs text-ink-muted">
-            Linked friends can see this spot. Off until you choose.
-          </p>
+          <>
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Pick who sees this spot. Off until you choose.
+            </p>
+            <ShareFriendPicker
+              buddies={buddies}
+              disabled={shareBusy}
+              selectedIds={selectedShareBuddyIds({
+                sharedWithLinked: record.sharedWithLinked,
+                sharedWithBuddyIds: record.sharedWithBuddyIds,
+                buddyIds: buddies.map((buddy) => buddy.id),
+              })}
+              onChange={(ids) => {
+                if (!ids.length) void onShare(false);
+                else if (ids.length === buddies.length) void onShare(true);
+                else void onShare(true, ids);
+              }}
+            />
+          </>
         ) : null}
         {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>
