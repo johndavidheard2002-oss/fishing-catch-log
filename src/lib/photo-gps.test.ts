@@ -6,6 +6,7 @@ import {
   MISSING_PHOTO_EXIF_NOTE,
   MISSING_PHOTO_LOCATION_NOTE,
   missingPhotoExifNote,
+  missingPhotoFieldsNote,
   readPhotoGps,
 } from "./photo-gps";
 
@@ -94,5 +95,78 @@ describe("missingPhotoExifNote", () => {
     for (const note of [MISSING_PHOTO_EXIF_NOTE, MISSING_PHOTO_DATETIME_NOTE, MISSING_PHOTO_LOCATION_NOTE]) {
       expect(note).not.toMatch(/exif|tides|weather|openweather|moon|from this phone/i);
     }
+  });
+});
+
+describe("missingPhotoFieldsNote camera vs library", () => {
+  it("does not claim date/time/location missing on live Camera when the live path supplied them", () => {
+    expect(
+      missingPhotoFieldsNote({
+        source: "camera",
+        exifHasDateTime: false,
+        exifHasLocation: false,
+        liveHasDateTime: true,
+        liveHasLocation: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("stays quiet on live Camera while location is still loading or will use allowed GPS", () => {
+    expect(
+      missingPhotoFieldsNote({
+        source: "camera",
+        exifHasDateTime: false,
+        exifHasLocation: false,
+        liveHasDateTime: true,
+        locationPending: true,
+      }),
+    ).toBeNull();
+  });
+
+  it("names only location when live Camera has time but GPS failed", () => {
+    expect(
+      missingPhotoFieldsNote({
+        source: "camera",
+        exifHasDateTime: false,
+        exifHasLocation: false,
+        liveHasDateTime: true,
+        liveHasLocation: false,
+      }),
+    ).toBe(MISSING_PHOTO_LOCATION_NOTE);
+    expect(
+      missingPhotoFieldsNote({
+        source: "camera",
+        exifHasDateTime: false,
+        exifHasLocation: false,
+        liveHasDateTime: true,
+        liveHasLocation: false,
+      }),
+    ).not.toMatch(/date|time/i);
+  });
+
+  it("still warns camera-roll photos that truly lack EXIF, even if the form already has a clock", () => {
+    expect(
+      missingPhotoFieldsNote({
+        source: "library",
+        exifHasDateTime: false,
+        exifHasLocation: false,
+        liveHasDateTime: true,
+        liveHasLocation: true,
+      }),
+    ).toBe(MISSING_PHOTO_EXIF_NOTE);
+    expect(
+      missingPhotoFieldsNote({
+        source: "library",
+        exifHasDateTime: true,
+        exifHasLocation: false,
+      }),
+    ).toBe(MISSING_PHOTO_LOCATION_NOTE);
+    expect(
+      missingPhotoFieldsNote({
+        source: "library",
+        exifHasDateTime: false,
+        exifHasLocation: true,
+      }),
+    ).toBe(MISSING_PHOTO_DATETIME_NOTE);
   });
 });

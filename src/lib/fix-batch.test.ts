@@ -31,8 +31,17 @@ describe("Tide Mark next-pass UI contracts", () => {
 
   it("shows the missing EXIF note on Log", () => {
     const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
-    expect(form).toContain("missingPhotoExifNote");
+    expect(form).toContain("missingPhotoFieldsNote");
     expect(form).toContain('data-testid="missing-exif-note"');
+  });
+
+  it("treats live Camera as supplied by the form, not EXIF-only", () => {
+    const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
+    expect(form).toContain("liveCamera");
+    expect(form).toContain("liveHasDateTime");
+    expect(form).toContain("liveHasLocation");
+    expect(form).toContain("locationPending");
+    expect(form).toContain('source: "camera"');
   });
 
   it("offers Open Settings when location is denied", () => {

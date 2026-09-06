@@ -106,3 +106,36 @@ export function missingPhotoExifNote(args: {
   if (!args.hasDateTime) return MISSING_PHOTO_DATETIME_NOTE;
   return MISSING_PHOTO_LOCATION_NOTE;
 }
+
+export type PhotoFieldSource = "camera" | "library";
+
+/**
+ * Copper note after a photo is chosen. Camera-roll uses EXIF only. Live Camera
+ * also counts the device clock and allowed/live GPS already on the form — do
+ * not claim those fields are missing when the live path supplied them.
+ */
+export function missingPhotoFieldsNote(args: {
+  source: PhotoFieldSource;
+  exifHasDateTime: boolean;
+  exifHasLocation: boolean;
+  /** Live Camera: device clock already on the form, or stamped at capture. */
+  liveHasDateTime?: boolean;
+  /** Live Camera: sign-in / live GPS, photo GPS, or a pin already on the form. */
+  liveHasLocation?: boolean;
+  /** Live Camera: GPS still resolving or allowed location is incoming. */
+  locationPending?: boolean;
+}): string | null {
+  if (args.source === "library") {
+    return missingPhotoExifNote({
+      hasDateTime: args.exifHasDateTime,
+      hasLocation: args.exifHasLocation,
+    });
+  }
+  const hasDateTime = args.exifHasDateTime || Boolean(args.liveHasDateTime);
+  const hasLocation = args.exifHasLocation || Boolean(args.liveHasLocation);
+  if (args.locationPending) {
+    if (hasDateTime) return null;
+    return MISSING_PHOTO_DATETIME_NOTE;
+  }
+  return missingPhotoExifNote({ hasDateTime, hasLocation });
+}

@@ -46,7 +46,7 @@ import {
   type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
-import { MISSING_PHOTO_LOCATION_NOTE, missingPhotoExifNote, readPhotoGps } from "@/lib/photo-gps";
+import { MISSING_PHOTO_LOCATION_NOTE, missingPhotoFieldsNote, readPhotoGps } from "@/lib/photo-gps";
 import { primarySpecies } from "@/lib/species";
 import {
   alignCountDrafts,
@@ -495,6 +495,8 @@ export function CatchForm({
     setBusyLabel("Reading the photo…");
     setPhotoAtCatch(source === "camera" && !pastMode ? true : null);
     setPinHint(null);
+    const liveCamera = source === "camera" && !pastMode;
+    let exifStamp: Date | null = null;
     try {
       const photoGps = await readPhotoGps(file);
       if (photoGps) {
@@ -512,12 +514,7 @@ export function CatchForm({
         CreateDate?: string | Date;
       } | undefined;
       const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
-      setPhotoExifNote(
-        missingPhotoExifNote({
-          hasDateTime: Boolean(stamp),
-          hasLocation: Boolean(photoGps),
-        }),
-      );
+      exifStamp = stamp;
       if (stamp) {
         const caughtAt = datetimeLocalFromDate(stamp);
         patch({
@@ -525,13 +522,41 @@ export function CatchForm({
           ...moonFields(stamp, moonLocked),
         });
       }
+      const alreadyHasLocation = Boolean(
+        photoGps ||
+          pendingLiveGpsRef.current ||
+          readSavedLiveLocation() ||
+          form.latitude.trim() ||
+          catchPinUserMovedRef.current,
+      );
+      setPhotoExifNote(
+        missingPhotoFieldsNote({
+          source,
+          exifHasDateTime: Boolean(stamp),
+          exifHasLocation: Boolean(photoGps),
+          liveHasDateTime: liveCamera,
+          liveHasLocation: liveCamera && alreadyHasLocation,
+          locationPending: liveCamera && !alreadyHasLocation,
+        }),
+      );
     } catch {
       pendingPhotoGpsRef.current = pendingPhotoGpsRef.current;
+      const alreadyHasLocation = Boolean(
+        pendingPhotoGpsRef.current ||
+          pendingLiveGpsRef.current ||
+          readSavedLiveLocation() ||
+          form.latitude.trim() ||
+          catchPinUserMovedRef.current,
+      );
       setPhotoExifNote((current) =>
         current ??
-        missingPhotoExifNote({
-          hasDateTime: false,
-          hasLocation: Boolean(pendingPhotoGpsRef.current),
+        missingPhotoFieldsNote({
+          source,
+          exifHasDateTime: false,
+          exifHasLocation: Boolean(pendingPhotoGpsRef.current),
+          liveHasDateTime: liveCamera,
+          liveHasLocation: liveCamera && alreadyHasLocation,
+          locationPending: liveCamera && !alreadyHasLocation,
         }),
       );
     }
@@ -543,7 +568,7 @@ export function CatchForm({
     const url = URL.createObjectURL(nextFile);
     showPreview(url);
 
-    if (!pastMode && source === "camera") {
+    if (liveCamera) {
       setBusyLabel(DROPPING_PIN_HINT);
       setPinHint(DROPPING_PIN_HINT);
       const fromTap = liveGpsRequestRef.current ? await liveGpsRequestRef.current : null;
@@ -573,6 +598,22 @@ export function CatchForm({
       } else {
         setPinHint(null);
       }
+      const gotLocation = Boolean(
+        pendingPhotoGpsRef.current ||
+          pin ||
+          deviceGps ||
+          form.latitude.trim() ||
+          catchPinUserMovedRef.current,
+      );
+      setPhotoExifNote(
+        missingPhotoFieldsNote({
+          source: "camera",
+          exifHasDateTime: Boolean(exifStamp),
+          exifHasLocation: Boolean(pendingPhotoGpsRef.current),
+          liveHasDateTime: true,
+          liveHasLocation: gotLocation,
+        }),
+      );
     }
 
     setBusy(false);
