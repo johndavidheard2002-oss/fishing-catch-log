@@ -92,17 +92,17 @@ export async function readPhotoGps(
 }
 
 export const MISSING_PHOTO_EXIF_NOTE =
-  "This photo is missing date, time, and location EXIF. Set the date and drop a pin so tides, weather, and the spot can load — they will not fill in from the picture.";
+  "No date, time, or location on this photo. Set those manually.";
+export const MISSING_PHOTO_DATETIME_NOTE = "No date or time on this photo. Set those manually.";
+export const MISSING_PHOTO_LOCATION_NOTE = "No location on this photo. Drop a pin.";
 
-/** Shown when a library photo has no clock stamp and no GPS. */
+/** Shown when a library photo is missing the clock, GPS, or both. */
 export function missingPhotoExifNote(args: {
   hasDateTime: boolean;
   hasLocation: boolean;
 }): string | null {
   if (args.hasDateTime && args.hasLocation) return null;
   if (!args.hasDateTime && !args.hasLocation) return MISSING_PHOTO_EXIF_NOTE;
-  if (!args.hasDateTime) {
-    return "This photo is missing date and time EXIF. Set the date so tides and weather can load — they will not fill in from the picture.";
-  }
-  return "This photo is missing location EXIF. Drop a pin so tides, weather, and the spot can load — they will not fill in from the picture.";
+  if (!args.hasDateTime) return MISSING_PHOTO_DATETIME_NOTE;
+  return MISSING_PHOTO_LOCATION_NOTE;
 }

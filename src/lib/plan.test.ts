@@ -388,14 +388,18 @@ describe("parsePlanDate", () => {
 });
 
 describe("planLookupFailureNote", () => {
-  it("stays quiet for demo or live source notes", () => {
+  it("stays quiet for empty or source notes", () => {
+    expect(planLookupFailureNote("")).toBeNull();
+    expect(planLookupFailureNote("   ")).toBeNull();
+    expect(planLookupFailureNote("Pick a day to plan.")).toBeNull();
     expect(planLookupFailureNote("Demo forecast (no OpenWeather key). Patterned from season.")).toBeNull();
     expect(planLookupFailureNote("Upcoming conditions from OpenWeather 5-day forecast.")).toBeNull();
-    expect(planLookupFailureNote("Pick a day to plan.")).toBeNull();
-    expect(planLookupFailureNote("")).toBeNull();
   });
 
   it("surfaces a short note only when a lookup actually failed", () => {
+    expect(
+      planLookupFailureNote("Weather or tide lookup failed for this day. Matches still use your log."),
+    ).toBe("Weather or tide lookup failed for this day. Matches still use your log.");
     expect(
       planLookupFailureNote(
         "OpenWeather forecast failed — using demo forecast. Suggestions are still pattern matches.",

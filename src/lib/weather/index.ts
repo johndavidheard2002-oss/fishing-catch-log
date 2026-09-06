@@ -26,11 +26,7 @@ export async function getWeather(
     try {
       return withMoon(await fetchOpenWeather(lat, lon, at), at);
     } catch {
-      const fallback = demoWeather(lat, lon, at);
-      return {
-        ...withMoon(fallback, at),
-        note: "OpenWeather failed — using demo weather. Everything is editable.",
-      };
+      return withMoon(demoWeather(lat, lon, at), at);
     }
   }
 
@@ -44,11 +40,7 @@ export async function getWeather(
   }
 
   if (hasOpenWeatherKey() && !recent) {
-    const fallback = demoWeather(lat, lon, at);
-    return {
-      ...withMoon(fallback, at),
-      note: "Could not load archive weather for that date. Demo weather filled in — edit if you remember it.",
-    };
+    return withMoon(demoWeather(lat, lon, at), at);
   }
 
   return withMoon(demoWeather(lat, lon, at), at);
