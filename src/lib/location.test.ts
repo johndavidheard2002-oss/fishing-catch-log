@@ -126,7 +126,9 @@ describe("liveLocationPromptCopy", () => {
     expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
     expect(skipLocationLabel()).toBe("Not now");
     expect(GETTING_LOCATION_LABEL).toBe("Getting location…");
-    expect(DROPPING_PIN_HINT).toBe("Dropping pin from this phone…");
+    expect(DROPPING_PIN_HINT).toBe("Dropping pin…");
+    expect(DROPPING_PIN_HINT).not.toMatch(/this phone/i);
+    expect(PINNED_FROM_PHONE_HINT).toBe("");
     expect(liveLocationPromptCopy("ready").title).toBe("Location on");
     expect(liveLocationPromptCopy("unavailable").body).toContain("Camera still works");
     expect(liveLocationPromptCopy("asking").title).toBe("Getting location…");
@@ -293,7 +295,7 @@ describe("Turn location on from Log", () => {
     expect(logLocationReason("unavailable")).toContain("Allow location");
     expect(logLocationReason("unavailable")).not.toMatch(/Location is off/i);
     expect(logLocationReason("prompt")).toContain("live photo");
-    expect(logLocationReason("ready")).toBe(PINNED_FROM_PHONE_HINT);
+    expect(logLocationReason("ready")).toBe("");
     expect(logLocationReason("denied")).toBe(LOCATION_DENIED_SETTINGS_HINT);
     expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
   });
@@ -1030,7 +1032,7 @@ describe("logLocationSurface", () => {
       photoAtCatch: true,
     });
     expect(ready.showTurnOn).toBe(false);
-    expect(ready.reason).toBe(PINNED_FROM_PHONE_HINT);
+    expect(ready.reason).toBeNull();
     expect(ready.emptyMapBanner).toBeNull();
 
     const denied = logLocationSurface({

@@ -102,6 +102,6 @@ export async function fetchArchiveWeather(
     pressureTrend:
       prevIdx !== best ? pressureTrendFromDeltaMb((mb ?? 0) - (prevMb ?? mb ?? 0)) : "steady",
     source: "open-meteo",
-    note: "Weather for that date from Open-Meteo archive. Moon phase is from the date. Edit if you remember it differently.",
+    note: "",
   };
 }

@@ -64,6 +64,6 @@ export function demoWeather(lat: number, lon: number, at: Date): WeatherSnapshot
     pressureMb,
     pressureTrend,
     source: "demo",
-    note: "Demo weather (no OpenWeather key). Sky, wind, and pressure are simulated. Moon phase is from the date. Edit if it looks off.",
+    note: "",
   };
 }

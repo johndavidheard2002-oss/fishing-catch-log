@@ -23,13 +23,11 @@ import {
   coordsLookDifferent,
   DROP_CATCH_PIN_HINT,
   DROPPING_PIN_HINT,
-  formatCoords,
   initialLiveLocationStatusFromSaved,
   LIVE_CAMERA_GPS_BUDGET_MS,
   logLocationSurface,
   persistLogLocationOutcome,
   pinFromTurnedOnLocation,
-  PINNED_FROM_PHONE_HINT,
   blockedLocationReason,
   detectPrivateBrowsing,
   queryGeolocationPermission,
@@ -48,7 +46,7 @@ import {
   type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
-import { missingPhotoExifNote, readPhotoGps } from "@/lib/photo-gps";
+import { MISSING_PHOTO_LOCATION_NOTE, missingPhotoExifNote, readPhotoGps } from "@/lib/photo-gps";
 import { primarySpecies } from "@/lib/species";
 import {
   alignCountDrafts,
@@ -285,7 +283,7 @@ export function CatchForm({
     Boolean(mode === "edit" && initial?.latitude != null && initial?.longitude != null),
   );
   const catchPinUserMovedRef = useRef(catchPinUserMoved);
-  const [pinSource, setPinSource] = useState<"photo" | "device" | "manual" | null>(() =>
+  const [, setPinSource] = useState<"photo" | "device" | "manual" | null>(() =>
     initialPinSource(initial),
   );
   const pendingLiveGpsRef = useRef<{ latitude: number; longitude: number } | null>(
@@ -474,13 +472,7 @@ export function CatchForm({
       longitude: next.longitude.toFixed(5),
     });
     setPinSource(next.source);
-    if (next.source === "photo") {
-      setPinHint(
-        "Catch pin auto-filled from this photo’s location stamp. Drag it if you caught the fish somewhere else — the pin is not locked.",
-      );
-    } else {
-      setPinHint(PINNED_FROM_PHONE_HINT);
-    }
+    setPinHint(null);
     try {
       const res = await fetch("/api/assist/place", {
         method: "POST",
@@ -578,10 +570,6 @@ export function CatchForm({
       }
       if (pin) {
         await applyResolvedPin(pin);
-      } else if (catchPinUserMovedRef.current) {
-        setPinHint(
-          "Catch pin left where you moved it. Re-taking this picture will not overwrite your pin.",
-        );
       } else {
         setPinHint(null);
       }
@@ -628,13 +616,9 @@ export function CatchForm({
 
       if (!next) {
         if (catchPinUserMovedRef.current) {
-          setPinHint(
-            "Catch pin left where you moved it. Photo GPS is only “photo taken at,” and re-saving this picture will not overwrite your pin.",
-          );
+          setPinHint(null);
         } else if (!photoGps && !deviceGps) {
-          setPinHint(
-            "No GPS in the photo and this phone did not share a location. Tap the map to place the pin.",
-          );
+          setPinHint(MISSING_PHOTO_LOCATION_NOTE);
         } else {
           setPinHint(DROP_CATCH_PIN_HINT);
         }
@@ -771,9 +755,7 @@ export function CatchForm({
         locationReason={
           useLiveGps && osDenied
             ? blockedLocationReason({ privateBrowsing, permission: geoPermission })
-            : useLiveGps && locationStatus === "ready" && Boolean(form.latitude.trim())
-              ? PINNED_FROM_PHONE_HINT
-              : undefined
+            : undefined
         }
       />
 
@@ -889,7 +871,6 @@ export function CatchForm({
 
       <CatchLocationFields
         form={form}
-        pinSource={pinSource}
         hideHints={pastMode}
         emptyPinHint={
           pastMode
@@ -1062,16 +1043,11 @@ export function CatchForm({
           <span>
             <span className="block text-sm font-semibold">Weather & time</span>
             <span className="mt-0.5 block text-xs font-normal text-ink-muted">
-              {weatherSummary(form, pastMode)}
+              {weatherSummary(form)}
             </span>
           </span>
         </summary>
         <div className="space-y-3 px-3 pb-3">
-            {pastMode ? null : (
-            <p className="text-xs text-ink-muted">
-              Fills in from the pin and clock. Open this only to correct it.
-            </p>
-            )}
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="mb-1 block text-sm font-semibold">Temp °F</span>
@@ -1244,11 +1220,7 @@ export function CatchForm({
             </label>
             {form.tideDetail ? (
               <p className="col-span-2 text-xs text-ink-muted">{form.tideDetail}</p>
-            ) : pastMode ? null : (
-            <p className="col-span-2 text-xs text-ink-muted">
-              High/low fills in from the pin and clock.
-            </p>
-            )}
+            ) : null}
           </>
         ) : pastMode ? null : (
           <p className="col-span-2 text-xs text-ink-muted">
@@ -1277,9 +1249,6 @@ export function CatchForm({
           }}
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
-        <span className="mt-1 block text-xs text-ink-muted">
-          Calendar Log shows this clock. A photo stamp fills it in.
-        </span>
       </label>
       )}
         </div>
@@ -1443,7 +1412,7 @@ function habitatPatch(habitat: Habitat): Partial<FormState> {
   return { habitat, tide: "", tideHeightFt: "", tideDetail: "" };
 }
 
-function weatherSummary(form: FormState, quiet = false): string {
+function weatherSummary(form: FormState): string {
   const parts: string[] = [];
   if (form.caughtAt.trim()) {
     parts.push(formatTimeOnly(isoFromDatetimeLocal(form.caughtAt)));
@@ -1468,7 +1437,7 @@ function weatherSummary(form: FormState, quiet = false): string {
   }
   if (form.moonPhase) parts.push(form.moonPhase);
   if (form.pressureInHg.trim()) parts.push(`${form.pressureInHg} inHg`);
-  return parts.length ? parts.join(" · ") : quiet ? "" : "Fills in from the pin and clock";
+  return parts.length ? parts.join(" · ") : "";
 }
 
 function joinDateTime(date: string, time: string): string {
@@ -1488,7 +1457,6 @@ function numOrNull(value: string): number | null {
 
 function CatchLocationFields({
   form,
-  pinSource,
   hideHints = false,
   emptyPinHint = null,
   onPlace,
@@ -1498,7 +1466,6 @@ function CatchLocationFields({
   onMapPin,
 }: {
   form: FormState;
-  pinSource: "photo" | "device" | "manual" | null;
   hideHints?: boolean;
   emptyPinHint?: string | null;
   onPlace: (placeName: string) => void;
@@ -1517,62 +1484,30 @@ function CatchLocationFields({
   return (
     <section id="catch-location" className="space-y-3">
       <p className="on-wash-chip w-fit text-sm font-semibold">Catch location</p>
-      {hideHints ? (
-        <>
-          {hasPhotoGps && photoDiffers ? (
-            <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={onUsePhotoGps}>
-              Reset to photo GPS
-            </button>
-          ) : hasPhotoGps && catchLat == null ? (
-            <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={onUsePhotoGps}>
-              Use photo GPS
-            </button>
-          ) : null}
-          {catchLat == null && emptyPinHint ? (
-            <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
-              {emptyPinHint}
-            </div>
-          ) : null}
-        </>
-      ) : pinSource === "photo" && catchLat != null ? (
-        <div className="rounded-2xl border border-teal/40 bg-paper px-3 py-2 text-xs">
-          <p>
-            <span className="font-semibold text-teal">From this photo.</span> Drag if you caught it
-            somewhere else.
-          </p>
-        </div>
-      ) : hasPhotoGps && photoDiffers ? (
-        <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
-          <p>
-            <span className="font-semibold">You moved the pin.</span> Re-saving the photo will not
-            overwrite it.
-          </p>
-          <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
+      {hasPhotoGps && photoDiffers ? (
+        hideHints ? (
+          <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={onUsePhotoGps}>
             Reset to photo GPS
           </button>
-        </div>
-      ) : pinSource === "device" && catchLat != null ? (
-        <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
-          <p>
-            <span className="font-semibold">From this phone.</span> Drag if that isn’t the water.
-          </p>
-        </div>
-      ) : catchLat == null && emptyPinHint ? (
+        ) : (
+          <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
+            <p>
+              <span className="font-semibold">You moved the pin.</span> Re-saving the photo will not
+              overwrite it.
+            </p>
+            <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
+              Reset to photo GPS
+            </button>
+          </div>
+        )
+      ) : hasPhotoGps && catchLat == null ? (
+        <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={onUsePhotoGps}>
+          Use photo GPS
+        </button>
+      ) : null}
+      {catchLat == null && emptyPinHint ? (
         <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
           {emptyPinHint}
-        </div>
-      ) : null}
-      {hideHints ? null : hasPhotoGps ? (
-        <div className="rounded-2xl border border-line bg-paper px-3 py-2 text-xs">
-          <p>
-            Photo GPS {formatCoords(photoLat, photoLon)}
-            {photoDiffers ? " — different from the pin." : "."}
-          </p>
-          {catchLat == null ? (
-            <button type="button" className="mt-1 font-semibold text-teal" onClick={onUsePhotoGps}>
-              Use photo GPS
-            </button>
-          ) : null}
         </div>
       ) : null}
       <AreaNamePicker

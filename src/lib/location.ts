@@ -56,9 +56,9 @@ export type DeviceGpsAttempt =
 
 export const LOCATION_OFF_PIN_HINT = "Location was off. Tap the map to pin this catch.";
 export const TAP_MAP_PIN_HINT = "Tap the map to drop a pin.";
-export const DROPPING_PIN_HINT = "Dropping pin from this phone…";
+export const DROPPING_PIN_HINT = "Dropping pin…";
 export const GETTING_LOCATION_LABEL = "Getting location…";
-export const PINNED_FROM_PHONE_HINT = "Pinned from this phone";
+export const PINNED_FROM_PHONE_HINT = "";
 export const LOCATION_DENIED_SETTINGS_STEPS = [
   "Private Relay OFF — Settings → Apple ID → iCloud → Private Relay",
   "Location Services ON — Settings → Privacy & Security → Location Services",
@@ -162,7 +162,7 @@ export function logLocationReason(
   extras?: Omit<LocationReasonExtras, "osDenied">,
 ): string {
   if (status === "ready") {
-    return PINNED_FROM_PHONE_HINT;
+    return "";
   }
   if (status === "asking") {
     return GETTING_LOCATION_LABEL;
@@ -204,7 +204,7 @@ export function logLocationSurface(args: {
   if (args.status === "ready") {
     return {
       showTurnOn: false,
-      reason: args.hasPin ? PINNED_FROM_PHONE_HINT : null,
+      reason: null,
       pinHint: null,
       emptyMapBanner: null,
     };

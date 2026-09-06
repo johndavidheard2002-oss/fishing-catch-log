@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   decimalFromDms,
   gpsFromExifRecord,
+  MISSING_PHOTO_DATETIME_NOTE,
   MISSING_PHOTO_EXIF_NOTE,
+  MISSING_PHOTO_LOCATION_NOTE,
   missingPhotoExifNote,
   readPhotoGps,
 } from "./photo-gps";
@@ -77,15 +79,20 @@ describe("readPhotoGps", () => {
 });
 
 describe("missingPhotoExifNote", () => {
-  it("tells them to set date, time, and location when the photo has no EXIF", () => {
+  it("names only the fields the photo did not have", () => {
     expect(missingPhotoExifNote({ hasDateTime: false, hasLocation: false })).toBe(
       MISSING_PHOTO_EXIF_NOTE,
     );
-    expect(MISSING_PHOTO_EXIF_NOTE).toMatch(/date, time, and location/i);
-    expect(MISSING_PHOTO_EXIF_NOTE).toMatch(/drop a pin/i);
-    expect(MISSING_PHOTO_EXIF_NOTE).toMatch(/tides/i);
+    expect(MISSING_PHOTO_EXIF_NOTE).toBe("No date, time, or location on this photo. Set those manually.");
     expect(missingPhotoExifNote({ hasDateTime: true, hasLocation: true })).toBeNull();
-    expect(missingPhotoExifNote({ hasDateTime: false, hasLocation: true })).toMatch(/date and time/i);
-    expect(missingPhotoExifNote({ hasDateTime: true, hasLocation: false })).toMatch(/location/i);
+    expect(missingPhotoExifNote({ hasDateTime: false, hasLocation: true })).toBe(
+      MISSING_PHOTO_DATETIME_NOTE,
+    );
+    expect(missingPhotoExifNote({ hasDateTime: true, hasLocation: false })).toBe(
+      MISSING_PHOTO_LOCATION_NOTE,
+    );
+    for (const note of [MISSING_PHOTO_EXIF_NOTE, MISSING_PHOTO_DATETIME_NOTE, MISSING_PHOTO_LOCATION_NOTE]) {
+      expect(note).not.toMatch(/exif|tides|weather|openweather|moon|from this phone/i);
+    }
   });
 });

@@ -22,12 +22,10 @@ export async function getTideSeries(
   at: (when: Date) => { tide: Tide; heightFt: number };
 }> {
   try {
-    const { extremes, stationName } = await fetchNoaaExtremes(lat, lon, start, { days });
+    const { extremes } = await fetchNoaaExtremes(lat, lon, start, { days });
     return {
       source: "noaa",
-      note: stationName
-        ? `Tide extremes from NOAA ${stationName}.`
-        : "Tide extremes from the nearest NOAA station.",
+      note: "",
       at: (when) => {
         const snap = snapshotFromExtremes(extremes, when);
         if (snap?.tide && snap.heightFt != null) {
@@ -46,7 +44,7 @@ export async function getTideSeries(
       const series = await fetchWorldTides(lat, lon, start, days);
       return {
         source: "worldtides",
-        note: "Tide extremes from WorldTides.",
+        note: "",
         at: (when) => {
           const hit = tideAtTime(series, when);
           if (hit) return hit;
@@ -61,7 +59,7 @@ export async function getTideSeries(
 
   return {
     source: "demo",
-    note: "Demo tide series (no nearby NOAA station). Not a real station prediction.",
+    note: "",
     at: (when) => {
       const t = demoTide(lat, lon, when);
       return { tide: t.tide, heightFt: t.heightFt };
@@ -90,15 +88,14 @@ export async function getTideSnapshot(args: {
   const start = new Date(args.at.getTime() - 12 * 60 * 60 * 1000);
 
   try {
-    const { extremes, stationName, stationId } = await fetchNoaaExtremes(lat, lon, args.at);
+    const { extremes, stationName } = await fetchNoaaExtremes(lat, lon, args.at);
     const snap = snapshotFromExtremes(extremes, args.at, timeZoneFromLongitude(lon));
     if (snap) {
-      const label = stationName ? `${stationName} (${stationId})` : stationId;
       return {
         applies: true,
         ...snap,
         source: "noaa",
-        note: `Tide from NOAA ${label}.`,
+        note: "",
         stationName,
       };
     }
@@ -118,7 +115,7 @@ export async function getTideSnapshot(args: {
           applies: true,
           ...snap,
           source: "worldtides",
-          note: "Tide from WorldTides at this pin and time.",
+          note: "",
         };
       }
     } catch {

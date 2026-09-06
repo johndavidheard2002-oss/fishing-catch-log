@@ -33,6 +33,6 @@ export function demoTide(lat: number, lon: number, at: Date): {
     tide,
     heightFt,
     source: "demo",
-    note: "Demo tide series (no WorldTides key). Patterned, not a real station.",
+    note: "",
   };
 }

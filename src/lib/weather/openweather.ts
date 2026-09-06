@@ -60,6 +60,6 @@ export async function fetchOpenWeather(
     pressureMb: pressure.pressureMb,
     pressureTrend: null,
     source: "openweather",
-    note: "Live weather from OpenWeather. Moon phase is from the date.",
+    note: "",
   };
 }

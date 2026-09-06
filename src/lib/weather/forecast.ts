@@ -256,7 +256,7 @@ export async function getForecastWindows(
   const demo = {
     windows: demoForecastWindows(lat, lon, start, days, preferredTimes),
     source: "demo" as const,
-    note: "Demo forecast (no OpenWeather key). Patterned from season and your spots — not a live forecast.",
+    note: "",
   };
 
   if (!hasOpenWeatherKey()) return demo;
@@ -272,12 +272,12 @@ export async function getForecastWindows(
     return {
       windows: clipped,
       source: "openweather",
-      note: "Upcoming conditions from OpenWeather 5-day forecast.",
+      note: "",
     };
   } catch {
     return {
       ...demo,
-      note: "OpenWeather forecast failed — using demo forecast. Suggestions are still pattern matches.",
+      note: "Weather or tide lookup failed for this day. Matches still use your log.",
     };
   }
 }
