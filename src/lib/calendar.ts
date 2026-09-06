@@ -278,9 +278,15 @@ export function yearsOnMonthDay(
 
 export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
 
-export const CALENDAR_LOG_VIEWS = ["grid", "list", "calendar"] as const;
+export const CALENDAR_LOG_VIEWS = ["list", "calendar", "grid"] as const;
 export type CalendarLogView = (typeof CALENDAR_LOG_VIEWS)[number];
-export const DEFAULT_CALENDAR_LOG_VIEW: CalendarLogView = "grid";
+export const DEFAULT_CALENDAR_LOG_VIEW: CalendarLogView = "list";
+
+export const CALENDAR_LOG_VIEW_TABS: { id: CalendarLogView; label: string }[] = [
+  { id: "list", label: "List" },
+  { id: "calendar", label: "Calendar" },
+  { id: "grid", label: "Grid" },
+];
 
 export function resolveCalendarLogView(
   viewParam: string | null | undefined,

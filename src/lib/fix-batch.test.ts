@@ -9,11 +9,18 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(picker).not.toContain("selected.length <= 1");
   });
 
-  it("opens Calendar Log on Grid and keeps month/year scroll", () => {
+  it("opens Calendar Log on List with List, Calendar, Grid tabs", () => {
     const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
+    const calendarLib = readFileSync(resolve(__dirname, "./calendar.ts"), "utf8");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");
+    const historyRedirect = readFileSync(resolve(__dirname, "../app/history/page.tsx"), "utf8");
     expect(history).toContain("resolveCalendarLogView");
-    expect(history).toContain('{ id: "grid", label: "Grid" }');
+    expect(history).toContain("CALENDAR_LOG_VIEW_TABS");
+    expect(history).toContain("DEFAULT_CALENDAR_LOG_VIEW");
+    expect(calendarLib).toContain('["list", "calendar", "grid"]');
+    expect(calendarLib).toContain('DEFAULT_CALENDAR_LOG_VIEW: CalendarLogView = "list"');
+    expect(historyRedirect).toContain("DEFAULT_CALENDAR_LOG_VIEW");
+    expect(historyRedirect).not.toContain('=== "grid"');
     expect(calendar).toContain("calendarHeaderScrollDelta");
     expect(calendar).toContain("calendar-prev-year");
     expect(calendar).toContain("shiftYear");

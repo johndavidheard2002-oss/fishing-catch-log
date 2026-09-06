@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baitSpotsOnMonthDay, baitSpotsWithPins, calendarHeaderScrollDelta, catchesOnMonthDay, DEFAULT_CALENDAR_LOG_VIEW, fullDateLabel, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, resolveCalendarLogView, shiftMonth, shiftYear, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
+import { baitSpotsOnMonthDay, baitSpotsWithPins, calendarHeaderScrollDelta, CALENDAR_LOG_VIEWS, CALENDAR_LOG_VIEW_TABS, catchesOnMonthDay, DEFAULT_CALENDAR_LOG_VIEW, fullDateLabel, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, resolveCalendarLogView, shiftMonth, shiftYear, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
 import { baitOf, catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
@@ -258,11 +258,15 @@ describe("calendar month and year scroll", () => {
     expect(calendarHeaderScrollDelta({ deltaY: 0, deltaX: 0 })).toBeNull();
   });
 
-  it("defaults Calendar Log to Grid", () => {
-    expect(DEFAULT_CALENDAR_LOG_VIEW).toBe("grid");
-    expect(resolveCalendarLogView(null)).toBe("grid");
+  it("defaults Calendar Log to List and keeps List, Calendar, Grid order", () => {
+    expect(DEFAULT_CALENDAR_LOG_VIEW).toBe("list");
+    expect(CALENDAR_LOG_VIEWS).toEqual(["list", "calendar", "grid"]);
+    expect(CALENDAR_LOG_VIEW_TABS.map((tab) => tab.id)).toEqual(["list", "calendar", "grid"]);
+    expect(CALENDAR_LOG_VIEW_TABS.map((tab) => tab.label)).toEqual(["List", "Calendar", "Grid"]);
+    expect(resolveCalendarLogView(null)).toBe("list");
     expect(resolveCalendarLogView("list")).toBe("list");
     expect(resolveCalendarLogView("calendar")).toBe("calendar");
     expect(resolveCalendarLogView("grid")).toBe("grid");
+    expect(resolveCalendarLogView("nope")).toBe("list");
   });
 });

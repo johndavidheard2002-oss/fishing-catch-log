@@ -5,7 +5,13 @@ import { BaitSpotCard, BaitSpotGridCard } from "@/components/BaitSpotCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
-import { parseYearMonth, resolveCalendarLogView, type CalendarLogView } from "@/lib/calendar";
+import {
+  CALENDAR_LOG_VIEW_TABS,
+  DEFAULT_CALENDAR_LOG_VIEW,
+  parseYearMonth,
+  resolveCalendarLogView,
+  type CalendarLogView,
+} from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import { mergeJournalFeed } from "@/lib/journal";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
@@ -17,12 +23,6 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-
-const VIEW_TABS: { id: CalendarLogView; label: string }[] = [
-  { id: "grid", label: "Grid" },
-  { id: "list", label: "List" },
-  { id: "calendar", label: "Calendar" },
-];
 
 function logPath(params: URLSearchParams): string {
   const qs = params.toString();
@@ -127,14 +127,15 @@ export function HistoryClient({
     const next = new URLSearchParams();
     const view = searchParams.get("view");
     const day = searchParams.get("day");
-    if (view === "list" || view === "calendar") next.set("view", view);
+    const resolved = resolveCalendarLogView(view);
+    if (view && resolved !== DEFAULT_CALENDAR_LOG_VIEW) next.set("view", resolved);
     if (day) next.set("day", day);
     router.replace(logPath(next));
   }
 
   function changeView(id: CalendarLogView) {
     const next = new URLSearchParams(searchParams.toString());
-    if (id === "grid") next.delete("view");
+    if (id === DEFAULT_CALENDAR_LOG_VIEW) next.delete("view");
     else next.set("view", id);
     router.replace(logPath(next));
   }
@@ -172,7 +173,7 @@ export function HistoryClient({
       </div>
 
       <div className="journal-card grid grid-cols-3 overflow-hidden rounded-2xl p-1">
-        {VIEW_TABS.map((tab) => (
+        {CALENDAR_LOG_VIEW_TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"

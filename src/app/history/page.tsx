@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { DEFAULT_CALENDAR_LOG_VIEW } from "@/lib/calendar";
 
 export default async function HistoryRedirect({
   searchParams,
@@ -13,7 +14,7 @@ export default async function HistoryRedirect({
       for (const item of value) next.append(key, item);
     }
   }
-  if (next.get("view") === "grid") next.delete("view");
+  if (next.get("view") === DEFAULT_CALENDAR_LOG_VIEW) next.delete("view");
   const qs = next.toString();
   redirect(qs ? `/calendar?${qs}` : "/calendar");
 }
