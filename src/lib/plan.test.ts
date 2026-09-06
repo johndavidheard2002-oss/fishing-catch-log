@@ -231,6 +231,7 @@ describe("bait plan matches", () => {
       habitat: "saltwater-inshore",
       anglerId: "you",
       sharedWithLinked: false,
+      sharedWithBuddyIds: [],
       ownerName: "You",
       createdAt: "2026-08-02T14:00:00.000Z",
       updatedAt: "2026-08-02T14:00:00.000Z",
