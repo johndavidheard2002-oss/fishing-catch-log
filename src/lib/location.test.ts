@@ -4,6 +4,8 @@ import {
   ALLOW_GPS_FALLBACK_OPTIONS,
   ALLOW_GPS_OPTIONS,
   ALLOW_LOCATION_LABEL,
+  OPEN_SETTINGS_LABEL,
+  APP_SETTINGS_URL,
   CONTINUE_WITHOUT_LOCATION_LABEL,
   DROPPING_PIN_HINT,
   GETTING_LOCATION_LABEL,
@@ -115,7 +117,7 @@ describe("liveLocationPromptCopy", () => {
     const prompt = liveLocationPromptCopy("prompt");
     expect(prompt.title).toBe("Allow location");
     expect(prompt.body).toContain("live photo");
-    expect(prompt.body).toContain("pin on the water");
+    expect(prompt.body).toContain("Tap Allow once");
     expect(prompt.body).toContain("You can still move the pin");
     expect(prompt.body.toLowerCase()).not.toContain("buddy");
     expect(ALLOW_LOCATION_LABEL).toBe("Allow location");
@@ -132,19 +134,20 @@ describe("liveLocationPromptCopy", () => {
     expect(liveLocationPromptCopy("asking").body).toContain("Not now");
     expect(liveLocationPromptCopy("asking").body.toLowerCase()).not.toContain("buddy");
     expect(liveLocationPromptCopy("denied").body).toContain("Settings");
-    expect(liveLocationPromptCopy("denied").body).toContain("Safari Websites");
-    expect(liveLocationPromptCopy("denied").body).toContain("Ask or While Using");
-    expect(liveLocationPromptCopy("denied").body).toContain("Private browsing");
+    expect(liveLocationPromptCopy("denied").body).toContain("Private Relay");
+    expect(liveLocationPromptCopy("denied").body).toContain("Tide Mark");
+    expect(liveLocationPromptCopy("denied").body).toContain("While Using");
+    expect(liveLocationPromptCopy("denied").body).toContain("Open Settings");
     expect(liveLocationPromptCopy("denied").body).not.toContain("Settings → Safari → Location");
     expect(liveLocationPromptCopy("prompt").body).toContain("Location Services");
-    expect(liveLocationPromptCopy("prompt").body).toContain("Safari Websites");
+    expect(liveLocationPromptCopy("prompt").body).toContain("Private Relay");
     expect(liveLocationPromptCopy("prompt").body).toBe(
       formatLocationServicesSetupHint(
-        "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
+        "Tap Allow once so a live photo can drop the pin. This phone remembers it. You can still move the pin.",
       ),
     );
     expect(liveLocationPromptCopy("prompt").body).toContain(formatNumberedLocationSteps());
-    expect(liveLocationPromptCopy("prompt").body).toContain("1. Settings → Privacy & Security");
+    expect(liveLocationPromptCopy("prompt").body).toContain("1. Private Relay OFF");
     expect(liveLocationPromptCopy("prompt").body).not.toContain("Settings → Safari → Location");
   });
 });
@@ -861,34 +864,36 @@ describe("LOCATION_OFF_PIN_HINT", () => {
 });
 
 describe("blocked location recovery copy", () => {
-  it("uses numbered Privacy → Location Services → Safari Websites steps", () => {
+  it("uses numbered Private Relay + Tide Mark While Using steps", () => {
     expect(LOCATION_DENIED_SETTINGS_STEPS).toEqual([
-      "Settings → Privacy & Security → Location Services → On",
-      "Scroll to Safari Websites → Ask or While Using (not Never)",
-      "Avoid Private browsing, then tap Turn location on again",
+      "Private Relay OFF — Settings → Apple ID → iCloud → Private Relay",
+      "Location Services ON — Settings → Privacy & Security → Location Services",
+      "Tide Mark → While Using, and Precise if shown",
+      "If you Allowed while Relay was on: delete the app, turn Relay off, reinstall, Allow again",
+      "First fix works outdoors under a clear sky",
+      "Stuck? Tap Open Settings in this app",
     ]);
     expect(formatLocationDeniedSettingsHint()).toBe(LOCATION_DENIED_SETTINGS_HINT);
     expect(LOCATION_DENIED_SETTINGS_HINT.startsWith("Location is blocked.")).toBe(true);
-    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("1. Settings → Privacy & Security → Location Services → On");
-    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("2. Scroll to Safari Websites");
-    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("Ask or While Using");
-    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("3. Avoid Private browsing");
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("1. Private Relay OFF");
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("2. Location Services ON");
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("Tide Mark → While Using");
+    expect(LOCATION_DENIED_SETTINGS_HINT).toContain("Open Settings");
     expect(LOCATION_DENIED_SETTINGS_HINT).not.toContain("Settings → Safari → Location");
     expect(LOCATION_DENIED_SETTINGS_HINT).not.toContain("Allow this site");
-    expect(LOCATION_DENIED_SETTINGS_HINT.length).toBeLessThan(280);
-    expect(ALLOW_LOCATION_SERVICES_HINT).toContain("Location Services → Safari Websites");
+    expect(ALLOW_LOCATION_SERVICES_HINT).toContain("Private Relay");
+    expect(ALLOW_LOCATION_SERVICES_HINT).toContain("Tide Mark → While Using");
     expect(formatNumberedLocationSteps()).toBe(
-      [
-        "1. Settings → Privacy & Security → Location Services → On",
-        "2. Scroll to Safari Websites → Ask or While Using (not Never)",
-        "3. Avoid Private browsing, then tap Turn location on again",
-      ].join("\n"),
+      LOCATION_DENIED_SETTINGS_STEPS.map((step, index) => `${index + 1}. ${step}`).join("\n"),
     );
     expect(formatLocationServicesSetupHint()).toBe(
       `${LOCATION_SERVICES_SETUP_BODY}\n${formatNumberedLocationSteps()}`,
     );
-    expect(LOCATION_SERVICES_SETUP_BODY).toContain("Safari Websites");
+    expect(LOCATION_SERVICES_SETUP_BODY).toContain("Private Relay");
+    expect(LOCATION_SERVICES_SETUP_BODY).toContain("Tide Mark → While Using");
     expect(LOCATION_SERVICES_SETUP_BODY).not.toContain("Settings → Safari → Location");
+    expect(OPEN_SETTINGS_LABEL).toBe("Open Settings");
+    expect(APP_SETTINGS_URL).toBe("app-settings:");
   });
 
   it("prefers the private-browsing hint over generic blocked copy", () => {

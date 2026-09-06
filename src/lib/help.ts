@@ -22,10 +22,13 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: "Location / map pin won’t drop",
     steps: [
-      "On iPhone: Settings → Privacy & Security → Location Services → On.",
-      "Scroll to Safari Websites → Ask or While Using — not Never.",
-      "Avoid Private browsing. Then open Log and tap Turn location on again.",
-      "Safari → Location Ask/Allow alone is not enough — Location Services must list Safari Websites.",
+      "Private Relay OFF — Settings → Apple ID → iCloud → Private Relay.",
+      "Location Services ON — Settings → Privacy & Security → Location Services.",
+      "Tide Mark → While Using, and Precise if shown.",
+      "If you Allowed while Relay was on: delete the app, Relay off, reinstall, Allow again.",
+      "First fix works outdoors under a clear sky.",
+      "Stuck? Tap Open Settings in this app, then Allow location again.",
+      "Safari (browser): Location Services → Safari Websites → Ask or While Using — not Never.",
     ],
   },
   {
@@ -76,10 +79,10 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Share with a friend",
     steps: [
       "On Home, open More, then Linked friends. Enter their invite code and tap Link, or copy yours.",
-      "Linking shares nothing. Never public. They see a spot only after you tap Share or Select spots to share.",
-      "Open a catch photo and tap Share next to Edit. It becomes Shared — that spot is what they can see.",
+      "Linking shares nothing. Never public. Pick which friend sees each spot — not a broadcast to every friend.",
+      "Open a catch photo and tap Share next to Edit. Choose the friend. That person only sees that spot.",
       "On Calendar Log, open a day and use Select spots to share for several pins at once.",
-      "On Calendar Log, your friend checks Include shared from linked friends to see your shared spots.",
+      "On Calendar Log, your friend checks Include shared from linked friends to see spots you shared with them.",
     ],
   },
   {

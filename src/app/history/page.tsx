@@ -13,7 +13,7 @@ export default async function HistoryRedirect({
       for (const item of value) next.append(key, item);
     }
   }
-  if (next.get("view") === "calendar") next.delete("view");
+  if (next.get("view") === "grid") next.delete("view");
   const qs = next.toString();
   redirect(qs ? `/calendar?${qs}` : "/calendar");
 }

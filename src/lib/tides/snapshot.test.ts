@@ -10,11 +10,11 @@ import {
 } from "./snapshot";
 
 describe("tidesApplyToHabitat", () => {
-  it("only looks up tides for saltwater", () => {
+  it("looks up tides for saltwater and duck, not inland freshwater", () => {
     expect(tidesApplyToHabitat("freshwater")).toBe(false);
     expect(tidesApplyToHabitat("saltwater-inshore")).toBe(true);
     expect(tidesApplyToHabitat("saltwater-offshore")).toBe(true);
-    expect(tidesApplyToHabitat("duck")).toBe(false);
+    expect(tidesApplyToHabitat("duck")).toBe(true);
     expect(tidesApplyToHabitat(null)).toBe(false);
   });
 });
@@ -32,6 +32,18 @@ describe("getTideSnapshot", () => {
     expect(snap.heightFt).toBeNull();
     expect(snap.source).toBe("none");
     expect(snap.note).toMatch(/freshwater/i);
+  });
+
+  it("looks up tides for duck the same as saltwater", async () => {
+    const snap = await getTideSnapshot({
+      latitude: null,
+      longitude: null,
+      at: new Date("2025-07-12T12:00:00.000Z"),
+      habitat: "duck",
+    });
+    expect(snap.applies).toBe(true);
+    expect(snap.note).toMatch(/pin/i);
+    expect(snap.note).not.toMatch(/not used for duck/i);
   });
 
   it("asks for a pin instead of inventing a station", async () => {
@@ -106,6 +118,17 @@ describe("tideWeatherBits", () => {
         tideHeightFt: 1.2,
       }),
     ).toEqual([]);
+  });
+
+  it("includes stage and next extremes on duck", () => {
+    const bits = tideWeatherBits({
+      habitat: "duck",
+      tide: "incoming",
+      tideHeightFt: 1.2,
+      tideDetail: "High 4:00 PM 2.8 ft · Low 10:00 PM 0.2 ft",
+    });
+    expect(bits[0]).toMatch(/Incoming 1.2 ft/);
+    expect(bits[1]).toContain("High");
   });
 
   it("includes stage and next extremes on saltwater", () => {

@@ -21,17 +21,19 @@ export async function POST(request: NextRequest) {
     shared?: unknown;
     catchIds?: unknown;
     baitSpotIds?: unknown;
+    buddyIds?: unknown;
   };
   const shared = body.shared === true;
   const day = typeof body.day === "string" ? body.day : "";
   const catchIds = idList(body.catchIds);
   const baitSpotIds = idList(body.baitSpotIds);
+  const buddyIds = Array.isArray(body.buddyIds) ? idList(body.buddyIds) : undefined;
 
   if (day) {
     if (!isCalendarDayKey(day)) {
       return jsonWithViewer({ error: "Pick a calendar day." }, viewerId, { status: 400 });
     }
-    const result = await setSharedForDay({ anglerId: viewerId, day, shared });
+    const result = await setSharedForDay({ anglerId: viewerId, day, shared, buddyIds });
     return jsonWithViewer({ ok: true, day, shared, ...result }, viewerId);
   }
 
@@ -39,8 +41,8 @@ export async function POST(request: NextRequest) {
     return jsonWithViewer({ error: "Pick spots to share." }, viewerId, { status: 400 });
   }
 
-  const catches = await setSharedForCatchIds({ anglerId: viewerId, ids: catchIds, shared });
-  const bait = await setSharedForBaitIds({ anglerId: viewerId, ids: baitSpotIds, shared });
+  const catches = await setSharedForCatchIds({ anglerId: viewerId, ids: catchIds, shared, buddyIds });
+  const bait = await setSharedForBaitIds({ anglerId: viewerId, ids: baitSpotIds, shared, buddyIds });
   return jsonWithViewer(
     { ok: true, shared, updated: catches.updated + bait.updated, catchUpdated: catches.updated, baitUpdated: bait.updated },
     viewerId,

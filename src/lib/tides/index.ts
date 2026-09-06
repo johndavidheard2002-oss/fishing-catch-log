@@ -76,11 +76,7 @@ export async function getTideSnapshot(args: {
   habitat?: Habitat | string | null;
 }): Promise<TideSnapshot> {
   if (!tidesApplyToHabitat(args.habitat)) {
-    const note =
-      args.habitat === "duck"
-        ? "Tides are not used for duck logs."
-        : "Tides do not apply to this freshwater.";
-    return emptyTideSnapshot(false, note);
+    return emptyTideSnapshot(false, "Tides do not apply to this freshwater.");
   }
   if (args.latitude == null || args.longitude == null) {
     return emptyTideSnapshot(true, "Pin the water to look up tide.");

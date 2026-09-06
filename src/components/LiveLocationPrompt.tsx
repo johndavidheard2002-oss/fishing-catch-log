@@ -4,6 +4,8 @@ import {
   ALLOW_LOCATION_LABEL,
   CONTINUE_WITHOUT_LOCATION_LABEL,
   GETTING_LOCATION_LABEL,
+  OPEN_SETTINGS_LABEL,
+  openAppSettings,
   skipLocationLabel,
   liveLocationPromptCopy,
   type GeolocationPermissionState,
@@ -64,9 +66,18 @@ export function LiveLocationPrompt({
             {ALLOW_LOCATION_LABEL}
           </button>
           {status === "unavailable" || status === "denied" ? (
-            <span className="self-center text-sm text-ink-muted">
-              {status === "denied" ? "Then tap Allow location again." : "Or drop a pin by hand."}
-            </span>
+            status === "denied" ? (
+              <button
+                type="button"
+                data-testid="open-settings"
+                onClick={() => openAppSettings()}
+                className="rounded-xl border border-line bg-paper py-3 text-base font-semibold text-ink"
+              >
+                {OPEN_SETTINGS_LABEL}
+              </button>
+            ) : (
+              <span className="self-center text-sm text-ink-muted">Or drop a pin by hand.</span>
+            )
           ) : (
             <button
               type="button"

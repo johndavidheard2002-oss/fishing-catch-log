@@ -5,11 +5,13 @@ import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { APP_LOGO_SRC, APP_SLUG } from "@/lib/brand";
 import {
   GETTING_LOCATION_LABEL,
+  OPEN_SETTINGS_LABEL,
   TURN_LOCATION_ON_LABEL,
   handleTurnLocationOnClick,
   isBlockedLocationReason,
   liveCameraTapAction,
   logLocationReason,
+  openAppSettings,
   shouldShowTurnLocationOn,
   type DeviceGpsAttempt,
   type GeolocationPermissionState,
@@ -216,6 +218,17 @@ export function PhotoCapture({
           >
             {waiting ? GETTING_LOCATION_LABEL : TURN_LOCATION_ON_LABEL}
           </button>
+          {locationStatus === "denied" && !waiting ? (
+            <button
+              type="button"
+              data-testid="open-settings"
+              data-no-tab-swipe
+              onClick={() => openAppSettings()}
+              className="relative z-20 w-full max-w-full rounded-xl border border-line bg-card py-3 text-base font-semibold text-ink"
+            >
+              {OPEN_SETTINGS_LABEL}
+            </button>
+          ) : null}
         </div>
       ) : locationReason ? (
         <p data-testid="live-location-reason" className="px-3 pb-3 text-xs break-words whitespace-pre-line text-ink-muted">

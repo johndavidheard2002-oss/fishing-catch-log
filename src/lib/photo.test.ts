@@ -68,6 +68,23 @@ describe("weatherLine", () => {
     expect(line).toContain("High 4:00 PM");
   });
 
+  it("includes tide on duck the same as saltwater", () => {
+    const line = weatherLine(
+      catchOf({
+        id: "duck-1",
+        species: "Pintail",
+        habitat: "duck",
+        temperatureF: 54,
+        weatherCondition: "cloudy",
+        tide: "incoming",
+        tideHeightFt: 1.4,
+        tideDetail: "High 6:00 AM 2.1 ft",
+      }),
+    );
+    expect(line).toContain("Incoming 1.4 ft");
+    expect(line).toContain("High 6:00 AM");
+  });
+
   it("omits tide on freshwater even if a stage was stored", () => {
     const line = weatherLine(
       catchOf({

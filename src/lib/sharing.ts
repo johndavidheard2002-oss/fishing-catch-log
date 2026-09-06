@@ -5,20 +5,36 @@ import { personalPhotoSrc } from "./photo";
 import { speciesLabel } from "./species";
 import type { BaitSpot, CatchRecord } from "./types";
 
-/** A catch is visible to the viewer only if they own it, or it was shared with a linked buddy. */
+/** A catch is visible to the viewer only if they own it, or it was shared with them. */
 export function isCatchVisibleToViewer(args: {
   anglerId: string;
   sharedWithLinked: boolean;
   viewerId: string;
   includeShared: boolean;
   linkedBuddyIds: string[];
+  sharedWithBuddyIds?: string[];
+  sharedWithViewer?: boolean;
 }): boolean {
   if (args.anglerId === args.viewerId) return true;
-  return (
-    args.includeShared &&
-    args.sharedWithLinked &&
-    args.linkedBuddyIds.includes(args.anglerId)
-  );
+  if (!args.includeShared) return false;
+  if (!args.linkedBuddyIds.includes(args.anglerId)) return false;
+  if (args.sharedWithLinked) return true;
+  if (args.sharedWithViewer) return true;
+  return Boolean(args.sharedWithBuddyIds?.includes(args.viewerId));
+}
+
+/** Broadcast-to-all when buddyIds is omitted; otherwise only those friends. */
+export function resolveShareTargets(args: {
+  shared: boolean;
+  buddyIds?: string[] | null;
+  linkedBuddyIds: string[];
+}): { sharedWithLinked: boolean; buddyIds: string[] } {
+  if (!args.shared) return { sharedWithLinked: false, buddyIds: [] };
+  const picked = (args.buddyIds ?? []).filter((id) => args.linkedBuddyIds.includes(id));
+  if (args.buddyIds == null) {
+    return { sharedWithLinked: true, buddyIds: [] };
+  }
+  return { sharedWithLinked: false, buddyIds: picked };
 }
 
 export type DayShareSpot = {
@@ -74,7 +90,7 @@ export function dayShareSpots(args: {
     thumbSrc: firstPersonalThumb(group.catches.map((c) => c.photoPath)),
     catchIds: group.catches.map((c) => c.id),
     baitSpotIds: [],
-    shared: group.catches.every((c) => c.sharedWithLinked),
+    shared: group.catches.every((c) => c.sharedWithLinked || (c.sharedWithBuddyIds?.length ?? 0) > 0),
   }));
   const baitRows: DayShareSpot[] = groupBaitSpots(mineBait).map((group) => {
     const baitLabel = group.baitTypes.length ? group.baitTypes.join(", ") : "Bait";
@@ -90,7 +106,7 @@ export function dayShareSpots(args: {
       thumbSrc: firstPersonalThumb(group.spots.map((s) => s.photoPath)),
       catchIds: [],
       baitSpotIds: group.spots.map((s) => s.id),
-      shared: group.spots.every((s) => s.sharedWithLinked),
+      shared: group.spots.every((s) => s.sharedWithLinked || (s.sharedWithBuddyIds?.length ?? 0) > 0),
     };
   });
   return [...catchRows, ...baitRows];

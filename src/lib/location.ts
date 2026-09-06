@@ -60,9 +60,12 @@ export const DROPPING_PIN_HINT = "Dropping pin from this phone…";
 export const GETTING_LOCATION_LABEL = "Getting location…";
 export const PINNED_FROM_PHONE_HINT = "Pinned from this phone";
 export const LOCATION_DENIED_SETTINGS_STEPS = [
-  "Settings → Privacy & Security → Location Services → On",
-  "Scroll to Safari Websites → Ask or While Using (not Never)",
-  "Avoid Private browsing, then tap Turn location on again",
+  "Private Relay OFF — Settings → Apple ID → iCloud → Private Relay",
+  "Location Services ON — Settings → Privacy & Security → Location Services",
+  "Tide Mark → While Using, and Precise if shown",
+  "If you Allowed while Relay was on: delete the app, turn Relay off, reinstall, Allow again",
+  "First fix works outdoors under a clear sky",
+  "Stuck? Tap Open Settings in this app",
 ] as const;
 
 export function formatNumberedLocationSteps(
@@ -77,15 +80,27 @@ export function formatLocationDeniedSettingsHint(
   return ["Location is blocked.", formatNumberedLocationSteps(steps)].join("\n");
 }
 
-/** Numbered iPhone path — Location Services → Safari Websites, not Settings → Safari → Location. */
+/** Numbered iPhone path — Private Relay off, then Tide Mark While Using. */
 export const LOCATION_DENIED_SETTINGS_HINT = formatLocationDeniedSettingsHint();
 export const LOCATION_PRIVATE_BROWSING_HINT =
   "Private browsing blocks location — open this site in a normal Safari tab.";
 export const ALLOW_LOCATION_SERVICES_HINT =
-  "If Allow doesn’t stick, check Location Services → Safari Websites.";
+  "If Allow doesn’t stick, turn Private Relay off, then Tide Mark → While Using.";
 export const LOCATION_SERVICES_SETUP_TITLE = "Location on iPhone";
 export const LOCATION_SERVICES_SETUP_BODY =
-  "Before you log a catch, set Location Services → Safari Websites to Ask or While Using. Safari → Location Ask/Allow alone is not enough.";
+  "Tap Allow once. Turn Private Relay off, then Location Services → Tide Mark → While Using (Precise if shown).";
+export const OPEN_SETTINGS_LABEL = "Open Settings";
+export const APP_SETTINGS_URL = "app-settings:";
+
+export function openAppSettings(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    window.location.assign(APP_SETTINGS_URL);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export function formatLocationServicesSetupHint(
   lead: string = LOCATION_SERVICES_SETUP_BODY,
@@ -706,7 +721,7 @@ export function liveLocationPromptCopy(
   return {
     title: "Allow location",
     body: formatLocationServicesSetupHint(
-      "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin.",
+      "Tap Allow once so a live photo can drop the pin. This phone remembers it. You can still move the pin.",
     ),
   };
 }

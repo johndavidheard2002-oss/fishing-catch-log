@@ -13,6 +13,7 @@ import { MOON_PHASES, moonForDate } from "@/lib/moon";
 import { inHgToMb, mbToInHg, PRESSURE_TRENDS, pressureTrendLabel } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { CONDITION_LABELS } from "@/lib/labels";
+import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { compressImage, photoSrc } from "@/lib/photo";
 import {
   ALLOW_GPS_BUDGET_MS,
@@ -47,7 +48,7 @@ import {
   type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
-import { readPhotoGps } from "@/lib/photo-gps";
+import { missingPhotoExifNote, readPhotoGps } from "@/lib/photo-gps";
 import { primarySpecies } from "@/lib/species";
 import {
   alignCountDrafts,
@@ -223,6 +224,7 @@ export function CatchForm({
   importedPhotoLon = null,
   afterSave = "detail",
   focusLocation = false,
+  onSaved,
 }: {
   mode: "create" | "edit";
   initial?: CatchRecord;
@@ -233,6 +235,7 @@ export function CatchForm({
   importedPhotoLon?: number | null;
   afterSave?: "detail" | "calendar";
   focusLocation?: boolean;
+  onSaved?: (record: CatchRecord) => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => {
@@ -273,6 +276,8 @@ export function CatchForm({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
+  const [photoExifNote, setPhotoExifNote] = useState<string | null>(null);
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
   const [moonLocked, setMoonLocked] = useState(false);
   const [tideLocked, setTideLocked] = useState(false);
@@ -515,6 +520,12 @@ export function CatchForm({
         CreateDate?: string | Date;
       } | undefined;
       const stamp = parseExifStamp(exif?.DateTimeOriginal ?? exif?.CreateDate);
+      setPhotoExifNote(
+        missingPhotoExifNote({
+          hasDateTime: Boolean(stamp),
+          hasLocation: Boolean(photoGps),
+        }),
+      );
       if (stamp) {
         const caughtAt = datetimeLocalFromDate(stamp);
         patch({
@@ -523,7 +534,14 @@ export function CatchForm({
         });
       }
     } catch {
-      pendingPhotoGpsRef.current = null;
+      pendingPhotoGpsRef.current = pendingPhotoGpsRef.current;
+      setPhotoExifNote((current) =>
+        current ??
+        missingPhotoExifNote({
+          hasDateTime: false,
+          hasLocation: Boolean(pendingPhotoGpsRef.current),
+        }),
+      );
     }
     const compressed = await compressImage(file);
     const nextFile = new File([compressed], file.name.replace(/\.\w+$/, ".jpg"), {
@@ -698,6 +716,11 @@ export function CatchForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
+      if (mode === "edit" && data.catch) {
+        setSavedNotice(true);
+        onSaved?.(data.catch);
+        if (onSaved) return;
+      }
       const fromScan = Boolean(importedPhotoPath && pastMode);
       if (fromScan) {
         removeScanQueueByPhotoPath(photoPath ?? importedPhotoPath ?? "");
@@ -783,6 +806,24 @@ export function CatchForm({
             </button>
           </div>
         </div>
+      ) : null}
+
+      {savedNotice ? (
+        <p
+          data-testid="changes-saved"
+          className="rounded-2xl border border-teal bg-teal/10 px-3 py-2 text-sm font-semibold text-teal"
+        >
+          {CHANGES_SAVED_LABEL}
+        </p>
+      ) : null}
+
+      {photoExifNote ? (
+        <p
+          data-testid="missing-exif-note"
+          className="rounded-2xl border border-copper bg-paper-deep px-3 py-2 text-sm font-medium text-ink"
+        >
+          {photoExifNote}
+        </p>
       ) : null}
 
       {copperPinHint ? (

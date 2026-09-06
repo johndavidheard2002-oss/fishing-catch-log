@@ -7,7 +7,8 @@ import { baitSpots } from "./schema";
 import { parseBaitTypes, parseBaitTypesJson } from "../bait";
 import { DEFAULT_HABITAT, isHabitat } from "../habitat";
 import { moonForDate } from "../moon";
-import { isCatchVisibleToViewer } from "../sharing";
+import { isCatchVisibleToViewer, resolveShareTargets } from "../sharing";
+import { clearRecordShares, recordIdsSharedWith, setRecordShares, sharesByRecord } from "./shares";
 import { seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "../time";
 import type { BaitSpot, BaitSpotInput, Habitat, Season, TimeOfDay, WeatherCondition } from "../types";
 
@@ -16,7 +17,7 @@ function nowIso(): string {
 }
 
 function asHabitat(value: string | null | undefined): Habitat {
-  if (value && isHabitat(value) && value !== "freshwater" && value !== "duck") return value;
+  if (value && isHabitat(value) && value !== "freshwater") return value;
   return DEFAULT_HABITAT;
 }
 
@@ -53,6 +54,7 @@ function mapRow(
     habitat: asHabitat(row.habitat),
     anglerId,
     sharedWithLinked: Boolean(row.sharedWithLinked),
+    sharedWithBuddyIds: [],
     ownerName: ownerNameById.get(anglerId) ?? "Angler",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -88,9 +90,12 @@ export async function listBaitSpots(opts: ListBaitOptions = {}): Promise<BaitSpo
   const db = await ensureDb();
   const rows = await allRows(db.select().from(baitSpots).orderBy(desc(baitSpots.loggedAt)));
   const names = await ownerNames(rows.map((r) => r.anglerId));
-  const records = rows.map((row) => mapRow(row, names));
+  const records = await attachBaitShares(rows.map((row) => mapRow(row, names)));
   if (!opts.viewerId) return records;
   const buddyIds = opts.includeShared ? await linkedBuddyIds(opts.viewerId) : [];
+  const sharedWithViewer = opts.includeShared
+    ? await recordIdsSharedWith("bait", opts.viewerId)
+    : new Set<string>();
   return records.filter((record) =>
     isCatchVisibleToViewer({
       anglerId: record.anglerId,
@@ -98,24 +103,41 @@ export async function listBaitSpots(opts: ListBaitOptions = {}): Promise<BaitSpo
       viewerId: opts.viewerId!,
       includeShared: Boolean(opts.includeShared),
       linkedBuddyIds: buddyIds,
+      sharedWithBuddyIds: record.sharedWithBuddyIds,
+      sharedWithViewer: sharedWithViewer.has(record.id),
     }),
   );
+}
+
+async function attachBaitShares(records: BaitSpot[]): Promise<BaitSpot[]> {
+  const shares = await sharesByRecord(
+    "bait",
+    records.map((record) => record.id),
+  );
+  return records.map((record) => ({
+    ...record,
+    sharedWithBuddyIds: shares.get(record.id) ?? [],
+  }));
 }
 
 export async function getBaitSpot(id: string): Promise<BaitSpot | null> {
   const db = await ensureDb();
   const row = await getRow(db.select().from(baitSpots).where(eq(baitSpots.id, id)));
   if (!row) return null;
-  return mapRow(row, await ownerNames([row.anglerId]));
+  const [record] = await attachBaitShares([mapRow(row, await ownerNames([row.anglerId]))]);
+  return record ?? null;
 }
 
 export async function canViewBaitSpot(record: BaitSpot, viewerId: string): Promise<boolean> {
+  const sharedIds = await recordIdsSharedWith("bait", viewerId);
   return isCatchVisibleToViewer({
     anglerId: record.anglerId,
     sharedWithLinked: record.sharedWithLinked,
     viewerId,
     includeShared: true,
     linkedBuddyIds: await linkedBuddyIds(viewerId),
+    sharedWithBuddyIds: record.sharedWithBuddyIds,
+    sharedWithViewer: sharedIds.has(record.id),
   });
 }
 
@@ -264,13 +286,30 @@ export async function setSharedForBaitIds(args: {
   anglerId: string;
   ids: string[];
   shared: boolean;
+  buddyIds?: string[] | null;
 }): Promise<{ updated: number }> {
   const unique = [...new Set(args.ids.filter(Boolean))];
+  const linked = await linkedBuddyIds(args.anglerId);
+  const target = resolveShareTargets({
+    shared: args.shared,
+    buddyIds: args.buddyIds,
+    linkedBuddyIds: linked,
+  });
   let updated = 0;
   for (const id of unique) {
     const record = await getBaitSpot(id);
     if (!record || record.anglerId !== args.anglerId) continue;
-    await setBaitSpotShared(id, args.shared);
+    await setBaitSpotShared(id, target.sharedWithLinked);
+    if (target.buddyIds.length) {
+      await setRecordShares({
+        kind: "bait",
+        recordId: id,
+        ownerId: args.anglerId,
+        buddyIds: target.buddyIds,
+      });
+    } else {
+      await clearRecordShares("bait", id);
+    }
     updated += 1;
   }
   return { updated };

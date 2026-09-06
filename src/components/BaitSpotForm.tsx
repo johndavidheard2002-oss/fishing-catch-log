@@ -6,7 +6,8 @@ import { AreaNamePicker } from "./AreaNamePicker";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture } from "./PhotoCapture";
 import { BAIT_CATALOG } from "@/lib/bait";
-import { DEFAULT_HABITAT, HABITAT_LABELS, isSaltwaterHabitat, type Habitat } from "@/lib/habitat";
+import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
+import { DEFAULT_HABITAT, HABITAT_LABELS, isDuckHabitat, isSaltwaterHabitat, type Habitat } from "@/lib/habitat";
 import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { inHgToMb, mbToInHg } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
@@ -82,7 +83,10 @@ function fromRecord(record: BaitSpot): FormState {
     timeOfDay: record.timeOfDay,
     season: record.season,
     notes: record.notes ?? "",
-    habitat: isSaltwaterHabitat(record.habitat) ? record.habitat : DEFAULT_HABITAT,
+    habitat:
+      isSaltwaterHabitat(record.habitat) || isDuckHabitat(record.habitat)
+        ? record.habitat
+        : DEFAULT_HABITAT,
     temperatureF: record.temperatureF != null ? String(record.temperatureF) : "",
     weatherCondition: record.weatherCondition ?? "",
     windSpeedMph: record.windSpeedMph != null ? String(record.windSpeedMph) : "",
@@ -101,14 +105,18 @@ function fromRecord(record: BaitSpot): FormState {
   };
 }
 
-const SALT_OPTIONS: Habitat[] = ["saltwater-inshore", "saltwater-offshore"];
+const BAIT_HABITATS: Habitat[] = ["saltwater-inshore", "saltwater-offshore", "duck"];
 
 export function BaitSpotForm({
   mode,
   initial,
+  focusLocation = false,
+  onSaved,
 }: {
   mode: "create" | "edit";
   initial?: BaitSpot;
+  focusLocation?: boolean;
+  onSaved?: (spot: BaitSpot) => void;
 }) {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(() => (initial ? fromRecord(initial) : emptyForm()));
@@ -120,8 +128,14 @@ export function BaitSpotForm({
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedNotice, setSavedNotice] = useState(false);
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!focusLocation) return;
+    document.getElementById("bait-location")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusLocation]);
 
   useEffect(() => {
     fetch("/api/buddies")
@@ -247,6 +261,11 @@ export function BaitSpotForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
+      if (mode === "edit" && data.spot) {
+        setSavedNotice(true);
+        onSaved?.(data.spot);
+        if (onSaved) return;
+      }
       router.push("/spots?kind=bait");
       router.refresh();
     } catch (err) {
@@ -262,6 +281,14 @@ export function BaitSpotForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      {savedNotice ? (
+        <p
+          data-testid="changes-saved"
+          className="rounded-2xl border border-teal bg-teal/10 px-3 py-2 text-sm font-semibold text-teal"
+        >
+          {CHANGES_SAVED_LABEL}
+        </p>
+      ) : null}
       <PhotoCapture
         previewUrl={previewUrl}
         onFile={(file) => {
@@ -287,6 +314,7 @@ export function BaitSpotForm({
           Tap the satellite map to pin where you got bait.
         </div>
       ) : null}
+      <div id="bait-location" data-testid="bait-location">
       <MapPicker
         latitude={catchLat}
         longitude={catchLon}
@@ -307,6 +335,7 @@ export function BaitSpotForm({
             .catch(() => {});
         }}
       />
+      </div>
 
       <div>
         <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Bait type</p>
@@ -351,7 +380,7 @@ export function BaitSpotForm({
       <div>
         <p className="on-wash-chip mb-1.5 w-fit text-sm font-semibold">Water</p>
         <div className="grid grid-cols-2 gap-2">
-          {SALT_OPTIONS.map((id) => (
+          {BAIT_HABITATS.map((id) => (
             <button
               key={id}
               type="button"

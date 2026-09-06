@@ -118,3 +118,13 @@ export const baitSpots = sqliteTable("bait_spots", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** Per-friend share of one catch or bait pin. Recipients never see each other’s spots. */
+export const spotShares = sqliteTable("spot_shares", {
+  id: text("id").primaryKey(),
+  ownerId: text("owner_id").notNull(),
+  kind: text("kind").notNull(),
+  recordId: text("record_id").notNull(),
+  buddyId: text("buddy_id").notNull(),
+  createdAt: text("created_at").notNull(),
+});

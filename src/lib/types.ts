@@ -89,6 +89,7 @@ export type CatchRecord = {
   speciesCounts: { species: string; count: number }[];
   anglerId: string;
   sharedWithLinked: boolean;
+  sharedWithBuddyIds: string[];
   ownerName: string;
   createdAt: string;
   updatedAt: string;
@@ -338,6 +339,7 @@ export type BaitSpot = {
   habitat: Habitat;
   anglerId: string;
   sharedWithLinked: boolean;
+  sharedWithBuddyIds: string[];
   ownerName: string;
   createdAt: string;
   updatedAt: string;
