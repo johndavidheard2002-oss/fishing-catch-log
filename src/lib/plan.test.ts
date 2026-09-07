@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { groupSpots } from "./filters";
 import {
   baitPlanHeadline,
+  collapseBaitMatchesByPlace,
+  dedupeBaitSuggestionsByPlace,
   distinctPlanPlaces,
   forecastWindowWhenLabel,
   isPositiveCatch,
@@ -12,12 +14,14 @@ import {
   planWhyChips,
   scoreWindowAgainstBait,
   scoreWindowAgainstCatch,
+  splitBaitSuggestionByPlace,
   splitPlanSuggestionByPlace,
   suggestionStrength,
   suggestBaitFromWindows,
   suggestFromWindows,
+  uniqueNotesByPlace,
 } from "./plan";
-import { catchOf } from "./testing";
+import { baitOf, catchOf } from "./testing";
 import { formatTimeOnly } from "./time";
 import type { BaitSpot, CatchRecord, ForecastWindow } from "./types";
 
@@ -417,6 +421,173 @@ describe("bait plan matches", () => {
     expect(suggestions[0]?.placeName).toBe("Haulover Canal");
     expect(suggestions[0]?.baitTypes).toEqual(["Shrimp"]);
     expect(suggestions[0]?.strength).toBe("very-strong");
+  });
+
+  it("emits one card and one match for the same bait hole across windows and photos", () => {
+    const first = baitOf({
+      id: "photo-1",
+      photoPath: "/uploads/bait-1.jpg",
+      placeName: "Haulover Canal",
+      timeOfDay: "morning",
+      loggedAt: "2026-08-01T12:00:00.000Z",
+    });
+    const second = baitOf({
+      id: "photo-2",
+      photoPath: "/uploads/bait-2.jpg",
+      placeName: "Haulover Canal",
+      timeOfDay: "afternoon",
+      loggedAt: "2026-08-02T16:00:00.000Z",
+    });
+    const third = baitOf({
+      id: "photo-3",
+      photoPath: "/uploads/bait-3.jpg",
+      placeName: "haulover  canal",
+      timeOfDay: "dusk",
+      loggedAt: "2026-08-03T23:00:00.000Z",
+    });
+    const group = {
+      key: "bait:28.735,-80.754",
+      placeName: "Haulover Canal",
+      latitude: 28.735,
+      longitude: -80.754,
+      visitCount: 3,
+      baitTypes: ["Shrimp"],
+      lastLoggedAt: third.loggedAt,
+      typicalCondition: "clear" as const,
+      typicalTime: "afternoon" as const,
+      avgTempF: 82,
+      spots: [first, second, third],
+    };
+    const matching = {
+      latitude: 28.735,
+      longitude: -80.754,
+      temperatureF: 81,
+      weatherCondition: "clear" as const,
+      tide: "incoming" as const,
+      tideHeightFt: 1.3,
+    };
+    const suggestions = suggestBaitFromWindows({
+      groups: [group],
+      windowsBySpotKey: {
+        "bait:28.735,-80.754": [
+          windowOf({ ...matching, date: "2026-09-03", timeOfDay: "morning", at: "2026-09-03T12:00:00.000Z" }),
+          windowOf({ ...matching, date: "2026-09-03", timeOfDay: "afternoon", at: "2026-09-03T18:00:00.000Z" }),
+          windowOf({ ...matching, date: "2026-09-03", timeOfDay: "dusk", at: "2026-09-03T23:30:00.000Z" }),
+        ],
+      },
+    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].placeName).toBe("Haulover Canal");
+    expect(suggestions[0].matches).toHaveLength(1);
+    expect(suggestions[0].matches[0].baitSpot.placeName).toMatch(/haulover/i);
+  });
+});
+
+describe("dedupeBaitSuggestionsByPlace", () => {
+  it("keeps the best card when the same bait is split across windows", () => {
+    const hole = baitOf({ id: "hole", placeName: "Haulover Canal" });
+    const morning = {
+      id: "bait|hole|haulover canal|2026-09-03|morning",
+      spotKey: "bait:28.735,-80.754",
+      placeName: "Haulover Canal",
+      baitTypes: ["Shrimp"],
+      latitude: 28.735,
+      longitude: -80.754,
+      window: windowOf({ timeOfDay: "morning", at: "2026-09-03T12:00:00.000Z" }),
+      score: 40,
+      strength: "strong" as const,
+      headline: "morning",
+      reasons: ["Same time of day"],
+      matches: [
+        { baitSpot: hole, score: 40, reasons: ["Same time of day"], strength: "strong" as const },
+        {
+          baitSpot: baitOf({ id: "hole-photo-2", placeName: "Haulover Canal", photoPath: "/b2.jpg" }),
+          score: 38,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+        {
+          baitSpot: baitOf({ id: "hole-photo-3", placeName: "Haulover Canal", photoPath: "/b3.jpg" }),
+          score: 36,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+      ],
+    };
+    const afternoon = {
+      ...morning,
+      id: "bait|hole|haulover canal|2026-09-03|afternoon",
+      window: windowOf({ timeOfDay: "afternoon" }),
+      score: 48,
+      strength: "very-strong" as const,
+      headline: "afternoon",
+    };
+    const dusk = {
+      ...morning,
+      id: "bait|hole|haulover canal|2026-09-03|dusk",
+      window: windowOf({ timeOfDay: "dusk" }),
+      score: 30,
+      headline: "dusk",
+    };
+    const cards = dedupeBaitSuggestionsByPlace(
+      [morning, afternoon, dusk].flatMap(splitBaitSuggestionByPlace),
+    );
+    expect(cards).toHaveLength(1);
+    expect(cards[0].headline).toBe("afternoon");
+    expect(cards[0].matches).toHaveLength(1);
+    expect(collapseBaitMatchesByPlace(morning).matches).toHaveLength(1);
+  });
+
+  it("keeps distinct bait places", () => {
+    const cut = {
+      id: "bait-cut",
+      spotKey: "bait:28.735,-80.754",
+      placeName: "Innertube cut",
+      baitTypes: ["Shrimp"],
+      latitude: 28.735,
+      longitude: -80.754,
+      window: windowOf({}),
+      score: 40,
+      strength: "strong" as const,
+      headline: "cut",
+      reasons: ["Same time of day"],
+      matches: [
+        {
+          baitSpot: baitOf({ id: "cut", placeName: "Innertube cut" }),
+          score: 40,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+      ],
+    };
+    const point = {
+      ...cut,
+      id: "bait-point",
+      placeName: "Ransom point",
+      headline: "point",
+      matches: [
+        {
+          baitSpot: baitOf({ id: "point", placeName: "Ransom point" }),
+          score: 38,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+      ],
+    };
+    expect(dedupeBaitSuggestionsByPlace([cut, point]).map((card) => card.placeName).sort()).toEqual([
+      "Innertube cut",
+      "Ransom point",
+    ]);
+  });
+
+  it("dedupes Planned chips for the same bait place", () => {
+    expect(
+      uniqueNotesByPlace([
+        { id: "a", placeName: "Haulover Canal" },
+        { id: "b", placeName: "haulover  canal" },
+        { id: "c", placeName: "Haulover Canal" },
+      ]).map((note) => note.id),
+    ).toEqual(["a"]);
   });
 });
 
