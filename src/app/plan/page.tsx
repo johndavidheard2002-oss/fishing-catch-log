@@ -11,14 +11,29 @@ import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerFromCookies } from "@/lib/v
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function firstQuery(value?: string | string[]): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value[0] ?? null;
+  return null;
+}
+
 export default async function PlanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string | string[] }>;
+  searchParams: Promise<{
+    date?: string | string[];
+    addCatch?: string | string[];
+    addBait?: string | string[];
+    addPlace?: string | string[];
+    addSpecies?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
-  const raw = params.date;
-  const initialDate = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : null;
+  const initialDate = firstQuery(params.date);
+  const initialAddCatch = firstQuery(params.addCatch);
+  const initialAddBait = firstQuery(params.addBait);
+  const initialAddPlace = firstQuery(params.addPlace);
+  const initialAddSpecies = firstQuery(params.addSpecies);
   let initialNotes;
   try {
     const jar = await cookies();
@@ -35,5 +50,14 @@ export default async function PlanPage({
   } catch {
     return <JournalUnavailable title="Plan a day" />;
   }
-  return <PlanClient initialDate={initialDate} initialNotes={initialNotes} />;
+  return (
+    <PlanClient
+      initialDate={initialDate}
+      initialNotes={initialNotes}
+      initialAddCatch={initialAddCatch}
+      initialAddBait={initialAddBait}
+      initialAddPlace={initialAddPlace}
+      initialAddSpecies={initialAddSpecies}
+    />
+  );
 }

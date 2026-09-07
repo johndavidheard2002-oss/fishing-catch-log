@@ -19,6 +19,20 @@ import {
   upcomingPlanNotes,
 } from "@/lib/notes";
 import {
+  PENDING_PLAN_BAIT_QUERY,
+  PENDING_PLAN_CATCH_QUERY,
+  PENDING_PLAN_PLACE_QUERY,
+  PENDING_PLAN_SPECIES_QUERY,
+  clearPendingPlanSpot,
+  parsePendingPlanSpotSearch,
+  pendingPlanPrompt,
+  pendingPlanSpotFromBait,
+  pendingPlanSpotFromCatch,
+  readPendingPlanSpot,
+  resolvePendingPlanSpot,
+  type PendingPlanSpot,
+} from "@/lib/pending-plan-spot";
+import {
   parsePlanDate,
   planLookupFailureNote,
   planPlaceToAdd,
@@ -82,17 +96,44 @@ function photosForPlannedPlaces(
   return photos;
 }
 
+function readSessionPendingSpot(): PendingPlanSpot | null {
+  if (typeof sessionStorage === "undefined") return null;
+  return readPendingPlanSpot(sessionStorage);
+}
+
+function dropSessionPendingSpot() {
+  if (typeof sessionStorage === "undefined") return;
+  clearPendingPlanSpot(sessionStorage);
+}
+
 export function PlanClient({
   initialDate,
   initialNotes = [],
+  initialAddCatch = null,
+  initialAddBait = null,
+  initialAddPlace = null,
+  initialAddSpecies = null,
 }: {
   initialDate: string | null;
   initialNotes?: CalendarNote[];
+  initialAddCatch?: string | null;
+  initialAddBait?: string | null;
+  initialAddPlace?: string | null;
+  initialAddSpecies?: string | null;
 }) {
   const now = new Date();
-  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
-    parsePlanDate(initialDate) ? initialDate : null,
-  );
+  const [pendingSpot, setPendingSpot] = useState<PendingPlanSpot | null>(() => {
+    const params = new URLSearchParams();
+    if (initialAddCatch) params.set(PENDING_PLAN_CATCH_QUERY, initialAddCatch);
+    if (initialAddBait) params.set(PENDING_PLAN_BAIT_QUERY, initialAddBait);
+    if (initialAddPlace) params.set(PENDING_PLAN_PLACE_QUERY, initialAddPlace);
+    if (initialAddSpecies) params.set(PENDING_PLAN_SPECIES_QUERY, initialAddSpecies);
+    return parsePendingPlanSpotSearch(params);
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(() => {
+    if (pendingSpot || initialAddCatch || initialAddBait || initialAddPlace) return null;
+    return parsePlanDate(initialDate) ? initialDate : null;
+  });
   const [notes, setNotes] = useState<CalendarNote[]>(() =>
     upcomingPlanNotes(initialNotes, todayKey()),
   );
@@ -112,6 +153,7 @@ export function PlanClient({
   const [addError, setAddError] = useState<string | null>(null);
   const [deletingPlan, setDeletingPlan] = useState(false);
   const resultsRef = useRef<HTMLElement | null>(null);
+  const pendingDayRef = useRef<string | null>(null);
 
   useEffect(() => {
     function onPop() {
@@ -121,6 +163,38 @@ export function PlanClient({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fromSearch = parsePendingPlanSpotSearch(params);
+    const next = resolvePendingPlanSpot(fromSearch, readSessionPendingSpot());
+    if (next) setPendingSpot(next);
+  }, []);
+
+  useEffect(() => {
+    if (pendingSpot?.placeName) return;
+    const catchId = pendingSpot?.catchId;
+    const baitId = pendingSpot?.baitId;
+    if (!catchId && !baitId) return;
+    let cancelled = false;
+    const url = catchId ? `/api/catches/${catchId}` : `/api/bait-spots/${baitId}`;
+    fetch(url, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const spot = catchId
+          ? pendingPlanSpotFromCatch(data.catch ?? {})
+          : pendingPlanSpotFromBait(data.spot ?? {});
+        if (spot) setPendingSpot(spot);
+        else setPendingSpot(null);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingSpot(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pendingSpot?.catchId, pendingSpot?.baitId, pendingSpot?.placeName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -222,9 +296,13 @@ export function PlanClient({
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
   const plannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions);
 
-  async function onAddSpot(spot: { placeName?: string | null; speciesTargets?: string[] | null }) {
-    if (!selectedDay) return;
-    const input = addPlanSpotToDay(selectedNotes, selectedDay, spot);
+  async function onAddSpot(
+    spot: { placeName?: string | null; speciesTargets?: string[] | null },
+    day = selectedDay,
+  ) {
+    if (!day) return;
+    const dayNotes = notesByDay.get(day) ?? [];
+    const input = addPlanSpotToDay(dayNotes, day, spot);
     if (!input?.placeName) return;
     setAddingSpotId(input.placeName);
     setAddError(null);
@@ -238,6 +316,27 @@ export function PlanClient({
     }
   }
 
+  async function commitPendingSpot(day: string) {
+    const spot = pendingSpot;
+    if (!spot?.placeName) {
+      pendingDayRef.current = day;
+      return;
+    }
+    pendingDayRef.current = null;
+    const dayNotes = notesByDay.get(day) ?? [];
+    const input = addPlanSpotToDay(dayNotes, day, spot);
+    setPendingSpot(null);
+    dropSessionPendingSpot();
+    if (!input?.placeName) return;
+    await onAddSpot(spot, day);
+  }
+
+  useEffect(() => {
+    const day = pendingDayRef.current;
+    if (!day || !pendingSpot?.placeName) return;
+    void commitPendingSpot(day);
+  }, [pendingSpot]);
+
   return (
     <div className="space-y-4">
       <div className="page-intro">
@@ -249,6 +348,11 @@ export function PlanClient({
           produced — including very strong matches with matching tides. Tap Add on a place to put
           only that one place on the day. Add a note if you want. Tap a match to open that trip.
         </p>
+        {pendingPlanPrompt(pendingSpot) ? (
+          <p data-testid="plan-pending-spot" className="pt-1 text-sm font-semibold text-teal">
+            {pendingPlanPrompt(pendingSpot)}
+          </p>
+        ) : null}
       </div>
 
       <PlanDayCalendar
@@ -266,11 +370,14 @@ export function PlanClient({
           setAddError(null);
           setDeletingPlan(false);
           window.history.pushState(null, "", `/plan?date=${date}`);
+          if (pendingSpot) void commitPendingSpot(date);
         }}
       />
 
       {!selectedDay ? (
-        <p className="on-wash-chip text-sm">Tap a day to plan it.</p>
+        <p className="on-wash-chip text-sm">
+          {pendingPlanPrompt(pendingSpot) ?? "Tap a day to plan it."}
+        </p>
       ) : (
         <section
           ref={resultsRef}

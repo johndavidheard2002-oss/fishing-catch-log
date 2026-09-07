@@ -16,9 +16,11 @@ const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotM
     </div>
   ),
 });
+import { AddToPlanButton } from "@/components/AddToPlanButton";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
+import { canShowAddToPlan, pendingPlanSpotFromBait } from "@/lib/pending-plan-spot";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { PRIVACY_LINE } from "@/lib/privacy";
 import { personalPhotoSrc } from "@/lib/photo";
@@ -136,6 +138,9 @@ export function BaitSpotDetail({ id }: { id: string }) {
   }
 
   const src = personalPhotoSrc(record.photoPath);
+  const pendingPlan = canShowAddToPlan(record, viewerId, true)
+    ? pendingPlanSpotFromBait(record)
+    : null;
   return (
     <div className="space-y-4">
       <Link href="/spots?kind=bait" className="on-wash-chip w-fit text-sm font-semibold text-teal">
@@ -160,6 +165,17 @@ export function BaitSpotDetail({ id }: { id: string }) {
           {baitTypesLabel(record.baitTypes)} · {formatCaughtAt(record.loggedAt)} ·{" "}
           {habitatLabel(record.habitat)}
         </p>
+        {pendingPlan ? (
+          <p className="mt-2 flex flex-wrap gap-1">
+            <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
+              Bait
+            </span>
+            <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
+              {habitatLabel(record.habitat)}
+            </span>
+            <AddToPlanButton spot={pendingPlan} />
+          </p>
+        ) : null}
       </div>
       <p className="journal-card rounded-2xl px-3 py-3 text-sm">
         {record.weatherCondition ? CONDITION_LABELS[record.weatherCondition] : "Conditions logged"}
