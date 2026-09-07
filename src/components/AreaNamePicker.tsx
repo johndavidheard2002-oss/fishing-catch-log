@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { areaNameKey } from "@/lib/areas";
+import { areaNameKey, savedPinFromNamedArea } from "@/lib/areas";
 import { TOWN_LOOKUP_DEBOUNCE_MS } from "@/lib/geocode";
 import type { NamedArea } from "@/lib/types";
 
@@ -84,8 +84,8 @@ export function AreaNamePicker({
       </label>
       <p className="on-wash-chip text-xs">
         {hasPin
-          ? "Name this spot — the pin stays where you dropped it."
-          : "Type a town to move the map, then tap to drop the pin."}
+          ? "Name this spot — the pin stays where you dropped it. Reuse a past name to go back to that pin."
+          : "Type a town to move the map, then tap to drop the pin. Reuse a past name to return to that pin."}
       </p>
       <details
         className="text-xs"
@@ -110,9 +110,8 @@ export function AreaNamePicker({
                       type="button"
                       data-testid="named-area-chip"
                       onClick={() => {
-                        const next = { ...area, latitude: null, longitude: null };
-                        onPickArea(next);
-                        flushLookup(area.name);
+                        onPickArea(area);
+                        if (!savedPinFromNamedArea(area)) flushLookup(area.name);
                       }}
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                         selected ? "bg-teal text-white" : "border border-line bg-card"

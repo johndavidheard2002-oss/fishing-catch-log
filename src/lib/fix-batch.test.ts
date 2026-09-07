@@ -167,6 +167,11 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(bait).toContain("hasPin={catchLat != null && catchLon != null}");
     expect(picker).toContain("if (!onLookupTown || hasPin) return");
     expect(picker).toContain("the pin stays where you dropped it");
+    expect(picker).toContain("savedPinFromNamedArea");
+    expect(picker).not.toContain("latitude: null, longitude: null");
+    expect(catchForm).toContain("formFieldsFromNamedArea");
+    expect(bait).toContain("formFieldsFromNamedArea");
+    expect(picker).toContain("Reuse a past name to go back to that pin");
   });
 
   it("treats live Camera as supplied by the form, not EXIF-only", () => {

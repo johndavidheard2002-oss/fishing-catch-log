@@ -60,6 +60,7 @@ import {
   totalFishCount,
 } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
+import { formFieldsFromNamedArea } from "@/lib/areas";
 import type { TownMapCenter } from "@/lib/geocode";
 import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
@@ -922,7 +923,13 @@ export function CatchForm({
         onLookupTown={lookupTown}
         focusCenter={focusCenter}
         onSelectArea={(area) => {
-          patch({ placeName: area.name });
+          const fields = formFieldsFromNamedArea(area);
+          if (fields.latitude && fields.longitude) {
+            setPinHint(null);
+            markCatchPinMoved(fields);
+            return;
+          }
+          patch({ placeName: fields.placeName });
         }}
         onCoords={(lat, lng) => {
           patch({ latitude: lat, longitude: lng });

@@ -12,6 +12,7 @@ import { DEFAULT_HABITAT, HABITAT_LABELS, isDuckHabitat, isSaltwaterHabitat, typ
 import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { inHgToMb, mbToInHg } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
+import { formFieldsFromNamedArea } from "@/lib/areas";
 import { personalPhotoSrc } from "@/lib/photo";
 import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import type { BaitSpot, NamedArea, Season, TimeOfDay } from "@/lib/types";
@@ -196,7 +197,7 @@ export function BaitSpotForm({
   }
 
   function onPickArea(area: NamedArea) {
-    patch({ placeName: area.name });
+    patch(formFieldsFromNamedArea(area));
   }
 
   async function onSubmit(e: React.FormEvent) {

@@ -18,6 +18,33 @@ function asCoord(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Saved pin for a reused place name. Missing or unpaired coords stay unset. */
+export function savedPinFromNamedArea(
+  area: Pick<NamedArea, "latitude" | "longitude">,
+): { latitude: number; longitude: number } | null {
+  const latitude = area.latitude;
+  const longitude = area.longitude;
+  if (latitude == null || longitude == null) return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  return { latitude, longitude };
+}
+
+/**
+ * Reusing a prior name restores that pin. A free-text rename of a fresh pin
+ * does not go through here — it only changes the label.
+ */
+export function formFieldsFromNamedArea(
+  area: Pick<NamedArea, "name" | "latitude" | "longitude">,
+): { placeName: string; latitude?: string; longitude?: string } {
+  const pin = savedPinFromNamedArea(area);
+  if (!pin) return { placeName: area.name };
+  return {
+    placeName: area.name,
+    latitude: pin.latitude.toFixed(5),
+    longitude: pin.longitude.toFixed(5),
+  };
+}
+
 export function parseNamedAreaInput(body: Record<string, unknown>): NamedAreaInput | null {
   const name = parseAreaName(body.name);
   if (!name) return null;
