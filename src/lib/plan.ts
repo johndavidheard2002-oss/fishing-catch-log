@@ -227,6 +227,19 @@ export function collapseBaitMatchesByPlace(suggestion: BaitPlanSuggestion): Bait
   return matches.length === suggestion.matches.length ? suggestion : { ...suggestion, matches };
 }
 
+/** One past-trip row per named catch place — same collapse as bait. */
+export function collapseCatchMatchesByPlace(suggestion: PlanSuggestion): PlanSuggestion {
+  const seen = new Set<string>();
+  const matches: PlanSuggestion["matches"] = [];
+  for (const match of suggestion.matches) {
+    const key = normalizeNotePlace(match.catch.placeName) || match.catch.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    matches.push(match);
+  }
+  return matches.length === suggestion.matches.length ? suggestion : { ...suggestion, matches };
+}
+
 /** Planned chips: one pill per named place even if Add ran more than once. */
 export function uniqueNotesByPlace<T extends { placeName?: string | null }>(notes: T[]): T[] {
   const seen = new Set<string>();
@@ -240,6 +253,34 @@ export function uniqueNotesByPlace<T extends { placeName?: string | null }>(note
   return out;
 }
 
+/**
+ * Extra past-trip rows under a suggestion card.
+ * Skip the hole already on the card or in Planned — don’t invent a second copy.
+ */
+export function extraPastTripMatches<T>(
+  matches: T[],
+  args: {
+    cardPlaceName?: string | null;
+    plannedPlaceNames?: Array<string | null | undefined>;
+    placeOf: (match: T) => string | null | undefined;
+  },
+): T[] {
+  const planned = new Set(
+    (args.plannedPlaceNames ?? []).map((name) => normalizeNotePlace(name)).filter(Boolean),
+  );
+  const seen = new Set<string>();
+  const cardKey = normalizeNotePlace(args.cardPlaceName);
+  if (cardKey) seen.add(cardKey);
+  const extra: T[] = [];
+  for (const match of matches) {
+    const key = normalizeNotePlace(args.placeOf(match));
+    if (!key || seen.has(key) || planned.has(key)) continue;
+    seen.add(key);
+    extra.push(match);
+  }
+  return extra;
+}
+
 /** One bait card per place — drops extra windows, reason buckets, and repeat visits. */
 export function dedupeBaitSuggestionsByPlace(
   suggestions: BaitPlanSuggestion[],
@@ -248,6 +289,26 @@ export function dedupeBaitSuggestionsByPlace(
   for (const raw of suggestions) {
     const suggestion = collapseBaitMatchesByPlace(raw);
     const key = baitSuggestionPlaceKey(suggestion);
+    const existing = byPlace.get(key);
+    if (!existing || suggestion.score > existing.score) {
+      byPlace.set(key, suggestion);
+    }
+  }
+  return [...byPlace.values()];
+}
+
+/** One catch card per place — same window/visit collapse as bait. */
+export function catchSuggestionPlaceKey(
+  suggestion: Pick<PlanSuggestion, "placeName" | "spotKey">,
+): string {
+  return normalizeNotePlace(suggestion.placeName) || suggestion.spotKey || "unknown spot";
+}
+
+export function dedupeCatchSuggestionsByPlace(suggestions: PlanSuggestion[]): PlanSuggestion[] {
+  const byPlace = new Map<string, PlanSuggestion>();
+  for (const raw of suggestions) {
+    const suggestion = collapseCatchMatchesByPlace(raw);
+    const key = catchSuggestionPlaceKey(suggestion);
     const existing = byPlace.get(key);
     if (!existing || suggestion.score > existing.score) {
       byPlace.set(key, suggestion);

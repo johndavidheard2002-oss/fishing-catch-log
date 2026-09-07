@@ -5,6 +5,8 @@ import { addPlanSpotToDay } from "./notes";
 import {
   PENDING_PLAN_BAIT_QUERY,
   PENDING_PLAN_CATCH_QUERY,
+  PENDING_PLAN_DAY_STORAGE_KEY,
+  PENDING_PLAN_PHOTO_QUERY,
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
   PENDING_PLAN_SPOT_STORAGE_KEY,
@@ -12,12 +14,15 @@ import {
   canShowAddToPlan,
   clearPendingPlanSpot,
   parsePendingPlanSpotSearch,
+  pendingPlanDayToCommit,
   pendingPlanPrompt,
   pendingPlanSpotFromBait,
   pendingPlanSpotFromCatch,
   planHrefForPendingSpot,
+  readPendingPlanDay,
   readPendingPlanSpot,
   resolvePendingPlanSpot,
+  writePendingPlanDay,
   writePendingPlanSpot,
 } from "./pending-plan-spot";
 import { baitOf, catchOf } from "./testing";
@@ -95,25 +100,48 @@ describe("plan href and query contract", () => {
       placeName: "Innertube cut",
       speciesTargets: ["Redfish"],
     });
-    expect(href).toBe(`/plan?${PENDING_PLAN_CATCH_QUERY}=c1`);
-    expect(href).not.toMatch(/date=/);
-    const parsed = parsePendingPlanSpotSearch(new URLSearchParams(href.slice("/plan?".length)));
-    expect(parsed).toEqual({ catchId: "c1", placeName: "", speciesTargets: [] });
+    const params = new URLSearchParams(href.slice("/plan?".length));
+    expect(params.get(PENDING_PLAN_CATCH_QUERY)).toBe("c1");
+    expect(params.get(PENDING_PLAN_PLACE_QUERY)).toBe("Innertube cut");
+    expect(params.get(PENDING_PLAN_SPECIES_QUERY)).toBe("Redfish");
+    expect(href).not.toMatch(/(^|[?&])date=/);
+    const parsed = parsePendingPlanSpotSearch(params);
+    expect(parsed).toEqual({
+      catchId: "c1",
+      placeName: "Innertube cut",
+      speciesTargets: ["Redfish"],
+    });
   });
 
-  it("sends a bait id on /plan the same way", () => {
+  it("sends a bait id, place, and photo on /plan the same way", () => {
     const href = planHrefForPendingSpot({
       baitId: "b1",
       placeName: "Haulover Canal",
       speciesTargets: [],
+      photoPath: "shrimp.jpg",
     });
-    expect(href).toBe(`/plan?${PENDING_PLAN_BAIT_QUERY}=b1`);
-    expect(href).not.toMatch(/date=/);
-    expect(parsePendingPlanSpotSearch(new URLSearchParams(href.slice("/plan?".length)))).toEqual({
+    const params = new URLSearchParams(href.slice("/plan?".length));
+    expect(params.get(PENDING_PLAN_BAIT_QUERY)).toBe("b1");
+    expect(params.get(PENDING_PLAN_PLACE_QUERY)).toBe("Haulover Canal");
+    expect(params.get(PENDING_PLAN_PHOTO_QUERY)).toBe("shrimp.jpg");
+    expect(href).not.toMatch(/(^|[?&])date=/);
+    expect(parsePendingPlanSpotSearch(params)).toEqual({
       baitId: "b1",
-      placeName: "",
+      placeName: "Haulover Canal",
       speciesTargets: [],
+      photoPath: "shrimp.jpg",
     });
+  });
+
+  it("keeps the bait handoff on the URL when a day is picked", () => {
+    const href = planHrefForPendingSpot(
+      { baitId: "b1", placeName: "Haulover Canal", speciesTargets: [], photoPath: "shrimp.jpg" },
+      "2026-09-12",
+    );
+    const params = new URLSearchParams(href.slice("/plan?".length));
+    expect(params.get("date")).toBe("2026-09-12");
+    expect(params.get(PENDING_PLAN_BAIT_QUERY)).toBe("b1");
+    expect(params.get(PENDING_PLAN_PLACE_QUERY)).toBe("Haulover Canal");
   });
 
   it("falls back to a place query when there is no catch id", () => {
@@ -188,6 +216,26 @@ describe("session handoff", () => {
         speciesTargets: [],
       }),
     ).toEqual({ baitId: "other", placeName: "", speciesTargets: [] });
+  });
+
+  it("remembers the picked day across a Plan remount", () => {
+    const storage = memoryStorage();
+    writePendingPlanDay(storage, "2026-09-12");
+    expect(readPendingPlanDay(storage)).toBe("2026-09-12");
+    expect(storage.getItem(PENDING_PLAN_DAY_STORAGE_KEY)).toBe("2026-09-12");
+    expect(
+      pendingPlanDayToCommit(
+        { baitId: "b1", placeName: "Haulover Canal", speciesTargets: [] },
+        "2026-09-12",
+        null,
+      ),
+    ).toBe("2026-09-12");
+    expect(
+      pendingPlanDayToCommit(null, "2026-09-12", "2026-09-12"),
+    ).toBe("2026-09-12");
+    expect(pendingPlanDayToCommit(null, "2026-09-12", null)).toBeNull();
+    clearPendingPlanSpot(storage);
+    expect(readPendingPlanDay(storage)).toBeNull();
   });
 });
 
@@ -319,10 +367,12 @@ describe("Calendar Log and Plan wiring", () => {
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     const spots = readFileSync(resolve(__dirname, "../components/SpotsClient.tsx"), "utf8");
     expect(baitDetail).toContain("AddToPlanButton");
+    expect(baitDetail).not.toContain("rounded-full bg-copper/15");
     expect(spots).toContain("AddToPlanButton");
     expect(spots).toContain("pendingFromOwnBait");
     expect(spots).toContain("pendingPlanSpotFromBait");
     expect(spots).toMatch(/kind === "bait"[\s\S]*AddToPlanButton/);
+    expect(spots).not.toContain("visitPending");
   });
 
   it("lets Plan wait for a day tap, then add the pending spot", () => {
@@ -335,16 +385,22 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("commitPendingSpot");
     expect(plan).toContain("onSelectDay");
     expect(plan).toContain("void commitPendingSpot(date)");
+    expect(plan).toContain("planHrefForPendingSpot(pending, date)");
+    expect(plan).toContain("pendingPlanDayToCommit");
     expect(plan).toContain("/api/catches/");
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");
     expect(plan).toContain("dedupeBaitSuggestionsByPlace");
+    expect(plan).toContain("dedupeCatchSuggestionsByPlace");
+    expect(plan).toContain("extraPastTripMatches");
     expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).not.toContain("setSelectedDay(pending");
     expect(page).toContain("addCatch");
     expect(page).toContain("addBait");
+    expect(page).toContain("addPhoto");
     expect(page).toContain("initialAddCatch");
     expect(page).toContain("initialAddBait");
+    expect(page).toContain("initialAddPhoto");
     expect(page).toContain("hasPendingAdd");
     expect(plan).toContain("if (pendingSpot) return");
     expect(plan).toContain("if (current || pendingSpot) return current");

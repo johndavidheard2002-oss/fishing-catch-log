@@ -28,6 +28,7 @@ export default async function PlanPage({
     addBait?: string | string[];
     addPlace?: string | string[];
     addSpecies?: string | string[];
+    addPhoto?: string | string[];
   }>;
 }) {
   const params = await searchParams;
@@ -36,6 +37,7 @@ export default async function PlanPage({
   const initialAddBait = firstQuery(params.addBait);
   const initialAddPlace = firstQuery(params.addPlace);
   const initialAddSpecies = firstQuery(params.addSpecies);
+  const initialAddPhoto = firstQuery(params.addPhoto);
   let initialNotes;
   try {
     const jar = await cookies();
@@ -68,6 +70,7 @@ export default async function PlanPage({
       initialAddBait={initialAddBait}
       initialAddPlace={initialAddPlace}
       initialAddSpecies={initialAddSpecies}
+      initialAddPhoto={initialAddPhoto}
     />
   );
 }

@@ -25,15 +25,20 @@ import {
 import {
   PENDING_PLAN_BAIT_QUERY,
   PENDING_PLAN_CATCH_QUERY,
+  PENDING_PLAN_PHOTO_QUERY,
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
   clearPendingPlanSpot,
   parsePendingPlanSpotSearch,
+  pendingPlanDayToCommit,
   pendingPlanPrompt,
   pendingPlanSpotFromBait,
   pendingPlanSpotFromCatch,
+  planHrefForPendingSpot,
+  readPendingPlanDay,
   readPendingPlanSpot,
   resolvePendingPlanSpot,
+  writePendingPlanDay,
   type PendingPlanSpot,
 } from "@/lib/pending-plan-spot";
 import {
@@ -43,6 +48,8 @@ import {
   planWhyChips,
   forecastWindowWhenLabel,
   dedupeBaitSuggestionsByPlace,
+  dedupeCatchSuggestionsByPlace,
+  extraPastTripMatches,
   readLastPlanDay,
   splitBaitSuggestionByPlace,
   splitPlanSuggestionByPlace,
@@ -81,6 +88,7 @@ export function PlanClient({
   initialAddBait = null,
   initialAddPlace = null,
   initialAddSpecies = null,
+  initialAddPhoto = null,
 }: {
   initialDate: string | null;
   initialNotes?: CalendarNote[];
@@ -88,6 +96,7 @@ export function PlanClient({
   initialAddBait?: string | null;
   initialAddPlace?: string | null;
   initialAddSpecies?: string | null;
+  initialAddPhoto?: string | null;
 }) {
   const now = new Date();
   const [pendingSpot, setPendingSpot] = useState<PendingPlanSpot | null>(() => {
@@ -96,8 +105,12 @@ export function PlanClient({
     if (initialAddBait) params.set(PENDING_PLAN_BAIT_QUERY, initialAddBait);
     if (initialAddPlace) params.set(PENDING_PLAN_PLACE_QUERY, initialAddPlace);
     if (initialAddSpecies) params.set(PENDING_PLAN_SPECIES_QUERY, initialAddSpecies);
+    if (initialAddPhoto) params.set(PENDING_PLAN_PHOTO_QUERY, initialAddPhoto);
     return parsePendingPlanSpotSearch(params);
   });
+  const pendingSpotRef = useRef<PendingPlanSpot | null>(pendingSpot);
+  pendingSpotRef.current = pendingSpot;
+  const committingRef = useRef(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(() => {
     if (pendingSpot || initialAddCatch || initialAddBait || initialAddPlace) return null;
     return parsePlanDate(initialDate) ? initialDate : null;
@@ -157,32 +170,49 @@ export function PlanClient({
     const fromSearch = parsePendingPlanSpotSearch(params);
     const next = resolvePendingPlanSpot(fromSearch, readSessionPendingSpot());
     if (next) setPendingSpot(next);
+    const picked = pendingPlanDayToCommit(
+      fromSearch,
+      params.get("date"),
+      readPendingPlanDay(typeof sessionStorage === "undefined" ? null : sessionStorage),
+    );
+    if (picked) pendingDayRef.current = picked;
   }, []);
 
   useEffect(() => {
-    if (pendingSpot?.placeName) return;
     const catchId = pendingSpot?.catchId;
     const baitId = pendingSpot?.baitId;
     if (!catchId && !baitId) return;
+    if (pendingSpot?.placeName && pendingSpot?.photoPath) return;
     let cancelled = false;
     const url = catchId ? `/api/catches/${catchId}` : `/api/bait-spots/${baitId}`;
     fetch(url, { cache: "no-store" })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (cancelled) return;
-        const spot = catchId
+        if (cancelled || !data) return;
+        const fetched = catchId
           ? pendingPlanSpotFromCatch(data.catch ?? {})
           : pendingPlanSpotFromBait(data.spot ?? {});
-        if (spot) setPendingSpot(spot);
-        else setPendingSpot(null);
+        if (!fetched) return;
+        setPendingSpot((current) => {
+          if (!current) return fetched;
+          if (catchId && current.catchId !== catchId) return current;
+          if (baitId && current.baitId !== baitId) return current;
+          const photoPath = current.photoPath || fetched.photoPath;
+          return {
+            ...current,
+            placeName: current.placeName || fetched.placeName,
+            speciesTargets: current.speciesTargets.length
+              ? current.speciesTargets
+              : fetched.speciesTargets,
+            ...(photoPath ? { photoPath } : {}),
+          };
+        });
       })
-      .catch(() => {
-        if (!cancelled) setPendingSpot(null);
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [pendingSpot?.catchId, pendingSpot?.baitId, pendingSpot?.placeName]);
+  }, [pendingSpot?.catchId, pendingSpot?.baitId, pendingSpot?.placeName, pendingSpot?.photoPath]);
 
   useEffect(() => {
     let cancelled = false;
@@ -298,7 +328,9 @@ export function PlanClient({
     resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedDay, plan]);
 
-  const suggestions = (plan?.suggestions ?? []).flatMap(splitPlanSuggestionByPlace);
+  const suggestions = dedupeCatchSuggestionsByPlace(
+    (plan?.suggestions ?? []).flatMap(splitPlanSuggestionByPlace),
+  );
   const baitSuggestions = dedupeBaitSuggestionsByPlace(
     (plan?.baitSuggestions ?? []).flatMap(splitBaitSuggestionByPlace),
   );
@@ -337,18 +369,25 @@ export function PlanClient({
   }
 
   async function commitPendingSpot(day: string) {
-    const spot = pendingSpot;
+    const spot = pendingSpotRef.current;
     if (!spot?.placeName) {
       pendingDayRef.current = day;
+      writePendingPlanDay(typeof sessionStorage === "undefined" ? null : sessionStorage, day);
       return;
     }
+    if (committingRef.current) return;
+    committingRef.current = true;
     pendingDayRef.current = null;
     const dayNotes = notesByDay.get(day) ?? [];
     const input = addPlanSpotToDay(dayNotes, day, spot);
     setPendingSpot(null);
     dropSessionPendingSpot();
-    if (!input?.placeName) return;
-    await onAddSpot(spot, day);
+    try {
+      if (!input?.placeName) return;
+      await onAddSpot(spot, day);
+    } finally {
+      committingRef.current = false;
+    }
   }
 
   useEffect(() => {
@@ -389,8 +428,14 @@ export function PlanClient({
           setSpotSaved(false);
           setAddError(null);
           setDeletingPlan(false);
-          window.history.pushState(null, "", `/plan?date=${date}`);
-          if (pendingSpot) void commitPendingSpot(date);
+          const pending = pendingSpotRef.current;
+          if (pending) {
+            writePendingPlanDay(typeof sessionStorage === "undefined" ? null : sessionStorage, date);
+            window.history.pushState(null, "", planHrefForPendingSpot(pending, date));
+            void commitPendingSpot(date);
+          } else {
+            window.history.pushState(null, "", `/plan?date=${date}`);
+          }
         }}
       />
 
@@ -503,6 +548,7 @@ export function PlanClient({
                   showOwner={includeShared}
                   added={dayHasPlanSpot(selectedNotes, s.placeName)}
                   adding={addingSpotId === s.placeName}
+                  plannedPlaceNames={spotsOnDay.map((note) => note.placeName)}
                   onAdd={() => {
                     const spot = planPlaceToAdd(s);
                     if (!spot) return;
@@ -531,6 +577,7 @@ export function PlanClient({
                       showOwner={includeShared}
                       added={dayHasPlanSpot(selectedNotes, s.placeName)}
                       adding={addingSpotId === s.placeName}
+                      plannedPlaceNames={spotsOnDay.map((note) => note.placeName)}
                       onAdd={() =>
                         void onAddSpot({
                           placeName: s.placeName,
@@ -645,12 +692,14 @@ function SuggestionCard({
   showOwner,
   added,
   adding,
+  plannedPlaceNames = [],
   onAdd,
 }: {
   suggestion: PlanSuggestion;
   showOwner: boolean;
   added: boolean;
   adding: boolean;
+  plannedPlaceNames?: Array<string | null | undefined>;
   onAdd: () => void;
 }) {
   const w = suggestion.window;
@@ -661,9 +710,15 @@ function SuggestionCard({
     date: formatDateOnly(m.catch.caughtAt),
     ownerName: m.catch.ownerName,
     reasons: m.reasons,
+    placeName: m.catch.placeName,
   }));
   const primary = matchPhotos[0];
   if (!primary) return null;
+  const extraTrips = extraPastTripMatches(matchPhotos, {
+    cardPlaceName: suggestion.placeName,
+    plannedPlaceNames,
+    placeOf: (row) => row.placeName,
+  });
 
   const canAdd = Boolean(suggestion.placeName?.trim());
 
@@ -749,11 +804,14 @@ function SuggestionCard({
           </button>
         </div>
       ) : null}
+      {extraTrips.length ? (
       <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
         Past trips at this place
       </p>
+      ) : null}
+      {extraTrips.length ? (
       <ul className="space-y-2 px-3 py-3">
-        {matchPhotos.map((m) => (
+        {extraTrips.map((m) => (
           <li key={m.id}>
             <Link
               href={`/catch/${m.id}`}
@@ -784,6 +842,7 @@ function SuggestionCard({
           </li>
         ))}
       </ul>
+      ) : null}
     </article>
   );
 }
@@ -793,18 +852,25 @@ function BaitSuggestionCard({
   showOwner,
   added,
   adding,
+  plannedPlaceNames = [],
   onAdd,
 }: {
   suggestion: BaitPlanSuggestion;
   showOwner: boolean;
   added: boolean;
   adding: boolean;
+  plannedPlaceNames?: Array<string | null | undefined>;
   onAdd: () => void;
 }) {
   const w = suggestion.window;
   const first = suggestion.matches[0]?.baitSpot;
   const src = first ? personalPhotoSrc(first.photoPath) : null;
   const canAdd = Boolean(suggestion.placeName?.trim());
+  const extraTrips = extraPastTripMatches(suggestion.matches, {
+    cardPlaceName: suggestion.placeName,
+    plannedPlaceNames,
+    placeOf: (match) => match.baitSpot.placeName,
+  });
   if (!first) return null;
 
   return (
@@ -878,14 +944,14 @@ function BaitSuggestionCard({
           </button>
         </div>
       ) : null}
-      {suggestion.matches.length > 1 ? (
+      {extraTrips.length ? (
       <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
         Past trips at this place
       </p>
       ) : null}
-      {suggestion.matches.length > 1 ? (
+      {extraTrips.length ? (
       <ul className="space-y-2 px-3 py-3">
-        {suggestion.matches.map((m) => {
+        {extraTrips.map((m) => {
           const baitSrc = personalPhotoSrc(m.baitSpot.photoPath);
           return (
             <li key={m.baitSpot.id}>

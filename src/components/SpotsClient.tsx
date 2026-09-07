@@ -429,25 +429,15 @@ function BaitSpotPanel({
       </p>
       {latestNotes ? <p className="text-sm">{latestNotes}</p> : null}
       <ul className="space-y-1.5">
-        {group.spots.map((spot) => {
-          const visitPending = pendingFromOwnBait([spot], viewerId);
-          return (
-            <li key={spot.id} className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <BaitVisitRow
-                  spot={spot}
-                  viewerId={viewerId}
-                  onOpenLocation={() => onOpenLocation(targetFromBait(spot))}
-                />
-              </div>
-              {visitPending ? (
-                <span className="shrink-0">
-                  <AddToPlanButton spot={visitPending} />
-                </span>
-              ) : null}
-            </li>
-          );
-        })}
+        {group.spots.map((spot) => (
+          <li key={spot.id}>
+            <BaitVisitRow
+              spot={spot}
+              viewerId={viewerId}
+              onOpenLocation={() => onOpenLocation(targetFromBait(spot))}
+            />
+          </li>
+        ))}
       </ul>
       <Link href="/plan" className="inline-block text-sm font-semibold text-teal">
         See similar-condition windows on Plan

@@ -3,7 +3,10 @@ import { groupSpots } from "./filters";
 import {
   baitPlanHeadline,
   collapseBaitMatchesByPlace,
+  collapseCatchMatchesByPlace,
   dedupeBaitSuggestionsByPlace,
+  dedupeCatchSuggestionsByPlace,
+  extraPastTripMatches,
   distinctPlanPlaces,
   forecastWindowWhenLabel,
   isPositiveCatch,
@@ -591,6 +594,76 @@ describe("dedupeBaitSuggestionsByPlace", () => {
         { id: "c", placeName: "Haulover Canal" },
       ]).map((note) => note.id),
     ).toEqual(["a"]);
+  });
+});
+
+describe("extraPastTripMatches", () => {
+  it("hides past-trip rows that only repeat the card or Planned hole", () => {
+    const cut = { id: "cut", placeName: "Innertube cut" };
+    const cutAgain = { id: "cut-2", placeName: "innertube  cut" };
+    const point = { id: "point", placeName: "Ransom point" };
+    expect(
+      extraPastTripMatches([cut, cutAgain, point], {
+        cardPlaceName: "Innertube cut",
+        plannedPlaceNames: [],
+        placeOf: (row) => row.placeName,
+      }).map((row) => row.id),
+    ).toEqual(["point"]);
+    expect(
+      extraPastTripMatches([cut, cutAgain], {
+        cardPlaceName: "Innertube cut",
+        plannedPlaceNames: [],
+        placeOf: (row) => row.placeName,
+      }),
+    ).toEqual([]);
+    expect(
+      extraPastTripMatches([cut, point], {
+        cardPlaceName: "Harbor island",
+        plannedPlaceNames: ["Innertube cut", "Ransom point"],
+        placeOf: (row) => row.placeName,
+      }),
+    ).toEqual([]);
+  });
+
+  it("dedupes catch suggestion cards by place like bait", () => {
+    const window = windowOf({});
+    const cut = {
+      id: "catch-cut",
+      spotKey: "28.738,-80.755",
+      placeName: "Innertube cut",
+      latitude: 28.738,
+      longitude: -80.755,
+      window,
+      score: 40,
+      strength: "strong" as const,
+      headline: "morning",
+      reasons: ["Same time of day"],
+      matches: [
+        {
+          catch: pondCatch({ id: "cut-1", placeName: "Innertube cut" }),
+          score: 40,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+        {
+          catch: pondCatch({ id: "cut-2", placeName: "innertube  cut" }),
+          score: 36,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+      ],
+    };
+    const afternoon = {
+      ...cut,
+      id: "catch-cut-pm",
+      score: 48,
+      headline: "afternoon",
+    };
+    const cards = dedupeCatchSuggestionsByPlace([cut, afternoon]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0].headline).toBe("afternoon");
+    expect(cards[0].matches).toHaveLength(1);
+    expect(collapseCatchMatchesByPlace(cut).matches).toHaveLength(1);
   });
 });
 
