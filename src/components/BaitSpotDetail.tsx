@@ -34,7 +34,6 @@ export function BaitSpotDetail({ id }: { id: string }) {
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
-  const [focusSpot, setFocusSpot] = useState(false);
   const [buddies, setBuddies] = useState<ShareFriend[]>([]);
 
   useEffect(() => {
@@ -115,7 +114,9 @@ export function BaitSpotDetail({ id }: { id: string }) {
     return <p className="on-wash-chip text-sm">Opening bait spot…</p>;
   }
 
-  if (editing) {
+  const isOwner = Boolean(viewerId && record.anglerId === viewerId);
+
+  if (editing && isOwner) {
     return (
       <div className="space-y-4">
         <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={() => setEditing(false)}>
@@ -124,11 +125,9 @@ export function BaitSpotDetail({ id }: { id: string }) {
         <BaitSpotForm
           mode="edit"
           initial={record}
-          focusLocation={focusSpot}
           onSaved={(next) => {
             setRecord(next);
             setEditing(false);
-            setFocusSpot(false);
             setSavedNotice(true);
           }}
         />
@@ -137,7 +136,6 @@ export function BaitSpotDetail({ id }: { id: string }) {
   }
 
   const src = photoSrc(record.photoPath);
-  const isOwner = !viewerId || record.anglerId === viewerId;
   return (
     <div className="space-y-4">
       <Link href="/spots?kind=bait" className="on-wash-chip w-fit text-sm font-semibold text-teal">
@@ -182,7 +180,9 @@ export function BaitSpotDetail({ id }: { id: string }) {
           />
         ) : (
           <p className="journal-card rounded-2xl px-3 py-6 text-sm text-ink-muted">
-            This bait hole has no saved pin. Tap Edit spot to drop one on the map.
+            {isOwner
+              ? "This bait hole has no saved pin. Tap Edit to drop one on the map."
+              : "This bait hole has no saved pin."}
           </p>
         )}
       </section>
@@ -192,35 +192,16 @@ export function BaitSpotDetail({ id }: { id: string }) {
           ? `${PRIVACY_LINE} Never public. No feed.`
           : "Private to you. Not shared with anyone."}
       </p>
-      <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
+      {isOwner ? (
+        <div className="space-y-3" data-testid="bait-owner-actions">
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
+            data-testid="bait-edit"
+            className="w-full rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
           >
             Edit
           </button>
-          <button
-            type="button"
-            data-testid="bait-edit-spot"
-            onClick={() => {
-              setFocusSpot(true);
-              setEditing(true);
-            }}
-            className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
-          >
-            Edit spot
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
-          >
-            Delete
-          </button>
-        </div>
-        {isOwner ? (
           <div data-testid="bait-share-block">
             <button
               type="button"
@@ -256,9 +237,17 @@ export function BaitSpotDetail({ id }: { id: string }) {
               }}
             />
           </div>
-        ) : null}
-        {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
-      </div>
+          <button
+            type="button"
+            onClick={onDelete}
+            data-testid="bait-delete"
+            className="w-full rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
+          >
+            Delete
+          </button>
+          {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

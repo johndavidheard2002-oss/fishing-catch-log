@@ -40,35 +40,57 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(calendar).toContain("shiftYear");
   });
 
-  it("puts Share under Edit and makes share-with names a little bigger", () => {
+  it("uses one Edit on catch and bait detail, then Share, with larger share-with names", () => {
     const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     const picker = readFileSync(resolve(__dirname, "../components/ShareFriendPicker.tsx"), "utf8");
-    const editRowEnd = catchDetail.indexOf('data-testid="catch-edit-spot"');
+    const catchEdit = catchDetail.indexOf('data-testid="catch-edit"');
     const shareBlock = catchDetail.indexOf('data-testid="catch-share-block"');
     const shareBtn = catchDetail.indexOf('data-testid="catch-share"');
-    expect(editRowEnd).toBeGreaterThan(-1);
-    expect(shareBlock).toBeGreaterThan(editRowEnd);
+    const catchDelete = catchDetail.indexOf("Delete", catchEdit);
+    expect(catchEdit).toBeGreaterThan(-1);
+    expect(shareBlock).toBeGreaterThan(catchEdit);
     expect(shareBtn).toBeGreaterThan(shareBlock);
-    expect(catchDetail.slice(catchDetail.indexOf("flex flex-wrap gap-2"), shareBlock)).not.toContain(
-      "catch-share",
-    );
-    const baitEdit = baitDetail.indexOf('data-testid="bait-edit-spot"');
+    expect(catchDelete).toBeGreaterThan(shareBlock);
+    expect(catchDetail).not.toContain("Edit spot");
+    expect(catchDetail).not.toContain("catch-edit-spot");
+    expect(catchDetail.slice(catchEdit, shareBlock)).not.toContain("Delete");
+    const baitEdit = baitDetail.indexOf('data-testid="bait-edit"');
     const baitShareBlock = baitDetail.indexOf('data-testid="bait-share-block"');
+    const baitDelete = baitDetail.indexOf("Delete", baitEdit);
     expect(baitShareBlock).toBeGreaterThan(baitEdit);
-    expect(baitDetail.slice(baitDetail.indexOf("flex flex-wrap gap-2"), baitShareBlock)).not.toContain(
-      "bait-share",
-    );
-    expect(picker).toContain("text-base font-semibold");
+    expect(baitDelete).toBeGreaterThan(baitShareBlock);
+    expect(baitDetail).not.toContain("Edit spot");
+    expect(baitDetail).not.toContain("bait-edit-spot");
+    expect(baitDetail.slice(baitEdit, baitShareBlock)).not.toContain("Delete");
+    expect(picker).toContain("text-2xl font-semibold");
     expect(picker).toContain("{buddy.name}");
+    expect(picker).not.toContain("text-base font-semibold");
+    expect(picker).not.toContain("text-lg font-semibold");
+    expect(catchDetail).toContain('data-testid="catch-owner-actions"');
+    expect(baitDetail).toContain('data-testid="bait-owner-actions"');
+    expect(catchDetail).toContain("Boolean(viewerId && record.anglerId === viewerId)");
+    expect(baitDetail).toContain("Boolean(viewerId && record.anglerId === viewerId)");
+    expect(catchDetail).toContain("if (editing && isOwner)");
+    expect(baitDetail).toContain("if (editing && isOwner)");
   });
 
-  it("lets bait Edit spot focus the map the same as a catch", () => {
+  it("lets a single Edit change bait location on the same form as a catch", () => {
+    const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     const baitForm = readFileSync(resolve(__dirname, "../components/BaitSpotForm.tsx"), "utf8");
-    expect(baitDetail).toContain("Edit spot");
-    expect(baitDetail).toContain('data-testid="bait-edit-spot"');
-    expect(baitDetail).toContain("focusLocation={focusSpot}");
+    const catchForm = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
+    expect(catchDetail).toContain('data-testid="catch-edit"');
+    expect(catchDetail).toContain("<CatchForm");
+    expect(catchDetail).toContain('mode="edit"');
+    expect(catchDetail).not.toContain("Edit spot");
+    expect(baitDetail).toContain('data-testid="bait-edit"');
+    expect(baitDetail).toContain("<BaitSpotForm");
+    expect(baitDetail).toContain('mode="edit"');
+    expect(baitDetail).not.toContain("Edit spot");
+    expect(catchForm).toContain('id="catch-location"');
+    expect(catchForm).toContain("notes");
+    expect(catchForm).toContain("caughtAt");
     expect(baitForm).toContain('id="bait-location"');
     expect(baitForm).toContain("isDuckHabitat");
   });

@@ -223,7 +223,6 @@ export function CatchForm({
   importedPhotoLat = null,
   importedPhotoLon = null,
   afterSave = "detail",
-  focusLocation = false,
   onSaved,
 }: {
   mode: "create" | "edit";
@@ -234,7 +233,6 @@ export function CatchForm({
   importedPhotoLat?: number | null;
   importedPhotoLon?: number | null;
   afterSave?: "detail" | "calendar";
-  focusLocation?: boolean;
   onSaved?: (record: CatchRecord) => void;
 }) {
   const router = useRouter();
@@ -357,11 +355,6 @@ export function CatchForm({
     const src = photoSrc(importedPhotoPath);
     if (src) showPreview(src);
   }, [importedPhotoPath]);
-
-  useEffect(() => {
-    if (!focusLocation) return;
-    document.getElementById("catch-location")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [focusLocation]);
 
   useEffect(() => {
     fetch("/api/buddies")
