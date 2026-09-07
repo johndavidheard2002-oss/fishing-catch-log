@@ -56,11 +56,11 @@ The header shows **Demo APIs** when weather, forecast, or tides are not live.
 - **Similar to this catch** — ranks past logs by species, spot, time of day, sky, temperature, wind (speed + direction), moon, and pressure, and says why.
 - **Plan** — tap **Plan a day**, pick one calendar date, then see spots that produced under similar tide, time, and weather for that day. Photos on Plan cards are **only your logged trip photos** — no seed art or stock. Honest that this is a pattern match, not a guarantee.
 - **Spots** — satellite map + grouped list so you can revisit water that produced under similar conditions. Distinct pins stay distinct even on the same calendar day; editing one catch’s location does not move the others. Each spot shows **how many fish** (with a species split when more than one kind) and how many trips.
-- **Linked friends** — invite code pairing (or a household profile on this journal), from Home → More. Linking shares **nothing** until you pick days on Calendar Log (or turn on share for a single trip). Unshared days stay private even to linked friends. Combined Calendar Log / Plan / Spots can include trips a friend **explicitly shared**, labeled with whose catch it is. **Only shared with people you’ve linked.** Never public: no feed, no discoverable profile, no share-with-everyone. Unapproved people see nothing. Unlink anytime. Entire histories are never auto-shared.
+- **Linked friends** — invite code pairing from Home → More. Linking shares **nothing** until you pick days on Calendar Log (or turn on share for a single trip). Unshared days stay private even to linked friends. Combined Calendar Log / Plan / Spots can include trips a friend **explicitly shared**, labeled with whose catch it is. **Only shared with people you’ve linked.** Never public: no feed, no discoverable profile, no share-with-everyone. Unapproved people see nothing. Unlink anytime. Entire histories are never auto-shared.
 
-### How linking works (v1 vs production)
+### How linking works
 
-v1 is invite codes plus optional household profiles on this SQLite journal so two anglers can be demoed on one phone. Production auth (magic link / email accounts) should replace the profile switcher only: each signed-in angler still has an invite code, still accepts a friend, and still shares **selected days** (or per trip). A shared server database is what lets two phones pair. Unapproved users never see another angler’s data.
+Each signed-in angler has an invite code, accepts a friend by code, and shares **selected days** (or per trip). A shared server database is what lets two phones pair. Unapproved users never see another angler’s data.
 
 Everything is editable if GPS or weather fail. Species is always yours to tag.
 

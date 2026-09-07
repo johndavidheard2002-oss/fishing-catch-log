@@ -215,4 +215,19 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(shared).toContain("row.placeNames");
     expect(shared).toContain("home-shared-days");
   });
+
+  it("does not offer add someone on this phone or a household profile switch", () => {
+    const buddies = readFileSync(resolve(__dirname, "../components/BuddyPanel.tsx"), "utf8");
+    const route = readFileSync(resolve(__dirname, "../app/api/buddies/route.ts"), "utf8");
+    expect(buddies).toContain("Your invite code");
+    expect(buddies).toContain("Link with a code");
+    expect(buddies).not.toContain("Add someone on this phone");
+    expect(buddies).not.toContain("createBuddy");
+    expect(buddies).not.toContain("Who is logging");
+    expect(buddies).not.toContain("JSON.stringify({ name: buddyName })");
+    expect(route).toContain("linkByInviteCode");
+    expect(route).not.toContain("createAngler");
+    expect(route).not.toMatch(/body\.name/);
+    expect(route).toContain("Enter an invite code.");
+  });
 });
