@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { addPlanSpotToDay } from "./notes";
 import {
+  PENDING_PLAN_BAIT_QUERY,
   PENDING_PLAN_CATCH_QUERY,
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
@@ -12,13 +13,14 @@ import {
   clearPendingPlanSpot,
   parsePendingPlanSpotSearch,
   pendingPlanPrompt,
+  pendingPlanSpotFromBait,
   pendingPlanSpotFromCatch,
   planHrefForPendingSpot,
   readPendingPlanSpot,
   resolvePendingPlanSpot,
   writePendingPlanSpot,
 } from "./pending-plan-spot";
-import { catchOf } from "./testing";
+import { baitOf, catchOf } from "./testing";
 
 function memoryStorage(initial: Record<string, string> = {}): Storage {
   const map = new Map(Object.entries(initial));
@@ -63,6 +65,15 @@ describe("pendingPlanSpotFromCatch", () => {
     expect(pendingPlanSpotFromCatch(catchOf({ id: "c2", placeName: "   " }))).toBeNull();
     expect(pendingPlanSpotFromCatch({ id: "c3", placeName: null, species: "Redfish" })).toBeNull();
   });
+
+  it("builds a place payload from a bait hole", () => {
+    expect(pendingPlanSpotFromBait(baitOf({ id: "b1", placeName: "  Haulover Canal  " }))).toEqual({
+      baitId: "b1",
+      placeName: "Haulover Canal",
+      speciesTargets: [],
+    });
+    expect(pendingPlanSpotFromBait({ id: "b2", placeName: "  " })).toBeNull();
+  });
 });
 
 describe("plan href and query contract", () => {
@@ -76,6 +87,21 @@ describe("plan href and query contract", () => {
     expect(href).not.toMatch(/date=/);
     const parsed = parsePendingPlanSpotSearch(new URLSearchParams(href.slice("/plan?".length)));
     expect(parsed).toEqual({ catchId: "c1", placeName: "", speciesTargets: [] });
+  });
+
+  it("sends a bait id on /plan the same way", () => {
+    const href = planHrefForPendingSpot({
+      baitId: "b1",
+      placeName: "Haulover Canal",
+      speciesTargets: [],
+    });
+    expect(href).toBe(`/plan?${PENDING_PLAN_BAIT_QUERY}=b1`);
+    expect(href).not.toMatch(/date=/);
+    expect(parsePendingPlanSpotSearch(new URLSearchParams(href.slice("/plan?".length)))).toEqual({
+      baitId: "b1",
+      placeName: "",
+      speciesTargets: [],
+    });
   });
 
   it("falls back to a place query when there is no catch id", () => {
@@ -142,6 +168,12 @@ describe("Add to plan visibility", () => {
     expect(canShowAddToPlan(mine, "you", false)).toBe(false);
     expect(canShowAddToPlan(mine, undefined, true)).toBe(false);
     expect(canShowAddToPlan(catchOf({ id: "no-place", placeName: null }), "you", true)).toBe(false);
+    expect(canShowAddToPlan(baitOf({ id: "b1", anglerId: "you", placeName: "Haulover Canal" }), "you", true)).toBe(
+      true,
+    );
+    expect(canShowAddToPlan(baitOf({ id: "b2", anglerId: "friend", placeName: "Haulover Canal" }), "you", true)).toBe(
+      false,
+    );
   });
 });
 
@@ -170,21 +202,39 @@ describe("pending spot uses the same Plan add path", () => {
       speciesTargets: ["Redfish"],
       kind: "plan-spot",
     });
+    const baitPending = pendingPlanSpotFromBait(baitOf({ id: "b1", placeName: "Haulover Canal" }));
+    expect(addPlanSpotToDay([], "2026-09-12", baitPending!)).toEqual({
+      day: "2026-09-12",
+      title: null,
+      notes: null,
+      placeName: "Haulover Canal",
+      speciesTargets: [],
+      kind: "plan-spot",
+    });
   });
 });
 
 describe("Calendar Log and Plan wiring", () => {
   it("puts Add to plan on Calendar Log catch cards and not on Shared", () => {
     const catchCard = readFileSync(resolve(__dirname, "../components/CatchCard.tsx"), "utf8");
+    const baitCard = readFileSync(resolve(__dirname, "../components/BaitSpotCard.tsx"), "utf8");
+    const addBtn = readFileSync(resolve(__dirname, "../components/AddToPlanButton.tsx"), "utf8");
     const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");
     const similar = readFileSync(resolve(__dirname, "../components/SimilarList.tsx"), "utf8");
-    expect(catchCard).toContain('data-testid="add-to-plan"');
-    expect(catchCard).toContain("Add to plan");
+    expect(addBtn).toContain('data-testid="add-to-plan"');
+    expect(addBtn).toContain("Add to plan");
+    expect(addBtn).toContain("writePendingPlanSpot");
+    expect(addBtn).toContain("rounded-full bg-teal");
+    expect(catchCard).toContain("AddToPlanButton");
+    expect(catchCard).toContain("CatchStampChips");
     expect(catchCard).toContain("canShowAddToPlan");
-    expect(catchCard).toContain("planHrefForPendingSpot");
-    expect(catchCard).toContain("writePendingPlanSpot");
-    expect(catchCard).toContain("rounded-full bg-teal");
+    expect(catchCard).toContain("habitatLabel(record.habitat)");
+    expect(catchCard).toMatch(/flex flex-wrap gap-1[\s\S]*AddToPlanButton/);
+    expect(catchCard).not.toContain("flex justify-end px-3 pb-2");
+    expect(baitCard).toContain("AddToPlanButton");
+    expect(baitCard).toContain("BaitStampChips");
+    expect(baitCard).toContain("canShowAddToPlan");
     expect(history).toContain("showAddToPlan");
     expect(history).toContain("calendar-log-own-feed");
     const ownFeed = history.slice(history.lastIndexOf("calendar-log-own-feed") - 80);
@@ -194,6 +244,8 @@ describe("Calendar Log and Plan wiring", () => {
     expect(sharedBlock).not.toContain("showAddToPlan");
     expect(calendar).toContain("showAddToPlan");
     expect(similar).not.toContain("showAddToPlan");
+    const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
+    expect(baitDetail).toContain("AddToPlanButton");
   });
 
   it("lets Plan wait for a day tap, then add the pending spot", () => {
@@ -207,8 +259,12 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("onSelectDay");
     expect(plan).toContain("void commitPendingSpot(date)");
     expect(plan).toContain("/api/catches/");
+    expect(plan).toContain("/api/bait-spots/");
+    expect(plan).toContain("pendingPlanSpotFromBait");
     expect(plan).not.toContain("setSelectedDay(pending");
     expect(page).toContain("addCatch");
+    expect(page).toContain("addBait");
     expect(page).toContain("initialAddCatch");
+    expect(page).toContain("initialAddBait");
   });
 });

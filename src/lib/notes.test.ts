@@ -259,6 +259,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("commitPendingSpot");
     expect(plan).toContain('data-testid="plan-pending-spot"');
     expect(plan).toContain("void commitPendingSpot(date)");
+    expect(plan).toContain("/api/bait-spots/");
+    expect(plan).toContain("pendingPlanSpotFromBait");
   });
 
   it("adds one place from a same-spot card that lists several past trips", () => {

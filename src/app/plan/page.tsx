@@ -23,6 +23,7 @@ export default async function PlanPage({
   searchParams: Promise<{
     date?: string | string[];
     addCatch?: string | string[];
+    addBait?: string | string[];
     addPlace?: string | string[];
     addSpecies?: string | string[];
   }>;
@@ -30,6 +31,7 @@ export default async function PlanPage({
   const params = await searchParams;
   const initialDate = firstQuery(params.date);
   const initialAddCatch = firstQuery(params.addCatch);
+  const initialAddBait = firstQuery(params.addBait);
   const initialAddPlace = firstQuery(params.addPlace);
   const initialAddSpecies = firstQuery(params.addSpecies);
   let initialNotes;
@@ -53,6 +55,7 @@ export default async function PlanPage({
       initialDate={initialDate}
       initialNotes={initialNotes}
       initialAddCatch={initialAddCatch}
+      initialAddBait={initialAddBait}
       initialAddPlace={initialAddPlace}
       initialAddSpecies={initialAddSpecies}
     />

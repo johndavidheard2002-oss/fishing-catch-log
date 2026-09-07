@@ -2,6 +2,7 @@ import { parseSpeciesTargets } from "./notes";
 
 export const PENDING_PLAN_SPOT_STORAGE_KEY = "tide-mark-pending-plan-spot";
 export const PENDING_PLAN_CATCH_QUERY = "addCatch";
+export const PENDING_PLAN_BAIT_QUERY = "addBait";
 export const PENDING_PLAN_PLACE_QUERY = "addPlace";
 export const PENDING_PLAN_SPECIES_QUERY = "addSpecies";
 
@@ -10,6 +11,7 @@ export const PENDING_PLAN_SPOT_TTL_MS = 2 * 60 * 60 * 1000;
 
 export type PendingPlanSpot = {
   catchId?: string;
+  baitId?: string;
   placeName: string;
   speciesTargets: string[];
   savedAt?: number;
@@ -40,10 +42,26 @@ export function pendingPlanSpotFromCatch(record: {
   };
 }
 
+/** Place from a bait hole. Same Plan-day add as a catch place. */
+export function pendingPlanSpotFromBait(spot: {
+  id?: string;
+  placeName?: string | null;
+}): PendingPlanSpot | null {
+  const placeName = trimPlace(spot.placeName);
+  if (!placeName) return null;
+  return {
+    baitId: spot.id,
+    placeName,
+    speciesTargets: [],
+  };
+}
+
 export function planHrefForPendingSpot(spot: PendingPlanSpot): string {
   const params = new URLSearchParams();
   if (spot.catchId?.trim()) {
     params.set(PENDING_PLAN_CATCH_QUERY, spot.catchId.trim());
+  } else if (spot.baitId?.trim()) {
+    params.set(PENDING_PLAN_BAIT_QUERY, spot.baitId.trim());
   } else {
     params.set(PENDING_PLAN_PLACE_QUERY, spot.placeName);
     if (spot.speciesTargets.length) {
@@ -57,11 +75,15 @@ export function parsePendingPlanSpotSearch(search: {
   get(name: string): string | null;
 }): PendingPlanSpot | null {
   const catchId = search.get(PENDING_PLAN_CATCH_QUERY)?.trim() || undefined;
+  const baitId = search.get(PENDING_PLAN_BAIT_QUERY)?.trim() || undefined;
   const placeName = trimPlace(search.get(PENDING_PLAN_PLACE_QUERY));
   const speciesRaw = search.get(PENDING_PLAN_SPECIES_QUERY);
   const speciesTargets = speciesRaw ? parseSpeciesTargets(speciesRaw.split(",")) : [];
   if (catchId) {
     return { catchId, placeName, speciesTargets };
+  }
+  if (baitId) {
+    return { baitId, placeName, speciesTargets };
   }
   if (placeName) {
     return { placeName, speciesTargets };
@@ -96,10 +118,12 @@ export function readPendingPlanSpot(
     const savedAt = typeof parsed.savedAt === "number" ? parsed.savedAt : undefined;
     if (savedAt != null && now - savedAt > PENDING_PLAN_SPOT_TTL_MS) return null;
     const catchId = typeof parsed.catchId === "string" ? parsed.catchId.trim() : "";
+    const baitId = typeof parsed.baitId === "string" ? parsed.baitId.trim() : "";
     const placeName = typeof parsed.placeName === "string" ? parsed.placeName.trim() : "";
-    if (!catchId && !placeName) return null;
+    if (!catchId && !baitId && !placeName) return null;
     return {
       catchId: catchId || undefined,
+      baitId: baitId || undefined,
       placeName,
       speciesTargets: parseSpeciesTargets(parsed.speciesTargets),
       savedAt,
@@ -127,6 +151,21 @@ export function resolvePendingPlanSpot(
     if (fromStorage?.catchId === fromSearch.catchId) {
       return {
         catchId: fromSearch.catchId,
+        baitId: fromStorage.baitId,
+        placeName: fromStorage.placeName || fromSearch.placeName,
+        speciesTargets: fromStorage.speciesTargets.length
+          ? fromStorage.speciesTargets
+          : fromSearch.speciesTargets,
+        savedAt: fromStorage.savedAt,
+      };
+    }
+    return fromSearch;
+  }
+  if (fromSearch?.baitId) {
+    if (fromStorage?.baitId === fromSearch.baitId) {
+      return {
+        baitId: fromSearch.baitId,
+        catchId: fromStorage.catchId,
         placeName: fromStorage.placeName || fromSearch.placeName,
         speciesTargets: fromStorage.speciesTargets.length
           ? fromStorage.speciesTargets
@@ -137,7 +176,7 @@ export function resolvePendingPlanSpot(
     return fromSearch;
   }
   if (fromSearch?.placeName) return fromSearch;
-  if (fromStorage?.placeName || fromStorage?.catchId) return fromStorage;
+  if (fromStorage?.placeName || fromStorage?.catchId || fromStorage?.baitId) return fromStorage;
   return null;
 }
 
@@ -152,20 +191,16 @@ export function canShowAddToPlan(
   record: {
     anglerId?: string | null;
     placeName?: string | null;
-    species?: string | null;
-    speciesList?: string[] | null;
   },
   viewerId?: string | null,
   showAddToPlan?: boolean,
 ): boolean {
-  return Boolean(
-    showAddToPlan && isOwnCatchForPlan(record, viewerId) && pendingPlanSpotFromCatch(record),
-  );
+  return Boolean(showAddToPlan && isOwnCatchForPlan(record, viewerId) && trimPlace(record.placeName));
 }
 
 export function pendingPlanPrompt(spot: PendingPlanSpot | null): string | null {
   if (!spot) return null;
   if (spot.placeName) return `Pick a day to add ${spot.placeName}.`;
-  if (spot.catchId) return "Looking up that spot…";
+  if (spot.catchId || spot.baitId) return "Looking up that spot…";
   return "Pick a day to add this spot.";
 }

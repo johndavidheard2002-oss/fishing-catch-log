@@ -365,7 +365,12 @@ function JournalCards({
               showAddToPlan={showAddToPlan}
             />
           ) : (
-            <BaitSpotGridCard key={item.id} spot={item.spot} viewerId={viewerId} />
+            <BaitSpotGridCard
+              key={item.id}
+              spot={item.spot}
+              viewerId={viewerId}
+              showAddToPlan={showAddToPlan}
+            />
           ),
         )}
       </div>
@@ -382,7 +387,12 @@ function JournalCards({
             showAddToPlan={showAddToPlan}
           />
         ) : (
-          <BaitSpotCard key={item.id} spot={item.spot} viewerId={viewerId} />
+          <BaitSpotCard
+            key={item.id}
+            spot={item.spot}
+            viewerId={viewerId}
+            showAddToPlan={showAddToPlan}
+          />
         ),
       )}
     </div>

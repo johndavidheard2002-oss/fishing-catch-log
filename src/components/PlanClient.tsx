@@ -19,12 +19,14 @@ import {
   upcomingPlanNotes,
 } from "@/lib/notes";
 import {
+  PENDING_PLAN_BAIT_QUERY,
   PENDING_PLAN_CATCH_QUERY,
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
   clearPendingPlanSpot,
   parsePendingPlanSpotSearch,
   pendingPlanPrompt,
+  pendingPlanSpotFromBait,
   pendingPlanSpotFromCatch,
   readPendingPlanSpot,
   resolvePendingPlanSpot,
@@ -108,12 +110,14 @@ export function PlanClient({
   initialDate,
   initialNotes = [],
   initialAddCatch = null,
+  initialAddBait = null,
   initialAddPlace = null,
   initialAddSpecies = null,
 }: {
   initialDate: string | null;
   initialNotes?: CalendarNote[];
   initialAddCatch?: string | null;
+  initialAddBait?: string | null;
   initialAddPlace?: string | null;
   initialAddSpecies?: string | null;
 }) {
@@ -121,12 +125,13 @@ export function PlanClient({
   const [pendingSpot, setPendingSpot] = useState<PendingPlanSpot | null>(() => {
     const params = new URLSearchParams();
     if (initialAddCatch) params.set(PENDING_PLAN_CATCH_QUERY, initialAddCatch);
+    if (initialAddBait) params.set(PENDING_PLAN_BAIT_QUERY, initialAddBait);
     if (initialAddPlace) params.set(PENDING_PLAN_PLACE_QUERY, initialAddPlace);
     if (initialAddSpecies) params.set(PENDING_PLAN_SPECIES_QUERY, initialAddSpecies);
     return parsePendingPlanSpotSearch(params);
   });
   const [selectedDay, setSelectedDay] = useState<string | null>(() => {
-    if (pendingSpot || initialAddCatch || initialAddPlace) return null;
+    if (pendingSpot || initialAddCatch || initialAddBait || initialAddPlace) return null;
     return parsePlanDate(initialDate) ? initialDate : null;
   });
   const [notes, setNotes] = useState<CalendarNote[]>(() =>
@@ -167,13 +172,19 @@ export function PlanClient({
   }, []);
 
   useEffect(() => {
-    if (!pendingSpot?.catchId || pendingSpot.placeName) return;
+    if (pendingSpot?.placeName) return;
+    const catchId = pendingSpot?.catchId;
+    const baitId = pendingSpot?.baitId;
+    if (!catchId && !baitId) return;
     let cancelled = false;
-    fetch(`/api/catches/${pendingSpot.catchId}`, { cache: "no-store" })
+    const url = catchId ? `/api/catches/${catchId}` : `/api/bait-spots/${baitId}`;
+    fetch(url, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
-        const spot = pendingPlanSpotFromCatch(data.catch ?? {});
+        const spot = catchId
+          ? pendingPlanSpotFromCatch(data.catch ?? {})
+          : pendingPlanSpotFromBait(data.spot ?? {});
         if (spot) setPendingSpot(spot);
         else setPendingSpot(null);
       })
@@ -183,7 +194,7 @@ export function PlanClient({
     return () => {
       cancelled = true;
     };
-  }, [pendingSpot?.catchId, pendingSpot?.placeName]);
+  }, [pendingSpot?.catchId, pendingSpot?.baitId, pendingSpot?.placeName]);
 
   useEffect(() => {
     let cancelled = false;

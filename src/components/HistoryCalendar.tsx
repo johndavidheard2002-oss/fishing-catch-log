@@ -402,6 +402,7 @@ export function HistoryCalendar({
                         compact
                         showTime
                         viewerId={viewerId}
+                        showAddToPlan
                       />
                     ))}
                   </div>
@@ -471,6 +472,7 @@ export function HistoryCalendar({
                               showTime
                               showYear
                               viewerId={viewerId}
+                              showAddToPlan
                             />
                           ))}
                         </div>
