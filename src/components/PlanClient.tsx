@@ -223,7 +223,8 @@ export function PlanClient({
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled) return;
-        const next = listedPlanNotes(data?.notes, today);
+        const listed = Array.isArray(data?.notes) ? (data.notes as CalendarNote[]) : null;
+        const next = listedPlanNotes(listed, today);
         if (!next) return;
         setNotes(next);
         setSelectedDay((current) => {

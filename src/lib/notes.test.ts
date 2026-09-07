@@ -393,7 +393,7 @@ describe("expired Plan days", () => {
     const afterRefetch = listedPlanNotes(ssr, today);
     expect(afterRefetch?.map((n) => n.id)).toEqual(["today-spot", "today-note", "grace-spot"]);
     expect(listedPlanNotes(undefined, today)).toBeNull();
-    expect(listedPlanNotes({ notes: ssr } as unknown as CalendarNote[], today)).toBeNull();
+    expect(listedPlanNotes(null, today)).toBeNull();
     expect(restorePlanDay(afterRefetch ?? [], today, null)).toBe(today);
     expect(restorePlanDay(afterRefetch ?? [], today, "2026-09-11")).toBe("2026-09-11");
     expect(plannedSpotsOnDay(planNotesOnDay(afterRefetch ?? [], today)).map((n) => n.placeName)).toEqual([
