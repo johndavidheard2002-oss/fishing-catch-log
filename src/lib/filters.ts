@@ -143,14 +143,24 @@ function clusterCenter(cluster: CatchRecord[]): { lat: number; lon: number } | n
   };
 }
 
+function clusterPlaceNameKey(cluster: CatchRecord[]): string | null {
+  for (const item of cluster) {
+    const key = placeNameKey(item);
+    if (key) return key;
+  }
+  return null;
+}
+
 function belongsToCluster(cluster: CatchRecord[], record: CatchRecord): boolean {
+  const clusterName = clusterPlaceNameKey(cluster);
+  const recordName = placeNameKey(record);
+  if (clusterName && recordName && clusterName !== recordName) return false;
+
   const center = clusterCenter(cluster);
   if (record.latitude != null && record.longitude != null && center) {
     return haversineKm(center.lat, center.lon, record.latitude, record.longitude) <= SAME_SPOT_KM;
   }
-  const a = placeNameKey(cluster[0]);
-  const b = placeNameKey(record);
-  return Boolean(a && b && a === b);
+  return Boolean(clusterName && recordName && clusterName === recordName);
 }
 
 export function groupSpots(records: CatchRecord[]): SpotGroup[] {

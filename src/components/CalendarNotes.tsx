@@ -135,19 +135,24 @@ export function PlanDayNotes({
   onCreate,
   onUpdate,
   onDelete,
+  embedded = false,
 }: {
   day: string;
   notes: CalendarNote[];
   onCreate: (input: CalendarNoteInput) => void | Promise<void>;
   onUpdate: (id: string, input: CalendarNoteInput) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
+  embedded?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
   return (
-    <section className="journal-card space-y-2 rounded-2xl p-3" data-testid="plan-day-notes">
+    <section
+      className={embedded ? "space-y-2" : "journal-card space-y-2 rounded-2xl p-3"}
+      data-testid="plan-day-notes"
+    >
       {savedNotice ? (
         <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
           {CHANGES_SAVED_LABEL}
@@ -169,9 +174,9 @@ export function PlanDayNotes({
           </button>
         )}
       </div>
-      {notes.length === 0 && !adding ? (
+      {notes.length === 0 && !adding && !embedded ? (
         <p className="text-sm text-ink-muted">
-          Write what you want to try this day, or tap Add on a suggested spot. Same notes show on
+          Write what you want to try this day, or tap Add on a suggested place. Same notes show on
           Calendar Log.
         </p>
       ) : null}

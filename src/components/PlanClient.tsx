@@ -16,9 +16,18 @@ import {
   dayHasPlanSpot,
   groupNotesByDay,
   journalNotesForCalendarLog,
+  normalizeNotePlace,
   plannedSpotsOnDay,
 } from "@/lib/notes";
-import { parsePlanDate, planLookupFailureNote, planWhyChips, forecastWindowWhenLabel } from "@/lib/plan";
+import {
+  parsePlanDate,
+  planLookupFailureNote,
+  planPlaceToAdd,
+  planWhyChips,
+  forecastWindowWhenLabel,
+  splitBaitSuggestionByPlace,
+  splitPlanSuggestionByPlace,
+} from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
 import type {
@@ -42,6 +51,46 @@ const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotM
     </div>
   ),
 });
+
+function photosForPlannedPlaces(
+  spots: CalendarNote[],
+  suggestions: PlanSuggestion[],
+  baitSuggestions: BaitPlanSuggestion[],
+): { id: string; placeName: string; src: string; href: string }[] {
+  const photos: { id: string; placeName: string; src: string; href: string }[] = [];
+  for (const note of spots) {
+    const key = normalizeNotePlace(note.placeName);
+    if (!key) continue;
+    const catchCard = suggestions.find((s) => normalizeNotePlace(s.placeName) === key);
+    const catchMatch = catchCard?.matches.find((m) => personalPhotoSrc(m.catch.photoPath));
+    if (catchMatch) {
+      const src = personalPhotoSrc(catchMatch.catch.photoPath);
+      if (src) {
+        photos.push({
+          id: note.id,
+          placeName: note.placeName ?? catchCard?.placeName ?? "spot",
+          src,
+          href: `/catch/${catchMatch.catch.id}`,
+        });
+        continue;
+      }
+    }
+    const baitCard = baitSuggestions.find((s) => normalizeNotePlace(s.placeName) === key);
+    const baitMatch = baitCard?.matches.find((m) => personalPhotoSrc(m.baitSpot.photoPath));
+    if (baitMatch) {
+      const src = personalPhotoSrc(baitMatch.baitSpot.photoPath);
+      if (src) {
+        photos.push({
+          id: note.id,
+          placeName: note.placeName ?? baitCard?.placeName ?? "spot",
+          src,
+          href: `/bait/${baitMatch.baitSpot.id}`,
+        });
+      }
+    }
+  }
+  return photos;
+}
 
 type PlanMapTarget = {
   title: string;
@@ -158,14 +207,15 @@ export function PlanClient({
     resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedDay, plan]);
 
-  const suggestions = plan?.suggestions ?? [];
-  const baitSuggestions = plan?.baitSuggestions ?? [];
+  const suggestions = (plan?.suggestions ?? []).flatMap(splitPlanSuggestionByPlace);
+  const baitSuggestions = (plan?.baitSuggestions ?? []).flatMap(splitBaitSuggestionByPlace);
   const lookupFailure = planLookupFailureNote(plan?.note);
   const notesByDay = groupNotesByDay(notes);
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const journalNotes = journalNotesForCalendarLog(selectedNotes);
   const spotsOnDay = plannedSpotsOnDay(selectedNotes);
+  const plannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions);
 
   async function onAddSpot(spot: { placeName?: string | null; speciesTargets?: string[] | null }) {
     if (!selectedDay) return;
@@ -191,9 +241,9 @@ export function PlanClient({
         </h1>
         <p className="text-sm text-ink-muted">
           Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
-          produced — including very strong matches with matching tides. Tap Add on a suggested spot
-          to put it on that day. Add a note if you want. Tap a match to open that trip. Show spot on
-          map for the hole.
+          produced — including very strong matches with matching tides. Tap Add on a place to put
+          only that one place on the day. Add a note if you want. Tap a match to open that trip. Show
+          spot on map for the hole.
         </p>
       </div>
 
@@ -222,41 +272,69 @@ export function PlanClient({
           className="space-y-3"
           data-testid="plan-day-results"
         >
-          <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
-            {formatWeekdayDate(selectedDay)}
-          </h2>
-          {spotsOnDay.length ? (
-            <div data-testid="plan-day-spots">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-copper">
-                On this day
+          <section
+            className="journal-card space-y-3 rounded-2xl border-2 border-teal/45 p-3"
+            data-testid="plan-planned"
+          >
+            <h3 className="font-display text-xl text-teal">Planned</h3>
+            <p className="text-sm text-ink-muted">{formatWeekdayDate(selectedDay)}</p>
+            {spotSaved ? (
+              <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
+                {CHANGES_SAVED_LABEL}
               </p>
-              <ul className="mt-1 flex flex-wrap gap-1">
-                {spotsOnDay.map((note) => (
-                  <li
-                    key={note.id}
-                    className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal"
-                    data-testid="plan-day-spot"
-                  >
-                    {note.placeName}
+            ) : null}
+            {addError ? <p className="text-sm text-copper">{addError}</p> : null}
+            {spotsOnDay.length ? (
+              <div data-testid="plan-day-spots">
+                <ul className="flex flex-wrap gap-1">
+                  {spotsOnDay.map((note) => (
+                    <li
+                      key={note.id}
+                      className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal"
+                      data-testid="plan-day-spot"
+                    >
+                      {note.placeName}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {plannedPhotos.length ? (
+              <ul className="flex flex-wrap gap-2" data-testid="plan-planned-photos">
+                {plannedPhotos.map((photo) => (
+                  <li key={photo.id}>
+                    <Link
+                      href={photo.href}
+                      className={`block overflow-hidden rounded-xl ${TAP_RESET}`}
+                      aria-label={`${photo.placeName} photo`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.src}
+                        alt=""
+                        className="h-16 w-16 object-cover"
+                        data-testid="plan-planned-photo"
+                      />
+                    </Link>
                   </li>
                 ))}
               </ul>
-            </div>
-          ) : null}
-          {spotSaved ? (
-            <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
-              {CHANGES_SAVED_LABEL}
-            </p>
-          ) : null}
-          {addError ? <p className="text-sm text-copper">{addError}</p> : null}
-          <PlanDayNotes
-            key={selectedDay}
-            day={selectedDay}
-            notes={journalNotes}
-            onCreate={onCreateNote}
-            onUpdate={onUpdateNote}
-            onDelete={onDeleteNote}
-          />
+            ) : null}
+            {!spotsOnDay.length && !journalNotes.length && !plannedPhotos.length ? (
+              <p className="text-sm text-ink-muted">
+                Nothing planned yet. Add a place below or write a note.
+              </p>
+            ) : null}
+            <PlanDayNotes
+              key={selectedDay}
+              day={selectedDay}
+              notes={journalNotes}
+              embedded
+              onCreate={onCreateNote}
+              onUpdate={onUpdateNote}
+              onDelete={onDeleteNote}
+            />
+          </section>
           {lookupFailure ? (
             <p className="on-wash-chip text-xs text-ink-muted" data-testid="plan-lookup-failure">
               {lookupFailure}
@@ -284,14 +362,10 @@ export function PlanClient({
                   added={dayHasPlanSpot(selectedNotes, s.placeName)}
                   adding={addingSpotId === s.placeName}
                   onOpenMap={() => setMapTarget(mapTargetFromCatch(s))}
-                  onAdd={() =>
-                    void onAddSpot({
-                      placeName: s.placeName,
-                      speciesTargets: s.matches.flatMap((m) =>
-                        m.catch.speciesList?.length ? m.catch.speciesList : [m.catch.species],
-                      ),
-                    })
-                  }
+                  onAdd={() => {
+                    const spot = planPlaceToAdd(s);
+                    if (spot) void onAddSpot(spot);
+                  }}
                 />
               ))}
               {baitSuggestions.length ? (
@@ -545,12 +619,16 @@ function SuggestionCard({
                   : "border border-line bg-card text-teal"
               } disabled:opacity-60`}
               data-testid="plan-add-spot"
+              data-place-name={suggestion.placeName}
             >
               {added ? "Added" : adding ? "Adding…" : "Add"}
             </button>
           ) : null}
         </div>
       ) : null}
+      <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+        Past trips at this place
+      </p>
       <ul className="space-y-2 px-3 py-3">
         {matchPhotos.map((m) => (
           <li key={m.id} className="flex items-start gap-2">
@@ -699,12 +777,16 @@ function BaitSuggestionCard({
                   : "border border-line bg-card text-teal"
               } disabled:opacity-60`}
               data-testid="plan-add-spot"
+              data-place-name={suggestion.placeName}
             >
               {added ? "Added" : adding ? "Adding…" : "Add"}
             </button>
           ) : null}
         </div>
       ) : null}
+      <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+        Past trips at this place
+      </p>
       <ul className="space-y-2 px-3 py-3">
         {suggestion.matches.map((m) => {
           const baitSrc = personalPhotoSrc(m.baitSpot.photoPath);

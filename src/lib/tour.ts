@@ -40,7 +40,7 @@ export const TOUR_SCREENS: TourScreen[] = [
   {
     id: "plan",
     title: "Plan a day",
-    body: "Pick a day. We suggest spots that match tides and weather from your log. Tap Add to put one on that day.",
+    body: "Pick a day. We suggest spots that match tides and weather from your log. Tap Add on a place to put only that one on the day.",
   },
   {
     id: "more",

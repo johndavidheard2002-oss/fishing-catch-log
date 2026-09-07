@@ -214,14 +214,24 @@ function clusterCenter(cluster: BaitSpot[]): { lat: number; lon: number } | null
   };
 }
 
+function clusterPlaceNameKey(cluster: BaitSpot[]): string | null {
+  for (const item of cluster) {
+    const key = placeNameKey(item);
+    if (key) return key;
+  }
+  return null;
+}
+
 function belongsToCluster(cluster: BaitSpot[], spot: BaitSpot): boolean {
+  const clusterName = clusterPlaceNameKey(cluster);
+  const recordName = placeNameKey(spot);
+  if (clusterName && recordName && clusterName !== recordName) return false;
+
   const center = clusterCenter(cluster);
   if (spot.latitude != null && spot.longitude != null && center) {
     return haversineKm(center.lat, center.lon, spot.latitude, spot.longitude) <= SAME_SPOT_KM;
   }
-  const a = placeNameKey(cluster[0]);
-  const b = placeNameKey(spot);
-  return Boolean(a && b && a === b);
+  return Boolean(clusterName && recordName && clusterName === recordName);
 }
 
 export function baitSpotKey(spot: BaitSpot): string {

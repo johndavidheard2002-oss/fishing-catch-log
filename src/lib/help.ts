@@ -44,7 +44,8 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "Pick a day on the calendar.",
       "We suggest spots that match tides and weather from your log.",
-      "Tap Add on a suggested spot to put it on that day.",
+      "Tap Add on a place to put only that one place on that day.",
+      "Added places and notes sit in Planned, under the calendar.",
       "Tap a match to open that trip’s photo and map. Show spot on map for the hole.",
       "Add a note for that day — it stays on Calendar Log too.",
     ],
