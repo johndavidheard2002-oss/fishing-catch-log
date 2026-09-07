@@ -9,8 +9,9 @@ import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { PlanDayNotes } from "@/components/CalendarNotes";
+import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
-import { groupNotesByDay } from "@/lib/notes";
+import { addPlanSpotToDay, dayHasPlanSpot, groupNotesByDay, plannedSpotsOnDay } from "@/lib/notes";
 import { parsePlanDate, planLookupFailureNote, planWhyChips, forecastWindowWhenLabel } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
@@ -70,6 +71,9 @@ export function PlanClient({
   const [error, setError] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
   const [mapTarget, setMapTarget] = useState<PlanMapTarget | null>(null);
+  const [addingSpotId, setAddingSpotId] = useState<string | null>(null);
+  const [spotSaved, setSpotSaved] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const resultsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -154,6 +158,23 @@ export function PlanClient({
   const notesByDay = groupNotesByDay(notes);
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
+  const spotsOnDay = plannedSpotsOnDay(selectedNotes);
+
+  async function onAddSpot(spot: { placeName?: string | null; speciesTargets?: string[] | null }) {
+    if (!selectedDay) return;
+    const input = addPlanSpotToDay(selectedNotes, selectedDay, spot);
+    if (!input?.placeName) return;
+    setAddingSpotId(input.placeName);
+    setAddError(null);
+    try {
+      await onCreateNote(input);
+      setSpotSaved(true);
+    } catch {
+      setAddError("Could not add that spot to this day.");
+    } finally {
+      setAddingSpotId(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -163,8 +184,9 @@ export function PlanClient({
         </h1>
         <p className="text-sm text-ink-muted">
           Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
-          produced — including very strong matches with matching tides. Add a note for that day if
-          you want. Tap a match to open that trip. Show spot on map for the hole.
+          produced — including very strong matches with matching tides. Tap Add on a suggested spot
+          to put it on that day. Add a note if you want. Tap a match to open that trip. Show spot on
+          map for the hole.
         </p>
       </div>
 
@@ -179,6 +201,8 @@ export function PlanClient({
         }}
         onSelectDay={(date) => {
           setSelectedDay(date);
+          setSpotSaved(false);
+          setAddError(null);
           window.history.pushState(null, "", `/plan?date=${date}`);
         }}
       />
@@ -194,6 +218,30 @@ export function PlanClient({
           <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
             {formatWeekdayDate(selectedDay)}
           </h2>
+          {spotsOnDay.length ? (
+            <div data-testid="plan-day-spots">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-copper">
+                On this day
+              </p>
+              <ul className="mt-1 flex flex-wrap gap-1">
+                {spotsOnDay.map((note) => (
+                  <li
+                    key={note.id}
+                    className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal"
+                    data-testid="plan-day-spot"
+                  >
+                    {note.placeName}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {spotSaved ? (
+            <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
+              {CHANGES_SAVED_LABEL}
+            </p>
+          ) : null}
+          {addError ? <p className="text-sm text-copper">{addError}</p> : null}
           <PlanDayNotes
             key={selectedDay}
             day={selectedDay}
@@ -213,12 +261,30 @@ export function PlanClient({
             <p className="on-wash-chip text-sm text-copper">{error}</p>
           ) : suggestions.length || baitSuggestions.length ? (
             <>
+              {suggestions.length ? (
+                <h3
+                  className="on-wash-chip w-fit pt-1 text-sm font-semibold text-teal"
+                  data-testid="plan-suggested-spots"
+                >
+                  Suggested spots
+                </h3>
+              ) : null}
               {suggestions.map((s) => (
                 <SuggestionCard
                   key={s.id}
                   suggestion={s}
                   showOwner={includeShared}
+                  added={dayHasPlanSpot(selectedNotes, s.placeName)}
+                  adding={addingSpotId === s.placeName}
                   onOpenMap={() => setMapTarget(mapTargetFromCatch(s))}
+                  onAdd={() =>
+                    void onAddSpot({
+                      placeName: s.placeName,
+                      speciesTargets: s.matches.flatMap((m) =>
+                        m.catch.speciesList?.length ? m.catch.speciesList : [m.catch.species],
+                      ),
+                    })
+                  }
                 />
               ))}
               {baitSuggestions.length ? (
@@ -234,7 +300,10 @@ export function PlanClient({
                       key={s.id}
                       suggestion={s}
                       showOwner={includeShared}
+                      added={dayHasPlanSpot(selectedNotes, s.placeName)}
+                      adding={addingSpotId === s.placeName}
                       onOpenMap={() => setMapTarget(mapTargetFromBait(s))}
+                      onAdd={() => void onAddSpot({ placeName: s.placeName })}
                     />
                   ))}
                 </>
@@ -341,11 +410,17 @@ function PlanDayCalendar({
 function SuggestionCard({
   suggestion,
   showOwner,
+  added,
+  adding,
   onOpenMap,
+  onAdd,
 }: {
   suggestion: PlanSuggestion;
   showOwner: boolean;
+  added: boolean;
+  adding: boolean;
   onOpenMap: () => void;
+  onAdd: () => void;
 }) {
   const w = suggestion.window;
   const matchPhotos = suggestion.matches.map((m) => ({
@@ -364,6 +439,8 @@ function SuggestionCard({
   const primary = matchPhotos[0];
   const canMap = suggestion.latitude != null && suggestion.longitude != null;
   if (!primary) return null;
+
+  const canAdd = Boolean(suggestion.placeName?.trim());
 
   function openSpotMap(event: { preventDefault: () => void; stopPropagation: () => void }) {
     event.preventDefault();
@@ -425,17 +502,46 @@ function SuggestionCard({
           />
         </div>
       </Link>
-      {canMap ? (
-        <div className="px-3 pb-1">
-          <button
-            type="button"
-            onClick={openSpotMap}
-            onPointerDown={(event) => event.stopPropagation()}
-            className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
-            data-testid="plan-show-spot-map"
-          >
-            Show spot on map
-          </button>
+      {canMap || canAdd ? (
+        <div className="flex items-center justify-between gap-2 px-3 pb-2">
+          {canMap ? (
+            <button
+              type="button"
+              onClick={openSpotMap}
+              onPointerDown={(event) => event.stopPropagation()}
+              className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
+              data-testid="plan-show-spot-map"
+            >
+              Show spot on map
+            </button>
+          ) : (
+            <span />
+          )}
+          {canAdd ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!added && !adding) onAdd();
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+              disabled={added || adding}
+              aria-label={
+                added
+                  ? `${suggestion.placeName} added to this day`
+                  : `Add ${suggestion.placeName} to this day`
+              }
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${TAP_RESET} ${
+                added
+                  ? "bg-teal/15 text-teal"
+                  : "border border-line bg-card text-teal"
+              } disabled:opacity-60`}
+              data-testid="plan-add-spot"
+            >
+              {added ? "Added" : adding ? "Adding…" : "Add"}
+            </button>
+          ) : null}
         </div>
       ) : null}
       <ul className="space-y-2 px-3 py-3">
@@ -480,16 +586,23 @@ function SuggestionCard({
 function BaitSuggestionCard({
   suggestion,
   showOwner,
+  added,
+  adding,
   onOpenMap,
+  onAdd,
 }: {
   suggestion: BaitPlanSuggestion;
   showOwner: boolean;
+  added: boolean;
+  adding: boolean;
   onOpenMap: () => void;
+  onAdd: () => void;
 }) {
   const w = suggestion.window;
   const first = suggestion.matches[0]?.baitSpot;
   const src = first ? personalPhotoSrc(first.photoPath) : null;
   const canMap = suggestion.latitude != null && suggestion.longitude != null;
+  const canAdd = Boolean(suggestion.placeName?.trim());
   if (!first) return null;
 
   function openSpotMap(event: { preventDefault: () => void; stopPropagation: () => void }) {
@@ -543,17 +656,46 @@ function BaitSuggestionCard({
           />
         </div>
       </Link>
-      {canMap ? (
-        <div className="px-3 pb-1">
-          <button
-            type="button"
-            onClick={openSpotMap}
-            onPointerDown={(event) => event.stopPropagation()}
-            className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
-            data-testid="plan-show-spot-map"
-          >
-            Show spot on map
-          </button>
+      {canMap || canAdd ? (
+        <div className="flex items-center justify-between gap-2 px-3 pb-2">
+          {canMap ? (
+            <button
+              type="button"
+              onClick={openSpotMap}
+              onPointerDown={(event) => event.stopPropagation()}
+              className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
+              data-testid="plan-show-spot-map"
+            >
+              Show spot on map
+            </button>
+          ) : (
+            <span />
+          )}
+          {canAdd ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!added && !adding) onAdd();
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+              disabled={added || adding}
+              aria-label={
+                added
+                  ? `${suggestion.placeName} added to this day`
+                  : `Add ${suggestion.placeName} to this day`
+              }
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${TAP_RESET} ${
+                added
+                  ? "bg-teal/15 text-teal"
+                  : "border border-line bg-card text-teal"
+              } disabled:opacity-60`}
+              data-testid="plan-add-spot"
+            >
+              {added ? "Added" : adding ? "Adding…" : "Add"}
+            </button>
+          ) : null}
         </div>
       ) : null}
       <ul className="space-y-2 px-3 py-3">

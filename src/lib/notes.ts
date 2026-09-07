@@ -69,6 +69,52 @@ export function planNoteInput(
   };
 }
 
+export function normalizeNotePlace(place?: string | null): string {
+  return (place ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Suggested Plan spot → a calendar note that pins that place onto the day. */
+export function planSpotNoteInput(
+  day: string,
+  spot: { placeName?: string | null; speciesTargets?: string[] | null },
+): CalendarNoteInput | null {
+  if (!DAY_KEY_RE.test(day)) return null;
+  const placeName = trimToNull(spot.placeName, MAX_PLACE);
+  if (!placeName) return null;
+  const input: CalendarNoteInput = {
+    day,
+    title: null,
+    notes: null,
+    placeName,
+    speciesTargets: parseSpeciesTargets(spot.speciesTargets),
+  };
+  return calendarNoteHasContent(input) ? input : null;
+}
+
+export function dayHasPlanSpot(
+  notes: Array<{ placeName?: string | null }>,
+  placeName?: string | null,
+): boolean {
+  const key = normalizeNotePlace(placeName);
+  if (!key) return false;
+  return notes.some((note) => normalizeNotePlace(note.placeName) === key);
+}
+
+export function plannedSpotsOnDay(notes: CalendarNote[]): CalendarNote[] {
+  return notes.filter((note) => Boolean(note.placeName?.trim()));
+}
+
+/** Build a save payload only when that place is not already on the day. */
+export function addPlanSpotToDay(
+  notes: Array<{ placeName?: string | null }>,
+  day: string,
+  spot: { placeName?: string | null; speciesTargets?: string[] | null },
+): CalendarNoteInput | null {
+  const input = planSpotNoteInput(day, spot);
+  if (!input || dayHasPlanSpot(notes, input.placeName)) return null;
+  return input;
+}
+
 export function parseCalendarNoteInput(body: Record<string, unknown>): CalendarNoteInput | null {
   const day = typeof body.day === "string" ? body.day.trim() : "";
   if (!DAY_KEY_RE.test(day)) return null;
