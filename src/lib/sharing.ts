@@ -140,7 +140,7 @@ export function ownerShareFriendNames(args: {
     .filter(Boolean);
 }
 
-/** Calendar List photo overlay: Private, Shared, or Shared · Tyler, Mo. */
+/** Calendar List row badge: Private, Shared, or Shared · Tyler, Mo. */
 export function ownerShareBadgeLabel(args: {
   sharedWithLinked?: boolean;
   sharedWithBuddyIds?: string[] | null;
