@@ -261,17 +261,26 @@ textarea {
 
 .page-intro {
   box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  overflow: hidden;
   overflow-wrap: anywhere;
-  background: rgb(247 252 255 / 0.97);
-  backdrop-filter: blur(16px) saturate(1.08);
-  -webkit-backdrop-filter: blur(16px) saturate(1.08);
+  background: #f7fcff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid rgb(255 255 255 / 0.82);
   border-radius: 1rem;
   padding: 0.85rem 1rem;
   box-shadow: 0 1px 0 rgb(255 255 255 / 0.9);
+  text-shadow: none;
+}
+
+.page-intro * {
+  text-shadow: none;
 }
 
 /* Type sitting on the dark copper wash (not on opaque cards). Light type + dark halo. */

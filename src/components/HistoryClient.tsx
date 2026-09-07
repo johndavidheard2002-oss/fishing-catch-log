@@ -16,7 +16,7 @@ import {
 } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import { mergeJournalFeed, type JournalFeedItem } from "@/lib/journal";
-import { journalNotesForCalendarLog } from "@/lib/notes";
+import { calendarDayHasPlan, planHrefForDay } from "@/lib/notes";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
 import {
   getScanQueueCountServerSnapshot,
@@ -64,6 +64,12 @@ export function HistoryClient({
   const [selectedDay, setSelectedDay] = useState<string | null>(queryDay);
 
   useEffect(() => {
+    if (!selectedDay) return;
+    if (!calendarDayHasPlan(notes.filter((note) => note.day === selectedDay))) return;
+    router.replace(planHrefForDay(selectedDay));
+  }, [notes, selectedDay, router]);
+
+  useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => setViewerId(data.me?.id));
@@ -71,11 +77,11 @@ export function HistoryClient({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/calendar-notes", { cache: "no-store" })
+    fetch("/api/calendar-notes?include=plan-spots", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled && Array.isArray(data.notes)) {
-          setNotes(journalNotesForCalendarLog(data.notes));
+          setNotes(data.notes);
         }
       })
       .catch(() => {});
@@ -239,7 +245,7 @@ export function HistoryClient({
           <HistoryCalendar
             catches={filtered}
             baitSpots={baitSpots}
-            notes={journalNotesForCalendarLog(notes)}
+            notes={notes}
             year={monthCursor.year}
             month={monthCursor.month}
             selectedDay={displayDay}

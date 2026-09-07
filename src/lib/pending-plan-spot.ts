@@ -14,6 +14,7 @@ export type PendingPlanSpot = {
   baitId?: string;
   placeName: string;
   speciesTargets: string[];
+  photoPath?: string;
   savedAt?: number;
 };
 
@@ -27,6 +28,7 @@ export function pendingPlanSpotFromCatch(record: {
   placeName?: string | null;
   species?: string | null;
   speciesList?: string[] | null;
+  photoPath?: string | null;
 }): PendingPlanSpot | null {
   const placeName = trimPlace(record.placeName);
   if (!placeName) return null;
@@ -35,10 +37,12 @@ export function pendingPlanSpotFromCatch(record: {
     : record.species
       ? [record.species]
       : [];
+  const photoPath = record.photoPath?.trim();
   return {
     catchId: record.id,
     placeName,
     speciesTargets: parseSpeciesTargets(names),
+    ...(photoPath ? { photoPath } : {}),
   };
 }
 
@@ -46,13 +50,16 @@ export function pendingPlanSpotFromCatch(record: {
 export function pendingPlanSpotFromBait(spot: {
   id?: string;
   placeName?: string | null;
+  photoPath?: string | null;
 }): PendingPlanSpot | null {
   const placeName = trimPlace(spot.placeName);
   if (!placeName) return null;
+  const photoPath = spot.photoPath?.trim();
   return {
     baitId: spot.id,
     placeName,
     speciesTargets: [],
+    ...(photoPath ? { photoPath } : {}),
   };
 }
 
@@ -120,12 +127,14 @@ export function readPendingPlanSpot(
     const catchId = typeof parsed.catchId === "string" ? parsed.catchId.trim() : "";
     const baitId = typeof parsed.baitId === "string" ? parsed.baitId.trim() : "";
     const placeName = typeof parsed.placeName === "string" ? parsed.placeName.trim() : "";
+    const photoPath = typeof parsed.photoPath === "string" ? parsed.photoPath.trim() : "";
     if (!catchId && !baitId && !placeName) return null;
     return {
       catchId: catchId || undefined,
       baitId: baitId || undefined,
       placeName,
       speciesTargets: parseSpeciesTargets(parsed.speciesTargets),
+      ...(photoPath ? { photoPath } : {}),
       savedAt,
     };
   } catch {
@@ -149,6 +158,7 @@ export function resolvePendingPlanSpot(
 ): PendingPlanSpot | null {
   if (fromSearch?.catchId) {
     if (fromStorage?.catchId === fromSearch.catchId) {
+      const photoPath = fromStorage.photoPath || fromSearch.photoPath;
       return {
         catchId: fromSearch.catchId,
         baitId: fromStorage.baitId,
@@ -156,6 +166,7 @@ export function resolvePendingPlanSpot(
         speciesTargets: fromStorage.speciesTargets.length
           ? fromStorage.speciesTargets
           : fromSearch.speciesTargets,
+        ...(photoPath ? { photoPath } : {}),
         savedAt: fromStorage.savedAt,
       };
     }
@@ -163,6 +174,7 @@ export function resolvePendingPlanSpot(
   }
   if (fromSearch?.baitId) {
     if (fromStorage?.baitId === fromSearch.baitId) {
+      const photoPath = fromStorage.photoPath || fromSearch.photoPath;
       return {
         baitId: fromSearch.baitId,
         catchId: fromStorage.catchId,
@@ -170,6 +182,7 @@ export function resolvePendingPlanSpot(
         speciesTargets: fromStorage.speciesTargets.length
           ? fromStorage.speciesTargets
           : fromSearch.speciesTargets,
+        ...(photoPath ? { photoPath } : {}),
         savedAt: fromStorage.savedAt,
       };
     }

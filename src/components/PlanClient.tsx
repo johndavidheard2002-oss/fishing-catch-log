@@ -17,9 +17,10 @@ import {
   listedPlanNotes,
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
-  normalizeNotePlace,
+  photosForPlannedPlaces,
   plannedSpotsOnDay,
   restorePlanDay,
+  type PlanSpotSource,
 } from "@/lib/notes";
 import {
   PENDING_PLAN_BAIT_QUERY,
@@ -52,54 +53,16 @@ import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
 import type {
   BaitPlanSuggestion,
+  BaitSpot,
   CalendarNote,
   CalendarNoteInput,
+  CatchRecord,
   PlanResult,
   PlanSuggestion,
 } from "@/lib/types";
 
 const TAP_RESET =
   "outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal";
-
-function photosForPlannedPlaces(
-  spots: CalendarNote[],
-  suggestions: PlanSuggestion[],
-  baitSuggestions: BaitPlanSuggestion[],
-): { id: string; placeName: string; src: string; href: string }[] {
-  const photos: { id: string; placeName: string; src: string; href: string }[] = [];
-  for (const note of spots) {
-    const key = normalizeNotePlace(note.placeName);
-    if (!key) continue;
-    const catchCard = suggestions.find((s) => normalizeNotePlace(s.placeName) === key);
-    const catchMatch = catchCard?.matches.find((m) => personalPhotoSrc(m.catch.photoPath));
-    if (catchMatch) {
-      const src = personalPhotoSrc(catchMatch.catch.photoPath);
-      if (src) {
-        photos.push({
-          id: note.id,
-          placeName: note.placeName ?? catchCard?.placeName ?? "spot",
-          src,
-          href: `/catch/${catchMatch.catch.id}`,
-        });
-        continue;
-      }
-    }
-    const baitCard = baitSuggestions.find((s) => normalizeNotePlace(s.placeName) === key);
-    const baitMatch = baitCard?.matches.find((m) => personalPhotoSrc(m.baitSpot.photoPath));
-    if (baitMatch) {
-      const src = personalPhotoSrc(baitMatch.baitSpot.photoPath);
-      if (src) {
-        photos.push({
-          id: note.id,
-          placeName: note.placeName ?? baitCard?.placeName ?? "spot",
-          src,
-          href: `/bait/${baitMatch.baitSpot.id}`,
-        });
-      }
-    }
-  }
-  return photos;
-}
 
 function readSessionPendingSpot(): PendingPlanSpot | null {
   if (typeof sessionStorage === "undefined") return null;
@@ -157,6 +120,8 @@ export function PlanClient({
   const [spotSaved, setSpotSaved] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [deletingPlan, setDeletingPlan] = useState(false);
+  const [journalCatches, setJournalCatches] = useState<CatchRecord[]>([]);
+  const [journalBait, setJournalBait] = useState<BaitSpot[]>([]);
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
@@ -289,6 +254,27 @@ export function PlanClient({
   }
 
   useEffect(() => {
+    let cancelled = false;
+    const q = sharedQuery(includeShared);
+    const suffix = q ? `?${q}` : "";
+    fetch(`/api/catches${suffix}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data?.catches)) setJournalCatches(data.catches);
+      })
+      .catch(() => {});
+    fetch(`/api/bait-spots${suffix}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && Array.isArray(data?.spots)) setJournalBait(data.spots);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [includeShared]);
+
+  useEffect(() => {
     if (!selectedDay) return;
     const day = selectedDay;
     const shared = includeShared;
@@ -322,7 +308,10 @@ export function PlanClient({
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const journalNotes = journalNotesForCalendarLog(selectedNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
-  const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions);
+  const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions, {
+    catches: journalCatches,
+    baitSpots: journalBait,
+  });
   const plannedPhotos = mergePlannedPlacePhotos(
     spotsOnDay,
     freshPlannedPhotos,
@@ -330,10 +319,7 @@ export function PlanClient({
   );
   if (freshPlannedPhotos.length) plannedPhotoCacheRef.current = plannedPhotos;
 
-  async function onAddSpot(
-    spot: { placeName?: string | null; speciesTargets?: string[] | null },
-    day = selectedDay,
-  ) {
+  async function onAddSpot(spot: PlanSpotSource, day = selectedDay) {
     if (!day) return;
     const dayNotes = notesByDay.get(day) ?? [];
     const input = addPlanSpotToDay(dayNotes, day, spot);
@@ -413,13 +399,13 @@ export function PlanClient({
           {pendingPlanPrompt(pendingSpot) ?? "Tap a day to plan it."}
         </p>
       ) : (
-        <section
-          ref={resultsRef}
-          className="space-y-3"
-          data-testid="plan-day-results"
-        >
           <section
-            className="journal-card space-y-3 rounded-2xl border-2 border-teal/45 p-3"
+            ref={resultsRef}
+            className="min-w-0 overflow-visible space-y-3"
+            data-testid="plan-day-results"
+          >
+          <section
+            className="journal-card min-w-0 overflow-visible space-y-3 rounded-2xl border-2 border-teal/45 p-3"
             data-testid="plan-planned"
           >
             <div className="flex items-start justify-between gap-2">
@@ -447,39 +433,34 @@ export function PlanClient({
             {addError ? <p className="text-sm text-copper">{addError}</p> : null}
             {spotsOnDay.length ? (
               <div data-testid="plan-day-spots">
-                <ul className="flex flex-wrap gap-1">
-                  {spotsOnDay.map((note) => (
-                    <li
-                      key={note.id}
-                      className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal"
-                      data-testid="plan-day-spot"
-                    >
-                      {note.placeName}
-                    </li>
-                  ))}
+                <ul className="flex flex-col gap-2" data-testid="plan-planned-photos">
+                  {spotsOnDay.map((note) => {
+                    const photo = plannedPhotos.find((item) => item.id === note.id);
+                    return (
+                      <li key={note.id} className="flex items-center gap-2" data-testid="plan-day-spot">
+                        {photo ? (
+                          <Link
+                            href={photo.href}
+                            className={`block shrink-0 overflow-hidden rounded-xl ${TAP_RESET}`}
+                            aria-label={`${photo.placeName} photo`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={photo.src}
+                              alt=""
+                              className="h-16 w-16 object-cover"
+                              data-testid="plan-planned-photo"
+                            />
+                          </Link>
+                        ) : null}
+                        <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
+                          {note.placeName}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
-            ) : null}
-            {plannedPhotos.length ? (
-              <ul className="flex flex-wrap gap-2" data-testid="plan-planned-photos">
-                {plannedPhotos.map((photo) => (
-                  <li key={photo.id}>
-                    <Link
-                      href={photo.href}
-                      className={`block overflow-hidden rounded-xl ${TAP_RESET}`}
-                      aria-label={`${photo.placeName} photo`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={photo.src}
-                        alt=""
-                        className="h-16 w-16 object-cover"
-                        data-testid="plan-planned-photo"
-                      />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             ) : null}
             {!spotsOnDay.length && !journalNotes.length && !plannedPhotos.length ? (
               <p className="text-sm text-ink-muted">
@@ -524,7 +505,14 @@ export function PlanClient({
                   adding={addingSpotId === s.placeName}
                   onAdd={() => {
                     const spot = planPlaceToAdd(s);
-                    if (spot) void onAddSpot(spot);
+                    if (!spot) return;
+                    const photoMatch =
+                      s.matches.find((m) => m.catch.photoPath) ?? s.matches[0];
+                    void onAddSpot({
+                      ...spot,
+                      sourceCatchId: photoMatch?.catch.id,
+                      photoPath: photoMatch?.catch.photoPath,
+                    });
                   }}
                 />
               ))}
@@ -543,7 +531,13 @@ export function PlanClient({
                       showOwner={includeShared}
                       added={dayHasPlanSpot(selectedNotes, s.placeName)}
                       adding={addingSpotId === s.placeName}
-                      onAdd={() => void onAddSpot({ placeName: s.placeName })}
+                      onAdd={() =>
+                        void onAddSpot({
+                          placeName: s.placeName,
+                          sourceBaitId: s.matches[0]?.baitSpot.id,
+                          photoPath: s.matches[0]?.baitSpot.photoPath,
+                        })
+                      }
                     />
                   ))}
                 </>
@@ -579,7 +573,7 @@ function PlanDayCalendar({
   const cells = monthGrid(year, month);
   const today = todayKey();
   return (
-    <section className="journal-card rounded-2xl px-3 py-3" data-testid="plan-day-calendar">
+    <section className="journal-card overflow-visible rounded-2xl px-3 py-3" data-testid="plan-day-calendar">
       <div className="mb-2 flex items-center justify-between gap-2">
         <button
           type="button"
@@ -604,7 +598,7 @@ function PlanDayCalendar({
           <span key={label}>{label}</span>
         ))}
       </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
+      <div className="mt-1 grid grid-cols-7 gap-1 overflow-visible p-0.5">
         {cells.map((cell) => {
           const isSelected = selectedDay === cell.date;
           const isToday = cell.date === today;
@@ -621,12 +615,12 @@ function PlanDayCalendar({
               aria-label={hasNote ? `${cell.date}, has notes` : cell.date}
               aria-current={isSelected ? "date" : undefined}
               data-testid={`plan-day-${cell.date}`}
-              className={`flex min-h-10 flex-col items-center justify-center rounded-xl py-2 text-sm ${TAP_RESET} ${
+              className={`box-border flex min-h-12 flex-col items-center justify-center overflow-visible rounded-xl border-2 py-2 text-sm ${TAP_RESET} ${
                 isSelected
-                  ? "font-semibold ring-2 ring-inset ring-teal"
+                  ? "border-teal bg-card font-semibold"
                   : isToday
-                    ? "ring-1 ring-inset ring-copper"
-                    : "bg-card"
+                    ? "border-copper bg-card"
+                    : "border-transparent bg-card"
               } ${cell.inMonth ? "" : "opacity-35"}`}
             >
               {cell.day}

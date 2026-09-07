@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   addPlanSpotToDay,
+  calendarDayHasPlan,
   calendarNoteHasContent,
   dayHasPlanSpot,
   groupNotesByDay,
@@ -14,6 +15,7 @@ import {
   parseDayKey,
   parseSpeciesTargets,
   planDayPurgeBeforeKey,
+  planHrefForDay,
   planNoteInput,
   planNotesOnDay,
   planSpotNoteInput,
@@ -22,6 +24,7 @@ import {
   isPlausiblePlanToday,
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
+  photosForPlannedPlaces,
   restorePlanDay,
   safePlanDayPurgeBeforeKey,
   shiftDayKey,
@@ -39,6 +42,9 @@ function note(partial: Partial<CalendarNote>): CalendarNote {
     placeName: null,
     speciesTargets: [],
     kind: "journal",
+    sourceCatchId: null,
+    sourceBaitId: null,
+    photoPath: null,
     createdAt: "2026-09-02T12:00:00.000Z",
     updatedAt: "2026-09-02T12:00:00.000Z",
     ...partial,
@@ -156,6 +162,9 @@ describe("dayHasPlanSpot", () => {
     expect(plannedSpotsOnDay([spot, writeup, journalPlace]).map((n) => n.placeName)).toEqual([
       "Haulover Canal",
     ]);
+    expect(calendarDayHasPlan([spot, writeup, journalPlace])).toBe(true);
+    expect(calendarDayHasPlan([writeup, journalPlace])).toBe(false);
+    expect(planHrefForDay("2026-09-09")).toBe("/plan?date=2026-09-09");
     expect(journalNotesForCalendarLog([spot, writeup, journalPlace]).map((n) => n.id)).toEqual([
       "w",
       "j",
@@ -224,6 +233,9 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("listedPlanNotes");
     expect(plan).toContain("mergeListedPlanNotes");
     expect(plan).toContain("mergePlannedPlacePhotos");
+    expect(plan).toContain("photosForPlannedPlaces");
+    expect(plan).toContain("sourceCatchId");
+    expect(plan).toContain("sourceBaitId");
     expect(plan).toContain("restorePlanDay");
     expect(plan).toContain("readLastPlanDay");
     expect(plan).toContain("r.ok ? r.json() : null");
@@ -237,15 +249,37 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain('data-testid="plan-delete-day"');
     expect(plan).toContain("Delete plan");
     expect(plan).toContain("journalNotesForCalendarLog");
+    expect(plan).toContain("PlanDayNotes");
+    expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(plan.indexOf("<PlanDayNotes"));
+    const planNotes = readFileSync(resolve(__dirname, "../components/CalendarNotes.tsx"), "utf8");
+    expect(planNotes).toContain('data-testid="plan-day-notes"');
+    expect(planNotes).toContain('data-testid="plan-day-note"');
     expect(plan).toContain('data-testid="plan-add-spot"');
     expect(plan).toContain("data-place-name");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
-    expect(calendar).toContain("journalNotesForCalendarLog");
+    expect(calendar).toContain("include=plan-spots");
+    expect(calendar).toContain("calendarDayHasPlan");
+    expect(calendar).toContain("planHrefForDay");
+    expect(calendar).toContain("router.replace(planHrefForDay(selectedDay))");
+    expect(calendar).not.toContain("journalNotesForCalendarLog");
     expect(calendar).not.toContain("for=plan");
+    const calendarGrid = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");
+    expect(calendarGrid).toContain("calendarDayHasPlan");
+    expect(calendarGrid).toContain("planHrefForDay");
+    expect(calendarGrid).toContain("Planned");
+    expect(calendarGrid).toContain('data-testid="calendar-day-planned"');
+    const calendarPage = readFileSync(resolve(__dirname, "../app/calendar/page.tsx"), "utf8");
+    expect(calendarPage).toContain("includePlanSpots: true");
     expect(plan).toContain('data-testid="plan-suggested-spots"');
     expect(plan).toContain('data-testid="plan-day-spots"');
     expect(plan).toContain('data-testid="plan-planned"');
     expect(plan).toContain('data-testid="plan-planned-photos"');
+    expect(plan).toContain("/api/catches");
+    expect(plan).toContain("/api/bait-spots");
+    expect(plan).toContain("journalCatches");
+    expect(plan).toContain("border-teal bg-card");
+    expect(plan).not.toContain("ring-inset");
+    expect(plan).toContain("overflow-visible");
     expect(plan.indexOf("<PlanDayCalendar")).toBeLessThan(plan.indexOf('data-testid="plan-planned"'));
     expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(
       plan.indexOf('data-testid="plan-suggested-spots"'),
@@ -258,6 +292,7 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("Tap Add on a place to put");
     expect(plan).toContain("only that one place");
     const notesApi = readFileSync(resolve(__dirname, "../app/api/calendar-notes/route.ts"), "utf8");
+    expect(notesApi).toContain('searchParams.get("include") === "plan-spots"');
     expect(notesApi).toContain("parseDayKey(request.nextUrl.searchParams.get(\"today\"))");
     expect(notesApi).toContain("serverToday: utcTodayKey()");
     expect(notesApi).toContain("deleteCalendarNotesForDay");
@@ -465,6 +500,106 @@ describe("expired Plan days", () => {
     ];
     expect(mergePlannedPlacePhotos([spot], [], cached)).toEqual(cached);
     expect(mergePlannedPlacePhotos([], cached, cached)).toEqual([]);
+  });
+
+  it("shows the added catch or bait photo on Planned without waiting for suggestions", () => {
+    const catchSpot = note({
+      id: "from-catch",
+      placeName: "Innertube cut",
+      kind: "plan-spot",
+      sourceCatchId: "c1",
+      photoPath: "redfish.jpg",
+    });
+    expect(photosForPlannedPlaces([catchSpot])).toEqual([
+      {
+        id: "from-catch",
+        placeName: "Innertube cut",
+        src: "/api/media/redfish.jpg",
+        href: "/catch/c1",
+      },
+    ]);
+    const baitSpot = note({
+      id: "from-bait",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+      sourceBaitId: "b1",
+      photoPath: "shrimp.jpg",
+    });
+    expect(photosForPlannedPlaces([baitSpot])).toEqual([
+      {
+        id: "from-bait",
+        placeName: "Haulover Canal",
+        src: "/api/media/shrimp.jpg",
+        href: "/bait/b1",
+      },
+    ]);
+  });
+
+  it("fills one Planned photo per added place from the journal when the note has no photoPath", () => {
+    const portland = note({
+      id: "p1",
+      placeName: "Portland tx",
+      kind: "plan-spot",
+      sourceCatchId: "c-port",
+    });
+    const innertube = note({
+      id: "p2",
+      placeName: "Innertube cut",
+      kind: "plan-spot",
+    });
+    const shamrock = note({
+      id: "p3",
+      placeName: "Shamrock",
+      kind: "plan-spot",
+    });
+    const photos = photosForPlannedPlaces([portland, innertube, shamrock], [], [], {
+      catches: [
+        { id: "c-port", placeName: "Portland tx", photoPath: "portland.jpg" },
+        { id: "c-tube", placeName: "Innertube cut", photoPath: "tube.jpg" },
+        { id: "c-sham", placeName: "Shamrock", photoPath: "shamrock.jpg" },
+      ],
+    });
+    expect(photos).toEqual([
+      {
+        id: "p1",
+        placeName: "Portland tx",
+        src: "/api/media/portland.jpg",
+        href: "/catch/c-port",
+      },
+      {
+        id: "p2",
+        placeName: "Innertube cut",
+        src: "/api/media/tube.jpg",
+        href: "/catch/c-tube",
+      },
+      {
+        id: "p3",
+        placeName: "Shamrock",
+        src: "/api/media/shamrock.jpg",
+        href: "/catch/c-sham",
+      },
+    ]);
+  });
+
+  it("does not invent a bait photo when the added bait had none", () => {
+    const bareBait = note({
+      id: "bare-bait",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+      sourceBaitId: "b1",
+    });
+    const baitSuggestions = [
+      {
+        placeName: "Haulover Canal",
+        matches: [{ baitSpot: { id: "other", photoPath: "other.jpg" } }],
+      },
+    ] as unknown as Parameters<typeof photosForPlannedPlaces>[2];
+    expect(photosForPlannedPlaces([bareBait], [], baitSuggestions)).toEqual([]);
+    expect(
+      photosForPlannedPlaces([bareBait], [], [], {
+        baitSpots: [{ id: "other", placeName: "Haulover Canal", photoPath: "other.jpg" }],
+      }),
+    ).toEqual([]);
   });
 });
 

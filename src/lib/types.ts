@@ -287,6 +287,9 @@ export type CalendarNote = {
   placeName: string | null;
   speciesTargets: string[];
   kind: CalendarNoteKind;
+  sourceCatchId: string | null;
+  sourceBaitId: string | null;
+  photoPath: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -298,6 +301,9 @@ export type CalendarNoteInput = {
   placeName?: string | null;
   speciesTargets?: string[] | null;
   kind?: CalendarNoteKind | null;
+  sourceCatchId?: string | null;
+  sourceBaitId?: string | null;
+  photoPath?: string | null;
 };
 
 export type NamedArea = {

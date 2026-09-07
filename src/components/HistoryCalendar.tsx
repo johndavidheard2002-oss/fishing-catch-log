@@ -32,7 +32,12 @@ import {
   type YearCatchGroup,
 } from "@/lib/calendar";
 import { baitTypesLabel } from "@/lib/bait";
-import { groupNotesByDay } from "@/lib/notes";
+import {
+  calendarDayHasPlan,
+  groupNotesByDay,
+  journalNotesForCalendarLog,
+  planHrefForDay,
+} from "@/lib/notes";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
@@ -105,7 +110,9 @@ export function HistoryCalendar({
   );
   const priorYearBlocks = mergePriorYearBlocks(priorCatchGroups, priorBaitGroups);
   const showPriorYears = !thisYearOnly && priorYearBlocks.length > 0;
-  const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
+  const selectedDayNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
+  const selectedHasPlan = calendarDayHasPlan(selectedDayNotes);
+  const selectedNotes = journalNotesForCalendarLog(selectedDayNotes);
   const allYearsLabel = selectedDay
     ? yearsOnMonthDay(catches, baitSpots, selectedDay).join(" · ")
     : "";
@@ -191,7 +198,9 @@ export function HistoryCalendar({
             const otherYears = anniversary.length > count || baitAnniversary.length > baitCount;
             const yearCount = cell.inMonth ? yearsOnMonthDay(catches, baitSpots, cell.date).length : 0;
             const dayNotes = cell.inMonth ? (notesByDay.get(cell.date) ?? []) : [];
-            const planned = dayNotes.length > 0;
+            const hasPlan = calendarDayHasPlan(dayNotes);
+            const planned = hasPlan || journalNotesForCalendarLog(dayNotes).length > 0;
+            const planHref = hasPlan ? planHrefForDay(cell.date) : null;
             const isSelected = selectedDay === cell.date;
             const isToday = cell.date === today;
             const hasActivity = count > 0 || baitCount > 0 || otherYears || planned;
@@ -209,26 +218,37 @@ export function HistoryCalendar({
                   hasActivity ? "bg-paper-deep" : ""
                 } ${!isSelected && planned && count === 0 && baitCount === 0 ? "border border-dashed border-copper/70" : ""}`}
               >
-                <button
-                  type="button"
-                  onClick={() => openDay(cell.date)}
-                  aria-label={`${cell.date}${count ? `, ${count} catches` : ""}${
-                    baitCount ? `, ${baitCount} bait spot${baitCount === 1 ? "" : "s"}` : ""
-                  }${otherYears ? ", other years on this date" : ""}${
-                    planned ? `, ${dayNotes.length} planned trip${dayNotes.length === 1 ? "" : "s"}` : ""
-                  }`}
-                  aria-pressed={isSelected}
-                  className="flex w-full flex-col items-center leading-none outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal"
-                >
-                  <span>
-                    {cell.day}
-                    {otherYears && (count || baitCount) ? (
-                      <span className="ml-0.5 text-[8px] font-bold text-copper">
-                        {yearCount}y
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
+                {planHref ? (
+                  <Link
+                    href={planHref}
+                    data-testid={`calendar-open-plan-${cell.date}`}
+                    aria-label={`${cell.date}, Planned`}
+                    className="flex w-full flex-col items-center leading-none outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal"
+                  >
+                    <span>{cell.day}</span>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openDay(cell.date)}
+                    aria-label={`${cell.date}${count ? `, ${count} catches` : ""}${
+                      baitCount ? `, ${baitCount} bait spot${baitCount === 1 ? "" : "s"}` : ""
+                    }${otherYears ? ", other years on this date" : ""}${
+                      planned ? `, ${dayNotes.length} planned trip${dayNotes.length === 1 ? "" : "s"}` : ""
+                    }`}
+                    aria-pressed={isSelected}
+                    className="flex w-full flex-col items-center leading-none outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal"
+                  >
+                    <span>
+                      {cell.day}
+                      {otherYears && (count || baitCount) ? (
+                        <span className="ml-0.5 text-[8px] font-bold text-copper">
+                          {yearCount}y
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                )}
                 {count ? (
                   <span className="relative">
                     <DayThumbs records={dayCatches} selected={isSelected} />
@@ -240,7 +260,16 @@ export function HistoryCalendar({
                         B
                       </span>
                     ) : null}
-                    {planned ? (
+                    {hasPlan ? (
+                      <Link
+                        href={planHref!}
+                        aria-label="Planned"
+                        data-testid="calendar-day-planned"
+                        className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white"
+                      >
+                        P
+                      </Link>
+                    ) : planned ? (
                       <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
                         P
                       </span>
@@ -258,7 +287,11 @@ export function HistoryCalendar({
                     >
                       Bait
                     </span>
-                    {planned ? (
+                    {hasPlan ? (
+                      <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
+                        P
+                      </span>
+                    ) : planned ? (
                       <span className="absolute -right-1 -bottom-0.5 rounded-full bg-copper px-1 text-[8px] font-bold text-white">
                         P
                       </span>
@@ -272,6 +305,15 @@ export function HistoryCalendar({
                   >
                     {yearCount}y
                   </button>
+                ) : hasPlan ? (
+                  <Link
+                    href={planHref!}
+                    data-testid="calendar-day-planned"
+                    aria-label={`${cell.date}, Planned`}
+                    className="mt-1 rounded-full bg-copper px-1.5 text-[9px] font-bold text-white"
+                  >
+                    Planned
+                  </Link>
                 ) : planned ? (
                   <button
                     type="button"
@@ -294,8 +336,8 @@ export function HistoryCalendar({
         </div>
       </div>
 
-      {selectedDay ? (
-        <section id="day-detail" data-testid="calendar-day-detail" className="space-y-3">
+      {selectedDay && !selectedHasPlan ? (
+        <section id="day-detail" data-testid="calendar-day-detail" className="min-w-0 overflow-visible space-y-3">
           <div className="flex items-start justify-between gap-2">
             <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
               {hasOtherYears && !thisYearOnly

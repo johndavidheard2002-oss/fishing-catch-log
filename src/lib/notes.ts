@@ -1,4 +1,11 @@
-import type { CalendarNote, CalendarNoteInput, CalendarNoteKind } from "./types";
+import { personalPhotoSrc, photoSrc } from "./photo";
+import type {
+  BaitPlanSuggestion,
+  CalendarNote,
+  CalendarNoteInput,
+  CalendarNoteKind,
+  PlanSuggestion,
+} from "./types";
 
 export const JOURNAL_NOTE_KIND: CalendarNoteKind = "journal";
 export const PLAN_SPOT_NOTE_KIND: CalendarNoteKind = "plan-spot";
@@ -9,6 +16,8 @@ const MAX_TITLE = 80;
 const MAX_NOTES = 2000;
 const MAX_PLACE = 120;
 const MAX_SPECIES = 8;
+const MAX_SOURCE_ID = 80;
+const MAX_PHOTO = 240;
 
 function trimToNull(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;
@@ -92,11 +101,29 @@ export function normalizeNotePlace(place?: string | null): string {
   return (place ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
+export type PlanSpotSource = {
+  placeName?: string | null;
+  speciesTargets?: string[] | null;
+  sourceCatchId?: string | null;
+  sourceBaitId?: string | null;
+  catchId?: string | null;
+  baitId?: string | null;
+  photoPath?: string | null;
+};
+
+function planSpotSourceFields(spot: PlanSpotSource): Partial<CalendarNoteInput> {
+  const sourceCatchId = trimToNull(spot.sourceCatchId ?? spot.catchId, MAX_SOURCE_ID);
+  const sourceBaitId = trimToNull(spot.sourceBaitId ?? spot.baitId, MAX_SOURCE_ID);
+  const photoPath = trimToNull(spot.photoPath, MAX_PHOTO);
+  const fields: Partial<CalendarNoteInput> = {};
+  if (sourceCatchId) fields.sourceCatchId = sourceCatchId;
+  if (sourceBaitId) fields.sourceBaitId = sourceBaitId;
+  if (photoPath) fields.photoPath = photoPath;
+  return fields;
+}
+
 /** Suggested Plan spot → a calendar note that pins that place onto the day. */
-export function planSpotNoteInput(
-  day: string,
-  spot: { placeName?: string | null; speciesTargets?: string[] | null },
-): CalendarNoteInput | null {
+export function planSpotNoteInput(day: string, spot: PlanSpotSource): CalendarNoteInput | null {
   if (!DAY_KEY_RE.test(day)) return null;
   const placeName = trimToNull(spot.placeName, MAX_PLACE);
   if (!placeName) return null;
@@ -107,6 +134,7 @@ export function planSpotNoteInput(
     placeName,
     speciesTargets: parseSpeciesTargets(spot.speciesTargets),
     kind: PLAN_SPOT_NOTE_KIND,
+    ...planSpotSourceFields(spot),
   };
   return calendarNoteHasContent(input) ? input : null;
 }
@@ -126,11 +154,22 @@ export function plannedSpotsOnDay(notes: CalendarNote[]): CalendarNote[] {
   return notes.filter((note) => isPlanSpotNote(note) && Boolean(note.placeName?.trim()));
 }
 
+/** Calendar Log: this day already has Add-to-plan / Plan spots — open Plan, not notes. */
+export function calendarDayHasPlan(
+  notes: Array<{ kind?: string | null; placeName?: string | null }>,
+): boolean {
+  return notes.some((note) => isPlanSpotNote(note) && Boolean(note.placeName?.trim()));
+}
+
+export function planHrefForDay(day: string): string {
+  return `/plan?date=${day}`;
+}
+
 /** Build a save payload only when that place is not already on the Plan day. */
 export function addPlanSpotToDay(
   notes: Array<{ placeName?: string | null; kind?: string | null }>,
   day: string,
-  spot: { placeName?: string | null; speciesTargets?: string[] | null },
+  spot: PlanSpotSource,
 ): CalendarNoteInput | null {
   const input = planSpotNoteInput(day, spot);
   if (!input || dayHasPlanSpot(notes, input.placeName)) return null;
@@ -145,7 +184,21 @@ export function parseCalendarNoteInput(body: Record<string, unknown>): CalendarN
   const placeName = trimToNull(body.placeName, MAX_PLACE);
   const speciesTargets = parseSpeciesTargets(body.speciesTargets);
   const kind = parseCalendarNoteKind(body.kind);
-  const input: CalendarNoteInput = { day, title, notes, placeName, speciesTargets, kind };
+  const input: CalendarNoteInput = {
+    day,
+    title,
+    notes,
+    placeName,
+    speciesTargets,
+    kind,
+    ...planSpotSourceFields({
+      sourceCatchId: typeof body.sourceCatchId === "string" ? body.sourceCatchId : undefined,
+      sourceBaitId: typeof body.sourceBaitId === "string" ? body.sourceBaitId : undefined,
+      catchId: typeof body.catchId === "string" ? body.catchId : undefined,
+      baitId: typeof body.baitId === "string" ? body.baitId : undefined,
+      photoPath: typeof body.photoPath === "string" ? body.photoPath : undefined,
+    }),
+  };
   if (!calendarNoteHasContent(input)) return null;
   return input;
 }
@@ -267,6 +320,131 @@ export type PlannedPlacePhoto = {
   src: string;
   href: string;
 };
+
+export type PlannedPhotoRecord = {
+  id: string;
+  placeName?: string | null;
+  photoPath?: string | null;
+};
+
+function photoFromPlanSpotSource(note: CalendarNote): PlannedPlacePhoto | null {
+  const placeName = note.placeName?.trim() || "spot";
+  if (note.sourceBaitId && !note.sourceCatchId) {
+    const src = personalPhotoSrc(note.photoPath);
+    if (!src) return null;
+    return { id: note.id, placeName, src, href: `/bait/${note.sourceBaitId}` };
+  }
+  if (note.photoPath) {
+    const src = note.sourceCatchId ? photoSrc(note.photoPath) : personalPhotoSrc(note.photoPath);
+    if (!src) return null;
+    return {
+      id: note.id,
+      placeName,
+      src,
+      href: note.sourceCatchId ? `/catch/${note.sourceCatchId}` : `/bait/${note.sourceBaitId ?? ""}`,
+    };
+  }
+  return null;
+}
+
+function photoFromJournalPlace(
+  note: CalendarNote,
+  journal: { catches?: PlannedPhotoRecord[]; baitSpots?: PlannedPhotoRecord[] },
+): PlannedPlacePhoto | null {
+  const placeName = note.placeName?.trim() || "spot";
+  const baitOnly = Boolean(note.sourceBaitId && !note.sourceCatchId);
+
+  if (note.sourceCatchId) {
+    const byId = journal.catches?.find((record) => record.id === note.sourceCatchId);
+    const fromId = photoSrc(byId?.photoPath ?? null);
+    if (fromId) return { id: note.id, placeName, src: fromId, href: `/catch/${note.sourceCatchId}` };
+  }
+  if (baitOnly) {
+    const byId = journal.baitSpots?.find((record) => record.id === note.sourceBaitId);
+    const fromId = personalPhotoSrc(byId?.photoPath ?? null);
+    if (fromId) return { id: note.id, placeName, src: fromId, href: `/bait/${note.sourceBaitId}` };
+    return null;
+  }
+
+  const key = normalizeNotePlace(note.placeName);
+  if (!key) return null;
+  if (!note.sourceCatchId) {
+    const hit = journal.catches?.find(
+      (record) => normalizeNotePlace(record.placeName) === key && photoSrc(record.photoPath ?? null),
+    );
+    if (hit) {
+      const src = photoSrc(hit.photoPath ?? null);
+      if (src) return { id: note.id, placeName, src, href: `/catch/${hit.id}` };
+    }
+  }
+  if (note.sourceCatchId || note.sourceBaitId) return null;
+  const bait = journal.baitSpots?.find(
+    (record) =>
+      normalizeNotePlace(record.placeName) === key && personalPhotoSrc(record.photoPath ?? null),
+  );
+  if (bait) {
+    const src = personalPhotoSrc(bait.photoPath ?? null);
+    if (src) return { id: note.id, placeName, src, href: `/bait/${bait.id}` };
+  }
+  return null;
+}
+
+/**
+ * Planned thumbs: the catch/bait the angler added, then suggestion matches.
+ * A bait add without a photo never borrows another picture.
+ */
+export function photosForPlannedPlaces(
+  spots: CalendarNote[],
+  suggestions: PlanSuggestion[] = [],
+  baitSuggestions: BaitPlanSuggestion[] = [],
+  journal: { catches?: PlannedPhotoRecord[]; baitSpots?: PlannedPhotoRecord[] } = {},
+): PlannedPlacePhoto[] {
+  const photos: PlannedPlacePhoto[] = [];
+  for (const note of spots) {
+    const fromSource = photoFromPlanSpotSource(note);
+    if (fromSource) {
+      photos.push(fromSource);
+      continue;
+    }
+    const fromJournal = photoFromJournalPlace(note, journal);
+    if (fromJournal) {
+      photos.push(fromJournal);
+      continue;
+    }
+    if (note.sourceBaitId && !note.sourceCatchId) continue;
+    const key = normalizeNotePlace(note.placeName);
+    if (!key) continue;
+    const catchCard = suggestions.find((s) => normalizeNotePlace(s.placeName) === key);
+    const catchMatch = catchCard?.matches.find((m) => personalPhotoSrc(m.catch.photoPath));
+    if (catchMatch) {
+      const src = personalPhotoSrc(catchMatch.catch.photoPath);
+      if (src) {
+        photos.push({
+          id: note.id,
+          placeName: note.placeName ?? catchCard?.placeName ?? "spot",
+          src,
+          href: `/catch/${catchMatch.catch.id}`,
+        });
+        continue;
+      }
+    }
+    if (note.sourceCatchId) continue;
+    const baitCard = baitSuggestions.find((s) => normalizeNotePlace(s.placeName) === key);
+    const baitMatch = baitCard?.matches.find((m) => personalPhotoSrc(m.baitSpot.photoPath));
+    if (baitMatch) {
+      const src = personalPhotoSrc(baitMatch.baitSpot.photoPath);
+      if (src) {
+        photos.push({
+          id: note.id,
+          placeName: note.placeName ?? baitCard?.placeName ?? "spot",
+          src,
+          href: `/bait/${baitMatch.baitSpot.id}`,
+        });
+      }
+    }
+  }
+  return photos;
+}
 
 /** Keep thumbs for plan-spots that are still on the day while suggestions reload. */
 export function mergePlannedPlacePhotos(

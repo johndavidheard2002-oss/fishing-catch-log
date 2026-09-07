@@ -71,6 +71,9 @@ export const calendarNotes = sqliteTable("calendar_notes", {
   placeName: text("place_name"),
   speciesTargets: text("species_targets"),
   kind: text("kind").notNull().default("journal"),
+  sourceCatchId: text("source_catch_id"),
+  sourceBaitId: text("source_bait_id"),
+  photoPath: text("photo_path"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
