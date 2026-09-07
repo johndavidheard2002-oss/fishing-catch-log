@@ -14,11 +14,13 @@ import {
   dayHasPlanSpot,
   groupNotesByDay,
   journalNotesForCalendarLog,
+  labelsForPlannedSpot,
   listedPlanNotes,
   mergeCommittedPlanSpots,
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
+  plannedSpotOpenLabel,
   plannedSpotsOnDay,
   planSpotDetailHref,
   planSpotSourceKind,
@@ -531,6 +533,10 @@ export function PlanClient({
                     const photo = plannedPhotos.find((item) => item.id === note.id);
                     const kind = planSpotSourceKind(note);
                     const href = planSpotDetailHref(note, photo);
+                    const labels = labelsForPlannedSpot(note, {
+                      catches: journalCatches,
+                      baitSpots: journalBait,
+                    });
                     const row = (
                       <>
                         {photo ? (
@@ -544,14 +550,40 @@ export function PlanClient({
                             />
                           </span>
                         ) : null}
-                        <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
-                          {note.placeName}
-                        </span>
-                        {kind === "bait" ? (
-                          <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
-                            Bait
+                        <span className="min-w-0">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
+                              {note.placeName}
+                            </span>
+                            {kind === "bait" ? (
+                              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
+                                Bait
+                              </span>
+                            ) : null}
                           </span>
-                        ) : null}
+                          {labels.fish.length || labels.bait.length ? (
+                            <span className="mt-1 flex flex-wrap gap-1">
+                              {labels.fish.map((name) => (
+                                <span
+                                  key={`fish:${name}`}
+                                  className="rounded-full bg-teal/10 px-2 py-0.5 text-[10px] font-semibold text-teal"
+                                  data-testid="plan-day-spot-fish"
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                              {labels.bait.map((name) => (
+                                <span
+                                  key={`bait:${name}`}
+                                  className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper"
+                                  data-testid="plan-day-spot-bait"
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                            </span>
+                          ) : null}
+                        </span>
                       </>
                     );
                     return (
@@ -565,9 +597,7 @@ export function PlanClient({
                           <Link
                             href={href}
                             className={`flex min-w-0 items-center gap-2 ${TAP_RESET}`}
-                            aria-label={
-                              kind === "bait" ? `${note.placeName} bait` : `${note.placeName} catch`
-                            }
+                            aria-label={plannedSpotOpenLabel(note.placeName, kind, labels)}
                             data-testid="plan-day-spot-open"
                           >
                             {row}
@@ -661,6 +691,10 @@ export function PlanClient({
                           placeName: s.placeName,
                           sourceBaitId: s.matches[0]?.baitSpot.id,
                           photoPath: s.matches[0]?.baitSpot.photoPath,
+                          speciesTargets:
+                            s.matches[0]?.baitSpot.baitTypes?.length
+                              ? s.matches[0].baitSpot.baitTypes
+                              : s.baitTypes,
                         })
                       }
                     />
