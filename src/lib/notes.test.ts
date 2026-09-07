@@ -6,13 +6,18 @@ import {
   calendarNoteHasContent,
   dayHasPlanSpot,
   groupNotesByDay,
+  isPastPlanDay,
   journalNotesForCalendarLog,
   noteHeadline,
   parseCalendarNoteInput,
+  parseDayKey,
   parseSpeciesTargets,
+  pastPlanNotes,
   planNoteInput,
+  planNotesOnDay,
   planSpotNoteInput,
   plannedSpotsOnDay,
+  upcomingPlanNotes,
 } from "./notes";
 import type { CalendarNote } from "./types";
 
@@ -205,7 +210,13 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("planPlaceToAdd");
     expect(plan).toContain("splitPlanSuggestionByPlace");
     expect(plan).toContain("splitBaitSuggestionByPlace");
-    expect(plan).toContain("/api/calendar-notes?for=plan");
+    expect(plan).toContain("/api/calendar-notes?for=plan&today=");
+    expect(plan).toContain("upcomingPlanNotes");
+    expect(plan).toContain("onDeletePlan");
+    expect(plan).toContain('confirm("Delete this plan?")');
+    expect(plan).toContain("/api/calendar-notes?day=");
+    expect(plan).toContain('data-testid="plan-delete-day"');
+    expect(plan).toContain("Delete plan");
     expect(plan).toContain("journalNotesForCalendarLog");
     expect(plan).toContain('data-testid="plan-add-spot"');
     expect(plan).toContain("data-place-name");
@@ -227,6 +238,12 @@ describe("Plan add-to-day UI", () => {
     expect(plan).not.toContain("planned for this day");
     expect(plan).toContain("Tap Add on a place to put");
     expect(plan).toContain("only that one place");
+    const notesApi = readFileSync(resolve(__dirname, "../app/api/calendar-notes/route.ts"), "utf8");
+    expect(notesApi).toContain("parseDayKey(request.nextUrl.searchParams.get(\"today\"))");
+    expect(notesApi).toContain("deleteCalendarNotesForDay");
+    expect(notesApi).toContain("export async function DELETE");
+    expect(calendar).not.toContain("today=");
+    expect(calendar).not.toContain("Delete plan");
     expect(plan).toContain("Past trips at this place");
     expect(plan).toContain("{added ? \"Added\" : adding ? \"Adding…\" : \"Add\"}");
     expect(plan).not.toContain("Show spot on map");
@@ -258,6 +275,50 @@ describe("Plan add-to-day UI", () => {
     expect(addPlanSpotToDay(after, "2026-09-10", { placeName: "Harbor island" })?.placeName).toBe(
       "Harbor island",
     );
+  });
+});
+
+describe("past Plan days", () => {
+  it("treats only dates before today as past", () => {
+    expect(isPastPlanDay("2026-09-06", "2026-09-07")).toBe(true);
+    expect(isPastPlanDay("2026-09-07", "2026-09-07")).toBe(false);
+    expect(isPastPlanDay("2026-09-08", "2026-09-07")).toBe(false);
+    expect(isPastPlanDay("nope", "2026-09-07")).toBe(false);
+    expect(parseDayKey("2026-09-07")).toBe("2026-09-07");
+    expect(parseDayKey(" 2026-09-07 ")).toBe("2026-09-07");
+    expect(parseDayKey("09/07/2026")).toBeNull();
+  });
+
+  it("splits notes so only past Plan days are purged", () => {
+    const yesterdaySpot = note({
+      id: "past-spot",
+      day: "2026-09-06",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+    });
+    const yesterdayWriteup = note({
+      id: "past-note",
+      day: "2026-09-06",
+      notes: "Try the flood.",
+    });
+    const todaySpot = note({
+      id: "today-spot",
+      day: "2026-09-07",
+      placeName: "The point",
+      kind: "plan-spot",
+    });
+    const tomorrowWriteup = note({
+      id: "future-note",
+      day: "2026-09-08",
+      notes: "Dawn outgoing.",
+    });
+    const all = [yesterdaySpot, yesterdayWriteup, todaySpot, tomorrowWriteup];
+    expect(pastPlanNotes(all, "2026-09-07").map((n) => n.id)).toEqual(["past-spot", "past-note"]);
+    expect(upcomingPlanNotes(all, "2026-09-07").map((n) => n.id)).toEqual([
+      "today-spot",
+      "future-note",
+    ]);
+    expect(planNotesOnDay(all, "2026-09-07").map((n) => n.id)).toEqual(["today-spot"]);
   });
 });
 

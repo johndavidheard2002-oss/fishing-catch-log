@@ -150,6 +150,32 @@ export function parseCalendarNoteInput(body: Record<string, unknown>): CalendarN
   return input;
 }
 
+/** YYYY-MM-DD from a query or form value. */
+export function parseDayKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const day = value.trim();
+  return DAY_KEY_RE.test(day) ? day : null;
+}
+
+/** True when that Plan day is before the user's local calendar day. */
+export function isPastPlanDay(day: string, today: string): boolean {
+  return DAY_KEY_RE.test(day) && DAY_KEY_RE.test(today) && day < today;
+}
+
+export function planNotesOnDay<T extends { day: string }>(notes: T[], day: string): T[] {
+  return notes.filter((note) => note.day === day);
+}
+
+/** Notes whose Plan day has already passed — leave today and future alone. */
+export function pastPlanNotes<T extends { day: string }>(notes: T[], today: string): T[] {
+  return notes.filter((note) => isPastPlanDay(note.day, today));
+}
+
+/** Today and future Plan notes — past days are dropped from the list. */
+export function upcomingPlanNotes<T extends { day: string }>(notes: T[], today: string): T[] {
+  return notes.filter((note) => !isPastPlanDay(note.day, today));
+}
+
 export function groupNotesByDay(notes: CalendarNote[]): Map<string, CalendarNote[]> {
   const groups = new Map<string, CalendarNote[]>();
   for (const note of notes) {

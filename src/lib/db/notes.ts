@@ -1,8 +1,10 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, lt } from "drizzle-orm";
 import {
   calendarNoteHasContent,
+  DAY_KEY_RE,
   isPlanSpotNote,
   parseCalendarNoteKind,
+  parseDayKey,
   parseSpeciesTargets,
   parseSpeciesTargetsJson,
 } from "../notes";
@@ -32,8 +34,12 @@ function mapRow(row: typeof calendarNotes.$inferSelect): CalendarNote {
 
 export async function listCalendarNotes(
   anglerId: string,
-  options?: { forPlan?: boolean },
+  options?: { forPlan?: boolean; today?: string },
 ): Promise<CalendarNote[]> {
+  if (options?.forPlan) {
+    const today = parseDayKey(options.today);
+    if (today) await purgePastPlanNotes(anglerId, today);
+  }
   const db = await ensureDb();
   const rows = await allRows(
     db
@@ -45,6 +51,28 @@ export async function listCalendarNotes(
   const notes = rows.map(mapRow);
   if (options?.forPlan) return notes;
   return notes.filter((note) => !isPlanSpotNote(note));
+}
+
+/** Clear every calendar note on that Plan day (plan-spots and write-ups). */
+export async function deleteCalendarNotesForDay(anglerId: string, day: string): Promise<number> {
+  if (!DAY_KEY_RE.test(day)) return 0;
+  const db = await ensureDb();
+  return runChange(
+    db
+      .delete(calendarNotes)
+      .where(and(eq(calendarNotes.anglerId, anglerId), eq(calendarNotes.day, day))),
+  );
+}
+
+/** Drop plan-spot and plan-day notes whose calendar day is before today. */
+export async function purgePastPlanNotes(anglerId: string, today: string): Promise<number> {
+  if (!DAY_KEY_RE.test(today)) return 0;
+  const db = await ensureDb();
+  return runChange(
+    db
+      .delete(calendarNotes)
+      .where(and(eq(calendarNotes.anglerId, anglerId), lt(calendarNotes.day, today))),
+  );
 }
 
 export async function getCalendarNote(id: string): Promise<CalendarNote | null> {
