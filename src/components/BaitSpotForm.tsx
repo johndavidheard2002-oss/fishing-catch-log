@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AreaNamePicker } from "./AreaNamePicker";
 import { MapPicker } from "./MapPicker";
+import { useTownMapFocus } from "./useTownMapFocus";
 import { PhotoCapture } from "./PhotoCapture";
 import { BAIT_CATALOG } from "@/lib/bait";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
@@ -119,6 +120,7 @@ export function BaitSpotForm({
   onSaved?: (spot: BaitSpot) => void;
 }) {
   const router = useRouter();
+  const { focusCenter, lookupTown } = useTownMapFocus();
   const [form, setForm] = useState<FormState>(() => (initial ? fromRecord(initial) : emptyForm()));
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
@@ -308,6 +310,7 @@ export function BaitSpotForm({
         value={form.placeName}
         onChange={(placeName) => patch({ placeName })}
         onPickArea={onPickArea}
+        onLookupTown={lookupTown}
       />
       {catchLat == null ? (
         <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
@@ -318,6 +321,7 @@ export function BaitSpotForm({
       <MapPicker
         latitude={catchLat}
         longitude={catchLon}
+        focusCenter={focusCenter}
         onChange={(lat, lng) => {
           patch({ latitude: lat.toFixed(5), longitude: lng.toFixed(5) });
           if (form.placeName.trim()) return;

@@ -7,6 +7,7 @@ import { MapPicker } from "./MapPicker";
 import { PhotoCapture, type PhotoSource } from "./PhotoCapture";
 import { SpeciesPicker } from "./SpeciesPicker";
 import { AreaNamePicker } from "./AreaNamePicker";
+import { useTownMapFocus } from "./useTownMapFocus";
 import { DEFAULT_HABITAT } from "@/lib/habitat";
 import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { MOON_PHASES, moonForDate } from "@/lib/moon";
@@ -59,6 +60,7 @@ import {
   totalFishCount,
 } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
+import type { TownMapCenter } from "@/lib/geocode";
 import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
@@ -236,6 +238,7 @@ export function CatchForm({
   onSaved?: (record: CatchRecord) => void;
 }) {
   const router = useRouter();
+  const { focusCenter, lookupTown } = useTownMapFocus();
   const [form, setForm] = useState<FormState>(() => {
     const base = initial ? fromRecord(initial) : emptyForm(pastMode, importedCaughtAt);
     if (importedPhotoLat == null || importedPhotoLon == null) return base;
@@ -921,6 +924,8 @@ export function CatchForm({
             : locationUi.emptyMapBanner
         }
         onPlace={(placeName) => patch({ placeName })}
+        onLookupTown={lookupTown}
+        focusCenter={focusCenter}
         onSelectArea={(area) => {
           patch({ placeName: area.name });
         }}
@@ -1501,6 +1506,8 @@ function CatchLocationFields({
   hideHints = false,
   emptyPinHint = null,
   onPlace,
+  onLookupTown,
+  focusCenter = null,
   onSelectArea,
   onCoords,
   onUsePhotoGps,
@@ -1510,6 +1517,8 @@ function CatchLocationFields({
   hideHints?: boolean;
   emptyPinHint?: string | null;
   onPlace: (placeName: string) => void;
+  onLookupTown?: (query: string) => void;
+  focusCenter?: TownMapCenter | null;
   onSelectArea: (area: NamedArea) => void;
   onCoords: (lat: string, lng: string) => void;
   onUsePhotoGps: () => void;
@@ -1555,8 +1564,15 @@ function CatchLocationFields({
         value={form.placeName}
         onChange={onPlace}
         onPickArea={onSelectArea}
+        onLookupTown={onLookupTown}
       />
-      <MapPicker latitude={catchLat} longitude={catchLon} onChange={onMapPin} hideHints={hideHints} />
+      <MapPicker
+        latitude={catchLat}
+        longitude={catchLon}
+        onChange={onMapPin}
+        hideHints={hideHints}
+        focusCenter={focusCenter}
+      />
       <details className="app-more">
         <summary className="cursor-pointer text-sm font-semibold text-teal">Coordinates</summary>
         <div className="mt-3 grid min-w-0 grid-cols-2 gap-3">

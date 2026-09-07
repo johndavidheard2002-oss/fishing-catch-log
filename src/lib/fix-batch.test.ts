@@ -42,6 +42,25 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(form).toContain('data-testid="missing-exif-note"');
   });
 
+  it("centers the map on a typed town without dropping a pin", () => {
+    const map = readFileSync(resolve(__dirname, "../components/MapPicker.tsx"), "utf8");
+    const picker = readFileSync(resolve(__dirname, "../components/AreaNamePicker.tsx"), "utf8");
+    const catchForm = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
+    const bait = readFileSync(resolve(__dirname, "../components/BaitSpotForm.tsx"), "utf8");
+    const focusFn = map.slice(map.indexOf("function applyTownFocus"), map.indexOf("const PIN_BOX"));
+    expect(picker).toContain("onLookupTown");
+    expect(picker).toContain("Type a town to move the map");
+    expect(picker).toContain("preventDefault");
+    expect(map).toContain("focusCenter");
+    expect(focusFn).toContain("setView");
+    expect(focusFn).toContain("fitBounds");
+    expect(focusFn).not.toContain("onChange");
+    expect(catchForm).toContain("lookupTown");
+    expect(catchForm).toContain("focusCenter={focusCenter}");
+    expect(bait).toContain("lookupTown");
+    expect(bait).toContain("focusCenter={focusCenter}");
+  });
+
   it("treats live Camera as supplied by the form, not EXIF-only", () => {
     const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
     expect(form).toContain("liveCamera");
