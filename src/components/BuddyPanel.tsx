@@ -185,7 +185,7 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
             placeholder="CAST-XXXXXX"
             className="min-w-0 flex-1 rounded-xl border border-line bg-paper px-3 py-2"
           />
-          <button type="submit" className="rounded-xl bg-copper px-3 py-2 text-sm font-semibold text-white">
+          <button type="submit" className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white">
             Link
           </button>
         </div>
