@@ -322,15 +322,15 @@ export function CatchDetail({ id }: { id: string }) {
 
       {isOwner ? (
         <div className="space-y-3" data-testid="catch-owner-actions">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            data-testid="catch-edit"
-            className="w-full rounded-xl bg-teal py-3 font-semibold text-white"
-          >
-            Edit
-          </button>
-          <div data-testid="catch-share-block">
+          <div className="flex flex-wrap gap-2" data-testid="catch-action-row">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              data-testid="catch-edit"
+              className="rounded-xl bg-teal px-4 py-3 font-semibold text-white"
+            >
+              Edit
+            </button>
             <button
               type="button"
               disabled={shareBusy}
@@ -339,7 +339,7 @@ export function CatchDetail({ id }: { id: string }) {
               onClick={() =>
                 void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
               }
-              className={`w-full rounded-xl px-5 py-3 font-semibold ${
+              className={`rounded-xl px-4 py-3 font-semibold ${
                 record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
                   ? "border-2 border-teal bg-teal/15 text-teal"
                   : "bg-teal text-white"
@@ -347,7 +347,17 @@ export function CatchDetail({ id }: { id: string }) {
             >
               {record.sharedWithLinked ? "Shared" : "Share"}
             </button>
-            <p className="mt-1.5 text-xs text-ink-muted">
+            <button
+              type="button"
+              onClick={onDelete}
+              data-testid="catch-delete"
+              className="rounded-xl border border-line px-4 py-3 font-semibold"
+            >
+              Delete
+            </button>
+          </div>
+          <div data-testid="catch-share-block">
+            <p className="text-xs text-ink-muted">
               Pick who sees this spot. Off until you choose.
             </p>
             <ShareFriendPicker
@@ -365,14 +375,6 @@ export function CatchDetail({ id }: { id: string }) {
               }}
             />
           </div>
-          <button
-            type="button"
-            onClick={onDelete}
-            data-testid="catch-delete"
-            className="w-full rounded-xl border border-line px-4 py-3 font-semibold"
-          >
-            Delete
-          </button>
           {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
         </div>
       ) : null}
