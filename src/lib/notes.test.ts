@@ -253,6 +253,12 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain('data-testid="plan-day-spots"');
     expect(plan).toContain('data-testid="plan-planned"');
     expect(plan).toContain('data-testid="plan-planned-photos"');
+    expect(plan).toContain("/api/catches");
+    expect(plan).toContain("/api/bait-spots");
+    expect(plan).toContain("journalCatches");
+    expect(plan).toContain("border-teal bg-card");
+    expect(plan).not.toContain("ring-inset");
+    expect(plan).toContain("overflow-visible");
     expect(plan.indexOf("<PlanDayCalendar")).toBeLessThan(plan.indexOf('data-testid="plan-planned"'));
     expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(
       plan.indexOf('data-testid="plan-suggested-spots"'),
@@ -507,6 +513,52 @@ describe("expired Plan days", () => {
     ]);
   });
 
+  it("fills one Planned photo per added place from the journal when the note has no photoPath", () => {
+    const portland = note({
+      id: "p1",
+      placeName: "Portland tx",
+      kind: "plan-spot",
+      sourceCatchId: "c-port",
+    });
+    const innertube = note({
+      id: "p2",
+      placeName: "Innertube cut",
+      kind: "plan-spot",
+    });
+    const shamrock = note({
+      id: "p3",
+      placeName: "Shamrock",
+      kind: "plan-spot",
+    });
+    const photos = photosForPlannedPlaces([portland, innertube, shamrock], [], [], {
+      catches: [
+        { id: "c-port", placeName: "Portland tx", photoPath: "portland.jpg" },
+        { id: "c-tube", placeName: "Innertube cut", photoPath: "tube.jpg" },
+        { id: "c-sham", placeName: "Shamrock", photoPath: "shamrock.jpg" },
+      ],
+    });
+    expect(photos).toEqual([
+      {
+        id: "p1",
+        placeName: "Portland tx",
+        src: "/api/media/portland.jpg",
+        href: "/catch/c-port",
+      },
+      {
+        id: "p2",
+        placeName: "Innertube cut",
+        src: "/api/media/tube.jpg",
+        href: "/catch/c-tube",
+      },
+      {
+        id: "p3",
+        placeName: "Shamrock",
+        src: "/api/media/shamrock.jpg",
+        href: "/catch/c-sham",
+      },
+    ]);
+  });
+
   it("does not invent a bait photo when the added bait had none", () => {
     const bareBait = note({
       id: "bare-bait",
@@ -521,6 +573,11 @@ describe("expired Plan days", () => {
       },
     ] as unknown as Parameters<typeof photosForPlannedPlaces>[2];
     expect(photosForPlannedPlaces([bareBait], [], baitSuggestions)).toEqual([]);
+    expect(
+      photosForPlannedPlaces([bareBait], [], [], {
+        baitSpots: [{ id: "other", placeName: "Haulover Canal", photoPath: "other.jpg" }],
+      }),
+    ).toEqual([]);
   });
 });
 

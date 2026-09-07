@@ -310,6 +310,12 @@ export type PlannedPlacePhoto = {
   href: string;
 };
 
+export type PlannedPhotoRecord = {
+  id: string;
+  placeName?: string | null;
+  photoPath?: string | null;
+};
+
 function photoFromPlanSpotSource(note: CalendarNote): PlannedPlacePhoto | null {
   const placeName = note.placeName?.trim() || "spot";
   if (note.sourceBaitId && !note.sourceCatchId) {
@@ -330,6 +336,48 @@ function photoFromPlanSpotSource(note: CalendarNote): PlannedPlacePhoto | null {
   return null;
 }
 
+function photoFromJournalPlace(
+  note: CalendarNote,
+  journal: { catches?: PlannedPhotoRecord[]; baitSpots?: PlannedPhotoRecord[] },
+): PlannedPlacePhoto | null {
+  const placeName = note.placeName?.trim() || "spot";
+  const baitOnly = Boolean(note.sourceBaitId && !note.sourceCatchId);
+
+  if (note.sourceCatchId) {
+    const byId = journal.catches?.find((record) => record.id === note.sourceCatchId);
+    const fromId = photoSrc(byId?.photoPath ?? null);
+    if (fromId) return { id: note.id, placeName, src: fromId, href: `/catch/${note.sourceCatchId}` };
+  }
+  if (baitOnly) {
+    const byId = journal.baitSpots?.find((record) => record.id === note.sourceBaitId);
+    const fromId = personalPhotoSrc(byId?.photoPath ?? null);
+    if (fromId) return { id: note.id, placeName, src: fromId, href: `/bait/${note.sourceBaitId}` };
+    return null;
+  }
+
+  const key = normalizeNotePlace(note.placeName);
+  if (!key) return null;
+  if (!note.sourceCatchId) {
+    const hit = journal.catches?.find(
+      (record) => normalizeNotePlace(record.placeName) === key && photoSrc(record.photoPath ?? null),
+    );
+    if (hit) {
+      const src = photoSrc(hit.photoPath ?? null);
+      if (src) return { id: note.id, placeName, src, href: `/catch/${hit.id}` };
+    }
+  }
+  if (note.sourceCatchId || note.sourceBaitId) return null;
+  const bait = journal.baitSpots?.find(
+    (record) =>
+      normalizeNotePlace(record.placeName) === key && personalPhotoSrc(record.photoPath ?? null),
+  );
+  if (bait) {
+    const src = personalPhotoSrc(bait.photoPath ?? null);
+    if (src) return { id: note.id, placeName, src, href: `/bait/${bait.id}` };
+  }
+  return null;
+}
+
 /**
  * Planned thumbs: the catch/bait the angler added, then suggestion matches.
  * A bait add without a photo never borrows another picture.
@@ -338,12 +386,18 @@ export function photosForPlannedPlaces(
   spots: CalendarNote[],
   suggestions: PlanSuggestion[] = [],
   baitSuggestions: BaitPlanSuggestion[] = [],
+  journal: { catches?: PlannedPhotoRecord[]; baitSpots?: PlannedPhotoRecord[] } = {},
 ): PlannedPlacePhoto[] {
   const photos: PlannedPlacePhoto[] = [];
   for (const note of spots) {
     const fromSource = photoFromPlanSpotSource(note);
     if (fromSource) {
       photos.push(fromSource);
+      continue;
+    }
+    const fromJournal = photoFromJournalPlace(note, journal);
+    if (fromJournal) {
+      photos.push(fromJournal);
       continue;
     }
     if (note.sourceBaitId && !note.sourceCatchId) continue;

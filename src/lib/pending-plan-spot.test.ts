@@ -249,6 +249,24 @@ describe("pending spot uses the same Plan add path", () => {
       kind: "plan-spot",
       sourceBaitId: "b1",
     });
+    expect(
+      addPlanSpotToDay(
+        [],
+        "2026-09-12",
+        pendingPlanSpotFromCatch(
+          catchOf({ id: "c2", placeName: "Shamrock", speciesList: ["Redfish"], photoPath: "sham.jpg" }),
+        )!,
+      ),
+    ).toEqual({
+      day: "2026-09-12",
+      title: null,
+      notes: null,
+      placeName: "Shamrock",
+      speciesTargets: ["Redfish"],
+      kind: "plan-spot",
+      sourceCatchId: "c2",
+      photoPath: "sham.jpg",
+    });
   });
 });
 

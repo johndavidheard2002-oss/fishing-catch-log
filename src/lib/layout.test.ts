@@ -33,7 +33,7 @@ describe("phone-width Log and Backfill", () => {
     expect(homeBlock).toContain("color: #f4f0e4");
     expect(homeBlock).toMatch(/text-shadow:\s*\n\s*0 1px 2px rgb\(0 0 0 \/ 0\.92\)/);
     expect(css).toMatch(/\.journal-card \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
-    expect(css).toMatch(/\.page-intro \{[\s\S]*?background: rgb\(247 252 255 \/ 0\.97\)/);
+    expect(css).toMatch(/\.page-intro \{[\s\S]*?background: #f7fcff/);
     expect(css).toMatch(/\.trout-wash-bg \{[\s\S]*?url\("\/brand\/dark-copper-redfish-bg\.png"\)/);
     expect(css).not.toMatch(/\.signin-brand-banner \{/);
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
