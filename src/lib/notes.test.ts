@@ -19,7 +19,11 @@ import {
   planSpotNoteInput,
   plannedSpotsOnDay,
   listedPlanNotes,
+  isPlausiblePlanToday,
+  mergeListedPlanNotes,
+  mergePlannedPlacePhotos,
   restorePlanDay,
+  safePlanDayPurgeBeforeKey,
   shiftDayKey,
   upcomingPlanNotes,
 } from "./notes";
@@ -218,6 +222,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).toContain("/api/calendar-notes?for=plan&today=");
     expect(plan).toContain("listedPlanNotes");
+    expect(plan).toContain("mergeListedPlanNotes");
+    expect(plan).toContain("mergePlannedPlacePhotos");
     expect(plan).toContain("restorePlanDay");
     expect(plan).toContain("readLastPlanDay");
     expect(plan).toContain("r.ok ? r.json() : null");
@@ -253,6 +259,7 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("only that one place");
     const notesApi = readFileSync(resolve(__dirname, "../app/api/calendar-notes/route.ts"), "utf8");
     expect(notesApi).toContain("parseDayKey(request.nextUrl.searchParams.get(\"today\"))");
+    expect(notesApi).toContain("serverToday: utcTodayKey()");
     expect(notesApi).toContain("deleteCalendarNotesForDay");
     expect(notesApi).toContain("export async function DELETE");
     expect(calendar).not.toContain("today=");
@@ -415,6 +422,49 @@ describe("expired Plan days", () => {
     expect(restorePlanDay([note({ day: "2026-09-09", notes: "Grace" })], today, null)).toBe(
       "2026-09-09",
     );
+  });
+
+  it("does not treat a selected future date or a 3-day-ahead clock as today", () => {
+    expect(isPlausiblePlanToday("2026-09-10", "2026-09-10")).toBe(true);
+    expect(isPlausiblePlanToday("2026-09-11", "2026-09-10")).toBe(true);
+    expect(isPlausiblePlanToday("2026-09-09", "2026-09-10")).toBe(true);
+    expect(isPlausiblePlanToday("2026-09-20", "2026-09-10")).toBe(false);
+    expect(isPlausiblePlanToday("2026-09-07", "2026-09-10")).toBe(false);
+    expect(safePlanDayPurgeBeforeKey("2026-09-10", "2026-09-10")).toBe("2026-09-08");
+    expect(safePlanDayPurgeBeforeKey("2026-09-11", "2026-09-10")).toBe("2026-09-08");
+    expect(safePlanDayPurgeBeforeKey("2026-09-20", "2026-09-10")).toBeNull();
+    expect(isExpiredPlanDay("2026-09-10", "2026-09-10")).toBe(false);
+    expect(isExpiredPlanDay("2026-09-08", "2026-09-10")).toBe(false);
+  });
+
+  it("keeps remount notes and Planned photo thumbs when the list comes back empty", () => {
+    const today = "2026-09-10";
+    const spot = note({
+      id: "today-spot",
+      day: today,
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+    });
+    const writeup = note({ id: "today-note", day: today, notes: "Wind east 10." });
+    expect(mergeListedPlanNotes([spot, writeup], [], today).map((n) => n.id)).toEqual([
+      "today-spot",
+      "today-note",
+    ]);
+    expect(mergeListedPlanNotes([spot], [spot, writeup], today).map((n) => n.id)).toEqual([
+      "today-spot",
+      "today-note",
+    ]);
+    expect(mergeListedPlanNotes([spot], null, today).map((n) => n.id)).toEqual(["today-spot"]);
+    const cached = [
+      {
+        id: "today-spot",
+        placeName: "Haulover Canal",
+        src: "/api/media/haulover.jpg",
+        href: "/catch/c1",
+      },
+    ];
+    expect(mergePlannedPlacePhotos([spot], [], cached)).toEqual(cached);
+    expect(mergePlannedPlacePhotos([], cached, cached)).toEqual([]);
   });
 });
 

@@ -164,12 +164,45 @@ function padDayPart(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/** Shift a YYYY-MM-DD key by whole local calendar days. */
+/** Shift a YYYY-MM-DD key by whole calendar days (UTC date arithmetic — no TZ drift). */
 export function shiftDayKey(day: string, deltaDays: number): string | null {
   if (!DAY_KEY_RE.test(day)) return null;
   const [year, month, date] = day.split("-").map(Number);
-  const shifted = new Date(year, month - 1, date + deltaDays);
-  return `${shifted.getFullYear()}-${padDayPart(shifted.getMonth() + 1)}-${padDayPart(shifted.getDate())}`;
+  const shifted = new Date(Date.UTC(year, month - 1, date + deltaDays));
+  return `${shifted.getUTCFullYear()}-${padDayPart(shifted.getUTCMonth() + 1)}-${padDayPart(shifted.getUTCDate())}`;
+}
+
+/** Whole calendar days from `from` to `to` (negative if `to` is earlier). */
+export function dayKeyDiff(from: string, to: string): number | null {
+  if (!DAY_KEY_RE.test(from) || !DAY_KEY_RE.test(to)) return null;
+  const [fy, fm, fd] = from.split("-").map(Number);
+  const [ty, tm, td] = to.split("-").map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd)) / 86_400_000);
+}
+
+/** Server UTC calendar day — used to reject a client `today` that would over-purge. */
+export function utcTodayKey(now = new Date()): string {
+  return `${now.getUTCFullYear()}-${padDayPart(now.getUTCMonth() + 1)}-${padDayPart(now.getUTCDate())}`;
+}
+
+/**
+ * A Plan-list `today` may be 1 calendar day off the server (timezones).
+ * A selected future plan date or a clock 3+ days ahead is not a valid purge clock.
+ */
+export function isPlausiblePlanToday(today: string, serverToday: string): boolean {
+  const diff = dayKeyDiff(serverToday, today);
+  return diff != null && Math.abs(diff) <= 1;
+}
+
+/**
+ * Exclusive purge cutoff that cannot run ahead of the server day.
+ * Timezone-ahead clients use the earlier day; implausible `today` skips purge.
+ */
+export function safePlanDayPurgeBeforeKey(today: string, serverToday: string): string | null {
+  if (!DAY_KEY_RE.test(today) || !DAY_KEY_RE.test(serverToday)) return null;
+  if (!isPlausiblePlanToday(today, serverToday)) return null;
+  const safeToday = today < serverToday ? today : serverToday;
+  return planDayPurgeBeforeKey(safeToday);
 }
 
 /**
@@ -210,6 +243,44 @@ export function listedPlanNotes<T extends { day: string }>(
 ): T[] | null {
   if (!Array.isArray(notes)) return null;
   return upcomingPlanNotes(notes, today);
+}
+
+/**
+ * Remount refetch: trust a successful list, but do not replace surviving
+ * plan-spots / write-ups with an empty payload (failed purge / empty cache).
+ */
+export function mergeListedPlanNotes<T extends { day: string }>(
+  current: T[],
+  listed: T[] | null | undefined,
+  today: string,
+): T[] {
+  if (!Array.isArray(listed)) return upcomingPlanNotes(current, today);
+  const next = upcomingPlanNotes(listed, today);
+  if (next.length) return next;
+  const keep = upcomingPlanNotes(current, today);
+  return keep.length ? keep : next;
+}
+
+export type PlannedPlacePhoto = {
+  id: string;
+  placeName: string;
+  src: string;
+  href: string;
+};
+
+/** Keep thumbs for plan-spots that are still on the day while suggestions reload. */
+export function mergePlannedPlacePhotos(
+  spots: Array<{ id: string }>,
+  fresh: PlannedPlacePhoto[],
+  cached: PlannedPlacePhoto[] = [],
+): PlannedPlacePhoto[] {
+  const byId = new Map<string, PlannedPlacePhoto>();
+  for (const photo of cached) byId.set(photo.id, photo);
+  for (const photo of fresh) byId.set(photo.id, photo);
+  return spots.flatMap((spot) => {
+    const photo = byId.get(spot.id);
+    return photo ? [photo] : [];
+  });
 }
 
 /**

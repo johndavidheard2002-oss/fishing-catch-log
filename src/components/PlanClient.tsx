@@ -15,6 +15,8 @@ import {
   groupNotesByDay,
   journalNotesForCalendarLog,
   listedPlanNotes,
+  mergeListedPlanNotes,
+  mergePlannedPlacePhotos,
   normalizeNotePlace,
   plannedSpotsOnDay,
   restorePlanDay,
@@ -157,6 +159,7 @@ export function PlanClient({
   const [deletingPlan, setDeletingPlan] = useState(false);
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
+  const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
 
   useEffect(() => {
     function onPop() {
@@ -224,12 +227,11 @@ export function PlanClient({
       .then((data) => {
         if (cancelled) return;
         const listed = Array.isArray(data?.notes) ? (data.notes as CalendarNote[]) : null;
-        const next = listedPlanNotes(listed, today);
-        if (!next) return;
-        setNotes(next);
+        if (listed == null) return;
+        setNotes((current) => mergeListedPlanNotes(current, listed, today));
         setSelectedDay((current) => {
           if (current || pendingSpot) return current;
-          return restorePlanDay(next, today, readLastPlanDay(sessionStorage));
+          return restorePlanDay(listed, today, readLastPlanDay(sessionStorage));
         });
       })
       .catch(() => {});
@@ -320,7 +322,13 @@ export function PlanClient({
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const journalNotes = journalNotesForCalendarLog(selectedNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
-  const plannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions);
+  const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions);
+  const plannedPhotos = mergePlannedPlacePhotos(
+    spotsOnDay,
+    freshPlannedPhotos,
+    plannedPhotoCacheRef.current,
+  );
+  if (freshPlannedPhotos.length) plannedPhotoCacheRef.current = plannedPhotos;
 
   async function onAddSpot(
     spot: { placeName?: string | null; speciesTargets?: string[] | null },

@@ -186,8 +186,12 @@ describe("calendar notes", () => {
       anglerId,
     });
 
-    expect(await purgePastPlanNotes(anglerId, "nope")).toBe(0);
-    const onPlan = await listCalendarNotes(anglerId, { forPlan: true, today: "2026-09-10" });
+    expect(await purgePastPlanNotes(anglerId, "nope", "2026-09-10")).toBe(0);
+    const onPlan = await listCalendarNotes(anglerId, {
+      forPlan: true,
+      today: "2026-09-10",
+      serverToday: "2026-09-10",
+    });
     expect(onPlan.map((note) => note.id).sort()).toEqual(
       [graceSpot.id, yesterdayNote.id, todaySpot.id, tomorrowNote.id].sort(),
     );
@@ -210,15 +214,53 @@ describe("calendar notes", () => {
       day: "2026-09-10",
       notes: "Wind east 10.",
     });
-    const first = await listCalendarNotes(anglerId, { forPlan: true, today: "2026-09-10" });
+    const first = await listCalendarNotes(anglerId, {
+      forPlan: true,
+      today: "2026-09-10",
+      serverToday: "2026-09-10",
+    });
     expect(first.map((note) => note.id).sort()).toEqual([todaySpot.id, writeup.id].sort());
-    const second = await listCalendarNotes(anglerId, { forPlan: true, today: "2026-09-10" });
+    const second = await listCalendarNotes(anglerId, {
+      forPlan: true,
+      today: "2026-09-10",
+      serverToday: "2026-09-10",
+    });
     expect(second.map((note) => note.id).sort()).toEqual([todaySpot.id, writeup.id].sort());
     expect(listedPlanNotes(second, "2026-09-10")?.map((note) => note.id).sort()).toEqual(
       [todaySpot.id, writeup.id].sort(),
     );
     expect(restorePlanDay(second, "2026-09-10", null)).toBe("2026-09-10");
     expect(second.filter((note) => note.kind === "plan-spot").map((note) => note.placeName)).toEqual([
+      "Haulover Canal",
+    ]);
+  });
+
+  it("does not delete today or grace plan-spots when client today is timezone-ahead or a future plan date", async () => {
+    const anglerId = freshDb();
+    const todaySpot = await createCalendarNote(anglerId, {
+      day: "2026-09-07",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+    });
+    const grace = await createCalendarNote(anglerId, {
+      day: "2026-09-06",
+      notes: "Wind east 10.",
+    });
+    const leakedSelectedDate = await listCalendarNotes(anglerId, {
+      forPlan: true,
+      today: "2026-09-20",
+      serverToday: "2026-09-07",
+    });
+    expect(leakedSelectedDate.map((note) => note.id).sort()).toEqual(
+      [todaySpot.id, grace.id].sort(),
+    );
+    const timezoneAhead = await listCalendarNotes(anglerId, {
+      forPlan: true,
+      today: "2026-09-08",
+      serverToday: "2026-09-07",
+    });
+    expect(timezoneAhead.map((note) => note.id).sort()).toEqual([todaySpot.id, grace.id].sort());
+    expect(timezoneAhead.filter((note) => note.kind === "plan-spot").map((note) => note.placeName)).toEqual([
       "Haulover Canal",
     ]);
   });
