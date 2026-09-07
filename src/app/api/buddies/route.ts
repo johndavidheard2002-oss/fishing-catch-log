@@ -1,10 +1,5 @@
 import { NextRequest } from "next/server";
-import {
-  createAngler,
-  linkAnglers,
-  linkByInviteCode,
-  listBuddies,
-} from "@/lib/db/anglers";
+import { linkByInviteCode, listBuddies } from "@/lib/db/anglers";
 import { jsonWithViewer, requireViewerId, signInRequired } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -19,7 +14,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const viewerId = await requireViewerId(request);
   if (!viewerId) return signInRequired();
-  const body = (await request.json()) as { code?: string; name?: string };
+  const body = (await request.json()) as { code?: string };
   try {
     if (body.code?.trim()) {
       const result = await linkByInviteCode(viewerId, body.code);
@@ -28,12 +23,7 @@ export async function POST(request: NextRequest) {
       }
       return jsonWithViewer({ buddies: await listBuddies(viewerId), linked: result.linked }, viewerId);
     }
-    if (body.name?.trim()) {
-      const buddy = await createAngler(body.name);
-      await linkAnglers(viewerId, buddy.id);
-      return jsonWithViewer({ buddies: await listBuddies(viewerId), linked: buddy }, viewerId);
-    }
-    return jsonWithViewer({ error: "Enter an invite code or a friend name." }, viewerId, {
+    return jsonWithViewer({ error: "Enter an invite code." }, viewerId, {
       status: 400,
     });
   } catch (err) {

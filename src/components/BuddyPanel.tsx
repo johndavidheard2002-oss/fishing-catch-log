@@ -38,23 +38,18 @@ export function sharedQuery(includeShared: boolean): string {
 
 export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
   const [me, setMe] = useState<Angler | null>(null);
-  const [profiles, setProfiles] = useState<Angler[]>([]);
   const [buddies, setBuddies] = useState<Buddy[]>([]);
   const [code, setCode] = useState("");
-  const [buddyName, setBuddyName] = useState("");
   const [myName, setMyName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
 
   async function refresh() {
     const [meRes, buddyRes] = await Promise.all([fetch("/api/me"), fetch("/api/buddies")]);
     const meData = await meRes.json();
     const buddyData = await buddyRes.json();
     setMe(meData.me ?? null);
-    setProfiles(meData.profiles ?? []);
     setMyName(meData.me?.name ?? "");
-    setSignedIn(Boolean(meData.signedIn));
     setBuddies(buddyData.buddies ?? []);
   }
 
@@ -66,9 +61,7 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
         const buddyData = await buddyRes.json();
         if (cancelled) return;
         setMe(meData.me ?? null);
-        setProfiles(meData.profiles ?? []);
         setMyName(meData.me?.name ?? "");
-        setSignedIn(Boolean(meData.signedIn));
         setBuddies(buddyData.buddies ?? []);
       })
       .catch(() => {});
@@ -103,35 +96,9 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
     refresh();
   }
 
-  async function createBuddy(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    const res = await fetch("/api/buddies", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: buddyName }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error || "Could not create friend");
-      return;
-    }
-    setBuddyName("");
-    refresh();
-  }
-
   async function unlink(id: string) {
     await fetch(`/api/buddies/${id}`, { method: "DELETE" });
     refresh();
-  }
-
-  async function switchTo(id: string) {
-    await fetch("/api/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ switchTo: id }),
-    });
-    window.location.reload();
   }
 
   return (
@@ -191,24 +158,6 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
         </div>
       </form>
 
-      <form onSubmit={createBuddy} className="space-y-2">
-        <p className="text-sm font-semibold">Add someone on this phone</p>
-        <p className="text-xs text-ink-muted">
-          A second name on this journal — link with their invite code like anyone else.
-        </p>
-        <div className="flex gap-2">
-          <input
-            value={buddyName}
-            onChange={(e) => setBuddyName(e.target.value)}
-            placeholder="Friend name"
-            className="min-w-0 flex-1 rounded-xl border border-line bg-paper px-3 py-2"
-          />
-          <button type="submit" className="rounded-xl border border-line px-3 py-2 text-sm font-semibold">
-            Add
-          </button>
-        </div>
-      </form>
-
       {error ? <p className="text-sm text-copper">{error}</p> : null}
 
       <ul className="space-y-2">
@@ -227,26 +176,6 @@ export function BuddyPanel({ embedded = false }: { embedded?: boolean }) {
       </ul>
 
       {buddies.length ? <SharedDaysList ownerId={me?.id} /> : null}
-
-      {!signedIn && profiles.length > 1 ? (
-        <div>
-          <p className="mb-1 text-sm font-semibold">Who is logging</p>
-          <div className="flex flex-wrap gap-2">
-            {profiles.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => switchTo(p.id)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  p.id === me?.id ? "bg-teal text-white" : "border border-line bg-card"
-                }`}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }

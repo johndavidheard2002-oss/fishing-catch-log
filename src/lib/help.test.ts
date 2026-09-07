@@ -106,6 +106,9 @@ describe("HELP_SECTIONS", () => {
       spotsHelp.some((step) => step.includes("Add to plan") && step.includes("bait") && step.includes("Plan")),
     ).toBe(true);
     expect(share.some((step) => step.includes("Never public") && step.includes("Linking shares nothing"))).toBe(true);
+    expect(share.join(" ")).not.toMatch(/add someone on this phone/i);
+    expect(share.join(" ")).not.toMatch(/second name on this journal/i);
+    expect(share.join(" ")).not.toMatch(/who is logging/i);
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);
       expect(section.steps.every((step) => step.length < 160)).toBe(true);
