@@ -167,12 +167,6 @@ export function BaitSpotDetail({ id }: { id: string }) {
         </p>
         {pendingPlan ? (
           <p className="mt-2 flex flex-wrap gap-1">
-            <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
-              Bait
-            </span>
-            <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
-              {habitatLabel(record.habitat)}
-            </span>
             <AddToPlanButton spot={pendingPlan} />
           </p>
         ) : null}

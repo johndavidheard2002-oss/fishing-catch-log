@@ -229,14 +229,14 @@ export function SpotsClient() {
           </div>
           {kind === "catch" ? (
             <ul className="space-y-2">
-              {spots.map((spot) => (
+              {spots
+                .filter((spot) => spot.key !== selected)
+                .map((spot) => (
                 <li key={spot.key}>
                   <button
                     type="button"
                     onClick={() => onSelect(spot.key)}
-                    className={`journal-card flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left ${
-                      spot.key === selected ? "ring-2 ring-copper" : ""
-                    }`}
+                    className="journal-card flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left"
                   >
                     <OptionThumb src={catchGroupThumbSrc(spot)} kind="catch" size={40} />
                     <span className="min-w-0 flex-1">
@@ -258,16 +258,16 @@ export function SpotsClient() {
             </ul>
           ) : (
             <ul className="space-y-2">
-              {baitGroups.map((spot) => {
+              {baitGroups
+                .filter((spot) => spot.key !== selected)
+                .map((spot) => {
                 const pending = pendingFromOwnBait(spot.spots, viewerId);
                 return (
                   <li key={spot.key} className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => onSelect(spot.key)}
-                      className={`journal-card flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2.5 text-left ${
-                        spot.key === selected ? "ring-2 ring-copper" : ""
-                      }`}
+                      className="journal-card flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2.5 text-left"
                     >
                       <OptionThumb src={baitGroupThumbSrc(spot)} kind="bait" size={40} />
                       <span className="min-w-0 flex-1">
@@ -429,25 +429,15 @@ function BaitSpotPanel({
       </p>
       {latestNotes ? <p className="text-sm">{latestNotes}</p> : null}
       <ul className="space-y-1.5">
-        {group.spots.map((spot) => {
-          const visitPending = pendingFromOwnBait([spot], viewerId);
-          return (
-            <li key={spot.id} className="flex items-center gap-2">
-              <div className="min-w-0 flex-1">
-                <BaitVisitRow
-                  spot={spot}
-                  viewerId={viewerId}
-                  onOpenLocation={() => onOpenLocation(targetFromBait(spot))}
-                />
-              </div>
-              {visitPending ? (
-                <span className="shrink-0">
-                  <AddToPlanButton spot={visitPending} />
-                </span>
-              ) : null}
-            </li>
-          );
-        })}
+        {group.spots.map((spot) => (
+          <li key={spot.id}>
+            <BaitVisitRow
+              spot={spot}
+              viewerId={viewerId}
+              onOpenLocation={() => onOpenLocation(targetFromBait(spot))}
+            />
+          </li>
+        ))}
       </ul>
       <Link href="/plan" className="inline-block text-sm font-semibold text-teal">
         See similar-condition windows on Plan

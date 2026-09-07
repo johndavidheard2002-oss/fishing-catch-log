@@ -5,6 +5,8 @@ export const PENDING_PLAN_CATCH_QUERY = "addCatch";
 export const PENDING_PLAN_BAIT_QUERY = "addBait";
 export const PENDING_PLAN_PLACE_QUERY = "addPlace";
 export const PENDING_PLAN_SPECIES_QUERY = "addSpecies";
+export const PENDING_PLAN_PHOTO_QUERY = "addPhoto";
+export const PENDING_PLAN_DAY_STORAGE_KEY = "tide-mark-pending-plan-day";
 
 /** Drop an abandoned handoff after this long so a later Plan visit stays clean. */
 export const PENDING_PLAN_SPOT_TTL_MS = 2 * 60 * 60 * 1000;
@@ -63,18 +65,19 @@ export function pendingPlanSpotFromBait(spot: {
   };
 }
 
-export function planHrefForPendingSpot(spot: PendingPlanSpot): string {
+export function planHrefForPendingSpot(spot: PendingPlanSpot, day?: string | null): string {
   const params = new URLSearchParams();
   if (spot.catchId?.trim()) {
     params.set(PENDING_PLAN_CATCH_QUERY, spot.catchId.trim());
   } else if (spot.baitId?.trim()) {
     params.set(PENDING_PLAN_BAIT_QUERY, spot.baitId.trim());
-  } else {
-    params.set(PENDING_PLAN_PLACE_QUERY, spot.placeName);
-    if (spot.speciesTargets.length) {
-      params.set(PENDING_PLAN_SPECIES_QUERY, spot.speciesTargets.join(","));
-    }
   }
+  if (spot.placeName) params.set(PENDING_PLAN_PLACE_QUERY, spot.placeName);
+  if (spot.speciesTargets.length) {
+    params.set(PENDING_PLAN_SPECIES_QUERY, spot.speciesTargets.join(","));
+  }
+  if (spot.photoPath?.trim()) params.set(PENDING_PLAN_PHOTO_QUERY, spot.photoPath.trim());
+  if (day && /^\d{4}-\d{2}-\d{2}$/.test(day)) params.set("date", day);
   return `/plan?${params.toString()}`;
 }
 
@@ -86,14 +89,16 @@ export function parsePendingPlanSpotSearch(search: {
   const placeName = trimPlace(search.get(PENDING_PLAN_PLACE_QUERY));
   const speciesRaw = search.get(PENDING_PLAN_SPECIES_QUERY);
   const speciesTargets = speciesRaw ? parseSpeciesTargets(speciesRaw.split(",")) : [];
+  const photoPath = search.get(PENDING_PLAN_PHOTO_QUERY)?.trim() || undefined;
+  const photo = photoPath ? { photoPath } : {};
   if (catchId) {
-    return { catchId, placeName, speciesTargets };
+    return { catchId, placeName, speciesTargets, ...photo };
   }
   if (baitId) {
-    return { baitId, placeName, speciesTargets };
+    return { baitId, placeName, speciesTargets, ...photo };
   }
   if (placeName) {
-    return { placeName, speciesTargets };
+    return { placeName, speciesTargets, ...photo };
   }
   return null;
 }
@@ -146,9 +151,49 @@ export function clearPendingPlanSpot(storage: Pick<Storage, "removeItem"> | null
   if (!storage) return;
   try {
     storage.removeItem(PENDING_PLAN_SPOT_STORAGE_KEY);
+    storage.removeItem(PENDING_PLAN_DAY_STORAGE_KEY);
   } catch {
     /* private mode */
   }
+}
+
+export function writePendingPlanDay(
+  storage: Pick<Storage, "setItem"> | null | undefined,
+  day: string,
+): void {
+  if (!storage || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+  try {
+    storage.setItem(PENDING_PLAN_DAY_STORAGE_KEY, day);
+  } catch {
+    /* private mode */
+  }
+}
+
+export function readPendingPlanDay(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+): string | null {
+  if (!storage) return null;
+  try {
+    const day = storage.getItem(PENDING_PLAN_DAY_STORAGE_KEY)?.trim() ?? "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+  } catch {
+    return null;
+  }
+}
+
+/** URL has the add handoff plus a picked day, or the angler already tapped a day. */
+export function pendingPlanDayToCommit(
+  fromSearch: PendingPlanSpot | null,
+  dateFromUrl?: string | null,
+  storedDay?: string | null,
+): string | null {
+  const day =
+    (dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl) ? dateFromUrl : null) ||
+    (storedDay && /^\d{4}-\d{2}-\d{2}$/.test(storedDay) ? storedDay : null);
+  if (!day) return null;
+  if (fromSearch?.catchId || fromSearch?.baitId || fromSearch?.placeName) return day;
+  if (storedDay === day) return day;
+  return null;
 }
 
 /** URL handoff wins; session fills in place/species when the query is only a catch id. */
