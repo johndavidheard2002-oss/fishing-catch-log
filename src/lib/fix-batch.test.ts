@@ -54,7 +54,7 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(shareBtn).toBeGreaterThan(catchEdit);
     expect(catchDelete).toBeGreaterThan(shareBtn);
     expect(shareBlock).toBeGreaterThan(catchDelete);
-    expect(catchDetail).toContain("flex flex-wrap gap-2");
+    expect(catchDetail).toContain("owner-action-row");
     expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-edit");
     expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-share");
     expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-delete");
@@ -70,7 +70,7 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(baitShare).toBeGreaterThan(baitEdit);
     expect(baitDelete).toBeGreaterThan(baitShare);
     expect(baitShareBlock).toBeGreaterThan(baitDelete);
-    expect(baitDetail).toContain("flex flex-wrap gap-2");
+    expect(baitDetail).toContain("owner-action-row");
     expect(baitDetail.slice(baitRow, baitShareBlock)).toContain("bait-edit");
     expect(baitDetail.slice(baitRow, baitShareBlock)).toContain("bait-share");
     expect(baitDetail.slice(baitRow, baitShareBlock)).toContain("bait-delete");

@@ -194,7 +194,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
       </p>
       {isOwner ? (
         <div className="space-y-3" data-testid="bait-owner-actions">
-          <div className="flex flex-wrap gap-2" data-testid="bait-action-row">
+          <div className="owner-action-row" data-testid="bait-action-row">
             <button
               type="button"
               onClick={() => setEditing(true)}

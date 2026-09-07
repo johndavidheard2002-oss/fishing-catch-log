@@ -103,6 +103,22 @@ describe("phone-width Log and Backfill", () => {
   });
 });
 
+describe("owner action pills", () => {
+  it("keeps Edit Share Delete as auto-width pills in one row", () => {
+    const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+    const row = css.match(/\.owner-action-row \{[\s\S]*?\n\}/)?.[0] ?? "";
+    const kids = css.match(/\.owner-action-row > button \{[\s\S]*?\n\}/)?.[0] ?? "";
+    expect(row).toContain("display: flex");
+    expect(row).toContain("flex-direction: row");
+    expect(kids).toContain("width: auto !important");
+    expect(kids).toContain("flex: 0 0 auto");
+    const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
+    const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
+    expect(catchDetail).toContain('className="owner-action-row"');
+    expect(baitDetail).toContain('className="owner-action-row"');
+  });
+});
+
 describe("Capacitor iOS safe areas", () => {
   it("insets the header, bottom nav, and overlays with env(safe-area-inset-*)", () => {
     const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
