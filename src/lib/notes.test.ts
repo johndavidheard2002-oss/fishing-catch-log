@@ -229,6 +229,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("only that one place");
     expect(plan).toContain("Past trips at this place");
     expect(plan).toContain("{added ? \"Added\" : adding ? \"Adding…\" : \"Add\"}");
+    expect(plan).not.toContain("Show spot on map");
+    expect(plan).not.toContain("plan-show-spot-map");
     expect(plan).not.toContain("matches.flatMap");
     expect(plan).not.toContain("matches.map((m) => void onAddSpot");
   });

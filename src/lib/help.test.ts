@@ -32,9 +32,12 @@ describe("HELP_SECTIONS", () => {
     ).toBe(true);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.some((step) =>
-        step.includes("Tap a match"),
+        step.includes("Tap a match") && step.includes("photo and map"),
       ),
     ).toBe(true);
+    expect(
+      HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.join(" "),
+    ).not.toContain("Show spot on map");
     expect(
       HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.some((step) =>
         step.includes("Tap Add") && step.includes("that day"),
