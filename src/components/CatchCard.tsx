@@ -94,30 +94,33 @@ export function CatchCard({
         )}
         {theirs ? (
           <SharedOwnerBadge name={record.ownerName} compact={compact} />
-        ) : (
-          <OwnerShareBadge
-            sharedWithLinked={record.sharedWithLinked}
-            sharedWithBuddyIds={record.sharedWithBuddyIds}
-            compact={compact}
-          />
-        )}
+        ) : null}
       </Link>
       <div className="min-w-0 flex-1 px-3 py-2">
-        <Link href={`/catch/${record.id}`} className="block min-w-0" data-testid="calendar-catch-open">
-          <p className="truncate font-semibold text-ink">
-            {catchSpeciesTitle(record)}
-            {record.speciesCounts?.length > 1
-              ? ""
-              : compact || record.fishCount > 1
-                ? ` · ${record.fishCount}`
-                : ""}
-          </p>
-          <p className="truncate text-sm text-ink-muted">{catchSpotLabel(record)}</p>
-          <p className="mt-1 truncate text-xs text-ink-muted">
-            {showTime ? formatTimeOnly(record.caughtAt) : formatCatchWhen(record.caughtAt)} ·{" "}
-            {weatherLine(record)}
-          </p>
-        </Link>
+        <div className="flex items-start gap-2">
+          <Link href={`/catch/${record.id}`} className="block min-w-0 flex-1" data-testid="calendar-catch-open">
+            <p className="truncate font-semibold text-ink">
+              {catchSpeciesTitle(record)}
+              {record.speciesCounts?.length > 1
+                ? ""
+                : compact || record.fishCount > 1
+                  ? ` · ${record.fishCount}`
+                  : ""}
+            </p>
+            <p className="truncate text-sm text-ink-muted">{catchSpotLabel(record)}</p>
+            <p className="mt-1 truncate text-xs text-ink-muted">
+              {showTime ? formatTimeOnly(record.caughtAt) : formatCatchWhen(record.caughtAt)} ·{" "}
+              {weatherLine(record)}
+            </p>
+          </Link>
+          {!theirs ? (
+            <OwnerShareBadge
+              sharedWithLinked={record.sharedWithLinked}
+              sharedWithBuddyIds={record.sharedWithBuddyIds}
+              compact={compact}
+            />
+          ) : null}
+        </div>
         <div className="mt-1" data-testid={addToPlan ? "add-to-plan-photo-chips" : undefined}>
           <CatchStampChips record={record} showYear={showYear} addToPlan={addToPlan} />
         </div>

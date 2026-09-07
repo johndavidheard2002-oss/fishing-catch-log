@@ -67,14 +67,8 @@ export function BaitSpotCard({
 }) {
   const src = personalPhotoSrc(spot.photoPath);
   const theirs = viewerId && spot.anglerId !== viewerId;
-  const badge = theirs ? (
+  const friendBadge = theirs ? (
     <SharedOwnerBadge name={spot.ownerName} compact={compact} />
-  ) : src ? (
-    <OwnerShareBadge
-      sharedWithLinked={spot.sharedWithLinked}
-      sharedWithBuddyIds={spot.sharedWithBuddyIds}
-      compact={compact}
-    />
   ) : null;
   const addToPlan = canShowAddToPlan(spot, viewerId, showAddToPlan);
   return (
@@ -87,23 +81,32 @@ export function BaitSpotCard({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt="" className="h-full w-full object-cover" data-testid="bait-photo" />
-          {badge}
+          {friendBadge}
         </Link>
       ) : null}
       <div className="min-w-0 flex-1 px-3 py-2">
-        <Link href={`/bait/${spot.id}`} className="block min-w-0" data-testid="calendar-bait-open">
-          <p className="truncate font-semibold text-ink">{baitTypesLabel(spot.baitTypes)}</p>
-          <p className="truncate text-sm text-ink-muted">{baitSpotLabel(spot)}</p>
-          <p className="mt-1 truncate text-xs text-ink-muted">
-            {showTime ? formatTimeOnly(spot.loggedAt) : formatCatchWhen(spot.loggedAt)} ·{" "}
-            {weatherLine(spot)}
-          </p>
-        </Link>
+        <div className="flex items-start gap-2">
+          <Link href={`/bait/${spot.id}`} className="block min-w-0 flex-1" data-testid="calendar-bait-open">
+            <p className="truncate font-semibold text-ink">{baitTypesLabel(spot.baitTypes)}</p>
+            <p className="truncate text-sm text-ink-muted">{baitSpotLabel(spot)}</p>
+            <p className="mt-1 truncate text-xs text-ink-muted">
+              {showTime ? formatTimeOnly(spot.loggedAt) : formatCatchWhen(spot.loggedAt)} ·{" "}
+              {weatherLine(spot)}
+            </p>
+          </Link>
+          {!theirs ? (
+            <OwnerShareBadge
+              sharedWithLinked={spot.sharedWithLinked}
+              sharedWithBuddyIds={spot.sharedWithBuddyIds}
+              compact={compact}
+            />
+          ) : null}
+        </div>
         <div className="mt-1" data-testid={addToPlan ? "add-to-plan-photo-chips" : undefined}>
           <BaitStampChips spot={spot} showYear={showYear} addToPlan={addToPlan} />
         </div>
       </div>
-      {!src ? badge : null}
+      {!src ? friendBadge : null}
     </div>
   );
 }

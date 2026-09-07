@@ -7,29 +7,48 @@ const catchCard = readFileSync(resolve(__dirname, "../components/CatchCard.tsx")
 const baitCard = readFileSync(resolve(__dirname, "../components/BaitSpotCard.tsx"), "utf8");
 const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
 
-describe("owner share badge on Calendar List photos", () => {
-  it("is a compact top-right overlay that stays readable on a photo", () => {
+const catchList = catchCard.slice(
+  catchCard.indexOf("export function CatchCard"),
+  catchCard.indexOf("export function CatchGridCard"),
+);
+const baitList = baitCard.slice(
+  baitCard.indexOf("export function BaitSpotCard"),
+  baitCard.indexOf("export function BaitSpotGridCard"),
+);
+
+describe("owner share badge on Calendar List rows", () => {
+  it("is a compact listing-chrome pill, not a photo overlay", () => {
     expect(badge).toContain('data-testid="owner-share-badge"');
     expect(badge).toContain("ownerShareBadgeLabel");
     expect(badge).toContain("bg-teal/90");
     expect(badge).toContain("bg-ink/70");
     expect(badge).toContain("text-white");
-    expect(badge).toMatch(/right-/);
-    expect(badge).toMatch(/top-/);
+    expect(badge).toContain("shrink-0");
+    expect(badge).toContain("self-start");
     expect(badge).toContain("truncate");
     expect(badge).toContain("max-w-");
+    expect(badge).not.toContain("absolute");
+    expect(badge).toContain("List row chrome");
   });
 
-  it("marks the owner’s own List catch and bait photos, not friends’ Shared cards", () => {
-    expect(catchCard).toContain("OwnerShareBadge");
-    expect(catchCard).toContain("theirs ? (");
-    expect(catchCard).toContain("<SharedOwnerBadge name={record.ownerName} compact={compact} />");
-    expect(catchCard).toContain("sharedWithBuddyIds={record.sharedWithBuddyIds}");
+  it("sits at the top right of the catch and bait listing, off the photo", () => {
+    expect(catchList).toContain("OwnerShareBadge");
+    expect(catchList).toContain("theirs ? (");
+    expect(catchList).toContain("<SharedOwnerBadge name={record.ownerName} compact={compact} />");
+    expect(catchList).toContain("sharedWithBuddyIds={record.sharedWithBuddyIds}");
+    expect(catchList).toContain("flex items-start gap-2");
+    expect(catchList.match(/<img[\s\S]*?<\/Link>/)?.[0] ?? "").not.toContain("OwnerShareBadge");
+    expect(catchList).toMatch(/flex items-start gap-2[\s\S]*OwnerShareBadge/);
     expect(catchCard).not.toMatch(/CatchGridCard[\s\S]*OwnerShareBadge/);
 
-    expect(baitCard).toContain("OwnerShareBadge");
-    expect(baitCard).toContain("<SharedOwnerBadge name={spot.ownerName} compact={compact} />");
-    expect(baitCard).toContain("sharedWithBuddyIds={spot.sharedWithBuddyIds}");
+    expect(baitList).toContain("OwnerShareBadge");
+    expect(baitList).toContain("<SharedOwnerBadge name={spot.ownerName} compact={compact} />");
+    expect(baitList).toContain("sharedWithBuddyIds={spot.sharedWithBuddyIds}");
+    expect(baitList).toContain("flex items-start gap-2");
+    expect(baitList.match(/data-testid="bait-photo"[\s\S]*?<\/Link>/)?.[0] ?? "").not.toContain(
+      "OwnerShareBadge",
+    );
+    expect(baitList).toMatch(/flex items-start gap-2[\s\S]*OwnerShareBadge/);
     expect(baitCard).not.toMatch(/BaitSpotGridCard[\s\S]*OwnerShareBadge/);
 
     expect(history).toContain('view === "shared"');

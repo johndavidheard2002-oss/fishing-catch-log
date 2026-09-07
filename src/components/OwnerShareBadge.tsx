@@ -26,7 +26,7 @@ function loadShareFriends(): Promise<ShareFriendName[]> {
   return inflight;
 }
 
-/** Owner’s own List photo: Private, or Shared plus friend names. */
+/** Owner’s own List row chrome: Private, or Shared plus friend names. */
 export function OwnerShareBadge({
   sharedWithLinked,
   sharedWithBuddyIds,
@@ -63,10 +63,10 @@ export function OwnerShareBadge({
       data-shared={shared ? "true" : "false"}
       className={
         compact
-          ? `pointer-events-none absolute right-0.5 top-0.5 z-[5] max-w-[calc(100%-0.25rem)] truncate rounded-full px-1 py-px text-[8px] font-bold leading-tight text-white shadow ${
+          ? `shrink-0 self-start max-w-[7rem] truncate rounded-full px-1.5 py-px text-[9px] font-bold leading-tight text-white ${
               shared ? "bg-teal/90" : "bg-ink/70"
             }`
-          : `pointer-events-none absolute right-1 top-1 z-[5] max-w-[calc(100%-0.5rem)] truncate rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-tight text-white shadow ${
+          : `shrink-0 self-start max-w-[8.5rem] truncate rounded-full px-2 py-0.5 text-[10px] font-semibold leading-tight text-white ${
               shared ? "bg-teal/90" : "bg-ink/70"
             }`
       }
