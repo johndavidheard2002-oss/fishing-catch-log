@@ -175,4 +175,13 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(photo).toContain("OPEN_SETTINGS_LABEL");
     expect(photo).toContain('data-testid="open-settings"');
   });
+
+  it("styles Link like Edit and Share teal action pills", () => {
+    const buddies = readFileSync(resolve(__dirname, "../components/BuddyPanel.tsx"), "utf8");
+    const linkBtn = buddies.slice(buddies.indexOf("Link with a code"));
+    expect(linkBtn).toMatch(
+      /<button type="submit" className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white">\s*Link\s*<\/button>/,
+    );
+    expect(linkBtn).not.toContain("bg-copper");
+  });
 });
