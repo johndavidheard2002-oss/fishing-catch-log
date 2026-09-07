@@ -154,6 +154,17 @@ export function plannedSpotsOnDay(notes: CalendarNote[]): CalendarNote[] {
   return notes.filter((note) => isPlanSpotNote(note) && Boolean(note.placeName?.trim()));
 }
 
+/** Calendar Log: this day already has Add-to-plan / Plan spots — open Plan, not notes. */
+export function calendarDayHasPlan(
+  notes: Array<{ kind?: string | null; placeName?: string | null }>,
+): boolean {
+  return notes.some((note) => isPlanSpotNote(note) && Boolean(note.placeName?.trim()));
+}
+
+export function planHrefForDay(day: string): string {
+  return `/plan?date=${day}`;
+}
+
 /** Build a save payload only when that place is not already on the Plan day. */
 export function addPlanSpotToDay(
   notes: Array<{ placeName?: string | null; kind?: string | null }>,

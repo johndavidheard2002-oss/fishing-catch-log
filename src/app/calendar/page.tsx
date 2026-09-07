@@ -35,7 +35,7 @@ export default async function CalendarLogPage() {
     }
     initialCatches = await listCatches({ viewerId, includeShared: true });
     initialBaitSpots = await listBaitSpots({ viewerId, includeShared: true });
-    initialNotes = await listCalendarNotes(viewerId);
+    initialNotes = await listCalendarNotes(viewerId, { includePlanSpots: true });
   } catch {
     return <JournalUnavailable title="Calendar Log" />;
   }

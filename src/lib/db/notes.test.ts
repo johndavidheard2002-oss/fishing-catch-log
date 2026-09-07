@@ -119,6 +119,8 @@ describe("calendar notes", () => {
     expect(calendarLog.every((note) => note.kind === "journal")).toBe(true);
     const planDay = await listCalendarNotes(anglerId, { forPlan: true });
     expect(planDay.map((note) => note.placeName)).toEqual(["The point", "Haulover Canal"]);
+    const calendarMarks = await listCalendarNotes(anglerId, { includePlanSpots: true });
+    expect(calendarMarks.map((note) => note.placeName)).toEqual(["The point", "Haulover Canal"]);
   });
 
   it("does not let another angler edit or delete the note", async () => {
@@ -292,6 +294,8 @@ describe("calendar notes", () => {
     });
     const listed = await listCalendarNotes(anglerId, { today: "2026-09-10" });
     expect(listed.map((note) => note.id)).toEqual([expired.id]);
+    const marked = await listCalendarNotes(anglerId, { includePlanSpots: true, today: "2026-09-10" });
+    expect(marked.map((note) => note.id)).toEqual([expired.id]);
     expect(await getCalendarNote(expired.id)).not.toBeNull();
   });
 });

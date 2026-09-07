@@ -16,9 +16,11 @@ export async function GET(request: NextRequest) {
   if (!access.ok) return access.response;
   const { viewerId } = access;
   const forPlan = request.nextUrl.searchParams.get("for") === "plan";
+  const includePlanSpots = request.nextUrl.searchParams.get("include") === "plan-spots";
   const today = parseDayKey(request.nextUrl.searchParams.get("today")) ?? undefined;
   const notes = await listCalendarNotes(viewerId, {
     forPlan,
+    includePlanSpots,
     today,
     serverToday: utcTodayKey(),
   });

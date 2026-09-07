@@ -39,7 +39,7 @@ function mapRow(row: typeof calendarNotes.$inferSelect): CalendarNote {
 
 export async function listCalendarNotes(
   anglerId: string,
-  options?: { forPlan?: boolean; today?: string; serverToday?: string },
+  options?: { forPlan?: boolean; includePlanSpots?: boolean; today?: string; serverToday?: string },
 ): Promise<CalendarNote[]> {
   if (options?.forPlan) {
     const today = parseDayKey(options.today);
@@ -54,7 +54,7 @@ export async function listCalendarNotes(
       .orderBy(asc(calendarNotes.day), asc(calendarNotes.createdAt)),
   );
   const notes = rows.map(mapRow);
-  if (options?.forPlan) return notes;
+  if (options?.forPlan || options?.includePlanSpots) return notes;
   return notes.filter((note) => !isPlanSpotNote(note));
 }
 

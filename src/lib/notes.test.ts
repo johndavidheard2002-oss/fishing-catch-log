@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   addPlanSpotToDay,
+  calendarDayHasPlan,
   calendarNoteHasContent,
   dayHasPlanSpot,
   groupNotesByDay,
@@ -14,6 +15,7 @@ import {
   parseDayKey,
   parseSpeciesTargets,
   planDayPurgeBeforeKey,
+  planHrefForDay,
   planNoteInput,
   planNotesOnDay,
   planSpotNoteInput,
@@ -160,6 +162,9 @@ describe("dayHasPlanSpot", () => {
     expect(plannedSpotsOnDay([spot, writeup, journalPlace]).map((n) => n.placeName)).toEqual([
       "Haulover Canal",
     ]);
+    expect(calendarDayHasPlan([spot, writeup, journalPlace])).toBe(true);
+    expect(calendarDayHasPlan([writeup, journalPlace])).toBe(false);
+    expect(planHrefForDay("2026-09-09")).toBe("/plan?date=2026-09-09");
     expect(journalNotesForCalendarLog([spot, writeup, journalPlace]).map((n) => n.id)).toEqual([
       "w",
       "j",
@@ -247,8 +252,16 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain('data-testid="plan-add-spot"');
     expect(plan).toContain("data-place-name");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
-    expect(calendar).toContain("journalNotesForCalendarLog");
+    expect(calendar).toContain("include=plan-spots");
+    expect(calendar).not.toContain("journalNotesForCalendarLog");
     expect(calendar).not.toContain("for=plan");
+    const calendarGrid = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");
+    expect(calendarGrid).toContain("calendarDayHasPlan");
+    expect(calendarGrid).toContain("planHrefForDay");
+    expect(calendarGrid).toContain("Planned");
+    expect(calendarGrid).toContain('data-testid="calendar-day-planned"');
+    const calendarPage = readFileSync(resolve(__dirname, "../app/calendar/page.tsx"), "utf8");
+    expect(calendarPage).toContain("includePlanSpots: true");
     expect(plan).toContain('data-testid="plan-suggested-spots"');
     expect(plan).toContain('data-testid="plan-day-spots"');
     expect(plan).toContain('data-testid="plan-planned"');
@@ -271,6 +284,7 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("Tap Add on a place to put");
     expect(plan).toContain("only that one place");
     const notesApi = readFileSync(resolve(__dirname, "../app/api/calendar-notes/route.ts"), "utf8");
+    expect(notesApi).toContain('searchParams.get("include") === "plan-spots"');
     expect(notesApi).toContain("parseDayKey(request.nextUrl.searchParams.get(\"today\"))");
     expect(notesApi).toContain("serverToday: utcTodayKey()");
     expect(notesApi).toContain("deleteCalendarNotesForDay");
