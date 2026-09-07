@@ -62,7 +62,7 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-plan");
     expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-delete");
     expect(catchDetail.slice(catchRow, shareBlock)).toContain("AddToPlanButton");
-    expect(catchDetail.slice(catchRow, shareBlock)).toContain(">Plan</AddToPlanButton>");
+    expect(catchDetail.slice(catchRow, shareBlock)).toMatch(/>\s*Plan\s*<\/AddToPlanButton>/);
     expect(catchDetail.slice(catchRow, shareBlock)).not.toContain("w-full");
     expect(catchDetail).not.toContain("Edit spot");
     expect(catchDetail).not.toContain("catch-edit-spot");

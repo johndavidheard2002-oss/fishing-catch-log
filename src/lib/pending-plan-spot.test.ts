@@ -353,8 +353,9 @@ describe("Calendar Log and Plan wiring", () => {
     const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");
     const similar = readFileSync(resolve(__dirname, "../components/SimilarList.tsx"), "utf8");
-    expect(addBtn).toContain('data-testid="add-to-plan"');
-    expect(addBtn).toContain("Add to plan");
+    expect(addBtn).toContain('testId = "add-to-plan"');
+    expect(addBtn).toContain("data-testid={testId}");
+    expect(addBtn).toContain('children = "Add to plan"');
     expect(addBtn).toContain("writePendingPlanSpot");
     expect(addBtn).toContain("rounded-full bg-teal");
     expect(catchCard).toContain("AddToPlanButton");
