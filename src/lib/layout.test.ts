@@ -64,7 +64,8 @@ describe("phone-width Log and Backfill", () => {
     expect(shell).toContain("nav-primary");
     expect(shell).toContain("nav-locked");
     expect(shell).toContain("LockBadge");
-    expect(shell).toContain('label: "Spots Bait"');
+    expect(shell).toContain("Spots Bait");
+    expect(shell).toContain("whitespace-nowrap");
     expect(shell).not.toContain('<span className="block">Bait</span>');
     expect(shell).toContain("Calendar");
     expect(css).toMatch(/\.bottom-nav \.nav-lock-badge \{[\s\S]*?background: var\(--copper\)/);

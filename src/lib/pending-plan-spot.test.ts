@@ -377,7 +377,8 @@ describe("Calendar Log and Plan wiring", () => {
     expect(spots).toContain("spot.key !== selected");
     expect(spots).toContain("spots");
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
-    expect(shell).toContain('label: "Spots Bait"');
+    expect(shell).toContain("Spots Bait");
+    expect(shell).toContain("whitespace-nowrap");
     expect(shell).not.toContain('<span className="block">Bait</span>');
   });
 
