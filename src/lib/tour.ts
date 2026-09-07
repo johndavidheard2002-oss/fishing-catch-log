@@ -35,7 +35,7 @@ export const TOUR_SCREENS: TourScreen[] = [
   {
     id: "calendar",
     title: "Calendar Log",
-    body: "Your trips live here. Grid opens first. Switch Calendar or List anytime. Tap a day for the map, notes, and photos.",
+    body: "Your trips live here. List, Calendar, and Grid are yours. Shared is what friends sent you. Tap a day for the map, notes, and photos.",
   },
   {
     id: "plan",

@@ -323,7 +323,7 @@ export function CatchDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      <div>
+      <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -332,24 +332,6 @@ export function CatchDetail({ id }: { id: string }) {
           >
             Edit
           </button>
-          {isOwner ? (
-            <button
-              type="button"
-              disabled={shareBusy}
-              aria-pressed={record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0}
-              data-testid="catch-share"
-              onClick={() =>
-                void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
-              }
-              className={`rounded-xl px-5 py-3 font-semibold ${
-                record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
-                  ? "border-2 border-teal bg-teal/15 text-teal"
-                  : "bg-teal text-white"
-              } disabled:opacity-50`}
-            >
-              {record.sharedWithLinked ? "Shared" : "Share"}
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={() => {
@@ -370,7 +352,23 @@ export function CatchDetail({ id }: { id: string }) {
           </button>
         </div>
         {isOwner ? (
-          <>
+          <div data-testid="catch-share-block">
+            <button
+              type="button"
+              disabled={shareBusy}
+              aria-pressed={record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0}
+              data-testid="catch-share"
+              onClick={() =>
+                void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
+              }
+              className={`w-full rounded-xl px-5 py-3 font-semibold ${
+                record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
+                  ? "border-2 border-teal bg-teal/15 text-teal"
+                  : "bg-teal text-white"
+              } disabled:opacity-50`}
+            >
+              {record.sharedWithLinked ? "Shared" : "Share"}
+            </button>
             <p className="mt-1.5 text-xs text-ink-muted">
               Pick who sees this spot. Off until you choose.
             </p>
@@ -388,7 +386,7 @@ export function CatchDetail({ id }: { id: string }) {
                 else void onShare(true, ids);
               }}
             />
-          </>
+          </div>
         ) : null}
         {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>

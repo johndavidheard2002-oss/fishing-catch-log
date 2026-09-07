@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baitSpotsOnMonthDay, baitSpotsWithPins, calendarHeaderScrollDelta, CALENDAR_LOG_VIEWS, CALENDAR_LOG_VIEW_TABS, catchesOnMonthDay, DEFAULT_CALENDAR_LOG_VIEW, fullDateLabel, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, resolveCalendarLogView, shiftMonth, shiftYear, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
+import { baitSpotsOnMonthDay, baitSpotsWithPins, calendarActivityDateKeys, calendarHeaderScrollDelta, CALENDAR_LOG_VIEWS, CALENDAR_LOG_VIEW_TABS, catchesOnMonthDay, DEFAULT_CALENDAR_LOG_VIEW, friendSharedRecords, fullDateLabel, groupBaitSpotsByDate, groupBaitSpotsByYear, groupCatchesByDate, groupCatchesByYear, localDateKey, monthDayKey, monthDayLabel, monthGrid, ownJournalRecords, resolveCalendarLogView, shiftMonth, shiftYear, spotsWithPins, uniqueSpotLabels, yearFromDateKey, yearsOnMonthDay } from "./calendar";
 import { baitOf, catchOf } from "./testing";
 import type { CatchRecord } from "./types";
 
@@ -258,15 +258,86 @@ describe("calendar month and year scroll", () => {
     expect(calendarHeaderScrollDelta({ deltaY: 0, deltaX: 0 })).toBeNull();
   });
 
-  it("defaults Calendar Log to List and keeps List, Calendar, Grid order", () => {
+  it("defaults Calendar Log to List and keeps List, Calendar, Grid, Shared order", () => {
     expect(DEFAULT_CALENDAR_LOG_VIEW).toBe("list");
-    expect(CALENDAR_LOG_VIEWS).toEqual(["list", "calendar", "grid"]);
-    expect(CALENDAR_LOG_VIEW_TABS.map((tab) => tab.id)).toEqual(["list", "calendar", "grid"]);
-    expect(CALENDAR_LOG_VIEW_TABS.map((tab) => tab.label)).toEqual(["List", "Calendar", "Grid"]);
+    expect(CALENDAR_LOG_VIEWS).toEqual(["list", "calendar", "grid", "shared"]);
+    expect(CALENDAR_LOG_VIEW_TABS.map((tab) => tab.id)).toEqual([
+      "list",
+      "calendar",
+      "grid",
+      "shared",
+    ]);
+    expect(CALENDAR_LOG_VIEW_TABS.map((tab) => tab.label)).toEqual([
+      "List",
+      "Calendar",
+      "Grid",
+      "Shared",
+    ]);
+    expect(CALENDAR_LOG_VIEW_TABS.at(-1)).toEqual({ id: "shared", label: "Shared" });
     expect(resolveCalendarLogView(null)).toBe("list");
     expect(resolveCalendarLogView("list")).toBe("list");
     expect(resolveCalendarLogView("calendar")).toBe("calendar");
     expect(resolveCalendarLogView("grid")).toBe("grid");
+    expect(resolveCalendarLogView("shared")).toBe("shared");
     expect(resolveCalendarLogView("nope")).toBe("list");
+  });
+});
+
+describe("own vs friend-shared journal split", () => {
+  it("keeps List and Grid on your trips and puts friend photos only in Shared", () => {
+    const mine = catchOn(new Date(2026, 8, 2, 7, 0), "mine");
+    const theirs = catchOf({
+      id: "friend",
+      anglerId: "sam",
+      ownerName: "Sam",
+      caughtAt: new Date(2026, 8, 7, 18, 0).toISOString(),
+    });
+    const mineBait = baitOn(new Date(2026, 8, 2, 12, 0), "mine-bait");
+    const theirBait = baitOf({
+      id: "friend-bait",
+      anglerId: "sam",
+      ownerName: "Sam",
+      loggedAt: new Date(2026, 8, 7, 9, 0).toISOString(),
+    });
+    const catches = [mine, theirs];
+    const bait = [mineBait, theirBait];
+    expect(ownJournalRecords(catches, "you").map((row) => row.id)).toEqual(["mine"]);
+    expect(ownJournalRecords(bait, "you").map((row) => row.id)).toEqual(["mine-bait"]);
+    expect(friendSharedRecords(catches, "you").map((row) => row.id)).toEqual(["friend"]);
+    expect(friendSharedRecords(bait, "you").map((row) => row.id)).toEqual(["friend-bait"]);
+    expect(ownJournalRecords(catches, "you")).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "friend" })]),
+    );
+  });
+
+  it("still links own and shared days on the Calendar month", () => {
+    const mine = catchOn(new Date(2026, 8, 2, 7, 0), "mine");
+    const theirs = catchOf({
+      id: "friend",
+      anglerId: "sam",
+      ownerName: "Sam",
+      caughtAt: new Date(2026, 8, 7, 18, 0).toISOString(),
+    });
+    const theirBait = baitOf({
+      id: "friend-bait",
+      anglerId: "sam",
+      loggedAt: new Date(2026, 8, 9, 9, 0).toISOString(),
+    });
+    const ownDays = calendarActivityDateKeys(ownJournalRecords([mine, theirs], "you"), []);
+    const sharedDays = calendarActivityDateKeys(friendSharedRecords([mine, theirs], "you"), [
+      theirBait,
+    ]);
+    const calendarDays = calendarActivityDateKeys([mine, theirs], [theirBait]);
+    expect(ownDays).toEqual([localDateKey(mine.caughtAt)]);
+    expect(sharedDays).toEqual([
+      localDateKey(theirs.caughtAt),
+      localDateKey(theirBait.loggedAt),
+    ]);
+    expect(calendarDays).toEqual([
+      localDateKey(mine.caughtAt),
+      localDateKey(theirs.caughtAt),
+      localDateKey(theirBait.loggedAt),
+    ]);
+    expect(groupCatchesByDate([mine, theirs]).has(localDateKey(theirs.caughtAt))).toBe(true);
   });
 });

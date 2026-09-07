@@ -278,7 +278,7 @@ export function yearsOnMonthDay(
 
 export const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"] as const;
 
-export const CALENDAR_LOG_VIEWS = ["list", "calendar", "grid"] as const;
+export const CALENDAR_LOG_VIEWS = ["list", "calendar", "grid", "shared"] as const;
 export type CalendarLogView = (typeof CALENDAR_LOG_VIEWS)[number];
 export const DEFAULT_CALENDAR_LOG_VIEW: CalendarLogView = "list";
 
@@ -286,13 +286,48 @@ export const CALENDAR_LOG_VIEW_TABS: { id: CalendarLogView; label: string }[] = 
   { id: "list", label: "List" },
   { id: "calendar", label: "Calendar" },
   { id: "grid", label: "Grid" },
+  { id: "shared", label: "Shared" },
 ];
 
 export function resolveCalendarLogView(
   viewParam: string | null | undefined,
 ): CalendarLogView {
-  if (viewParam === "list" || viewParam === "calendar" || viewParam === "grid") {
+  if (
+    viewParam === "list" ||
+    viewParam === "calendar" ||
+    viewParam === "grid" ||
+    viewParam === "shared"
+  ) {
     return viewParam;
   }
   return DEFAULT_CALENDAR_LOG_VIEW;
+}
+
+/** Own trips for List / Grid. Missing viewer keeps the full list (SSR / first paint). */
+export function ownJournalRecords<T extends { anglerId: string }>(
+  records: T[],
+  viewerId?: string,
+): T[] {
+  if (!viewerId) return records;
+  return records.filter((record) => record.anglerId === viewerId);
+}
+
+/** Friend shares for the Shared tab only — never mixed into List / Grid. */
+export function friendSharedRecords<T extends { anglerId: string }>(
+  records: T[],
+  viewerId?: string,
+): T[] {
+  if (!viewerId) return [];
+  return records.filter((record) => record.anglerId !== viewerId);
+}
+
+/** Calendar month days that have a catch or bait visit — own and friend shares together. */
+export function calendarActivityDateKeys(
+  catches: CatchRecord[],
+  baitSpots: BaitSpot[] = [],
+): string[] {
+  const keys = new Set<string>();
+  for (const record of catches) keys.add(localDateKey(record.caughtAt));
+  for (const spot of baitSpots) keys.add(localDateKey(spot.loggedAt));
+  return [...keys].sort();
 }

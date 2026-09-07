@@ -192,7 +192,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
           ? `${PRIVACY_LINE} Never public. No feed.`
           : "Private to you. Not shared with anyone."}
       </p>
-      <div>
+      <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -212,24 +212,6 @@ export function BaitSpotDetail({ id }: { id: string }) {
           >
             Edit spot
           </button>
-          {isOwner ? (
-            <button
-              type="button"
-              disabled={shareBusy}
-              aria-pressed={record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0}
-              data-testid="bait-share"
-              onClick={() =>
-                void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
-              }
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
-                record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
-                  ? "border-2 border-teal bg-teal/15 text-teal"
-                  : "bg-teal text-white"
-              } disabled:opacity-50`}
-            >
-              {record.sharedWithLinked ? "Shared" : "Share"}
-            </button>
-          ) : null}
           <button
             type="button"
             onClick={onDelete}
@@ -239,7 +221,23 @@ export function BaitSpotDetail({ id }: { id: string }) {
           </button>
         </div>
         {isOwner ? (
-          <>
+          <div data-testid="bait-share-block">
+            <button
+              type="button"
+              disabled={shareBusy}
+              aria-pressed={record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0}
+              data-testid="bait-share"
+              onClick={() =>
+                void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
+              }
+              className={`w-full rounded-full px-4 py-2 text-sm font-semibold ${
+                record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
+                  ? "border-2 border-teal bg-teal/15 text-teal"
+                  : "bg-teal text-white"
+              } disabled:opacity-50`}
+            >
+              {record.sharedWithLinked ? "Shared" : "Share"}
+            </button>
             <p className="mt-1.5 text-xs text-ink-muted">
               Pick who sees this spot. Off until you choose.
             </p>
@@ -257,7 +255,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
                 else void onShare(true, ids);
               }}
             />
-          </>
+          </div>
         ) : null}
         {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>

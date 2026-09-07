@@ -4,16 +4,18 @@ import { CatchCard, CatchGridCard } from "@/components/CatchCard";
 import { BaitSpotCard, BaitSpotGridCard } from "@/components/BaitSpotCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
-import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
+import { sharedQuery } from "@/components/BuddyPanel";
 import {
   CALENDAR_LOG_VIEW_TABS,
   DEFAULT_CALENDAR_LOG_VIEW,
+  friendSharedRecords,
+  ownJournalRecords,
   parseYearMonth,
   resolveCalendarLogView,
   type CalendarLogView,
 } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
-import { mergeJournalFeed } from "@/lib/journal";
+import { mergeJournalFeed, type JournalFeedItem } from "@/lib/journal";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
 import {
   getScanQueueCountServerSnapshot,
@@ -52,7 +54,6 @@ export function HistoryClient({
   const view = resolveCalendarLogView(searchParams.get("view"));
   const [showFilters, setShowFilters] = useState(Boolean(searchParams.get("species")));
   const [loading, setLoading] = useState(initialCatches === undefined);
-  const [includeShared, setIncludeShared] = useIncludeShared();
   const [viewerId, setViewerId] = useState<string | undefined>(initialViewerId);
   const [shareEpoch, setShareEpoch] = useState(0);
   const queryDay = searchParams.get("day");
@@ -82,7 +83,7 @@ export function HistoryClient({
 
   useEffect(() => {
     let cancelled = false;
-    const q = sharedQuery(includeShared);
+    const q = sharedQuery(true);
     fetch(`/api/catches${q ? `?${q}` : ""}`, { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) throw new Error("bad status");
@@ -102,11 +103,11 @@ export function HistoryClient({
     return () => {
       cancelled = true;
     };
-  }, [includeShared, shareEpoch]);
+  }, [shareEpoch]);
 
   useEffect(() => {
     let cancelled = false;
-    const q = sharedQuery(includeShared);
+    const q = sharedQuery(true);
     fetch(`/api/bait-spots${q ? `?${q}` : ""}`, { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) throw new Error("bad status");
@@ -120,7 +121,7 @@ export function HistoryClient({
     return () => {
       cancelled = true;
     };
-  }, [includeShared, shareEpoch]);
+  }, [shareEpoch]);
 
   function clearFilters() {
     setFilters({});
@@ -144,9 +145,24 @@ export function HistoryClient({
     () => catches.filter((c) => matchesFilters(c, filters)),
     [catches, filters],
   );
-  const feed = useMemo(() => mergeJournalFeed(filtered, baitSpots), [filtered, baitSpots]);
+  const ownCatches = useMemo(() => ownJournalRecords(filtered, viewerId), [filtered, viewerId]);
+  const ownBait = useMemo(() => ownJournalRecords(baitSpots, viewerId), [baitSpots, viewerId]);
+  const sharedCatches = useMemo(
+    () => friendSharedRecords(filtered, viewerId),
+    [filtered, viewerId],
+  );
+  const sharedBait = useMemo(
+    () => friendSharedRecords(baitSpots, viewerId),
+    [baitSpots, viewerId],
+  );
+  const ownFeed = useMemo(() => mergeJournalFeed(ownCatches, ownBait), [ownCatches, ownBait]);
+  const sharedFeed = useMemo(
+    () => mergeJournalFeed(sharedCatches, sharedBait),
+    [sharedCatches, sharedBait],
+  );
   const journalEmpty = catches.length === 0 && baitSpots.length === 0;
-  const feedEmpty = feed.length === 0;
+  const ownEmpty = ownCatches.length === 0 && ownBait.length === 0;
+  const sharedEmpty = sharedCatches.length === 0 && sharedBait.length === 0;
   const active = hasActiveFilters(filters);
   const displayDay = selectedDay;
   const monthCursor =
@@ -172,13 +188,17 @@ export function HistoryClient({
         </button>
       </div>
 
-      <div className="journal-card grid grid-cols-3 overflow-hidden rounded-2xl p-1">
+      <div
+        className="journal-card grid grid-cols-4 overflow-hidden rounded-2xl p-1"
+        data-testid="calendar-log-tabs"
+      >
         {CALENDAR_LOG_VIEW_TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => changeView(tab.id)}
-            className={`rounded-xl py-2 text-xs font-semibold ${
+            data-testid={`calendar-log-tab-${tab.id}`}
+            className={`rounded-xl px-0.5 py-2 text-[11px] font-semibold ${
               view === tab.id ? "bg-teal text-white" : "text-ink-muted"
             }`}
           >
@@ -186,8 +206,6 @@ export function HistoryClient({
           </button>
         ))}
       </div>
-
-      <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
 
       <LibraryScanBanner />
 
@@ -273,35 +291,39 @@ export function HistoryClient({
             viewerId={viewerId}
           />
         </div>
-      ) : journalEmpty ? (
+      ) : view === "shared" ? (
+        sharedEmpty && !active ? (
+          <p className="on-wash-chip text-sm">
+            Nothing shared with you yet. When a linked friend shares a spot, it shows up here.
+          </p>
+        ) : sharedFeed.length === 0 ? (
+          <p className="on-wash-chip text-sm">
+            Nothing matches those conditions. Clear filters or wait for another shared spot.
+          </p>
+        ) : (
+          <JournalCards
+            feed={sharedFeed}
+            viewerId={viewerId}
+            layout="list"
+            testId="calendar-log-shared-feed"
+          />
+        )
+      ) : ownEmpty && !active ? (
         <p className="on-wash-chip text-sm">
           Nothing logged yet. Log a catch or backfill a photo — one picture becomes one trip at
           one pin.
         </p>
-      ) : feedEmpty ? (
+      ) : ownFeed.length === 0 ? (
         <p className="on-wash-chip text-sm">
           Nothing matches those conditions. Clear filters or log another catch.
         </p>
-      ) : view === "grid" ? (
-        <div className="grid grid-cols-2 gap-3">
-          {feed.map((item) =>
-            item.kind === "catch" ? (
-              <CatchGridCard key={item.id} record={item.record} viewerId={viewerId} />
-            ) : (
-              <BaitSpotGridCard key={item.id} spot={item.spot} viewerId={viewerId} />
-            ),
-          )}
-        </div>
       ) : (
-        <div className="space-y-3">
-          {feed.map((item) =>
-            item.kind === "catch" ? (
-              <CatchCard key={item.id} record={item.record} viewerId={viewerId} />
-            ) : (
-              <BaitSpotCard key={item.id} spot={item.spot} viewerId={viewerId} />
-            ),
-          )}
-        </div>
+        <JournalCards
+          feed={ownFeed}
+          viewerId={viewerId}
+          layout={view === "grid" ? "grid" : "list"}
+          testId="calendar-log-own-feed"
+        />
       )}
 
       <a
@@ -310,6 +332,43 @@ export function HistoryClient({
       >
         Export CSV
       </a>
+    </div>
+  );
+}
+
+function JournalCards({
+  feed,
+  viewerId,
+  layout,
+  testId,
+}: {
+  feed: JournalFeedItem[];
+  viewerId?: string;
+  layout: "list" | "grid";
+  testId?: string;
+}) {
+  if (layout === "grid") {
+    return (
+      <div className="grid grid-cols-2 gap-3" data-testid={testId}>
+        {feed.map((item) =>
+          item.kind === "catch" ? (
+            <CatchGridCard key={item.id} record={item.record} viewerId={viewerId} />
+          ) : (
+            <BaitSpotGridCard key={item.id} spot={item.spot} viewerId={viewerId} />
+          ),
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-3" data-testid={testId}>
+      {feed.map((item) =>
+        item.kind === "catch" ? (
+          <CatchCard key={item.id} record={item.record} viewerId={viewerId} />
+        ) : (
+          <BaitSpotCard key={item.id} spot={item.spot} viewerId={viewerId} />
+        ),
+      )}
     </div>
   );
 }
