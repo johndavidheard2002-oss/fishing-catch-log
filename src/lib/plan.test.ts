@@ -633,6 +633,16 @@ describe("dedupeBaitSuggestionsByPlace", () => {
       ]).map((note) => note.id),
     ).toEqual(["a"]);
   });
+
+  it("keeps a bait Planned chip when a catch is already at that place", () => {
+    expect(
+      uniqueNotesByPlace([
+        { id: "catch", placeName: "Haulover Canal", sourceCatchId: "c1" },
+        { id: "bait", placeName: "haulover canal", sourceBaitId: "b1" },
+        { id: "bait-again", placeName: "Haulover Canal", sourceBaitId: "b2" },
+      ]).map((note) => note.id),
+    ).toEqual(["catch", "bait"]);
+  });
 });
 
 describe("extraPastTripMatches", () => {

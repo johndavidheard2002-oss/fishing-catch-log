@@ -1,6 +1,6 @@
 import { groupBaitSpots, baitTypesLabel } from "./bait";
 import { groupSpots, spotKey } from "./filters";
-import { normalizeNotePlace } from "./notes";
+import { normalizeNotePlace, planSpotSourceKind } from "./notes";
 import { speciesLabel } from "./species";
 import { formatDateOnly, formatTimeOnly, TIME_OF_DAY_LABELS } from "./time";
 import { conditionLabel, scoreConditionOverlap, suggestionStrength } from "./similar";
@@ -240,13 +240,23 @@ export function collapseCatchMatchesByPlace(suggestion: PlanSuggestion): PlanSug
   return matches.length === suggestion.matches.length ? suggestion : { ...suggestion, matches };
 }
 
-/** Planned chips: one pill per named place even if Add ran more than once. */
-export function uniqueNotesByPlace<T extends { placeName?: string | null }>(notes: T[]): T[] {
+/** Planned chips: one pill per catch or bait place — not one pill for both. */
+export function uniqueNotesByPlace<
+  T extends {
+    placeName?: string | null;
+    sourceCatchId?: string | null;
+    sourceBaitId?: string | null;
+    catchId?: string | null;
+    baitId?: string | null;
+  },
+>(notes: T[]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const note of notes) {
-    const key = normalizeNotePlace(note.placeName);
-    if (!key || seen.has(key)) continue;
+    const place = normalizeNotePlace(note.placeName);
+    if (!place) continue;
+    const key = `${planSpotSourceKind(note)}:${place}`;
+    if (seen.has(key)) continue;
     seen.add(key);
     out.push(note);
   }
