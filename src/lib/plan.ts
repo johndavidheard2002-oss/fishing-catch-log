@@ -186,14 +186,16 @@ export function splitBaitSuggestionByPlace(suggestion: BaitPlanSuggestion): Bait
   );
   if (groups.length <= 1) {
     const only = groups[0];
-    return only ? [{ ...suggestion, placeName: only.placeName, matches: suggestion.matches }] : [];
+    return only
+      ? [collapseBaitMatchesByPlace({ ...suggestion, placeName: only.placeName, matches: suggestion.matches })]
+      : [];
   }
   return groups.map((group) => {
     const matches = suggestion.matches.filter((match) =>
       group.records.some((record) => record.id === match.baitSpot.id),
     );
     const best = matches[0];
-    return {
+    return collapseBaitMatchesByPlace({
       ...suggestion,
       id: `${suggestion.id}|${group.key}`,
       placeName: group.placeName,
@@ -202,8 +204,56 @@ export function splitBaitSuggestionByPlace(suggestion: BaitPlanSuggestion): Bait
       strength: best?.strength ?? suggestion.strength,
       reasons: best?.reasons ?? suggestion.reasons,
       headline: best ? baitPlanHeadline(suggestion.window, best.baitSpot) : suggestion.headline,
-    };
+    });
   });
+}
+
+export function baitSuggestionPlaceKey(
+  suggestion: Pick<BaitPlanSuggestion, "placeName" | "spotKey">,
+): string {
+  return normalizeNotePlace(suggestion.placeName) || suggestion.spotKey || "unknown bait";
+}
+
+/** One past-trip row per named bait place — not one row per photo or visit. */
+export function collapseBaitMatchesByPlace(suggestion: BaitPlanSuggestion): BaitPlanSuggestion {
+  const seen = new Set<string>();
+  const matches: BaitPlanSuggestion["matches"] = [];
+  for (const match of suggestion.matches) {
+    const key = normalizeNotePlace(match.baitSpot.placeName) || match.baitSpot.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    matches.push(match);
+  }
+  return matches.length === suggestion.matches.length ? suggestion : { ...suggestion, matches };
+}
+
+/** Planned chips: one pill per named place even if Add ran more than once. */
+export function uniqueNotesByPlace<T extends { placeName?: string | null }>(notes: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const note of notes) {
+    const key = normalizeNotePlace(note.placeName);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(note);
+  }
+  return out;
+}
+
+/** One bait card per place — drops extra windows, reason buckets, and repeat visits. */
+export function dedupeBaitSuggestionsByPlace(
+  suggestions: BaitPlanSuggestion[],
+): BaitPlanSuggestion[] {
+  const byPlace = new Map<string, BaitPlanSuggestion>();
+  for (const raw of suggestions) {
+    const suggestion = collapseBaitMatchesByPlace(raw);
+    const key = baitSuggestionPlaceKey(suggestion);
+    const existing = byPlace.get(key);
+    if (!existing || suggestion.score > existing.score) {
+      byPlace.set(key, suggestion);
+    }
+  }
+  return [...byPlace.values()];
 }
 
 /** Single place + species for Add. Never walks every match into extra plan entries. */
@@ -387,10 +437,8 @@ export function suggestBaitFromWindows(args: {
       }
 
       for (const list of perDay.values()) {
-        list
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 2)
-          .forEach((s) => suggestions.push(s));
+        const best = list.sort((a, b) => b.score - a.score)[0];
+        if (best) suggestions.push(best);
       }
     }
   }
@@ -407,7 +455,9 @@ export function suggestBaitFromWindows(args: {
     list.push(s);
     byDate.set(s.window.date, list);
   }
-  return [...byDate.entries()].flatMap(([, list]) => list.slice(0, 4));
+  return dedupeBaitSuggestionsByPlace(
+    [...byDate.entries()].flatMap(([, list]) => list.slice(0, 4)),
+  );
 }
 
 async function windowsForLocated(args: {

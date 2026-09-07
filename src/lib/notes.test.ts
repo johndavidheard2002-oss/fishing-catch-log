@@ -212,6 +212,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("planPlaceToAdd");
     expect(plan).toContain("splitPlanSuggestionByPlace");
     expect(plan).toContain("splitBaitSuggestionByPlace");
+    expect(plan).toContain("dedupeBaitSuggestionsByPlace");
+    expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).toContain("/api/calendar-notes?for=plan&today=");
     expect(plan).toContain("upcomingPlanNotes");
     expect(plan).toContain("onDeletePlan");

@@ -24,8 +24,10 @@ import {
   planPlaceToAdd,
   planWhyChips,
   forecastWindowWhenLabel,
+  dedupeBaitSuggestionsByPlace,
   splitBaitSuggestionByPlace,
   splitPlanSuggestionByPlace,
+  uniqueNotesByPlace,
 } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
@@ -209,13 +211,15 @@ export function PlanClient({
   }, [selectedDay, plan]);
 
   const suggestions = (plan?.suggestions ?? []).flatMap(splitPlanSuggestionByPlace);
-  const baitSuggestions = (plan?.baitSuggestions ?? []).flatMap(splitBaitSuggestionByPlace);
+  const baitSuggestions = dedupeBaitSuggestionsByPlace(
+    (plan?.baitSuggestions ?? []).flatMap(splitBaitSuggestionByPlace),
+  );
   const lookupFailure = planLookupFailureNote(plan?.note);
   const notesByDay = groupNotesByDay(notes);
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const journalNotes = journalNotesForCalendarLog(selectedNotes);
-  const spotsOnDay = plannedSpotsOnDay(selectedNotes);
+  const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
   const plannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions);
 
   async function onAddSpot(spot: { placeName?: string | null; speciesTargets?: string[] | null }) {
@@ -741,9 +745,12 @@ function BaitSuggestionCard({
           </button>
         </div>
       ) : null}
+      {suggestion.matches.length > 1 ? (
       <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
         Past trips at this place
       </p>
+      ) : null}
+      {suggestion.matches.length > 1 ? (
       <ul className="space-y-2 px-3 py-3">
         {suggestion.matches.map((m) => {
           const baitSrc = personalPhotoSrc(m.baitSpot.photoPath);
@@ -779,6 +786,7 @@ function BaitSuggestionCard({
           );
         })}
       </ul>
+      ) : null}
     </article>
   );
 }
