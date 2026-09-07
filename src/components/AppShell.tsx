@@ -39,12 +39,7 @@ const NAV: {
     ariaLabel: "Calendar Log",
     icon: CalendarIcon,
   },
-  { href: "/spots", label: (
-      <>
-        Spots
-        <span className="block">Bait</span>
-      </>
-    ), ariaLabel: "Spots and bait", icon: MapIcon },
+  { href: "/spots", label: "Spots Bait", ariaLabel: "Spots Bait", icon: MapIcon },
   { href: "/backfill", label: "Backfill", icon: PastIcon },
 ];
 

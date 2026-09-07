@@ -373,6 +373,12 @@ describe("Calendar Log and Plan wiring", () => {
     expect(spots).toContain("pendingPlanSpotFromBait");
     expect(spots).toMatch(/kind === "bait"[\s\S]*AddToPlanButton/);
     expect(spots).not.toContain("visitPending");
+    expect(spots).toContain("baitGroups");
+    expect(spots).toContain("spot.key !== selected");
+    expect(spots).toContain("spots");
+    const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
+    expect(shell).toContain('label: "Spots Bait"');
+    expect(shell).not.toContain('<span className="block">Bait</span>');
   });
 
   it("lets Plan wait for a day tap, then add the pending spot", () => {

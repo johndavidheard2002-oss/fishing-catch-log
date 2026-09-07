@@ -269,12 +269,50 @@ describe("suggestFromWindows", () => {
       },
     });
     expect(suggestions).toHaveLength(1);
-    expect(suggestions[0].matches).toHaveLength(3);
+    expect(suggestions[0].matches).toHaveLength(1);
     expect(distinctPlanPlaces(suggestions[0])).toEqual(["Innertube cut"]);
     expect(planPlaceToAdd(suggestions[0])).toEqual({
       placeName: "Innertube cut",
-      speciesTargets: ["Largemouth Bass", "Largemouth Bass", "Largemouth Bass"],
+      speciesTargets: ["Largemouth Bass"],
     });
+  });
+
+  it("emits one card for the same hole across afternoon and dusk windows", () => {
+    const hole = pondCatch({
+      id: "fly",
+      species: "Redfish",
+      placeName: "Fly fishing hole",
+      latitude: 28.0,
+      longitude: -96.8,
+      tide: "outgoing",
+    });
+    const spots = groupSpots([hole]);
+    const suggestions = suggestFromWindows({
+      spots,
+      windowsBySpotKey: {
+        [spots[0].key]: [
+          windowOf({
+            date: "2026-09-12",
+            timeOfDay: "afternoon",
+            at: "2026-09-12T16:00:00.000Z",
+            temperatureF: 94,
+            weatherCondition: "cloudy",
+            tide: "outgoing",
+          }),
+          windowOf({
+            date: "2026-09-12",
+            timeOfDay: "dusk",
+            at: "2026-09-12T19:00:00.000Z",
+            temperatureF: 89,
+            weatherCondition: "cloudy",
+            tide: "outgoing",
+          }),
+        ],
+      },
+    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].placeName).toBe("Fly fishing hole");
+    expect(suggestions.map((card) => card.window.timeOfDay)).toHaveLength(1);
   });
 });
 

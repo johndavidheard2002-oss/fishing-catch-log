@@ -404,10 +404,8 @@ export function suggestFromWindows(args: {
       }
 
       for (const list of perDay.values()) {
-        list
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 2)
-          .forEach((s) => suggestions.push(s));
+        const best = list.sort((a, b) => b.score - a.score)[0];
+        if (best) suggestions.push(best);
       }
     }
   }
@@ -424,7 +422,9 @@ export function suggestFromWindows(args: {
     list.push(s);
     byDate.set(s.window.date, list);
   }
-  return [...byDate.entries()].flatMap(([, list]) => list.slice(0, 4));
+  return dedupeCatchSuggestionsByPlace(
+    [...byDate.entries()].flatMap(([, list]) => list.slice(0, 4)),
+  );
 }
 
 export function baitPlanHeadline(window: ForecastWindow, match: BaitSpot): string {
