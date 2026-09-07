@@ -231,6 +231,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("{added ? \"Added\" : adding ? \"Adding…\" : \"Add\"}");
     expect(plan).not.toContain("Show spot on map");
     expect(plan).not.toContain("plan-show-spot-map");
+    expect(plan).not.toContain("SaveToPhotosButton");
+    expect(plan).not.toContain("Save to Photos");
     expect(plan).not.toContain("matches.flatMap");
     expect(plan).not.toContain("matches.map((m) => void onAddSpot");
   });

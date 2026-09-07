@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
-import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
-import { catchPhotoFilename, personalPhotoSrc } from "@/lib/photo";
+import { personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { PlanDayNotes } from "@/components/CalendarNotes";
@@ -482,11 +481,6 @@ function SuggestionCard({
     date: formatDateOnly(m.catch.caughtAt),
     ownerName: m.catch.ownerName,
     reasons: m.reasons,
-    filename: catchPhotoFilename({
-      species: m.catch.speciesList?.length ? m.catch.speciesList : m.catch.species,
-      caughtAt: m.catch.caughtAt,
-      photoPath: m.catch.photoPath,
-    }),
   }));
   const primary = matchPhotos[0];
   if (!primary) return null;
@@ -580,10 +574,10 @@ function SuggestionCard({
       </p>
       <ul className="space-y-2 px-3 py-3">
         {matchPhotos.map((m) => (
-          <li key={m.id} className="flex items-start gap-2">
+          <li key={m.id}>
             <Link
               href={`/catch/${m.id}`}
-              className={`flex min-w-0 flex-1 gap-2 ${TAP_RESET}`}
+              className={`flex gap-2 ${TAP_RESET}`}
               aria-label={`${m.species} catch`}
               data-testid="plan-match-row"
             >
@@ -607,9 +601,6 @@ function SuggestionCard({
                 <span className="block text-xs text-ink-muted">{m.reasons.slice(0, 3).join(", ")}</span>
               </span>
             </Link>
-            {m.src ? (
-              <SaveToPhotosButton src={m.src} filename={m.filename} variant="text" />
-            ) : null}
           </li>
         ))}
       </ul>
