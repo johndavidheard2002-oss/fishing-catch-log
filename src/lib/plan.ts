@@ -1,5 +1,6 @@
 import { groupBaitSpots, baitTypesLabel } from "./bait";
 import { groupSpots, spotKey } from "./filters";
+import { normalizeNotePlace } from "./notes";
 import { speciesLabel } from "./species";
 import { formatDateOnly, formatTimeOnly, TIME_OF_DAY_LABELS } from "./time";
 import { conditionLabel, scoreConditionOverlap, suggestionStrength } from "./similar";
@@ -116,6 +117,122 @@ function shortPlace(place: string): string {
   return cut || place;
 }
 
+function recordsByPlace<T extends { placeName?: string | null }>(
+  records: T[],
+  fallbackPlace: string,
+): { key: string; placeName: string; records: T[] }[] {
+  const groups = new Map<string, { key: string; placeName: string; records: T[] }>();
+  for (const record of records) {
+    const placeName = record.placeName?.trim() || fallbackPlace;
+    const key = normalizeNotePlace(placeName) || "unknown spot";
+    const hit = groups.get(key);
+    if (hit) hit.records.push(record);
+    else groups.set(key, { key, placeName, records: [record] });
+  }
+  return [...groups.values()];
+}
+
+/** Distinct named places on a catch suggestion. Never add this list in one tap. */
+export function distinctPlanPlaces(
+  suggestion: Pick<PlanSuggestion, "placeName" | "matches">,
+): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  const consider = (raw?: string | null) => {
+    const display = raw?.trim();
+    if (!display) return;
+    const key = normalizeNotePlace(display);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    names.push(display);
+  };
+  for (const match of suggestion.matches) consider(match.catch.placeName);
+  if (!names.length) consider(suggestion.placeName);
+  return names;
+}
+
+/** One card per named place so each Add is a single spot. */
+export function splitPlanSuggestionByPlace(suggestion: PlanSuggestion): PlanSuggestion[] {
+  const groups = recordsByPlace(
+    suggestion.matches.map((match) => match.catch),
+    suggestion.placeName,
+  );
+  if (groups.length <= 1) {
+    const only = groups[0];
+    return only ? [{ ...suggestion, placeName: only.placeName, matches: suggestion.matches }] : [];
+  }
+  return groups.map((group) => {
+    const matches = suggestion.matches.filter((match) =>
+      group.records.some((record) => record.id === match.catch.id),
+    );
+    const best = matches[0];
+    return {
+      ...suggestion,
+      id: `${suggestion.id}|${group.key}`,
+      placeName: group.placeName,
+      matches,
+      score: best?.score ?? suggestion.score,
+      strength: best?.strength ?? suggestion.strength,
+      reasons: best?.reasons ?? suggestion.reasons,
+      headline: best ? planHeadline(suggestion.window, best.catch) : suggestion.headline,
+    };
+  });
+}
+
+export function splitBaitSuggestionByPlace(suggestion: BaitPlanSuggestion): BaitPlanSuggestion[] {
+  const groups = recordsByPlace(
+    suggestion.matches.map((match) => match.baitSpot),
+    suggestion.placeName,
+  );
+  if (groups.length <= 1) {
+    const only = groups[0];
+    return only ? [{ ...suggestion, placeName: only.placeName, matches: suggestion.matches }] : [];
+  }
+  return groups.map((group) => {
+    const matches = suggestion.matches.filter((match) =>
+      group.records.some((record) => record.id === match.baitSpot.id),
+    );
+    const best = matches[0];
+    return {
+      ...suggestion,
+      id: `${suggestion.id}|${group.key}`,
+      placeName: group.placeName,
+      matches,
+      score: best?.score ?? suggestion.score,
+      strength: best?.strength ?? suggestion.strength,
+      reasons: best?.reasons ?? suggestion.reasons,
+      headline: best ? baitPlanHeadline(suggestion.window, best.baitSpot) : suggestion.headline,
+    };
+  });
+}
+
+/** Single place + species for Add. Never walks every match into extra plan entries. */
+export function planPlaceToAdd(suggestion: {
+  placeName?: string | null;
+  matches?: Array<{
+    catch?: { placeName?: string | null; species?: string | null; speciesList?: string[] | null };
+  }>;
+}): { placeName: string; speciesTargets: string[] } | null {
+  const placeName =
+    suggestion.placeName?.trim() || suggestion.matches?.[0]?.catch?.placeName?.trim() || null;
+  if (!placeName) return null;
+  const key = normalizeNotePlace(placeName);
+  const speciesTargets: string[] = [];
+  for (const match of suggestion.matches ?? []) {
+    const matchPlace = match.catch?.placeName?.trim();
+    if (matchPlace && normalizeNotePlace(matchPlace) !== key) continue;
+    const names = match.catch?.speciesList?.length
+      ? match.catch.speciesList
+      : match.catch?.species
+        ? [match.catch.species]
+        : [];
+    for (const name of names) {
+      if (name?.trim()) speciesTargets.push(name);
+    }
+  }
+  return { placeName, speciesTargets };
+}
+
 export function scoreWindowAgainstCatch(
   window: ForecastWindow,
   record: CatchRecord,
@@ -145,40 +262,42 @@ export function suggestFromWindows(args: {
     const history = spot.catches.filter(isPositiveCatch);
     if (!history.length) continue;
 
-    const perDay = new Map<string, PlanSuggestion[]>();
+    for (const place of recordsByPlace(history, spot.placeName)) {
+      const perDay = new Map<string, PlanSuggestion[]>();
 
-    for (const window of windows) {
-      const matches = history
-        .map((record) => scoreWindowAgainstCatch(window, record))
-        .filter((m) => m.score >= minScore)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, MAX_MATCHES);
-      if (!matches.length) continue;
+      for (const window of windows) {
+        const matches = place.records
+          .map((record) => scoreWindowAgainstCatch(window, record))
+          .filter((m) => m.score >= minScore)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, MAX_MATCHES);
+        if (!matches.length) continue;
 
-      const best = matches[0];
-      const suggestion: PlanSuggestion = {
-        id: `${spot.key}|${window.date}|${window.timeOfDay}`,
-        spotKey: spot.key,
-        placeName: spot.placeName,
-        latitude: spot.latitude,
-        longitude: spot.longitude,
-        window,
-        score: best.score,
-        strength: best.strength,
-        headline: planHeadline(window, best.catch),
-        reasons: best.reasons,
-        matches,
-      };
-      const list = perDay.get(window.date) ?? [];
-      list.push(suggestion);
-      perDay.set(window.date, list);
-    }
+        const best = matches[0];
+        const suggestion: PlanSuggestion = {
+          id: `${spot.key}|${place.key}|${window.date}|${window.timeOfDay}`,
+          spotKey: spot.key,
+          placeName: place.placeName,
+          latitude: spot.latitude,
+          longitude: spot.longitude,
+          window,
+          score: best.score,
+          strength: best.strength,
+          headline: planHeadline(window, best.catch),
+          reasons: best.reasons,
+          matches,
+        };
+        const list = perDay.get(window.date) ?? [];
+        list.push(suggestion);
+        perDay.set(window.date, list);
+      }
 
-    for (const list of perDay.values()) {
-      list
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 2)
-        .forEach((s) => suggestions.push(s));
+      for (const list of perDay.values()) {
+        list
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 2)
+          .forEach((s) => suggestions.push(s));
+      }
     }
   }
 
@@ -236,41 +355,43 @@ export function suggestBaitFromWindows(args: {
     const history = spot.spots.filter((s) => s.baitTypes.length);
     if (!history.length) continue;
 
-    const perDay = new Map<string, BaitPlanSuggestion[]>();
+    for (const place of recordsByPlace(history, spot.placeName)) {
+      const perDay = new Map<string, BaitPlanSuggestion[]>();
 
-    for (const window of windows) {
-      const matches = history
-        .map((record) => scoreWindowAgainstBait(window, record))
-        .filter((m) => m.score >= minScore)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, MAX_MATCHES);
-      if (!matches.length) continue;
+      for (const window of windows) {
+        const matches = place.records
+          .map((record) => scoreWindowAgainstBait(window, record))
+          .filter((m) => m.score >= minScore)
+          .sort((a, b) => b.score - a.score)
+          .slice(0, MAX_MATCHES);
+        if (!matches.length) continue;
 
-      const best = matches[0];
-      const suggestion: BaitPlanSuggestion = {
-        id: `bait|${spot.key}|${window.date}|${window.timeOfDay}`,
-        spotKey: spot.key,
-        placeName: spot.placeName,
-        baitTypes: spot.baitTypes,
-        latitude: spot.latitude,
-        longitude: spot.longitude,
-        window,
-        score: best.score,
-        strength: best.strength,
-        headline: baitPlanHeadline(window, best.baitSpot),
-        reasons: best.reasons,
-        matches,
-      };
-      const list = perDay.get(window.date) ?? [];
-      list.push(suggestion);
-      perDay.set(window.date, list);
-    }
+        const best = matches[0];
+        const suggestion: BaitPlanSuggestion = {
+          id: `bait|${spot.key}|${place.key}|${window.date}|${window.timeOfDay}`,
+          spotKey: spot.key,
+          placeName: place.placeName,
+          baitTypes: spot.baitTypes,
+          latitude: spot.latitude,
+          longitude: spot.longitude,
+          window,
+          score: best.score,
+          strength: best.strength,
+          headline: baitPlanHeadline(window, best.baitSpot),
+          reasons: best.reasons,
+          matches,
+        };
+        const list = perDay.get(window.date) ?? [];
+        list.push(suggestion);
+        perDay.set(window.date, list);
+      }
 
-    for (const list of perDay.values()) {
-      list
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 2)
-        .forEach((s) => suggestions.push(s));
+      for (const list of perDay.values()) {
+        list
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 2)
+          .forEach((s) => suggestions.push(s));
+      }
     }
   }
 

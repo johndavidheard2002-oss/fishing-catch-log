@@ -18,7 +18,15 @@ import {
   journalNotesForCalendarLog,
   plannedSpotsOnDay,
 } from "@/lib/notes";
-import { parsePlanDate, planLookupFailureNote, planWhyChips, forecastWindowWhenLabel } from "@/lib/plan";
+import {
+  parsePlanDate,
+  planLookupFailureNote,
+  planPlaceToAdd,
+  planWhyChips,
+  forecastWindowWhenLabel,
+  splitBaitSuggestionByPlace,
+  splitPlanSuggestionByPlace,
+} from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
 import type {
@@ -158,8 +166,8 @@ export function PlanClient({
     resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [selectedDay, plan]);
 
-  const suggestions = plan?.suggestions ?? [];
-  const baitSuggestions = plan?.baitSuggestions ?? [];
+  const suggestions = (plan?.suggestions ?? []).flatMap(splitPlanSuggestionByPlace);
+  const baitSuggestions = (plan?.baitSuggestions ?? []).flatMap(splitBaitSuggestionByPlace);
   const lookupFailure = planLookupFailureNote(plan?.note);
   const notesByDay = groupNotesByDay(notes);
   const notedDays = new Set(notesByDay.keys());
@@ -191,9 +199,9 @@ export function PlanClient({
         </h1>
         <p className="text-sm text-ink-muted">
           Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
-          produced — including very strong matches with matching tides. Tap Add on a suggested spot
-          to put it on that day. Add a note if you want. Tap a match to open that trip. Show spot on
-          map for the hole.
+          produced — including very strong matches with matching tides. Tap Add on a place to put
+          only that one place on the day. Add a note if you want. Tap a match to open that trip. Show
+          spot on map for the hole.
         </p>
       </div>
 
@@ -284,14 +292,10 @@ export function PlanClient({
                   added={dayHasPlanSpot(selectedNotes, s.placeName)}
                   adding={addingSpotId === s.placeName}
                   onOpenMap={() => setMapTarget(mapTargetFromCatch(s))}
-                  onAdd={() =>
-                    void onAddSpot({
-                      placeName: s.placeName,
-                      speciesTargets: s.matches.flatMap((m) =>
-                        m.catch.speciesList?.length ? m.catch.speciesList : [m.catch.species],
-                      ),
-                    })
-                  }
+                  onAdd={() => {
+                    const spot = planPlaceToAdd(s);
+                    if (spot) void onAddSpot(spot);
+                  }}
                 />
               ))}
               {baitSuggestions.length ? (
@@ -545,12 +549,16 @@ function SuggestionCard({
                   : "border border-line bg-card text-teal"
               } disabled:opacity-60`}
               data-testid="plan-add-spot"
+              data-place-name={suggestion.placeName}
             >
               {added ? "Added" : adding ? "Adding…" : "Add"}
             </button>
           ) : null}
         </div>
       ) : null}
+      <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+        Past trips at this place
+      </p>
       <ul className="space-y-2 px-3 py-3">
         {matchPhotos.map((m) => (
           <li key={m.id} className="flex items-start gap-2">
@@ -699,12 +707,16 @@ function BaitSuggestionCard({
                   : "border border-line bg-card text-teal"
               } disabled:opacity-60`}
               data-testid="plan-add-spot"
+              data-place-name={suggestion.placeName}
             >
               {added ? "Added" : adding ? "Adding…" : "Add"}
             </button>
           ) : null}
         </div>
       ) : null}
+      <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
+        Past trips at this place
+      </p>
       <ul className="space-y-2 px-3 py-3">
         {suggestion.matches.map((m) => {
           const baitSrc = personalPhotoSrc(m.baitSpot.photoPath);

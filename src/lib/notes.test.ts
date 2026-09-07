@@ -202,16 +202,47 @@ describe("Plan add-to-day UI", () => {
     const plan = readFileSync(resolve(__dirname, "../components/PlanClient.tsx"), "utf8");
     expect(plan).toContain("addPlanSpotToDay");
     expect(plan).toContain("dayHasPlanSpot");
+    expect(plan).toContain("planPlaceToAdd");
+    expect(plan).toContain("splitPlanSuggestionByPlace");
+    expect(plan).toContain("splitBaitSuggestionByPlace");
     expect(plan).toContain("/api/calendar-notes?for=plan");
     expect(plan).toContain("journalNotesForCalendarLog");
     expect(plan).toContain('data-testid="plan-add-spot"');
+    expect(plan).toContain("data-place-name");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
     expect(calendar).toContain("journalNotesForCalendarLog");
     expect(calendar).not.toContain("for=plan");
     expect(plan).toContain('data-testid="plan-suggested-spots"');
     expect(plan).toContain('data-testid="plan-day-spots"');
-    expect(plan).toContain("Tap Add on a suggested spot");
+    expect(plan).toContain("Tap Add on a place to put");
+    expect(plan).toContain("only that one place");
+    expect(plan).toContain("Past trips at this place");
     expect(plan).toContain("{added ? \"Added\" : adding ? \"Adding…\" : \"Add\"}");
+    expect(plan).not.toContain("matches.flatMap");
+    expect(plan).not.toContain("matches.map((m) => void onAddSpot");
+  });
+
+  it("adds one place from a same-spot card that lists several past trips", () => {
+    const input = addPlanSpotToDay([], "2026-09-10", {
+      placeName: "Innertube cut",
+      speciesTargets: ["Redfish", "Speckled Trout", "Redfish"],
+    });
+    expect(input).toEqual({
+      day: "2026-09-10",
+      title: null,
+      notes: null,
+      placeName: "Innertube cut",
+      speciesTargets: ["Redfish", "Speckled Trout"],
+      kind: "plan-spot",
+    });
+    const after = [note({ placeName: "Innertube cut", kind: "plan-spot" })];
+    expect(addPlanSpotToDay(after, "2026-09-10", { placeName: "Innertube cut" })).toBeNull();
+    expect(addPlanSpotToDay(after, "2026-09-10", { placeName: "Ransom point" })?.placeName).toBe(
+      "Ransom point",
+    );
+    expect(addPlanSpotToDay(after, "2026-09-10", { placeName: "Harbor island" })?.placeName).toBe(
+      "Harbor island",
+    );
   });
 });
 

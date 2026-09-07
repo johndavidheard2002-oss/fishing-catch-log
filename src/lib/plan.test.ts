@@ -2,14 +2,17 @@ import { describe, expect, it } from "vitest";
 import { groupSpots } from "./filters";
 import {
   baitPlanHeadline,
+  distinctPlanPlaces,
   forecastWindowWhenLabel,
   isPositiveCatch,
   parsePlanDate,
   planHeadline,
   planLookupFailureNote,
+  planPlaceToAdd,
   planWhyChips,
   scoreWindowAgainstBait,
   scoreWindowAgainstCatch,
+  splitPlanSuggestionByPlace,
   suggestionStrength,
   suggestBaitFromWindows,
   suggestFromWindows,
@@ -187,6 +190,131 @@ describe("suggestFromWindows", () => {
     expect(suggestions[0].headline).toMatch(/cloudy \+ 72°F \+ afternoon like your Largemouth Bass/i);
     expect(suggestions[0].strength).not.toBe("very-strong");
     expect(suggestionStrength(suggestions[0].score)).not.toBeUndefined();
+  });
+
+  it("emits a separate suggestion for each nearby named place", () => {
+    const cut = pondCatch({
+      id: "cut",
+      species: "Redfish",
+      placeName: "Innertube cut",
+      latitude: 28.738,
+      longitude: -80.755,
+      tide: "outgoing",
+    });
+    const point = pondCatch({
+      id: "point",
+      species: "Speckled Trout",
+      placeName: "Ransom point",
+      latitude: 28.740,
+      longitude: -80.753,
+      caughtAt: "2025-06-21T19:05:00.000Z",
+      tide: "outgoing",
+    });
+    const other = pondCatch({
+      id: "other",
+      species: "Redfish",
+      placeName: "Harbor island",
+      latitude: 28.741,
+      longitude: -80.752,
+      caughtAt: "2025-06-20T19:05:00.000Z",
+      tide: "outgoing",
+    });
+    const spots = groupSpots([cut, point, other]);
+    expect(spots).toHaveLength(3);
+    const window = windowOf({
+      latitude: 28.738,
+      longitude: -80.755,
+      temperatureF: 76,
+      weatherCondition: "cloudy",
+      tide: "outgoing",
+    });
+    const windowsBySpotKey = Object.fromEntries(spots.map((spot) => [spot.key, [window]]));
+    const suggestions = suggestFromWindows({ spots, windowsBySpotKey });
+    const places = suggestions.map((s) => s.placeName).sort();
+    expect(places).toEqual(["Harbor island", "Innertube cut", "Ransom point"]);
+    for (const suggestion of suggestions) {
+      expect(distinctPlanPlaces(suggestion)).toEqual([suggestion.placeName]);
+      expect(planPlaceToAdd(suggestion)?.placeName).toBe(suggestion.placeName);
+    }
+  });
+
+  it("keeps several past trips at the same place on one suggestion", () => {
+    const first = pondCatch({ id: "a", placeName: "Innertube cut" });
+    const second = pondCatch({
+      id: "b",
+      placeName: "Innertube cut",
+      caughtAt: "2025-06-21T19:05:00.000Z",
+    });
+    const third = pondCatch({
+      id: "c",
+      placeName: "innertube  cut",
+      caughtAt: "2025-06-20T19:05:00.000Z",
+    });
+    const spots = groupSpots([first, second, third]);
+    expect(spots).toHaveLength(1);
+    const suggestions = suggestFromWindows({
+      spots,
+      windowsBySpotKey: {
+        [spots[0].key]: [windowOf({ temperatureF: 76, weatherCondition: "cloudy" })],
+      },
+    });
+    expect(suggestions).toHaveLength(1);
+    expect(suggestions[0].matches).toHaveLength(3);
+    expect(distinctPlanPlaces(suggestions[0])).toEqual(["Innertube cut"]);
+    expect(planPlaceToAdd(suggestions[0])).toEqual({
+      placeName: "Innertube cut",
+      speciesTargets: ["Largemouth Bass", "Largemouth Bass", "Largemouth Bass"],
+    });
+  });
+});
+
+describe("splitPlanSuggestionByPlace", () => {
+  it("splits a mixed-place card so each place gets its own Add payload", () => {
+    const window = windowOf({ temperatureF: 76, weatherCondition: "cloudy" });
+    const mixed = {
+      id: "mixed",
+      spotKey: "28.738,-80.755",
+      placeName: "Innertube cut",
+      latitude: 28.738,
+      longitude: -80.755,
+      window,
+      score: 40,
+      strength: "strong" as const,
+      headline: "grouped",
+      reasons: ["Same time of day"],
+      matches: [
+        {
+          catch: pondCatch({ id: "cut", placeName: "Innertube cut" }),
+          score: 40,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+        {
+          catch: pondCatch({ id: "point", placeName: "Ransom point" }),
+          score: 38,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+        {
+          catch: pondCatch({ id: "island", placeName: "Harbor island" }),
+          score: 36,
+          reasons: ["Same time of day"],
+          strength: "strong" as const,
+        },
+      ],
+    };
+    const cards = splitPlanSuggestionByPlace(mixed);
+    expect(cards.map((card) => card.placeName).sort()).toEqual([
+      "Harbor island",
+      "Innertube cut",
+      "Ransom point",
+    ]);
+    expect(cards.map((card) => planPlaceToAdd(card)?.placeName).sort()).toEqual([
+      "Harbor island",
+      "Innertube cut",
+      "Ransom point",
+    ]);
+    expect(cards.every((card) => card.matches.length === 1)).toBe(true);
   });
 });
 

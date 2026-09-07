@@ -171,7 +171,7 @@ export function PlanDayNotes({
       </div>
       {notes.length === 0 && !adding ? (
         <p className="text-sm text-ink-muted">
-          Write what you want to try this day, or tap Add on a suggested spot. Same notes show on
+          Write what you want to try this day, or tap Add on a suggested place. Same notes show on
           Calendar Log.
         </p>
       ) : null}

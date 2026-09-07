@@ -101,6 +101,21 @@ describe("groupBaitSpots", () => {
     expect(groups).toHaveLength(2);
   });
 
+  it("does not merge nearby bait holes with different place names", () => {
+    const groups = groupBaitSpots([
+      bait({ id: "cut", placeName: "Innertube cut", latitude: 28.735, longitude: -80.754 }),
+      bait({
+        id: "point",
+        placeName: "Ransom point",
+        latitude: 28.736,
+        longitude: -80.753,
+        loggedAt: "2026-08-04T14:00:00.000Z",
+      }),
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups.map((g) => g.placeName).sort()).toEqual(["Innertube cut", "Ransom point"]);
+  });
+
   it("clusters nearby visits of the same hole", () => {
     const groups = groupBaitSpots([
       bait({ id: "a", latitude: 28.735, longitude: -80.754 }),

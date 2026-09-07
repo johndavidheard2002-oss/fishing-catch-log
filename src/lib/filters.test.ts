@@ -106,6 +106,25 @@ describe("groupSpots", () => {
     expect(spots.map((s) => s.catchCount)).toEqual([1, 1]);
   });
 
+  it("does not merge nearby holes with different place names", () => {
+    const cut = catchOf({
+      id: "cut",
+      placeName: "Innertube cut",
+      latitude: 28.738,
+      longitude: -80.755,
+    });
+    const point = catchOf({
+      id: "point",
+      placeName: "Ransom point",
+      latitude: 28.740,
+      longitude: -80.753,
+      caughtAt: "2025-06-22T19:05:00.000Z",
+    });
+    const spots = groupSpots([cut, point]);
+    expect(spots).toHaveLength(2);
+    expect(spots.map((s) => s.placeName).sort()).toEqual(["Innertube cut", "Ransom point"]);
+  });
+
   it("still groups nearby GPS jitter at the same hole", () => {
     const a = catchOf({
       id: "a",
