@@ -58,7 +58,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Tap a day to open that date’s map, notes, and trips.",
       "Open a day and use Select spots to share for several pins at once. Off until you choose.",
       "Same date across years stays grouped so you can compare.",
-      "Tap Add to plan next to a catch or bait photo’s chips, then pick the day on Plan.",
+      "Tap Add to plan to the right of a catch or bait photo’s chips, then pick the day on Plan.",
     ],
   },
   {

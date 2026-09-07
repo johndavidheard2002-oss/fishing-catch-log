@@ -29,7 +29,7 @@ function CatchStampChips({
 }) {
   const pending = addToPlan ? pendingPlanSpotFromCatch(record) : null;
   return (
-    <p className="flex flex-wrap gap-1">
+    <p className="flex flex-wrap items-center gap-1">
       {showYear ? (
         <span className="rounded-full bg-teal/15 px-2 py-0.5 text-[10px] font-semibold text-teal">
           {yearFromDateKey(record.caughtAt)}
@@ -38,7 +38,6 @@ function CatchStampChips({
       <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
         {habitatLabel(record.habitat)}
       </span>
-      {pending ? <AddToPlanButton spot={pending} /> : null}
       {record.timeOfDay ? (
         <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
           {TIME_OF_DAY_LABELS[record.timeOfDay]}
@@ -54,6 +53,7 @@ function CatchStampChips({
           Sample
         </span>
       ) : null}
+      {pending ? <AddToPlanButton spot={pending} /> : null}
     </p>
   );
 }
@@ -77,7 +77,7 @@ export function CatchCard({
   const theirs = viewerId && record.anglerId !== viewerId;
   const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan);
   return (
-    <div className="journal-card relative flex overflow-hidden rounded-2xl">
+    <div className="journal-card relative flex min-w-0 overflow-visible rounded-2xl">
       <Link
         href={`/catch/${record.id}`}
         className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 overflow-hidden bg-paper-deep`}
@@ -93,7 +93,7 @@ export function CatchCard({
         )}
         {theirs ? <SharedOwnerBadge name={record.ownerName} compact={compact} /> : null}
       </Link>
-      <div className={`min-w-0 flex-1 px-3 pt-2 ${addToPlan ? "pb-8" : "pb-2"}`}>
+      <div className="min-w-0 flex-1 px-3 py-2">
         <Link href={`/catch/${record.id}`} className="block min-w-0" data-testid="calendar-catch-open">
           <p className="truncate font-semibold text-ink">
             {catchSpeciesTitle(record)}
@@ -109,17 +109,10 @@ export function CatchCard({
             {weatherLine(record)}
           </p>
         </Link>
-        {addToPlan ? null : (
-          <div className="mt-1">
-            <CatchStampChips record={record} showYear={showYear} addToPlan={false} />
-          </div>
-        )}
-      </div>
-      {addToPlan ? (
-        <div className="absolute inset-x-2 bottom-2 z-10" data-testid="add-to-plan-photo-chips">
-          <CatchStampChips record={record} showYear={showYear} addToPlan />
+        <div className="mt-1" data-testid={addToPlan ? "add-to-plan-photo-chips" : undefined}>
+          <CatchStampChips record={record} showYear={showYear} addToPlan={addToPlan} />
         </div>
-      ) : null}
+      </div>
       {src ? (
         <SaveToPhotosButton src={src} filename={photoFilename(record)} variant="overlay" />
       ) : null}
@@ -139,9 +132,8 @@ export function CatchGridCard({
   const src = photoSrc(record.photoPath);
   const theirs = viewerId && record.anglerId !== viewerId;
   const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan);
-  const pending = addToPlan ? pendingPlanSpotFromCatch(record) : null;
   return (
-    <div className="journal-card relative overflow-hidden rounded-2xl">
+    <div className="journal-card relative min-w-0 overflow-hidden rounded-2xl">
       <div className="relative aspect-square overflow-hidden bg-paper-deep">
         <Link href={`/catch/${record.id}`} className="absolute inset-0" data-testid="calendar-catch-open">
           {src ? (
@@ -154,30 +146,12 @@ export function CatchGridCard({
           )}
           {theirs ? <SharedOwnerBadge name={record.ownerName} /> : null}
         </Link>
-        {pending ? (
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap gap-1 bg-gradient-to-t from-ink/70 to-transparent p-1.5 pt-6"
-            data-testid="add-to-plan-photo-chips"
-          >
-            <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
-              {habitatLabel(record.habitat)}
-            </span>
-            <span className="pointer-events-auto">
-              <AddToPlanButton spot={pending} />
-            </span>
-            {record.timeOfDay ? (
-              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
-                {TIME_OF_DAY_LABELS[record.timeOfDay]}
-              </span>
-            ) : null}
-            {record.moonPhase ? (
-              <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold">
-                {record.moonPhase}
-              </span>
-            ) : null}
-          </div>
-        ) : null}
       </div>
+      {addToPlan ? (
+        <div className="px-2.5 pt-2" data-testid="add-to-plan-photo-chips">
+          <CatchStampChips record={record} addToPlan />
+        </div>
+      ) : null}
       <Link href={`/catch/${record.id}`} className="block px-2.5 py-2" data-testid="calendar-catch-open">
         <p className="truncate text-sm font-semibold">
           {catchSpeciesTitle(record)}

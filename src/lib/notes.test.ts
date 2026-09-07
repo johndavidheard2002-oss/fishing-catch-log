@@ -22,6 +22,7 @@ import {
   isPlausiblePlanToday,
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
+  photosForPlannedPlaces,
   restorePlanDay,
   safePlanDayPurgeBeforeKey,
   shiftDayKey,
@@ -39,6 +40,9 @@ function note(partial: Partial<CalendarNote>): CalendarNote {
     placeName: null,
     speciesTargets: [],
     kind: "journal",
+    sourceCatchId: null,
+    sourceBaitId: null,
+    photoPath: null,
     createdAt: "2026-09-02T12:00:00.000Z",
     updatedAt: "2026-09-02T12:00:00.000Z",
     ...partial,
@@ -224,6 +228,9 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("listedPlanNotes");
     expect(plan).toContain("mergeListedPlanNotes");
     expect(plan).toContain("mergePlannedPlacePhotos");
+    expect(plan).toContain("photosForPlannedPlaces");
+    expect(plan).toContain("sourceCatchId");
+    expect(plan).toContain("sourceBaitId");
     expect(plan).toContain("restorePlanDay");
     expect(plan).toContain("readLastPlanDay");
     expect(plan).toContain("r.ok ? r.json() : null");
@@ -465,6 +472,55 @@ describe("expired Plan days", () => {
     ];
     expect(mergePlannedPlacePhotos([spot], [], cached)).toEqual(cached);
     expect(mergePlannedPlacePhotos([], cached, cached)).toEqual([]);
+  });
+
+  it("shows the added catch or bait photo on Planned without waiting for suggestions", () => {
+    const catchSpot = note({
+      id: "from-catch",
+      placeName: "Innertube cut",
+      kind: "plan-spot",
+      sourceCatchId: "c1",
+      photoPath: "redfish.jpg",
+    });
+    expect(photosForPlannedPlaces([catchSpot])).toEqual([
+      {
+        id: "from-catch",
+        placeName: "Innertube cut",
+        src: "/api/media/redfish.jpg",
+        href: "/catch/c1",
+      },
+    ]);
+    const baitSpot = note({
+      id: "from-bait",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+      sourceBaitId: "b1",
+      photoPath: "shrimp.jpg",
+    });
+    expect(photosForPlannedPlaces([baitSpot])).toEqual([
+      {
+        id: "from-bait",
+        placeName: "Haulover Canal",
+        src: "/api/media/shrimp.jpg",
+        href: "/bait/b1",
+      },
+    ]);
+  });
+
+  it("does not invent a bait photo when the added bait had none", () => {
+    const bareBait = note({
+      id: "bare-bait",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+      sourceBaitId: "b1",
+    });
+    const baitSuggestions = [
+      {
+        placeName: "Haulover Canal",
+        matches: [{ baitSpot: { id: "other", photoPath: "other.jpg" } }],
+      },
+    ] as unknown as Parameters<typeof photosForPlannedPlaces>[2];
+    expect(photosForPlannedPlaces([bareBait], [], baitSuggestions)).toEqual([]);
   });
 });
 

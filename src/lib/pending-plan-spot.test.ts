@@ -59,6 +59,12 @@ describe("pendingPlanSpotFromCatch", () => {
       placeName: "Innertube cut",
       speciesTargets: ["Redfish", "Speckled Trout"],
     });
+    expect(
+      pendingPlanSpotFromCatch(catchOf({ id: "c-photo", placeName: "The point", photoPath: "redfish.jpg" })),
+    ).toMatchObject({
+      catchId: "c-photo",
+      photoPath: "redfish.jpg",
+    });
   });
 
   it("returns null when the catch has no place", () => {
@@ -71,6 +77,12 @@ describe("pendingPlanSpotFromCatch", () => {
       baitId: "b1",
       placeName: "Haulover Canal",
       speciesTargets: [],
+    });
+    expect(
+      pendingPlanSpotFromBait(baitOf({ id: "b-photo", placeName: "Haulover Canal", photoPath: "shrimp.jpg" })),
+    ).toMatchObject({
+      baitId: "b-photo",
+      photoPath: "shrimp.jpg",
     });
     expect(pendingPlanSpotFromBait({ id: "b2", placeName: "  " })).toBeNull();
   });
@@ -225,6 +237,7 @@ describe("pending spot uses the same Plan add path", () => {
       placeName: "Innertube cut",
       speciesTargets: ["Redfish"],
       kind: "plan-spot",
+      sourceCatchId: "c1",
     });
     const baitPending = pendingPlanSpotFromBait(baitOf({ id: "b1", placeName: "Haulover Canal" }));
     expect(addPlanSpotToDay([], "2026-09-12", baitPending!)).toEqual({
@@ -234,6 +247,7 @@ describe("pending spot uses the same Plan add path", () => {
       placeName: "Haulover Canal",
       speciesTargets: [],
       kind: "plan-spot",
+      sourceBaitId: "b1",
     });
   });
 });
@@ -254,12 +268,13 @@ describe("Calendar Log and Plan wiring", () => {
     expect(catchCard).toContain("CatchStampChips");
     expect(catchCard).toContain("canShowAddToPlan");
     expect(catchCard).toContain("habitatLabel(record.habitat)");
-    expect(catchCard).toMatch(/flex flex-wrap gap-1[\s\S]*AddToPlanButton/);
+    expect(catchCard).toMatch(/flex flex-wrap items-center gap-1[\s\S]*AddToPlanButton/);
     expect(catchCard).toContain('data-testid="add-to-plan-photo-chips"');
-    expect(catchCard).toContain("absolute inset-x-2 bottom-2");
-    expect(catchCard).toContain("from-ink/70");
+    expect(catchCard).toContain("overflow-visible");
+    expect(catchCard).not.toContain("absolute inset-x-2 bottom-2");
+    expect(catchCard).not.toContain("from-ink/70");
     expect(catchCard).toMatch(
-      /habitatLabel\(record\.habitat\)[\s\S]*AddToPlanButton[\s\S]*TIME_OF_DAY_LABELS/,
+      /habitatLabel\(record\.habitat\)[\s\S]*TIME_OF_DAY_LABELS[\s\S]*AddToPlanButton/,
     );
     expect(catchCard).not.toContain("flex justify-end px-3 pb-2");
     expect(catchCard).not.toContain("px-2.5 pb-2");
@@ -268,9 +283,9 @@ describe("Calendar Log and Plan wiring", () => {
     expect(baitCard).toContain("canShowAddToPlan");
     expect(baitCard).toContain("personalPhotoSrc(spot.photoPath)");
     expect(baitCard).toContain('data-testid="add-to-plan-photo-chips"');
-    expect(baitCard).toContain("from-ink/70");
-    expect(baitCard).toContain("chipsOnPhoto");
-    expect(baitCard).toContain("!src && pending");
+    expect(baitCard).not.toContain("from-ink/70");
+    expect(baitCard).toContain("overflow-visible");
+    expect(baitCard).toContain("!src && addToPlan");
     expect(baitCard).not.toContain("uppercase tracking-wide text-copper");
     expect(history).toContain("showAddToPlan");
     expect(history).toContain("calendar-log-own-feed");
@@ -280,6 +295,8 @@ describe("Calendar Log and Plan wiring", () => {
     const sharedBlock = history.slice(sharedIdx - 160, sharedIdx + 40);
     expect(sharedBlock).not.toContain("showAddToPlan");
     expect(calendar).toContain("showAddToPlan");
+    expect(calendar).toContain('data-testid="calendar-day-detail"');
+    expect(calendar).toContain("overflow-visible");
     expect(similar).not.toContain("showAddToPlan");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     const spots = readFileSync(resolve(__dirname, "../components/SpotsClient.tsx"), "utf8");

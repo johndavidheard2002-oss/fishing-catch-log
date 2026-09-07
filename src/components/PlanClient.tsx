@@ -17,9 +17,10 @@ import {
   listedPlanNotes,
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
-  normalizeNotePlace,
+  photosForPlannedPlaces,
   plannedSpotsOnDay,
   restorePlanDay,
+  type PlanSpotSource,
 } from "@/lib/notes";
 import {
   PENDING_PLAN_BAIT_QUERY,
@@ -60,46 +61,6 @@ import type {
 
 const TAP_RESET =
   "outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal";
-
-function photosForPlannedPlaces(
-  spots: CalendarNote[],
-  suggestions: PlanSuggestion[],
-  baitSuggestions: BaitPlanSuggestion[],
-): { id: string; placeName: string; src: string; href: string }[] {
-  const photos: { id: string; placeName: string; src: string; href: string }[] = [];
-  for (const note of spots) {
-    const key = normalizeNotePlace(note.placeName);
-    if (!key) continue;
-    const catchCard = suggestions.find((s) => normalizeNotePlace(s.placeName) === key);
-    const catchMatch = catchCard?.matches.find((m) => personalPhotoSrc(m.catch.photoPath));
-    if (catchMatch) {
-      const src = personalPhotoSrc(catchMatch.catch.photoPath);
-      if (src) {
-        photos.push({
-          id: note.id,
-          placeName: note.placeName ?? catchCard?.placeName ?? "spot",
-          src,
-          href: `/catch/${catchMatch.catch.id}`,
-        });
-        continue;
-      }
-    }
-    const baitCard = baitSuggestions.find((s) => normalizeNotePlace(s.placeName) === key);
-    const baitMatch = baitCard?.matches.find((m) => personalPhotoSrc(m.baitSpot.photoPath));
-    if (baitMatch) {
-      const src = personalPhotoSrc(baitMatch.baitSpot.photoPath);
-      if (src) {
-        photos.push({
-          id: note.id,
-          placeName: note.placeName ?? baitCard?.placeName ?? "spot",
-          src,
-          href: `/bait/${baitMatch.baitSpot.id}`,
-        });
-      }
-    }
-  }
-  return photos;
-}
 
 function readSessionPendingSpot(): PendingPlanSpot | null {
   if (typeof sessionStorage === "undefined") return null;
@@ -330,10 +291,7 @@ export function PlanClient({
   );
   if (freshPlannedPhotos.length) plannedPhotoCacheRef.current = plannedPhotos;
 
-  async function onAddSpot(
-    spot: { placeName?: string | null; speciesTargets?: string[] | null },
-    day = selectedDay,
-  ) {
+  async function onAddSpot(spot: PlanSpotSource, day = selectedDay) {
     if (!day) return;
     const dayNotes = notesByDay.get(day) ?? [];
     const input = addPlanSpotToDay(dayNotes, day, spot);
@@ -413,13 +371,13 @@ export function PlanClient({
           {pendingPlanPrompt(pendingSpot) ?? "Tap a day to plan it."}
         </p>
       ) : (
-        <section
-          ref={resultsRef}
-          className="space-y-3"
-          data-testid="plan-day-results"
-        >
           <section
-            className="journal-card space-y-3 rounded-2xl border-2 border-teal/45 p-3"
+            ref={resultsRef}
+            className="min-w-0 overflow-visible space-y-3"
+            data-testid="plan-day-results"
+          >
+          <section
+            className="journal-card min-w-0 overflow-visible space-y-3 rounded-2xl border-2 border-teal/45 p-3"
             data-testid="plan-planned"
           >
             <div className="flex items-start justify-between gap-2">
@@ -524,7 +482,14 @@ export function PlanClient({
                   adding={addingSpotId === s.placeName}
                   onAdd={() => {
                     const spot = planPlaceToAdd(s);
-                    if (spot) void onAddSpot(spot);
+                    if (!spot) return;
+                    const photoMatch =
+                      s.matches.find((m) => m.catch.photoPath) ?? s.matches[0];
+                    void onAddSpot({
+                      ...spot,
+                      sourceCatchId: photoMatch?.catch.id,
+                      photoPath: photoMatch?.catch.photoPath,
+                    });
                   }}
                 />
               ))}
@@ -543,7 +508,13 @@ export function PlanClient({
                       showOwner={includeShared}
                       added={dayHasPlanSpot(selectedNotes, s.placeName)}
                       adding={addingSpotId === s.placeName}
-                      onAdd={() => void onAddSpot({ placeName: s.placeName })}
+                      onAdd={() =>
+                        void onAddSpot({
+                          placeName: s.placeName,
+                          sourceBaitId: s.matches[0]?.baitSpot.id,
+                          photoPath: s.matches[0]?.baitSpot.photoPath,
+                        })
+                      }
                     />
                   ))}
                 </>

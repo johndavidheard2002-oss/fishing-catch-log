@@ -29,6 +29,9 @@ function mapRow(row: typeof calendarNotes.$inferSelect): CalendarNote {
     placeName: row.placeName,
     speciesTargets: parseSpeciesTargetsJson(row.speciesTargets),
     kind: parseCalendarNoteKind(row.kind),
+    sourceCatchId: row.sourceCatchId ?? null,
+    sourceBaitId: row.sourceBaitId ?? null,
+    photoPath: row.photoPath ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -103,6 +106,9 @@ export async function createCalendarNote(anglerId: string, input: CalendarNoteIn
       placeName: input.placeName ?? null,
       speciesTargets: JSON.stringify(speciesTargets),
       kind: parseCalendarNoteKind(input.kind),
+      sourceCatchId: input.sourceCatchId ?? null,
+      sourceBaitId: input.sourceBaitId ?? null,
+      photoPath: input.photoPath ?? null,
       createdAt: stamp,
       updatedAt: stamp,
     }),
@@ -130,6 +136,10 @@ export async function updateCalendarNote(
         placeName: input.placeName ?? null,
         speciesTargets: JSON.stringify(speciesTargets),
         kind: parseCalendarNoteKind(input.kind ?? existing.kind),
+        sourceCatchId:
+          input.sourceCatchId !== undefined ? input.sourceCatchId : existing.sourceCatchId,
+        sourceBaitId: input.sourceBaitId !== undefined ? input.sourceBaitId : existing.sourceBaitId,
+        photoPath: input.photoPath !== undefined ? input.photoPath : existing.photoPath,
         updatedAt: nowIso(),
       })
       .where(and(eq(calendarNotes.id, id), eq(calendarNotes.anglerId, anglerId))),

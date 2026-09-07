@@ -390,4 +390,27 @@ describe("migrate older journals", () => {
     expect(cols.map((col) => col.name)).toContain("kind");
     expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
   });
+
+  it("adds calendar_notes photo and source ids so Planned can show the added picture", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    getDb();
+    getSqlite().exec("ALTER TABLE calendar_notes DROP COLUMN photo_path");
+    getSqlite().exec("ALTER TABLE calendar_notes DROP COLUMN source_catch_id");
+    getSqlite().exec("ALTER TABLE calendar_notes DROP COLUMN source_bait_id");
+    getSqlite().pragma("user_version = 16");
+    resetDbForTests();
+    getDb();
+    const cols = getSqlite()
+      .prepare(`PRAGMA table_info(calendar_notes)`)
+      .all() as { name: string }[];
+    expect(cols.map((col) => col.name)).toEqual(expect.arrayContaining([
+      "photo_path",
+      "source_catch_id",
+      "source_bait_id",
+    ]));
+    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
+  });
 });

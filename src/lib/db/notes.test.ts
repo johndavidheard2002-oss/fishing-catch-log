@@ -65,6 +65,23 @@ describe("calendar notes", () => {
     expect(await listCalendarNotes(anglerId)).toEqual([]);
   });
 
+  it("stores the added catch photo on a plan-spot so Planned can show it", async () => {
+    const anglerId = freshDb();
+    const created = await createCalendarNote(anglerId, {
+      day: "2026-09-10",
+      placeName: "Innertube cut",
+      speciesTargets: ["Redfish"],
+      kind: "plan-spot",
+      sourceCatchId: "c1",
+      photoPath: "redfish.jpg",
+    });
+    expect(created.sourceCatchId).toBe("c1");
+    expect(created.photoPath).toBe("redfish.jpg");
+    const listed = await listCalendarNotes(anglerId, { forPlan: true });
+    expect(listed[0]?.sourceCatchId).toBe("c1");
+    expect(listed[0]?.photoPath).toBe("redfish.jpg");
+  });
+
   it("adds a suggested Plan spot onto that calendar day", async () => {
     const anglerId = freshDb();
     const input = addPlanSpotToDay([], "2026-09-10", {
@@ -77,6 +94,8 @@ describe("calendar notes", () => {
     expect(created.placeName).toBe("Haulover Canal");
     expect(created.speciesTargets).toEqual(["Redfish"]);
     expect(created.kind).toBe("plan-spot");
+    expect(created.sourceCatchId).toBeNull();
+    expect(created.photoPath).toBeNull();
     expect(await listCalendarNotes(anglerId)).toEqual([]);
     const onPlan = await listCalendarNotes(anglerId, { forPlan: true });
     expect(onPlan.map((note) => note.placeName)).toEqual(["Haulover Canal"]);
