@@ -383,8 +383,12 @@ export function PlanClient({
     setPendingSpot(null);
     dropSessionPendingSpot();
     try {
-      if (!input?.placeName) return;
+      if (!input?.placeName) {
+        window.history.replaceState(null, "", `/plan?date=${day}`);
+        return;
+      }
       await onAddSpot(spot, day);
+      window.history.replaceState(null, "", `/plan?date=${day}`);
     } finally {
       committingRef.current = false;
     }

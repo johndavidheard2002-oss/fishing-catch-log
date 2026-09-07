@@ -387,6 +387,7 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("void commitPendingSpot(date)");
     expect(plan).toContain("planHrefForPendingSpot(pending, date)");
     expect(plan).toContain("pendingPlanDayToCommit");
+    expect(plan).toContain('window.history.replaceState(null, "", `/plan?date=${day}`)');
     expect(plan).toContain("/api/catches/");
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");

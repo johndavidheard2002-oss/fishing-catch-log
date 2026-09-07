@@ -313,6 +313,7 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain('data-testid="plan-pending-spot"');
     expect(plan).toContain("planHrefForPendingSpot(pending, date)");
     expect(plan).toContain("void commitPendingSpot(date)");
+    expect(plan).toContain('window.history.replaceState(null, "", `/plan?date=${day}`)');
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");
   });
