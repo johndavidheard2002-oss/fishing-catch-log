@@ -16,6 +16,7 @@ import {
 } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import { mergeJournalFeed, type JournalFeedItem } from "@/lib/journal";
+import { calendarDayHasPlan, planHrefForDay } from "@/lib/notes";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
 import {
   getScanQueueCountServerSnapshot,
@@ -61,6 +62,12 @@ export function HistoryClient({
     queryDay ? parseYearMonth(queryDay) : null,
   );
   const [selectedDay, setSelectedDay] = useState<string | null>(queryDay);
+
+  useEffect(() => {
+    if (!selectedDay) return;
+    if (!calendarDayHasPlan(notes.filter((note) => note.day === selectedDay))) return;
+    router.replace(planHrefForDay(selectedDay));
+  }, [notes, selectedDay, router]);
 
   useEffect(() => {
     fetch("/api/me")

@@ -249,10 +249,18 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain('data-testid="plan-delete-day"');
     expect(plan).toContain("Delete plan");
     expect(plan).toContain("journalNotesForCalendarLog");
+    expect(plan).toContain("PlanDayNotes");
+    expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(plan.indexOf("<PlanDayNotes"));
+    const planNotes = readFileSync(resolve(__dirname, "../components/CalendarNotes.tsx"), "utf8");
+    expect(planNotes).toContain('data-testid="plan-day-notes"');
+    expect(planNotes).toContain('data-testid="plan-day-note"');
     expect(plan).toContain('data-testid="plan-add-spot"');
     expect(plan).toContain("data-place-name");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
     expect(calendar).toContain("include=plan-spots");
+    expect(calendar).toContain("calendarDayHasPlan");
+    expect(calendar).toContain("planHrefForDay");
+    expect(calendar).toContain("router.replace(planHrefForDay(selectedDay))");
     expect(calendar).not.toContain("journalNotesForCalendarLog");
     expect(calendar).not.toContain("for=plan");
     const calendarGrid = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");

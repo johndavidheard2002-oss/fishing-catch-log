@@ -110,9 +110,9 @@ export function HistoryCalendar({
   );
   const priorYearBlocks = mergePriorYearBlocks(priorCatchGroups, priorBaitGroups);
   const showPriorYears = !thisYearOnly && priorYearBlocks.length > 0;
-  const selectedNotes = selectedDay
-    ? journalNotesForCalendarLog(notesByDay.get(selectedDay) ?? [])
-    : [];
+  const selectedDayNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
+  const selectedHasPlan = calendarDayHasPlan(selectedDayNotes);
+  const selectedNotes = journalNotesForCalendarLog(selectedDayNotes);
   const allYearsLabel = selectedDay
     ? yearsOnMonthDay(catches, baitSpots, selectedDay).join(" · ")
     : "";
@@ -336,7 +336,7 @@ export function HistoryCalendar({
         </div>
       </div>
 
-      {selectedDay ? (
+      {selectedDay && !selectedHasPlan ? (
         <section id="day-detail" data-testid="calendar-day-detail" className="min-w-0 overflow-visible space-y-3">
           <div className="flex items-start justify-between gap-2">
             <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
