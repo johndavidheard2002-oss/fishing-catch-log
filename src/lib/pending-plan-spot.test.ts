@@ -266,8 +266,12 @@ describe("Calendar Log and Plan wiring", () => {
     expect(baitCard).toContain("AddToPlanButton");
     expect(baitCard).toContain("BaitStampChips");
     expect(baitCard).toContain("canShowAddToPlan");
+    expect(baitCard).toContain("personalPhotoSrc(spot.photoPath)");
     expect(baitCard).toContain('data-testid="add-to-plan-photo-chips"');
     expect(baitCard).toContain("from-ink/70");
+    expect(baitCard).toContain("chipsOnPhoto");
+    expect(baitCard).toContain("!src && pending");
+    expect(baitCard).not.toContain("uppercase tracking-wide text-copper");
     expect(history).toContain("showAddToPlan");
     expect(history).toContain("calendar-log-own-feed");
     const ownFeed = history.slice(history.lastIndexOf("calendar-log-own-feed") - 80);
@@ -299,6 +303,8 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("/api/catches/");
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");
+    expect(plan).toContain("dedupeBaitSuggestionsByPlace");
+    expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).not.toContain("setSelectedDay(pending");
     expect(page).toContain("addCatch");
     expect(page).toContain("addBait");
