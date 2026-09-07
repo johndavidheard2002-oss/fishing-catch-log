@@ -1,3 +1,4 @@
+import { parseBaitTypes } from "./bait";
 import { personalPhotoSrc, photoSrc } from "./photo";
 import type {
   BaitPlanSuggestion,
@@ -145,6 +146,88 @@ export function planSpotDetailHref(
   if (sourceCatchId) return `/catch/${sourceCatchId}`;
   const href = typeof photo?.href === "string" ? photo.href.trim() : "";
   return href || null;
+}
+
+export type PlannedSpotJournal = {
+  catches?: Array<{
+    id: string;
+    species?: string | null;
+    speciesList?: string[] | null;
+    bait?: string | null;
+  }>;
+  baitSpots?: Array<{
+    id: string;
+    baitTypes?: string[] | null;
+  }>;
+};
+
+export type PlannedSpotLabels = {
+  fish: string[];
+  bait: string[];
+};
+
+function knownFishNames(names: unknown): string[] {
+  return parseSpeciesTargets(names).filter((name) => name.toLowerCase() !== "unknown");
+}
+
+function fishNamesFromCatch(record?: {
+  species?: string | null;
+  speciesList?: string[] | null;
+}): string[] {
+  if (!record) return [];
+  const names = record.speciesList?.length
+    ? record.speciesList
+    : record.species
+      ? [record.species]
+      : [];
+  return knownFishNames(names);
+}
+
+/**
+ * Fish / bait type labels under a Planned place chip.
+ * Prefer the note, then the source catch or bait — never invent names.
+ */
+export function labelsForPlannedSpot(
+  spot: PlanSpotSource,
+  journal: PlannedSpotJournal = {},
+): PlannedSpotLabels {
+  const kind = planSpotSourceKind(spot);
+  const sourceCatchId = trimToNull(spot.sourceCatchId ?? spot.catchId, MAX_SOURCE_ID);
+  const sourceBaitId = trimToNull(spot.sourceBaitId ?? spot.baitId, MAX_SOURCE_ID);
+  const catchRecord = sourceCatchId
+    ? journal.catches?.find((record) => record.id === sourceCatchId)
+    : undefined;
+  const baitRecord = sourceBaitId
+    ? journal.baitSpots?.find((record) => record.id === sourceBaitId)
+    : undefined;
+
+  const fromNote = knownFishNames(spot.speciesTargets);
+  const fish =
+    kind === "bait" ? [] : fromNote.length ? fromNote : fishNamesFromCatch(catchRecord);
+
+  const baitFromHole = kind === "bait" ? parseBaitTypes(baitRecord?.baitTypes) : [];
+  const baitFromNote = kind === "bait" ? parseBaitTypes(spot.speciesTargets) : [];
+  const baitFromCatch =
+    kind === "bait" ? [] : parseBaitTypes(catchRecord?.bait ? [catchRecord.bait] : []);
+  const bait = baitFromHole.length
+    ? baitFromHole
+    : baitFromNote.length
+      ? baitFromNote
+      : baitFromCatch;
+
+  return { fish, bait };
+}
+
+export function plannedSpotOpenLabel(
+  placeName: string | null | undefined,
+  kind: ReturnType<typeof planSpotSourceKind>,
+  labels: PlannedSpotLabels,
+): string {
+  const place = placeName?.trim() || "spot";
+  const bits = [place, ...labels.fish, ...labels.bait];
+  if (kind === "bait") bits.push("bait");
+  else if (kind === "catch") bits.push("catch");
+  return bits.join(" ");
 }
 
 /** Suggested Plan spot → a calendar note that pins that place onto the day. */

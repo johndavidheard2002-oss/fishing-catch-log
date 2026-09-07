@@ -10,8 +10,10 @@ import {
   expiredPlanNotes,
   isExpiredPlanDay,
   journalNotesForCalendarLog,
+  labelsForPlannedSpot,
   noteHeadline,
   parseCalendarNoteInput,
+  plannedSpotOpenLabel,
   parseDayKey,
   parseSpeciesTargets,
   planDayPurgeBeforeKey,
@@ -235,6 +237,68 @@ describe("dayHasPlanSpot", () => {
     ).toBe("/catch/c1");
   });
 
+  it("labels Planned rows with fish and bait from the note or source journal", () => {
+    const catchSpot = note({
+      placeName: "Innertube cut",
+      kind: "plan-spot",
+      sourceCatchId: "c1",
+      speciesTargets: ["Redfish"],
+    });
+    expect(labelsForPlannedSpot(catchSpot)).toEqual({ fish: ["Redfish"], bait: [] });
+    expect(
+      labelsForPlannedSpot(catchSpot, {
+        catches: [{ id: "c1", species: "Speckled Trout", speciesList: ["Speckled Trout"], bait: "Shrimp" }],
+      }),
+    ).toEqual({ fish: ["Redfish"], bait: ["Shrimp"] });
+    expect(
+      labelsForPlannedSpot(note({ placeName: "Innertube cut", kind: "plan-spot", sourceCatchId: "c1" }), {
+        catches: [
+          {
+            id: "c1",
+            species: "Speckled Trout",
+            speciesList: ["Speckled Trout", "Redfish"],
+            bait: "Cut bait",
+          },
+        ],
+      }),
+    ).toEqual({ fish: ["Speckled Trout", "Redfish"], bait: ["Cut bait"] });
+    expect(
+      labelsForPlannedSpot(
+        note({
+          placeName: "Aransas Pass, Texas",
+          kind: "plan-spot",
+          sourceBaitId: "b1",
+        }),
+        { baitSpots: [{ id: "b1", baitTypes: ["Shrimp", "Croaker"] }] },
+      ),
+    ).toEqual({ fish: [], bait: ["Shrimp", "Croaker"] });
+    expect(
+      labelsForPlannedSpot(
+        note({
+          placeName: "Aransas Pass, Texas",
+          kind: "plan-spot",
+          sourceBaitId: "b1",
+          speciesTargets: ["Finger mullet"],
+        }),
+      ),
+    ).toEqual({ fish: [], bait: ["Finger mullet"] });
+    expect(
+      labelsForPlannedSpot(note({ placeName: "Shamrock", kind: "plan-spot", sourceCatchId: "c-empty" }), {
+        catches: [{ id: "c-empty", species: "Unknown", speciesList: [], bait: null }],
+      }),
+    ).toEqual({ fish: [], bait: [] });
+    expect(labelsForPlannedSpot(note({ placeName: "Shamrock", kind: "plan-spot" }))).toEqual({
+      fish: [],
+      bait: [],
+    });
+    expect(plannedSpotOpenLabel("Innertube cut", "catch", { fish: ["Redfish"], bait: ["Cut bait"] })).toBe(
+      "Innertube cut Redfish Cut bait catch",
+    );
+    expect(plannedSpotOpenLabel("Aransas Pass, Texas", "bait", { fish: [], bait: ["Shrimp"] })).toBe(
+      "Aransas Pass, Texas Shrimp bait",
+    );
+  });
+
   it("keeps Plan-day adds out of Calendar Log Planned trips", () => {
     const planSpot = note({
       id: "s",
@@ -282,7 +346,11 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("mergePlannedPlacePhotos");
     expect(plan).toContain("photosForPlannedPlaces");
     expect(plan).toContain("planSpotDetailHref");
+    expect(plan).toContain("labelsForPlannedSpot");
+    expect(plan).toContain("plannedSpotOpenLabel");
     expect(plan).toContain('data-testid="plan-day-spot-open"');
+    expect(plan).toContain('data-testid="plan-day-spot-fish"');
+    expect(plan).toContain('data-testid="plan-day-spot-bait"');
     expect(plan).toContain("sourceCatchId");
     expect(plan).toContain("sourceBaitId");
     expect(plan).toContain("restorePlanDay");

@@ -85,7 +85,7 @@ describe("pendingPlanSpotFromCatch", () => {
     expect(pendingPlanSpotFromBait(baitOf({ id: "b1", placeName: "  Haulover Canal  " }))).toEqual({
       baitId: "b1",
       placeName: "Haulover Canal",
-      speciesTargets: [],
+      speciesTargets: ["Shrimp"],
     });
     expect(
       pendingPlanSpotFromBait(baitOf({ id: "b-photo", placeName: "Haulover Canal", photoPath: "shrimp.jpg" })),
@@ -320,7 +320,7 @@ describe("pending spot uses the same Plan add path", () => {
       title: null,
       notes: null,
       placeName: "Haulover Canal",
-      speciesTargets: [],
+      speciesTargets: ["Shrimp"],
       kind: "plan-spot",
       sourceBaitId: "b1",
     });
@@ -441,7 +441,10 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("rememberCommittedPlanSpot");
     expect(plan).toContain("data-plan-source={kind}");
     expect(plan).toContain("planSpotDetailHref");
+    expect(plan).toContain("labelsForPlannedSpot");
     expect(plan).toContain('data-testid="plan-day-spot-open"');
+    expect(plan).toContain('data-testid="plan-day-spot-fish"');
+    expect(plan).toContain('data-testid="plan-day-spot-bait"');
     expect(plan).toContain("Bait");
     expect(plan).not.toContain("setSelectedDay(pending");
     expect(page).toContain("addCatch");

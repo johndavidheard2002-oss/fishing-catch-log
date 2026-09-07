@@ -59,6 +59,7 @@ export function pendingPlanSpotFromCatch(record: {
 export function pendingPlanSpotFromBait(spot: {
   id?: string;
   placeName?: string | null;
+  baitTypes?: string[] | null;
   photoPath?: string | null;
 }): PendingPlanSpot | null {
   const placeName = trimPlace(spot.placeName);
@@ -67,7 +68,7 @@ export function pendingPlanSpotFromBait(spot: {
   return {
     baitId: spot.id,
     placeName,
-    speciesTargets: [],
+    speciesTargets: parseSpeciesTargets(spot.baitTypes),
     ...(photoPath ? { photoPath } : {}),
   };
 }
