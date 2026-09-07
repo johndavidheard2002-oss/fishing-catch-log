@@ -228,6 +228,10 @@ describe("migrate older journals", () => {
     expect(names).toContain("calendar_notes");
     expect(names).toContain("named_areas");
     expect(names).toContain("bait_spots");
+    const noteCols = getSqlite()
+      .prepare(`PRAGMA table_info(calendar_notes)`)
+      .all() as { name: string }[];
+    expect(noteCols.map((col) => col.name)).toContain("kind");
   });
 
   it("adds named_areas and bait_spots when opening an older journal again", () => {
@@ -367,6 +371,23 @@ describe("migrate older journals", () => {
     expect(row.trial_started_at).toBeTruthy();
     expect(new Date(row.trial_started_at).getTime()).toBeGreaterThan(Date.parse("2026-08-01T00:00:00.000Z"));
     expect(row.subscription_status).toBe("trial");
+    expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
+  });
+
+  it("adds calendar_notes.kind so Plan-day spots stay off Calendar Log", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    getDb();
+    getSqlite().exec("ALTER TABLE calendar_notes DROP COLUMN kind");
+    getSqlite().pragma("user_version = 15");
+    resetDbForTests();
+    getDb();
+    const cols = getSqlite()
+      .prepare(`PRAGMA table_info(calendar_notes)`)
+      .all() as { name: string }[];
+    expect(cols.map((col) => col.name)).toContain("kind");
     expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
   });
 });

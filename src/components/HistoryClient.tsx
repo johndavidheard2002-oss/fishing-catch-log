@@ -16,6 +16,7 @@ import {
 } from "@/lib/calendar";
 import { hasActiveFilters, matchesFilters } from "@/lib/filters";
 import { mergeJournalFeed, type JournalFeedItem } from "@/lib/journal";
+import { journalNotesForCalendarLog } from "@/lib/notes";
 import type { BaitSpot, CalendarNote, CalendarNoteInput, CatchFilters, CatchRecord } from "@/lib/types";
 import {
   getScanQueueCountServerSnapshot,
@@ -73,7 +74,9 @@ export function HistoryClient({
     fetch("/api/calendar-notes", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled && Array.isArray(data.notes)) setNotes(data.notes);
+        if (!cancelled && Array.isArray(data.notes)) {
+          setNotes(journalNotesForCalendarLog(data.notes));
+        }
       })
       .catch(() => {});
     return () => {
@@ -236,7 +239,7 @@ export function HistoryClient({
           <HistoryCalendar
             catches={filtered}
             baitSpots={baitSpots}
-            notes={notes}
+            notes={journalNotesForCalendarLog(notes)}
             year={monthCursor.year}
             month={monthCursor.month}
             selectedDay={displayDay}

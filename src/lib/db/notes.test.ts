@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ensureDefaultAngler } from "./anglers";
 import { getDb, resetDbForTests } from "./index";
+import { addPlanSpotToDay } from "../notes";
 import {
   createCalendarNote,
   deleteCalendarNote,
@@ -59,6 +60,43 @@ describe("calendar notes", () => {
     expect(await deleteCalendarNote(created.id, anglerId)).toBe(true);
     expect(await getCalendarNote(created.id)).toBeNull();
     expect(await listCalendarNotes(anglerId)).toEqual([]);
+  });
+
+  it("adds a suggested Plan spot onto that calendar day", async () => {
+    const anglerId = freshDb();
+    const input = addPlanSpotToDay([], "2026-09-10", {
+      placeName: "Haulover Canal",
+      speciesTargets: ["Redfish"],
+    });
+    expect(input).not.toBeNull();
+    const created = await createCalendarNote(anglerId, input!);
+    expect(created.day).toBe("2026-09-10");
+    expect(created.placeName).toBe("Haulover Canal");
+    expect(created.speciesTargets).toEqual(["Redfish"]);
+    expect(created.kind).toBe("plan-spot");
+    expect(await listCalendarNotes(anglerId)).toEqual([]);
+    const onPlan = await listCalendarNotes(anglerId, { forPlan: true });
+    expect(onPlan.map((note) => note.placeName)).toEqual(["Haulover Canal"]);
+    expect(addPlanSpotToDay(onPlan, "2026-09-10", { placeName: "Haulover Canal" })).toBeNull();
+  });
+
+  it("keeps a journal planned trip on Calendar Log while hiding Plan-day spots", async () => {
+    const anglerId = freshDb();
+    await createCalendarNote(anglerId, {
+      day: "2026-09-10",
+      title: "Dawn flood",
+      placeName: "The point",
+    });
+    await createCalendarNote(anglerId, {
+      day: "2026-09-10",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+    });
+    const calendarLog = await listCalendarNotes(anglerId);
+    expect(calendarLog.map((note) => note.placeName)).toEqual(["The point"]);
+    expect(calendarLog.every((note) => note.kind === "journal")).toBe(true);
+    const planDay = await listCalendarNotes(anglerId, { forPlan: true });
+    expect(planDay.map((note) => note.placeName)).toEqual(["The point", "Haulover Canal"]);
   });
 
   it("does not let another angler edit or delete the note", async () => {
