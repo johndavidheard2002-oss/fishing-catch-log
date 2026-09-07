@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AddToPlanButton } from "@/components/AddToPlanButton";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { SharedOwnerBadge } from "@/components/SharedOwnerBadge";
 import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel, yearFromDateKey } from "@/lib/calendar";
@@ -91,7 +92,15 @@ export function CatchCard({
             No photo
           </div>
         )}
-        {theirs ? <SharedOwnerBadge name={record.ownerName} compact={compact} /> : null}
+        {theirs ? (
+          <SharedOwnerBadge name={record.ownerName} compact={compact} />
+        ) : (
+          <OwnerShareBadge
+            sharedWithLinked={record.sharedWithLinked}
+            sharedWithBuddyIds={record.sharedWithBuddyIds}
+            compact={compact}
+          />
+        )}
       </Link>
       <div className="min-w-0 flex-1 px-3 py-2">
         <Link href={`/catch/${record.id}`} className="block min-w-0" data-testid="calendar-catch-open">
