@@ -7,6 +7,7 @@ import {
   parseDayKey,
   parseSpeciesTargets,
   parseSpeciesTargetsJson,
+  planDayPurgeBeforeKey,
 } from "../notes";
 import type { CalendarNote, CalendarNoteInput } from "../types";
 import { ensureDb } from "./index";
@@ -64,14 +65,15 @@ export async function deleteCalendarNotesForDay(anglerId: string, day: string): 
   );
 }
 
-/** Drop plan-spot and plan-day notes whose calendar day is before today. */
+/** Drop plan-spot and plan-day notes 3+ local days after their plan day. */
 export async function purgePastPlanNotes(anglerId: string, today: string): Promise<number> {
-  if (!DAY_KEY_RE.test(today)) return 0;
+  const before = planDayPurgeBeforeKey(today);
+  if (!before) return 0;
   const db = await ensureDb();
   return runChange(
     db
       .delete(calendarNotes)
-      .where(and(eq(calendarNotes.anglerId, anglerId), lt(calendarNotes.day, today))),
+      .where(and(eq(calendarNotes.anglerId, anglerId), lt(calendarNotes.day, before))),
   );
 }
 

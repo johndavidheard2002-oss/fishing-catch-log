@@ -145,7 +145,7 @@ describe("calendar notes", () => {
     expect((await getCalendarNote(created.id))?.title).toBe("Private plan");
   });
 
-  it("purges past Plan days when listing for Plan, and leaves today, future, and journal catches", async () => {
+  it("purges Plan days 3+ days old when listing for Plan, and leaves grace days, today, future, and journal catches", async () => {
     const anglerId = freshDb();
     await createCalendarNote(anglerId, {
       day: "2026-09-06",
@@ -153,19 +153,28 @@ describe("calendar notes", () => {
       kind: "plan-spot",
     });
     await createCalendarNote(anglerId, {
-      day: "2026-09-06",
-      notes: "Yesterday’s write-up.",
+      day: "2026-09-07",
+      notes: "Three days back — clear it.",
+    });
+    const graceSpot = await createCalendarNote(anglerId, {
+      day: "2026-09-08",
+      placeName: "Farm Pond",
+      kind: "plan-spot",
+    });
+    const yesterdayNote = await createCalendarNote(anglerId, {
+      day: "2026-09-09",
+      notes: "Still within the grace window.",
     });
     const todaySpot = await createCalendarNote(anglerId, {
-      day: "2026-09-07",
+      day: "2026-09-10",
       placeName: "The point",
       kind: "plan-spot",
     });
     const tomorrowNote = await createCalendarNote(anglerId, {
-      day: "2026-09-08",
+      day: "2026-09-11",
       notes: "Dawn outgoing.",
     });
-    const otherPast = await createCalendarNote("someone-else", {
+    const otherExpired = await createCalendarNote("someone-else", {
       day: "2026-09-06",
       notes: "Not this angler.",
     });
@@ -178,24 +187,26 @@ describe("calendar notes", () => {
     });
 
     expect(await purgePastPlanNotes(anglerId, "nope")).toBe(0);
-    const onPlan = await listCalendarNotes(anglerId, { forPlan: true, today: "2026-09-07" });
-    expect(onPlan.map((note) => note.id).sort()).toEqual([todaySpot.id, tomorrowNote.id].sort());
-    expect(await getCalendarNote(otherPast.id)).not.toBeNull();
+    const onPlan = await listCalendarNotes(anglerId, { forPlan: true, today: "2026-09-10" });
+    expect(onPlan.map((note) => note.id).sort()).toEqual(
+      [graceSpot.id, yesterdayNote.id, todaySpot.id, tomorrowNote.id].sort(),
+    );
+    expect(await getCalendarNote(otherExpired.id)).not.toBeNull();
     const calendarLog = await listCalendarNotes(anglerId);
-    expect(calendarLog.map((note) => note.id)).toEqual([tomorrowNote.id]);
+    expect(calendarLog.map((note) => note.id)).toEqual([yesterdayNote.id, tomorrowNote.id]);
     const catches = await listCatches();
     expect(catches.map((record) => record.id)).toEqual([loggedCatch.id]);
     expect(catches[0]?.placeName).toBe("Haulover Canal");
   });
 
-  it("leaves past Plan notes in place when Calendar Log lists without forPlan", async () => {
+  it("leaves expired Plan notes in place when Calendar Log lists without forPlan", async () => {
     const anglerId = freshDb();
-    const past = await createCalendarNote(anglerId, {
+    const expired = await createCalendarNote(anglerId, {
       day: "2026-09-06",
       notes: "Still on Calendar Log until Plan loads.",
     });
-    const listed = await listCalendarNotes(anglerId, { today: "2026-09-07" });
-    expect(listed.map((note) => note.id)).toEqual([past.id]);
-    expect(await getCalendarNote(past.id)).not.toBeNull();
+    const listed = await listCalendarNotes(anglerId, { today: "2026-09-10" });
+    expect(listed.map((note) => note.id)).toEqual([expired.id]);
+    expect(await getCalendarNote(expired.id)).not.toBeNull();
   });
 });

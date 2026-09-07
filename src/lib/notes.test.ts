@@ -6,17 +6,19 @@ import {
   calendarNoteHasContent,
   dayHasPlanSpot,
   groupNotesByDay,
-  isPastPlanDay,
+  expiredPlanNotes,
+  isExpiredPlanDay,
   journalNotesForCalendarLog,
   noteHeadline,
   parseCalendarNoteInput,
   parseDayKey,
   parseSpeciesTargets,
-  pastPlanNotes,
+  planDayPurgeBeforeKey,
   planNoteInput,
   planNotesOnDay,
   planSpotNoteInput,
   plannedSpotsOnDay,
+  shiftDayKey,
   upcomingPlanNotes,
 } from "./notes";
 import type { CalendarNote } from "./types";
@@ -278,47 +280,77 @@ describe("Plan add-to-day UI", () => {
   });
 });
 
-describe("past Plan days", () => {
-  it("treats only dates before today as past", () => {
-    expect(isPastPlanDay("2026-09-06", "2026-09-07")).toBe(true);
-    expect(isPastPlanDay("2026-09-07", "2026-09-07")).toBe(false);
-    expect(isPastPlanDay("2026-09-08", "2026-09-07")).toBe(false);
-    expect(isPastPlanDay("nope", "2026-09-07")).toBe(false);
-    expect(parseDayKey("2026-09-07")).toBe("2026-09-07");
-    expect(parseDayKey(" 2026-09-07 ")).toBe("2026-09-07");
-    expect(parseDayKey("09/07/2026")).toBeNull();
+describe("expired Plan days", () => {
+  it("purges a Plan day only 3 local days after it, not the day after", () => {
+    expect(shiftDayKey("2026-09-10", -2)).toBe("2026-09-08");
+    expect(planDayPurgeBeforeKey("2026-09-10")).toBe("2026-09-08");
+    expect(isExpiredPlanDay("2026-09-10", "2026-09-10")).toBe(false);
+    expect(isExpiredPlanDay("2026-09-09", "2026-09-10")).toBe(false);
+    expect(isExpiredPlanDay("2026-09-08", "2026-09-10")).toBe(false);
+    expect(isExpiredPlanDay("2026-09-07", "2026-09-10")).toBe(true);
+    expect(isExpiredPlanDay("2026-09-06", "2026-09-10")).toBe(true);
+    expect(isExpiredPlanDay("2026-09-11", "2026-09-10")).toBe(false);
+    expect(isExpiredPlanDay("2026-09-09", "2026-09-11")).toBe(false);
+    expect(isExpiredPlanDay("2026-09-09", "2026-09-12")).toBe(true);
+    expect(isExpiredPlanDay("nope", "2026-09-10")).toBe(false);
+    expect(parseDayKey("2026-09-10")).toBe("2026-09-10");
+    expect(parseDayKey(" 2026-09-10 ")).toBe("2026-09-10");
+    expect(parseDayKey("09/10/2026")).toBeNull();
   });
 
-  it("splits notes so only past Plan days are purged", () => {
-    const yesterdaySpot = note({
-      id: "past-spot",
-      day: "2026-09-06",
+  it("splits notes so only Plan days 3+ days old are purged", () => {
+    const expiredSpot = note({
+      id: "expired-spot",
+      day: "2026-09-07",
       placeName: "Haulover Canal",
       kind: "plan-spot",
     });
-    const yesterdayWriteup = note({
-      id: "past-note",
+    const expiredWriteup = note({
+      id: "expired-note",
       day: "2026-09-06",
       notes: "Try the flood.",
     });
+    const graceSpot = note({
+      id: "grace-spot",
+      day: "2026-09-08",
+      placeName: "Farm Pond",
+      kind: "plan-spot",
+    });
+    const yesterdayWriteup = note({
+      id: "yesterday-note",
+      day: "2026-09-09",
+      notes: "Still on the board.",
+    });
     const todaySpot = note({
       id: "today-spot",
-      day: "2026-09-07",
+      day: "2026-09-10",
       placeName: "The point",
       kind: "plan-spot",
     });
     const tomorrowWriteup = note({
       id: "future-note",
-      day: "2026-09-08",
+      day: "2026-09-11",
       notes: "Dawn outgoing.",
     });
-    const all = [yesterdaySpot, yesterdayWriteup, todaySpot, tomorrowWriteup];
-    expect(pastPlanNotes(all, "2026-09-07").map((n) => n.id)).toEqual(["past-spot", "past-note"]);
-    expect(upcomingPlanNotes(all, "2026-09-07").map((n) => n.id)).toEqual([
+    const all = [
+      expiredSpot,
+      expiredWriteup,
+      graceSpot,
+      yesterdayWriteup,
+      todaySpot,
+      tomorrowWriteup,
+    ];
+    expect(expiredPlanNotes(all, "2026-09-10").map((n) => n.id)).toEqual([
+      "expired-spot",
+      "expired-note",
+    ]);
+    expect(upcomingPlanNotes(all, "2026-09-10").map((n) => n.id)).toEqual([
+      "grace-spot",
+      "yesterday-note",
       "today-spot",
       "future-note",
     ]);
-    expect(planNotesOnDay(all, "2026-09-07").map((n) => n.id)).toEqual(["today-spot"]);
+    expect(planNotesOnDay(all, "2026-09-10").map((n) => n.id)).toEqual(["today-spot"]);
   });
 });
 
