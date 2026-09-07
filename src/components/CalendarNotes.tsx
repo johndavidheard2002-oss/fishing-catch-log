@@ -171,7 +171,8 @@ export function PlanDayNotes({
       </div>
       {notes.length === 0 && !adding ? (
         <p className="text-sm text-ink-muted">
-          Write what you want to try this day. Same notes show on Calendar Log.
+          Write what you want to try this day, or tap Add on a suggested spot. Same notes show on
+          Calendar Log.
         </p>
       ) : null}
       {notes.map((note) =>
@@ -193,11 +194,26 @@ export function PlanDayNotes({
             {note.title || note.placeName ? (
               <p className="font-semibold">{noteHeadline(note)}</p>
             ) : null}
+            {note.placeName && note.title ? (
+              <p className="text-sm text-ink-muted">{note.placeName}</p>
+            ) : null}
+            {note.speciesTargets.length ? (
+              <p className="mt-1 flex flex-wrap gap-1">
+                {note.speciesTargets.map((species) => (
+                  <span
+                    key={species}
+                    className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper"
+                  >
+                    {species}
+                  </span>
+                ))}
+              </p>
+            ) : null}
             {note.notes ? (
-              <p className="whitespace-pre-wrap text-sm">{note.notes}</p>
-            ) : (
+              <p className="mt-1 whitespace-pre-wrap text-sm">{note.notes}</p>
+            ) : !note.placeName && !note.title && !note.speciesTargets.length ? (
               <p className="text-sm text-ink-muted">No write-up yet.</p>
-            )}
+            ) : null}
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
