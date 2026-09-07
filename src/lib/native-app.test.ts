@@ -92,14 +92,18 @@ describe("App Store / Capacitor wrap", () => {
     }
   });
 
-  it("keeps the recentered 1024 App Store seal as the iOS AppIcon", () => {
+  it("keeps the seal-fill 1024 trout-wash App Store icon as the iOS AppIcon", () => {
     const icon = resolve(process.cwd(), "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png");
     const brand = resolve(process.cwd(), "public/brand/tide-mark-logo.png");
+    const resources = resolve(process.cwd(), "resources/icon.png");
     const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
     const iconBytes = readFileSync(icon);
     const brandBytes = readFileSync(brand);
     expect(existsSync(icon)).toBe(true);
     expect(iconBytes.subarray(0, 8).equals(png)).toBe(true);
     expect(iconBytes.equals(brandBytes)).toBe(true);
+    expect(iconBytes.equals(readFileSync(resources))).toBe(true);
+    expect(iconBytes.readUInt32BE(16)).toBe(1024);
+    expect(iconBytes.readUInt32BE(20)).toBe(1024);
   });
 });
