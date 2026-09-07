@@ -1,4 +1,5 @@
 import { groupBaitSpots } from "./bait";
+import { localDateKey } from "./calendar";
 import { fishCountLabel } from "./count";
 import { groupSpots } from "./filters";
 import { personalPhotoSrc } from "./photo";
@@ -110,4 +111,70 @@ export function dayShareSpots(args: {
     };
   });
   return [...catchRows, ...baitRows];
+}
+
+/** True when the owner has shared this catch or bait spot with anyone. */
+export function isOwnerSharedSpot(record: {
+  sharedWithLinked?: boolean;
+  sharedWithBuddyIds?: string[] | null;
+}): boolean {
+  return Boolean(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0);
+}
+
+/** Place name already on the record — empty when missing, never a placeholder. */
+export function recordedSharePlaceName(placeName?: string | null): string | null {
+  const label = (placeName ?? "").trim().replace(/^bait:/, "").trim();
+  return label || null;
+}
+
+export type OwnerSharedDay = {
+  day: string;
+  placeNames: string[];
+};
+
+type SharedDayAcc = { day: string; names: string[]; seen: Set<string> };
+
+function addSharedDayPlace(byDay: Map<string, SharedDayAcc>, day: string, placeName: string | null) {
+  let row = byDay.get(day);
+  if (!row) {
+    row = { day, names: [], seen: new Set() };
+    byDay.set(day, row);
+  }
+  if (!placeName) return;
+  const key = placeName.toLowerCase().replace(/\s+/g, " ");
+  if (row.seen.has(key)) return;
+  row.seen.add(key);
+  row.names.push(placeName);
+}
+
+/** Home “Days you shared” rows: calendar day plus the spots shared that day. */
+export function ownerSharedDays(args: {
+  catches: Array<
+    Pick<CatchRecord, "caughtAt" | "placeName" | "sharedWithLinked"> &
+      Partial<Pick<CatchRecord, "anglerId" | "sharedWithBuddyIds">>
+  >;
+  baitSpots: Array<
+    Pick<BaitSpot, "loggedAt" | "placeName" | "sharedWithLinked"> &
+      Partial<Pick<BaitSpot, "anglerId" | "sharedWithBuddyIds">>
+  >;
+  ownerId?: string;
+}): OwnerSharedDay[] {
+  const byDay = new Map<string, SharedDayAcc>();
+
+  for (const record of args.catches) {
+    if (args.ownerId && record.anglerId && record.anglerId !== args.ownerId) continue;
+    if (!isOwnerSharedSpot(record)) continue;
+    if (typeof record.caughtAt !== "string" || !record.caughtAt) continue;
+    addSharedDayPlace(byDay, localDateKey(record.caughtAt), recordedSharePlaceName(record.placeName));
+  }
+  for (const spot of args.baitSpots) {
+    if (args.ownerId && spot.anglerId && spot.anglerId !== args.ownerId) continue;
+    if (!isOwnerSharedSpot(spot)) continue;
+    if (typeof spot.loggedAt !== "string" || !spot.loggedAt) continue;
+    addSharedDayPlace(byDay, localDateKey(spot.loggedAt), recordedSharePlaceName(spot.placeName));
+  }
+
+  return [...byDay.values()]
+    .sort((a, b) => b.day.localeCompare(a.day))
+    .map(({ day, names }) => ({ day, placeNames: names }));
 }

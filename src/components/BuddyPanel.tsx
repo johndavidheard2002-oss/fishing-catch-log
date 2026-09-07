@@ -1,8 +1,8 @@
 "use client";
 
 import { PRIVACY_DETAIL, PRIVACY_LINE } from "@/lib/privacy";
+import { ownerSharedDays, type OwnerSharedDay } from "@/lib/sharing";
 import { formatWeekdayDate } from "@/lib/time";
-import { localDateKey } from "@/lib/calendar";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 type Angler = { id: string; name: string; inviteCode: string; email?: string | null; claimed?: boolean };
@@ -286,21 +286,26 @@ export function PrivacyBanner() {
 }
 
 function SharedDaysList({ ownerId }: { ownerId?: string }) {
-  const [days, setDays] = useState<string[]>([]);
+  const [days, setDays] = useState<OwnerSharedDay[]>([]);
   const [busyDay, setBusyDay] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/catches", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((data) => {
-        const records = Array.isArray(data.catches) ? data.catches : [];
-        const keys = new Set<string>();
-        for (const record of records) {
-          if (!record?.sharedWithLinked) continue;
-          if (ownerId && record.anglerId && record.anglerId !== ownerId) continue;
-          if (typeof record.caughtAt === "string") keys.add(localDateKey(record.caughtAt));
-        }
-        setDays([...keys].sort().reverse());
+    Promise.all([
+      fetch("/api/catches", { cache: "no-store" })
+        .then((r) => r.json())
+        .catch(() => ({})),
+      fetch("/api/bait-spots", { cache: "no-store" })
+        .then((r) => r.json())
+        .catch(() => ({})),
+    ])
+      .then(([catchData, baitData]) => {
+        setDays(
+          ownerSharedDays({
+            catches: Array.isArray(catchData.catches) ? catchData.catches : [],
+            baitSpots: Array.isArray(baitData.spots) ? baitData.spots : [],
+            ownerId,
+          }),
+        );
       })
       .catch(() => {});
   }, [ownerId]);
@@ -313,14 +318,14 @@ function SharedDaysList({ ownerId }: { ownerId?: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ day, shared: false }),
       });
-      setDays((current) => current.filter((key) => key !== day));
+      setDays((current) => current.filter((row) => row.day !== day));
     } finally {
       setBusyDay(null);
     }
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-testid="home-shared-days">
       <p className="text-sm font-semibold">Days you shared</p>
       <p className="text-xs text-ink-muted">
         Select spots on Calendar Log. Unshared spots stay private even to linked friends.
@@ -329,14 +334,26 @@ function SharedDaysList({ ownerId }: { ownerId?: string }) {
         <p className="text-sm text-ink-muted">None yet — open a day on Calendar Log to choose spots.</p>
       ) : (
         <ul className="space-y-2">
-          {days.map((day) => (
-            <li key={day} className="flex items-center justify-between gap-2 text-sm">
-              <span>{formatWeekdayDate(day)}</span>
+          {days.map((row) => (
+            <li
+              key={row.day}
+              className="flex items-start justify-between gap-2 text-sm"
+              data-testid="shared-day-row"
+            >
+              <span className="min-w-0 flex-1 break-words leading-snug">
+                <span>{formatWeekdayDate(row.day)}</span>
+                {row.placeNames.length ? (
+                  <>
+                    <span className="text-ink-muted"> · </span>
+                    <span>{row.placeNames.join(", ")}</span>
+                  </>
+                ) : null}
+              </span>
               <button
                 type="button"
-                className="text-copper disabled:opacity-60"
-                disabled={busyDay === day}
-                onClick={() => void unshare(day)}
+                className="shrink-0 text-copper disabled:opacity-60"
+                disabled={busyDay === row.day}
+                onClick={() => void unshare(row.day)}
               >
                 Unshare
               </button>
