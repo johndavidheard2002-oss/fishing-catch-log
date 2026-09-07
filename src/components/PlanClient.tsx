@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
@@ -32,25 +31,14 @@ import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
 import type {
   BaitPlanSuggestion,
-  BaitSpot,
   CalendarNote,
   CalendarNoteInput,
   PlanResult,
   PlanSuggestion,
-  SpotGroup,
 } from "@/lib/types";
 
 const TAP_RESET =
   "outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal";
-
-const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-72 items-center justify-center rounded-2xl border border-line bg-paper-deep text-sm text-ink-muted">
-      Loading map…
-    </div>
-  ),
-});
 
 function photosForPlannedPlaces(
   spots: CalendarNote[],
@@ -92,16 +80,6 @@ function photosForPlannedPlaces(
   return photos;
 }
 
-type PlanMapTarget = {
-  title: string;
-  kind: "catch" | "bait";
-  strength: PlanSuggestion["strength"];
-  reasons: string[];
-  windowAt?: string;
-  spots: SpotGroup[];
-  baitSpots: BaitSpot[];
-};
-
 export function PlanClient({
   initialDate,
   initialNotes = [],
@@ -125,7 +103,6 @@ export function PlanClient({
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [includeShared, setIncludeShared] = useIncludeShared();
-  const [mapTarget, setMapTarget] = useState<PlanMapTarget | null>(null);
   const [addingSpotId, setAddingSpotId] = useState<string | null>(null);
   const [spotSaved, setSpotSaved] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
@@ -242,8 +219,7 @@ export function PlanClient({
         <p className="text-sm text-ink-muted">
           Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
           produced — including very strong matches with matching tides. Tap Add on a place to put
-          only that one place on the day. Add a note if you want. Tap a match to open that trip. Show
-          spot on map for the hole.
+          only that one place on the day. Add a note if you want. Tap a match to open that trip.
         </p>
       </div>
 
@@ -361,7 +337,6 @@ export function PlanClient({
                   showOwner={includeShared}
                   added={dayHasPlanSpot(selectedNotes, s.placeName)}
                   adding={addingSpotId === s.placeName}
-                  onOpenMap={() => setMapTarget(mapTargetFromCatch(s))}
                   onAdd={() => {
                     const spot = planPlaceToAdd(s);
                     if (spot) void onAddSpot(spot);
@@ -383,7 +358,6 @@ export function PlanClient({
                       showOwner={includeShared}
                       added={dayHasPlanSpot(selectedNotes, s.placeName)}
                       adding={addingSpotId === s.placeName}
-                      onOpenMap={() => setMapTarget(mapTargetFromBait(s))}
                       onAdd={() => void onAddSpot({ placeName: s.placeName })}
                     />
                   ))}
@@ -398,7 +372,6 @@ export function PlanClient({
         </section>
       )}
       <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
-      <PlanSpotSheet target={mapTarget} onClose={() => setMapTarget(null)} />
     </div>
   );
 }
@@ -493,14 +466,12 @@ function SuggestionCard({
   showOwner,
   added,
   adding,
-  onOpenMap,
   onAdd,
 }: {
   suggestion: PlanSuggestion;
   showOwner: boolean;
   added: boolean;
   adding: boolean;
-  onOpenMap: () => void;
   onAdd: () => void;
 }) {
   const w = suggestion.window;
@@ -518,16 +489,9 @@ function SuggestionCard({
     }),
   }));
   const primary = matchPhotos[0];
-  const canMap = suggestion.latitude != null && suggestion.longitude != null;
   if (!primary) return null;
 
   const canAdd = Boolean(suggestion.placeName?.trim());
-
-  function openSpotMap(event: { preventDefault: () => void; stopPropagation: () => void }) {
-    event.preventDefault();
-    event.stopPropagation();
-    onOpenMap();
-  }
 
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
@@ -583,47 +547,32 @@ function SuggestionCard({
           />
         </div>
       </Link>
-      {canMap || canAdd ? (
-        <div className="flex items-center justify-between gap-2 px-3 pb-2">
-          {canMap ? (
-            <button
-              type="button"
-              onClick={openSpotMap}
-              onPointerDown={(event) => event.stopPropagation()}
-              className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
-              data-testid="plan-show-spot-map"
-            >
-              Show spot on map
-            </button>
-          ) : (
-            <span />
-          )}
-          {canAdd ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!added && !adding) onAdd();
-              }}
-              onPointerDown={(event) => event.stopPropagation()}
-              disabled={added || adding}
-              aria-label={
-                added
-                  ? `${suggestion.placeName} added to this day`
-                  : `Add ${suggestion.placeName} to this day`
-              }
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${TAP_RESET} ${
-                added
-                  ? "bg-teal/15 text-teal"
-                  : "border border-line bg-card text-teal"
-              } disabled:opacity-60`}
-              data-testid="plan-add-spot"
-              data-place-name={suggestion.placeName}
-            >
-              {added ? "Added" : adding ? "Adding…" : "Add"}
-            </button>
-          ) : null}
+      {canAdd ? (
+        <div className="flex items-center justify-end gap-2 px-3 pb-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (!added && !adding) onAdd();
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            disabled={added || adding}
+            aria-label={
+              added
+                ? `${suggestion.placeName} added to this day`
+                : `Add ${suggestion.placeName} to this day`
+            }
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${TAP_RESET} ${
+              added
+                ? "bg-teal/15 text-teal"
+                : "border border-line bg-card text-teal"
+            } disabled:opacity-60`}
+            data-testid="plan-add-spot"
+            data-place-name={suggestion.placeName}
+          >
+            {added ? "Added" : adding ? "Adding…" : "Add"}
+          </button>
         </div>
       ) : null}
       <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
@@ -673,28 +622,19 @@ function BaitSuggestionCard({
   showOwner,
   added,
   adding,
-  onOpenMap,
   onAdd,
 }: {
   suggestion: BaitPlanSuggestion;
   showOwner: boolean;
   added: boolean;
   adding: boolean;
-  onOpenMap: () => void;
   onAdd: () => void;
 }) {
   const w = suggestion.window;
   const first = suggestion.matches[0]?.baitSpot;
   const src = first ? personalPhotoSrc(first.photoPath) : null;
-  const canMap = suggestion.latitude != null && suggestion.longitude != null;
   const canAdd = Boolean(suggestion.placeName?.trim());
   if (!first) return null;
-
-  function openSpotMap(event: { preventDefault: () => void; stopPropagation: () => void }) {
-    event.preventDefault();
-    event.stopPropagation();
-    onOpenMap();
-  }
 
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
@@ -741,47 +681,32 @@ function BaitSuggestionCard({
           />
         </div>
       </Link>
-      {canMap || canAdd ? (
-        <div className="flex items-center justify-between gap-2 px-3 pb-2">
-          {canMap ? (
-            <button
-              type="button"
-              onClick={openSpotMap}
-              onPointerDown={(event) => event.stopPropagation()}
-              className={`text-[11px] font-semibold text-teal ${TAP_RESET}`}
-              data-testid="plan-show-spot-map"
-            >
-              Show spot on map
-            </button>
-          ) : (
-            <span />
-          )}
-          {canAdd ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!added && !adding) onAdd();
-              }}
-              onPointerDown={(event) => event.stopPropagation()}
-              disabled={added || adding}
-              aria-label={
-                added
-                  ? `${suggestion.placeName} added to this day`
-                  : `Add ${suggestion.placeName} to this day`
-              }
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${TAP_RESET} ${
-                added
-                  ? "bg-teal/15 text-teal"
-                  : "border border-line bg-card text-teal"
-              } disabled:opacity-60`}
-              data-testid="plan-add-spot"
-              data-place-name={suggestion.placeName}
-            >
-              {added ? "Added" : adding ? "Adding…" : "Add"}
-            </button>
-          ) : null}
+      {canAdd ? (
+        <div className="flex items-center justify-end gap-2 px-3 pb-2">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (!added && !adding) onAdd();
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            disabled={added || adding}
+            aria-label={
+              added
+                ? `${suggestion.placeName} added to this day`
+                : `Add ${suggestion.placeName} to this day`
+            }
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${TAP_RESET} ${
+              added
+                ? "bg-teal/15 text-teal"
+                : "border border-line bg-card text-teal"
+            } disabled:opacity-60`}
+            data-testid="plan-add-spot"
+            data-place-name={suggestion.placeName}
+          >
+            {added ? "Added" : adding ? "Adding…" : "Add"}
+          </button>
         </div>
       ) : null}
       <p className="px-3 pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
@@ -891,127 +816,5 @@ function StrengthBadge({
   }
   return (
     <span className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold text-ink">Lean match</span>
-  );
-}
-
-function mapTargetFromCatch(suggestion: PlanSuggestion): PlanMapTarget | null {
-  if (suggestion.latitude == null || suggestion.longitude == null) return null;
-  return {
-    title: suggestion.placeName,
-    kind: "catch",
-    strength: suggestion.strength,
-    reasons: suggestion.reasons,
-    windowAt: suggestion.window.at,
-    spots: [
-      {
-        key: suggestion.spotKey,
-        placeName: suggestion.placeName,
-        latitude: suggestion.latitude,
-        longitude: suggestion.longitude,
-        catchCount: suggestion.matches.length,
-        fishCount: suggestion.matches.reduce((n, m) => n + (m.catch.fishCount ?? 1), 0),
-        species: [],
-        speciesCounts: [],
-        lastCaughtAt: suggestion.matches[0]?.catch.caughtAt ?? suggestion.window.at,
-        typicalCondition: suggestion.window.weatherCondition,
-        typicalTime: suggestion.window.timeOfDay,
-        avgTempF: suggestion.window.temperatureF,
-        catches: suggestion.matches.map((m) => m.catch),
-      },
-    ],
-    baitSpots: [],
-  };
-}
-
-function mapTargetFromBait(suggestion: BaitPlanSuggestion): PlanMapTarget | null {
-  if (suggestion.latitude == null || suggestion.longitude == null) return null;
-  const baitSpots = suggestion.matches.map((m) => m.baitSpot);
-  const pinned = baitSpots.filter((s) => s.latitude != null && s.longitude != null);
-  return {
-    title: suggestion.placeName,
-    kind: "bait",
-    strength: suggestion.strength,
-    reasons: suggestion.reasons,
-    windowAt: suggestion.window.at,
-    spots: [],
-    baitSpots: pinned.length
-      ? pinned
-      : [
-          {
-            ...suggestion.matches[0]?.baitSpot,
-            latitude: suggestion.latitude,
-            longitude: suggestion.longitude,
-            placeName: suggestion.placeName,
-          } as BaitSpot,
-        ].filter((s) => s.id),
-  };
-}
-
-function PlanSpotSheet({
-  target,
-  onClose,
-}: {
-  target: PlanMapTarget | null;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    if (!target) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [target, onClose]);
-
-  if (!target) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 p-3 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="plan-spot-map-title"
-      data-testid="plan-spot-map"
-      onClick={onClose}
-    >
-      <div
-        className="journal-card w-full max-w-lg overflow-hidden rounded-2xl bg-card shadow-lg"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-2 p-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-copper">
-              {target.kind === "bait" ? "Bait hole" : "Catch spot"}
-            </p>
-            <h3 id="plan-spot-map-title" className="font-display text-xl text-teal">
-              {target.title}
-            </h3>
-            {target.strength === "very-strong" ? (
-              <p className="mt-1 text-[11px] font-semibold text-teal">
-                {veryStrongMatchLabel(target.windowAt)}
-              </p>
-            ) : null}
-            <p className="mt-1 text-xs text-ink-muted">
-              {target.reasons.slice(0, 3).join(" · ") || "Matched to a logged trip"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full border border-line px-3 py-1 text-xs font-semibold"
-          >
-            Close
-          </button>
-        </div>
-        <div className="px-3 pb-3">
-          <SpotMap
-            spots={target.spots}
-            baitSpots={target.baitSpots}
-            selectedKey={target.spots[0]?.key ?? null}
-            className="h-72 w-full overflow-hidden rounded-2xl border border-line bg-paper-deep"
-          />
-        </div>
-      </div>
-    </div>
   );
 }
