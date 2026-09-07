@@ -439,7 +439,9 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).toContain("mergeCommittedPlanSpots");
     expect(plan).toContain("rememberCommittedPlanSpot");
-    expect(plan).toContain('data-plan-source={planSpotSourceKind(note)}');
+    expect(plan).toContain("data-plan-source={kind}");
+    expect(plan).toContain("planSpotDetailHref");
+    expect(plan).toContain('data-testid="plan-day-spot-open"');
     expect(plan).toContain("Bait");
     expect(plan).not.toContain("setSelectedDay(pending");
     expect(page).toContain("addCatch");

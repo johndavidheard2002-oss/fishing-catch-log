@@ -131,6 +131,22 @@ export function planSpotSourceKind(spot: PlanSpotSource): "catch" | "bait" | "pl
   return "place";
 }
 
+/**
+ * Planned chip/row → that bait or catch, even when there is no thumbnail.
+ * Photo href is only a fallback for older place-only spots.
+ */
+export function planSpotDetailHref(
+  spot: PlanSpotSource,
+  photo?: { href?: string | null } | null,
+): string | null {
+  const sourceCatchId = trimToNull(spot.sourceCatchId ?? spot.catchId, MAX_SOURCE_ID);
+  const sourceBaitId = trimToNull(spot.sourceBaitId ?? spot.baitId, MAX_SOURCE_ID);
+  if (sourceBaitId && !sourceCatchId) return `/bait/${sourceBaitId}`;
+  if (sourceCatchId) return `/catch/${sourceCatchId}`;
+  const href = typeof photo?.href === "string" ? photo.href.trim() : "";
+  return href || null;
+}
+
 /** Suggested Plan spot → a calendar note that pins that place onto the day. */
 export function planSpotNoteInput(day: string, spot: PlanSpotSource): CalendarNoteInput | null {
   if (!DAY_KEY_RE.test(day)) return null;
