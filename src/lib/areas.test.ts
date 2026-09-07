@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { areaNameKey, mergeNamedAreas, parseAreaName, parseNamedAreaInput } from "./areas";
+import {
+  areaNameKey,
+  formFieldsFromNamedArea,
+  mergeNamedAreas,
+  parseAreaName,
+  parseNamedAreaInput,
+  savedPinFromNamedArea,
+} from "./areas";
 import type { NamedArea } from "./types";
 
 function area(partial: Partial<NamedArea> & { name: string }): NamedArea {
@@ -20,6 +27,37 @@ describe("parseAreaName", () => {
     expect(parseAreaName("   ")).toBeNull();
     expect(parseAreaName(12)).toBeNull();
     expect(parseAreaName("x".repeat(90))?.length).toBe(80);
+  });
+});
+
+describe("savedPinFromNamedArea", () => {
+  it("returns the prior pin only when both coords are real", () => {
+    expect(savedPinFromNamedArea({ latitude: 28.735, longitude: -80.754 })).toEqual({
+      latitude: 28.735,
+      longitude: -80.754,
+    });
+    expect(savedPinFromNamedArea({ latitude: 28.735, longitude: null })).toBeNull();
+    expect(savedPinFromNamedArea({ latitude: null, longitude: -80.754 })).toBeNull();
+    expect(savedPinFromNamedArea({ latitude: Number.NaN, longitude: -80.754 })).toBeNull();
+  });
+});
+
+describe("formFieldsFromNamedArea", () => {
+  it("restores a reused name’s saved pin and leaves an unpinned name as a label", () => {
+    expect(
+      formFieldsFromNamedArea({
+        name: "Innertube cut",
+        latitude: 28.73512,
+        longitude: -80.75434,
+      }),
+    ).toEqual({
+      placeName: "Innertube cut",
+      latitude: "28.73512",
+      longitude: "-80.75434",
+    });
+    expect(
+      formFieldsFromNamedArea({ name: "Just a label", latitude: null, longitude: null }),
+    ).toEqual({ placeName: "Just a label" });
   });
 });
 

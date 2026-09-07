@@ -12,6 +12,7 @@ import { DEFAULT_HABITAT, HABITAT_LABELS, isDuckHabitat, isSaltwaterHabitat, typ
 import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { inHgToMb, mbToInHg } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
+import { formFieldsFromNamedArea } from "@/lib/areas";
 import { personalPhotoSrc } from "@/lib/photo";
 import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import type { BaitSpot, NamedArea, Season, TimeOfDay } from "@/lib/types";
@@ -118,8 +119,10 @@ export function BaitSpotForm({
   onSaved?: (spot: BaitSpot) => void;
 }) {
   const router = useRouter();
-  const { focusCenter, lookupTown } = useTownMapFocus();
   const [form, setForm] = useState<FormState>(() => (initial ? fromRecord(initial) : emptyForm()));
+  const hasDroppedPin =
+    numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
+  const { focusCenter, lookupTown } = useTownMapFocus(hasDroppedPin);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initial ? personalPhotoSrc(initial.photoPath) : null,
@@ -194,7 +197,7 @@ export function BaitSpotForm({
   }
 
   function onPickArea(area: NamedArea) {
-    patch({ placeName: area.name });
+    patch(formFieldsFromNamedArea(area));
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -305,6 +308,7 @@ export function BaitSpotForm({
         onChange={(placeName) => patch({ placeName })}
         onPickArea={onPickArea}
         onLookupTown={lookupTown}
+        hasPin={catchLat != null && catchLon != null}
       />
       {catchLat == null ? (
         <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">

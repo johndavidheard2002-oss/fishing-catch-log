@@ -12,22 +12,23 @@ import {
   type LeafletNS,
   type MapStyle,
 } from "@/lib/map-tiles";
-import { TOWN_MAP_ZOOM, type TownMapCenter } from "@/lib/geocode";
+import { TOWN_MAP_ZOOM, townMapFocusForName, type TownMapCenter } from "@/lib/geocode";
 import "leaflet/dist/leaflet.css";
 
-function applyTownFocus(map: LeafletMap, focus: TownMapCenter | null) {
-  if (!focus) return;
-  if (focus.bounds) {
+function applyTownFocus(map: LeafletMap, focus: TownMapCenter | null, hasPin: boolean) {
+  const next = townMapFocusForName(focus, hasPin);
+  if (!next) return;
+  if (next.bounds) {
     map.fitBounds(
       [
-        [focus.bounds.south, focus.bounds.west],
-        [focus.bounds.north, focus.bounds.east],
+        [next.bounds.south, next.bounds.west],
+        [next.bounds.north, next.bounds.east],
       ],
       { maxZoom: 14, padding: [24, 24] },
     );
     return;
   }
-  map.setView([focus.latitude, focus.longitude], focus.zoom || TOWN_MAP_ZOOM);
+  map.setView([next.latitude, next.longitude], next.zoom || TOWN_MAP_ZOOM);
 }
 
 const PIN_BOX = 36;
@@ -54,7 +55,7 @@ export function MapPicker({
   longitude: number | null;
   onChange: (lat: number, lng: number) => void;
   hideHints?: boolean;
-  /** Pan/zoom to a typed town. Does not drop or move the pin. */
+  /** Pan/zoom to a typed town when no pin exists. Never moves a dropped pin. */
   focusCenter?: TownMapCenter | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -123,7 +124,11 @@ export function MapPicker({
         );
       }
 
-      applyTownFocus(instance, focusRef.current);
+      applyTownFocus(
+        instance,
+        focusRef.current,
+        current.latitude != null && current.longitude != null,
+      );
 
       instance.on("click", (e: { latlng: { lat: number; lng: number } }) => {
         const L = LRef.current;
@@ -185,8 +190,8 @@ export function MapPicker({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    applyTownFocus(map, focusCenter);
-  }, [focusCenter]);
+    applyTownFocus(map, focusCenter, hasPin);
+  }, [focusCenter, hasPin]);
 
   return (
     <div className="space-y-2">

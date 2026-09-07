@@ -1,15 +1,27 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { shouldGeocodeTownQuery, type TownMapCenter } from "@/lib/geocode";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  shouldLookupTownForMapFocus,
+  townMapFocusForName,
+  type TownMapCenter,
+} from "@/lib/geocode";
 
-export function useTownMapFocus() {
+export function useTownMapFocus(hasPin = false) {
   const [focusCenter, setFocusCenter] = useState<TownMapCenter | null>(null);
   const lastQuery = useRef("");
+  const hasPinRef = useRef(hasPin);
+  hasPinRef.current = hasPin;
+
+  useEffect(() => {
+    if (!hasPin) return;
+    setFocusCenter(null);
+    lastQuery.current = "";
+  }, [hasPin]);
 
   const lookupTown = useCallback(async (query: string) => {
+    if (!shouldLookupTownForMapFocus(query, hasPinRef.current)) return;
     const q = query.trim();
-    if (!shouldGeocodeTownQuery(q)) return;
     if (q.toLowerCase() === lastQuery.current) return;
     lastQuery.current = q.toLowerCase();
     try {
@@ -19,8 +31,9 @@ export function useTownMapFocus() {
         body: JSON.stringify({ query: q }),
       });
       const data = (await res.json()) as { center?: TownMapCenter | null };
-      if (data.center) {
-        setFocusCenter(data.center);
+      const center = townMapFocusForName(data.center, hasPinRef.current);
+      if (center) {
+        setFocusCenter(center);
         return;
       }
       lastQuery.current = "";

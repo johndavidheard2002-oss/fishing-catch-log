@@ -60,6 +60,7 @@ import {
   totalFishCount,
 } from "@/lib/count";
 import { localDateKey } from "@/lib/calendar";
+import { formFieldsFromNamedArea } from "@/lib/areas";
 import type { TownMapCenter } from "@/lib/geocode";
 import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
@@ -236,7 +237,6 @@ export function CatchForm({
   onSaved?: (record: CatchRecord) => void;
 }) {
   const router = useRouter();
-  const { focusCenter, lookupTown } = useTownMapFocus();
   const [form, setForm] = useState<FormState>(() => {
     const base = initial ? fromRecord(initial) : emptyForm(pastMode, importedCaughtAt);
     if (importedPhotoLat == null || importedPhotoLon == null) return base;
@@ -246,6 +246,9 @@ export function CatchForm({
       photoTakenLongitude: String(importedPhotoLon),
     };
   });
+  const hasDroppedPin =
+    numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
+  const { focusCenter, lookupTown } = useTownMapFocus(hasDroppedPin);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initial
@@ -920,7 +923,13 @@ export function CatchForm({
         onLookupTown={lookupTown}
         focusCenter={focusCenter}
         onSelectArea={(area) => {
-          patch({ placeName: area.name });
+          const fields = formFieldsFromNamedArea(area);
+          if (fields.latitude && fields.longitude) {
+            setPinHint(null);
+            markCatchPinMoved(fields);
+            return;
+          }
+          patch({ placeName: fields.placeName });
         }}
         onCoords={(lat, lng) => {
           patch({ latitude: lat, longitude: lng });
@@ -1558,6 +1567,7 @@ function CatchLocationFields({
         onChange={onPlace}
         onPickArea={onSelectArea}
         onLookupTown={onLookupTown}
+        hasPin={catchLat != null && catchLon != null}
       />
       <MapPicker
         latitude={catchLat}
