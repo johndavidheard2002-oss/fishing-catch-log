@@ -231,10 +231,19 @@ describe("Calendar Log and Plan wiring", () => {
     expect(catchCard).toContain("canShowAddToPlan");
     expect(catchCard).toContain("habitatLabel(record.habitat)");
     expect(catchCard).toMatch(/flex flex-wrap gap-1[\s\S]*AddToPlanButton/);
+    expect(catchCard).toContain('data-testid="add-to-plan-photo-chips"');
+    expect(catchCard).toContain("absolute inset-x-2 bottom-2");
+    expect(catchCard).toContain("from-ink/70");
+    expect(catchCard).toMatch(
+      /habitatLabel\(record\.habitat\)[\s\S]*AddToPlanButton[\s\S]*TIME_OF_DAY_LABELS/,
+    );
     expect(catchCard).not.toContain("flex justify-end px-3 pb-2");
+    expect(catchCard).not.toContain("px-2.5 pb-2");
     expect(baitCard).toContain("AddToPlanButton");
     expect(baitCard).toContain("BaitStampChips");
     expect(baitCard).toContain("canShowAddToPlan");
+    expect(baitCard).toContain('data-testid="add-to-plan-photo-chips"');
+    expect(baitCard).toContain("from-ink/70");
     expect(history).toContain("showAddToPlan");
     expect(history).toContain("calendar-log-own-feed");
     const ownFeed = history.slice(history.lastIndexOf("calendar-log-own-feed") - 80);
