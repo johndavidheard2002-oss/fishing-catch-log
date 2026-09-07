@@ -89,6 +89,27 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(baitDetail).toContain("if (editing && isOwner)");
   });
 
+  it("has no user-facing Edit spot label on catch or bait detail", () => {
+    const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
+    const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
+    const dayShare = readFileSync(resolve(__dirname, "../components/DayShareSpots.tsx"), "utf8");
+    const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
+    const mapPicker = readFileSync(resolve(__dirname, "../components/MapPicker.tsx"), "utf8");
+    const locationMap = catchDetail.slice(catchDetail.indexOf("function CatchLocationMap"));
+    for (const source of [catchDetail, baitDetail, dayShare, history, mapPicker, locationMap]) {
+      expect(source).not.toMatch(/Edit spot/i);
+      expect(source).not.toContain("edit-spot");
+      expect(source).not.toContain("focusSpot");
+      expect(source).not.toContain("focusLocation");
+    }
+    expect(locationMap).toContain("Tap Edit to drop one on the map.");
+    expect(locationMap).not.toContain("Tap Edit spot");
+    expect(catchDetail).toMatch(/data-testid="catch-edit"[\s\S]*?>\s*Edit\s*</);
+    expect(baitDetail).toMatch(/data-testid="bait-edit"[\s\S]*?>\s*Edit\s*</);
+    expect(catchDetail.match(/data-testid="catch-edit"/g)?.length).toBe(1);
+    expect(baitDetail.match(/data-testid="bait-edit"/g)?.length).toBe(1);
+  });
+
   it("lets a single Edit change bait location on the same form as a catch", () => {
     const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
