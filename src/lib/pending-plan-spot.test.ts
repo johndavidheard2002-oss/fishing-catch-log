@@ -310,5 +310,8 @@ describe("Calendar Log and Plan wiring", () => {
     expect(page).toContain("addBait");
     expect(page).toContain("initialAddCatch");
     expect(page).toContain("initialAddBait");
+    expect(page).toContain("hasPendingAdd");
+    expect(plan).toContain("if (pendingSpot) return");
+    expect(plan).toContain("if (current || pendingSpot) return current");
   });
 });
