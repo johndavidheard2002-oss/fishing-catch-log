@@ -22,18 +22,22 @@ export function ShareFriendPicker({
       {buddies.map((buddy) => {
         const on = selectedIds.includes(buddy.id);
         return (
-          <label key={buddy.id} className="flex items-center gap-2">
+          <label
+            key={buddy.id}
+            className="flex items-center gap-3 rounded-2xl border border-line bg-card px-3 py-2.5"
+          >
             <input
               type="checkbox"
               data-testid={`share-friend-${buddy.id}`}
               checked={on}
               disabled={disabled}
+              className="h-5 w-5 shrink-0 accent-teal"
               onChange={(event) => {
                 if (event.target.checked) onChange([...selectedIds, buddy.id]);
                 else onChange(selectedIds.filter((id) => id !== buddy.id));
               }}
             />
-            <span className="text-base font-semibold leading-tight">{buddy.name}</span>
+            <span className="text-xl font-semibold leading-snug">{buddy.name}</span>
           </label>
         );
       })}

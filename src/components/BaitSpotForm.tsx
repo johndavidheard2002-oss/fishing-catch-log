@@ -111,12 +111,10 @@ const BAIT_HABITATS: Habitat[] = ["saltwater-inshore", "saltwater-offshore", "du
 export function BaitSpotForm({
   mode,
   initial,
-  focusLocation = false,
   onSaved,
 }: {
   mode: "create" | "edit";
   initial?: BaitSpot;
-  focusLocation?: boolean;
   onSaved?: (spot: BaitSpot) => void;
 }) {
   const router = useRouter();
@@ -133,11 +131,6 @@ export function BaitSpotForm({
   const [savedNotice, setSavedNotice] = useState(false);
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [buddyNames, setBuddyNames] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (!focusLocation) return;
-    document.getElementById("bait-location")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [focusLocation]);
 
   useEffect(() => {
     fetch("/api/buddies")

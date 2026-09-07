@@ -34,7 +34,6 @@ export function BaitSpotDetail({ id }: { id: string }) {
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
-  const [focusSpot, setFocusSpot] = useState(false);
   const [buddies, setBuddies] = useState<ShareFriend[]>([]);
 
   useEffect(() => {
@@ -124,11 +123,9 @@ export function BaitSpotDetail({ id }: { id: string }) {
         <BaitSpotForm
           mode="edit"
           initial={record}
-          focusLocation={focusSpot}
           onSaved={(next) => {
             setRecord(next);
             setEditing(false);
-            setFocusSpot(false);
             setSavedNotice(true);
           }}
         />
@@ -182,7 +179,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
           />
         ) : (
           <p className="journal-card rounded-2xl px-3 py-6 text-sm text-ink-muted">
-            This bait hole has no saved pin. Tap Edit spot to drop one on the map.
+            This bait hole has no saved pin. Tap Edit to drop one on the map.
           </p>
         )}
       </section>
@@ -193,33 +190,14 @@ export function BaitSpotDetail({ id }: { id: string }) {
           : "Private to you. Not shared with anyone."}
       </p>
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            data-testid="bait-edit-spot"
-            onClick={() => {
-              setFocusSpot(true);
-              setEditing(true);
-            }}
-            className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
-          >
-            Edit spot
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
-          >
-            Delete
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          data-testid="bait-edit"
+          className="w-full rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
+        >
+          Edit
+        </button>
         {isOwner ? (
           <div data-testid="bait-share-block">
             <button
@@ -257,6 +235,13 @@ export function BaitSpotDetail({ id }: { id: string }) {
             />
           </div>
         ) : null}
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
+        >
+          Delete
+        </button>
         {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>
     </div>

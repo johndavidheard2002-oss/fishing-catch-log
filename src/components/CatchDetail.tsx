@@ -38,7 +38,6 @@ export function CatchDetail({ id }: { id: string }) {
   const [record, setRecord] = useState<CatchRecord | null>(null);
   const [matches, setMatches] = useState<SimilarMatch[]>([]);
   const [editing, setEditing] = useState(false);
-  const [focusSpot, setFocusSpot] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewerId, setViewerId] = useState<string | undefined>();
   const [shareBusy, setShareBusy] = useState(false);
@@ -129,11 +128,9 @@ export function CatchDetail({ id }: { id: string }) {
         <CatchForm
           mode="edit"
           initial={record}
-          focusLocation={focusSpot}
           onSaved={(next) => {
             setRecord(next);
             setEditing(false);
-            setFocusSpot(false);
             setSavedNotice(true);
           }}
         />
@@ -324,33 +321,14 @@ export function CatchDetail({ id }: { id: string }) {
       </div>
 
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="min-w-[5.5rem] flex-1 rounded-xl bg-teal py-3 font-semibold text-white"
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFocusSpot(true);
-              setEditing(true);
-            }}
-            data-testid="catch-edit-spot"
-            className="rounded-xl border border-line px-4 py-3 font-semibold"
-          >
-            Edit spot
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="rounded-xl border border-line px-4 py-3 font-semibold"
-          >
-            Delete
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          data-testid="catch-edit"
+          className="w-full rounded-xl bg-teal py-3 font-semibold text-white"
+        >
+          Edit
+        </button>
         {isOwner ? (
           <div data-testid="catch-share-block">
             <button
@@ -388,6 +366,13 @@ export function CatchDetail({ id }: { id: string }) {
             />
           </div>
         ) : null}
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-full rounded-xl border border-line px-4 py-3 font-semibold"
+        >
+          Delete
+        </button>
         {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
       </div>
 
@@ -426,7 +411,7 @@ function CatchLocationMap({ record }: { record: CatchRecord }) {
             className="rounded-2xl border border-line bg-paper-deep px-3 py-6 text-sm text-ink-muted"
             data-testid="catch-location-map-empty"
           >
-            This catch has no saved pin. Tap Edit spot to drop one on the map.
+            This catch has no saved pin. Tap Edit to drop one on the map.
           </p>
         )}
       </div>
