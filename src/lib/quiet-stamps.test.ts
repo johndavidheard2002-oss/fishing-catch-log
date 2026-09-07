@@ -8,6 +8,7 @@ import {
   MISSING_PHOTO_DATETIME_NOTE,
   MISSING_PHOTO_EXIF_NOTE,
   MISSING_PHOTO_LOCATION_NOTE,
+  missingPhotoFieldsNote,
 } from "./photo-gps";
 
 const STAMP_RE = /openweather|open-meteo|moon phase|from this phone|live weather|pinned from this phone/i;
@@ -38,6 +39,15 @@ describe("Log stamps stay quiet unless something is missing", () => {
     expect(MISSING_PHOTO_DATETIME_NOTE).toMatch(/date or time/i);
     expect(MISSING_PHOTO_LOCATION_NOTE).toMatch(/location/i);
     expect(MISSING_PHOTO_LOCATION_NOTE).toMatch(/drop a pin/i);
+    expect(
+      missingPhotoFieldsNote({
+        source: "camera",
+        exifHasDateTime: false,
+        exifHasLocation: false,
+        liveHasDateTime: true,
+        liveHasLocation: true,
+      }),
+    ).toBeNull();
   });
 
   it("removes source stamps from Log, bait, and photo UI copy", () => {

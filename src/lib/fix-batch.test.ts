@@ -9,11 +9,18 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(picker).not.toContain("selected.length <= 1");
   });
 
-  it("opens Calendar Log on Grid and keeps month/year scroll", () => {
+  it("opens Calendar Log on List with List, Calendar, Grid tabs", () => {
     const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
+    const calendarLib = readFileSync(resolve(__dirname, "./calendar.ts"), "utf8");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");
+    const historyRedirect = readFileSync(resolve(__dirname, "../app/history/page.tsx"), "utf8");
     expect(history).toContain("resolveCalendarLogView");
-    expect(history).toContain('{ id: "grid", label: "Grid" }');
+    expect(history).toContain("CALENDAR_LOG_VIEW_TABS");
+    expect(history).toContain("DEFAULT_CALENDAR_LOG_VIEW");
+    expect(calendarLib).toContain('["list", "calendar", "grid"]');
+    expect(calendarLib).toContain('DEFAULT_CALENDAR_LOG_VIEW: CalendarLogView = "list"');
+    expect(historyRedirect).toContain("DEFAULT_CALENDAR_LOG_VIEW");
+    expect(historyRedirect).not.toContain('=== "grid"');
     expect(calendar).toContain("calendarHeaderScrollDelta");
     expect(calendar).toContain("calendar-prev-year");
     expect(calendar).toContain("shiftYear");
@@ -31,8 +38,36 @@ describe("Tide Mark next-pass UI contracts", () => {
 
   it("shows the missing EXIF note on Log", () => {
     const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
-    expect(form).toContain("missingPhotoExifNote");
+    expect(form).toContain("missingPhotoFieldsNote");
     expect(form).toContain('data-testid="missing-exif-note"');
+  });
+
+  it("centers the map on a typed town without dropping a pin", () => {
+    const map = readFileSync(resolve(__dirname, "../components/MapPicker.tsx"), "utf8");
+    const picker = readFileSync(resolve(__dirname, "../components/AreaNamePicker.tsx"), "utf8");
+    const catchForm = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
+    const bait = readFileSync(resolve(__dirname, "../components/BaitSpotForm.tsx"), "utf8");
+    const focusFn = map.slice(map.indexOf("function applyTownFocus"), map.indexOf("const PIN_BOX"));
+    expect(picker).toContain("onLookupTown");
+    expect(picker).toContain("Type a town to move the map");
+    expect(picker).toContain("preventDefault");
+    expect(map).toContain("focusCenter");
+    expect(focusFn).toContain("setView");
+    expect(focusFn).toContain("fitBounds");
+    expect(focusFn).not.toContain("onChange");
+    expect(catchForm).toContain("lookupTown");
+    expect(catchForm).toContain("focusCenter={focusCenter}");
+    expect(bait).toContain("lookupTown");
+    expect(bait).toContain("focusCenter={focusCenter}");
+  });
+
+  it("treats live Camera as supplied by the form, not EXIF-only", () => {
+    const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
+    expect(form).toContain("liveCamera");
+    expect(form).toContain("liveHasDateTime");
+    expect(form).toContain("liveHasLocation");
+    expect(form).toContain("locationPending");
+    expect(form).toContain('source: "camera"');
   });
 
   it("offers Open Settings when location is denied", () => {

@@ -12,7 +12,23 @@ import {
   type LeafletNS,
   type MapStyle,
 } from "@/lib/map-tiles";
+import { TOWN_MAP_ZOOM, type TownMapCenter } from "@/lib/geocode";
 import "leaflet/dist/leaflet.css";
+
+function applyTownFocus(map: LeafletMap, focus: TownMapCenter | null) {
+  if (!focus) return;
+  if (focus.bounds) {
+    map.fitBounds(
+      [
+        [focus.bounds.south, focus.bounds.west],
+        [focus.bounds.north, focus.bounds.east],
+      ],
+      { maxZoom: 14, padding: [24, 24] },
+    );
+    return;
+  }
+  map.setView([focus.latitude, focus.longitude], focus.zoom || TOWN_MAP_ZOOM);
+}
 
 const PIN_BOX = 36;
 const PIN_DOT = 22;
@@ -32,11 +48,14 @@ export function MapPicker({
   longitude,
   onChange,
   hideHints = false,
+  focusCenter = null,
 }: {
   latitude: number | null;
   longitude: number | null;
   onChange: (lat: number, lng: number) => void;
   hideHints?: boolean;
+  /** Pan/zoom to a typed town. Does not drop or move the pin. */
+  focusCenter?: TownMapCenter | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const onChangeRef = useRef(onChange);
@@ -48,6 +67,10 @@ export function MapPicker({
   const [basemap, setBasemap] = useState<MapStyle>(DEFAULT_MAP_STYLE);
   const basemapRefStyle = useRef<MapStyle>(basemap);
   const hasPin = latitude != null && longitude != null;
+  const focusRef = useRef(focusCenter);
+  useEffect(() => {
+    focusRef.current = focusCenter;
+  }, [focusCenter]);
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -99,6 +122,8 @@ export function MapPicker({
           leaflet.marker(start, { icon, draggable: true, autoPan: true }).addTo(instance),
         );
       }
+
+      applyTownFocus(instance, focusRef.current);
 
       instance.on("click", (e: { latlng: { lat: number; lng: number } }) => {
         const L = LRef.current;
@@ -156,6 +181,12 @@ export function MapPicker({
     }
     if (jumped) map.setView([latitude, longitude], Math.max(map.getZoom(), 16));
   }, [latitude, longitude]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    applyTownFocus(map, focusCenter);
+  }, [focusCenter]);
 
   return (
     <div className="space-y-2">
