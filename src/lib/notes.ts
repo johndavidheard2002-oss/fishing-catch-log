@@ -61,7 +61,9 @@ export function calendarNoteHasContent(input: {
 export function planNoteInput(
   day: string,
   notesText: string,
-  existing?: Pick<CalendarNote, "title" | "placeName" | "speciesTargets" | "kind"> | null,
+  existing?: (Pick<CalendarNote, "title" | "placeName" | "speciesTargets"> & {
+    kind?: CalendarNoteKind | null;
+  }) | null,
 ): CalendarNoteInput {
   return {
     day,
