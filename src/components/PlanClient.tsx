@@ -433,10 +433,7 @@ export function PlanClient({
             {addError ? <p className="text-sm text-copper">{addError}</p> : null}
             {spotsOnDay.length ? (
               <div data-testid="plan-day-spots">
-                <ul
-                  className="flex flex-col gap-2"
-                  data-testid={plannedPhotos.length ? "plan-planned-photos" : undefined}
-                >
+                <ul className="flex flex-col gap-2" data-testid="plan-planned-photos">
                   {spotsOnDay.map((note) => {
                     const photo = plannedPhotos.find((item) => item.id === note.id);
                     return (
