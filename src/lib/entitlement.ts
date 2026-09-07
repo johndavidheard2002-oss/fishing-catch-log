@@ -1,7 +1,7 @@
 import { APP_DISPLAY_NAME, APP_SUBTITLE } from "./brand";
 
-export const YEARLY_PRICE_USD = 39.99;
-export const YEARLY_PRICE_LABEL = "$39.99/year";
+export const YEARLY_PRICE_USD = 29.99;
+export const YEARLY_PRICE_LABEL = "$29.99/year";
 export const TRIAL_DAYS_DEFAULT = 30;
 export const DAY_MS = 24 * 60 * 60 * 1000;
 

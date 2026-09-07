@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AuthForm } from "@/components/AuthForm";
+import { YEARLY_PRICE_LABEL } from "@/lib/entitlement";
 
 export function SignInClient({ nextPath = "/" }: { nextPath?: string }) {
   const [phase, setPhase] = useState<"form" | "location">("form");
@@ -15,7 +16,7 @@ export function SignInClient({ nextPath = "/" }: { nextPath?: string }) {
         <p className="text-sm text-ink">
           {phase === "location"
             ? "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin."
-            : "Sign in or create an account to open your journal. First month free, then $39.99/year."}
+            : `Sign in or create an account to open your journal. First month free, then ${YEARLY_PRICE_LABEL}.`}
         </p>
       </section>
       <AuthForm defaultMode="signin" nextPath={nextPath} onPhaseChange={setPhase} />

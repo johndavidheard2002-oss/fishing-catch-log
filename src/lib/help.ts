@@ -1,3 +1,5 @@
+import { YEARLY_PRICE_LABEL } from "./entitlement";
+
 export const HELP_OPEN_EVENT = "cast-log-open-help";
 export const HELP_TIP_EVENT = "cast-log-help-tip-change";
 export const HELP_TIP_KEY = "cast-log-help-tip-seen";
@@ -66,7 +68,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Your journal",
     steps: [
       "Sign in or create an account with email and a password to open your journal.",
-      "The first month is free. After that, $39.99/year keeps the journal unlocked.",
+      `The first month is free. After that, ${YEARLY_PRICE_LABEL} keeps the journal unlocked.`,
       "After you sign in, tap Allow location so this phone can pin a live photo. Skip and Log still has Turn location on.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
     ],
@@ -76,7 +78,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "Your first month is full access — no purchase required.",
       "We remind you about 7 days, 3 days, and 1 day before it ends.",
-      "After that, Home stays open. Other tabs lock until $39.99/year.",
+      `After that, Home stays open. Other tabs lock until ${YEARLY_PRICE_LABEL}.`,
       "On the Tide Mark iPhone app, Subscribe and Restore use the App Store. Browser buy stays coming soon.",
       "Your catches and photos stay saved. Nothing is deleted when locked.",
     ],

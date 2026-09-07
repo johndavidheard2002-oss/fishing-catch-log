@@ -21,7 +21,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(APP_STORE_LIVE_URL).toBe("https://fishing-catch-log-ivl7.onrender.com");
     expect(APP_STORE_PRIVACY_URL).toBe("https://fishing-catch-log-ivl7.onrender.com/privacy");
     expect(NATIVE_ICON_SOURCE).toBe(APP_LOGO_SRC);
-    expect(APP_STORE_PRICE_YEARLY).toBe("$39.99/year");
+    expect(APP_STORE_PRICE_YEARLY).toBe("$29.99/year");
     expect(APP_STORE_TRIAL).toBe("1-month free trial");
     expect(APP_STORE_PRODUCT_YEARLY).toBe("tidemark_premium_yearly");
     expect(APP_STORE_SUBSCRIPTION_GROUP).toBe("TideMarkPremium");

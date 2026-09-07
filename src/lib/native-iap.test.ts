@@ -49,7 +49,7 @@ describe("Capacitor StoreKit gate", () => {
     setTideMarkStoreForTests({
       getProduct: async () => ({
         productId: "tidemark_premium_yearly",
-        displayPrice: "$39.99",
+        displayPrice: "$29.99",
         displayName: "Tide Mark Premium",
       }),
       purchase: async () => ({

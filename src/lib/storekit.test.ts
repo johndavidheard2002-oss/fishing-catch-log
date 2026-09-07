@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { YEARLY_PRICE_LABEL, buildEntitlement, computeSubscriptionStatus } from "./entitlement";
+import { YEARLY_PRICE_LABEL, YEARLY_PRICE_USD, buildEntitlement, computeSubscriptionStatus } from "./entitlement";
 import {
   STOREKIT_SUBSCRIPTION_GROUP,
   STOREKIT_YEARLY_PRODUCT_ID,
@@ -19,7 +19,8 @@ describe("StoreKit yearly product", () => {
   it("locks the App Store Connect product id and group", () => {
     expect(STOREKIT_YEARLY_PRODUCT_ID).toBe("tidemark_premium_yearly");
     expect(STOREKIT_SUBSCRIPTION_GROUP).toBe("TideMarkPremium");
-    expect(YEARLY_PRICE_LABEL).toBe("$39.99/year");
+    expect(YEARLY_PRICE_USD).toBe(29.99);
+    expect(YEARLY_PRICE_LABEL).toBe("$29.99/year");
   });
 
   it("accepts a purchase claim and defaults a missing term to one year", () => {
