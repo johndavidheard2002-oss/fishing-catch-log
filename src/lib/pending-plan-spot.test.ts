@@ -391,6 +391,17 @@ describe("Calendar Log and Plan wiring", () => {
     expect(calendar).toContain('data-testid="calendar-day-detail"');
     expect(calendar).toContain("overflow-visible");
     expect(similar).not.toContain("showAddToPlan");
+    const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
+    const catchRow = catchDetail.indexOf('data-testid="catch-action-row"');
+    const catchShare = catchDetail.indexOf('data-testid="catch-share"');
+    const catchPlan = catchDetail.indexOf('testId="catch-plan"');
+    const catchDelete = catchDetail.indexOf('data-testid="catch-delete"');
+    expect(catchDetail).toContain("AddToPlanButton");
+    expect(catchDetail).toContain("pendingPlanSpotFromCatch");
+    expect(catchPlan).toBeGreaterThan(catchShare);
+    expect(catchDelete).toBeGreaterThan(catchPlan);
+    expect(catchDetail.slice(catchRow, catchDelete)).toContain("Plan");
+    expect(catchDetail.slice(catchRow, catchDelete)).not.toContain("Add to plan");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     const spots = readFileSync(resolve(__dirname, "../components/SpotsClient.tsx"), "utf8");
     expect(baitDetail).toContain("AddToPlanButton");

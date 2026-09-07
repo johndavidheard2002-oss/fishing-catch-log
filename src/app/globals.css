@@ -608,7 +608,8 @@ main button.home-plan-cta {
   align-items: center;
   gap: 0.5rem;
 }
-.owner-action-row > button {
+.owner-action-row > button,
+.owner-action-row > a {
   width: auto !important;
   flex: 0 0 auto;
 }

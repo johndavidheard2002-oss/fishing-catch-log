@@ -7,7 +7,9 @@ import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { SimilarList } from "@/components/SimilarList";
+import { AddToPlanButton } from "@/components/AddToPlanButton";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { pendingPlanSpotFromCatch } from "@/lib/pending-plan-spot";
 import { habitatLabel } from "@/lib/habitat";
 import { catchFishLabel, catchSpeciesTitle } from "@/lib/count";
 import { speciesLabel } from "@/lib/species";
@@ -327,7 +329,7 @@ export function CatchDetail({ id }: { id: string }) {
               type="button"
               onClick={() => setEditing(true)}
               data-testid="catch-edit"
-              className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
+              className="whitespace-nowrap rounded-full bg-teal px-3 py-2 text-sm font-semibold text-white"
             >
               Edit
             </button>
@@ -339,7 +341,7 @@ export function CatchDetail({ id }: { id: string }) {
               onClick={() =>
                 void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
               }
-              className={`rounded-full px-4 py-2 text-sm font-semibold ${
+              className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold ${
                 record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
                   ? "border-2 border-teal bg-teal/15 text-teal"
                   : "bg-teal text-white"
@@ -347,11 +349,25 @@ export function CatchDetail({ id }: { id: string }) {
             >
               {record.sharedWithLinked ? "Shared" : "Share"}
             </button>
+            <AddToPlanButton
+              spot={
+                pendingPlanSpotFromCatch(record) ?? {
+                  catchId: record.id,
+                  placeName: "",
+                  speciesTargets: [],
+                  ...(record.photoPath?.trim() ? { photoPath: record.photoPath.trim() } : {}),
+                }
+              }
+              className="whitespace-nowrap rounded-full bg-teal px-3 py-2 text-sm font-semibold text-white"
+              testId="catch-plan"
+            >
+              Plan
+            </AddToPlanButton>
             <button
               type="button"
               onClick={onDelete}
               data-testid="catch-delete"
-              className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
+              className="whitespace-nowrap rounded-full border border-line bg-card px-3 py-2 text-sm font-semibold"
             >
               Delete
             </button>
