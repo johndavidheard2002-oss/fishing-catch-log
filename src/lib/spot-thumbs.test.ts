@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   baitGroupThumbSrc,
+  baitRecordThumbSrc,
   catchGroupThumbSrc,
   catchRecordThumbSrc,
   speciesPlaceholderSrc,
 } from "./spot-thumbs";
-import { catchOf } from "./testing";
+import { baitOf, catchOf } from "./testing";
 import type { BaitSpotGroup } from "./types";
 
 describe("speciesPlaceholderSrc", () => {
@@ -51,6 +52,35 @@ describe("catch thumbs", () => {
   it("falls back to species seed art", () => {
     const record = catchOf({ id: "c2", species: "Redfish", speciesList: ["Redfish"], photoPath: null });
     expect(catchRecordThumbSrc(record)).toBe("/seed/redfish.svg");
+  });
+});
+
+describe("bait thumbs", () => {
+  it("returns null when no personal photo was logged", () => {
+    const spot = baitOf({ id: "bs-empty" });
+    expect(baitRecordThumbSrc(spot)).toBeNull();
+    expect(
+      baitGroupThumbSrc({
+        key: "empty",
+        placeName: "Pass",
+        latitude: 29,
+        longitude: -95,
+        visitCount: 1,
+        baitTypes: ["Shrimp"],
+        lastLoggedAt: spot.loggedAt,
+        typicalCondition: null,
+        typicalTime: null,
+        avgTempF: null,
+        spots: [spot],
+      }),
+    ).toBeNull();
+  });
+
+  it("ignores seed and stock bait paths", () => {
+    expect(baitRecordThumbSrc(baitOf({ id: "seed", photoPath: "/seed/redfish.svg" }))).toBeNull();
+    expect(
+      baitRecordThumbSrc(baitOf({ id: "stock", photoPath: "https://images.unsplash.com/shrimp" })),
+    ).toBeNull();
   });
 });
 

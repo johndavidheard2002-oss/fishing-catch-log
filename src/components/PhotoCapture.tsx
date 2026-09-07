@@ -29,6 +29,7 @@ export function PhotoCapture({
   emptyTitle,
   emptyHint,
   compactPreview = false,
+  hideEmptyWell = false,
   libraryOnly = false,
   locationReason,
   locationStatus,
@@ -43,6 +44,7 @@ export function PhotoCapture({
   emptyTitle?: string;
   emptyHint?: string;
   compactPreview?: boolean;
+  hideEmptyWell?: boolean;
   libraryOnly?: boolean;
   locationReason?: string;
   locationStatus?: LiveLocationStatus;
@@ -114,12 +116,14 @@ export function PhotoCapture({
         ? "Pick an old catch photo from your camera roll. We’ll ask if it was taken where you caught the fish before dropping a pin."
         : ""
       : emptyHint;
+  const showWell = Boolean(previewUrl) || !hideEmptyWell;
 
   return (
     <div
       className="journal-card box-border w-full max-w-full min-w-0 overflow-hidden rounded-3xl"
       data-testid={libraryOnly && previewUrl ? "backfill-photo" : undefined}
     >
+      {showWell ? (
       <div
         className={`relative w-full ${
           previewUrl ? "bg-paper-deep" : "photo-capture-brand"
@@ -129,7 +133,12 @@ export function PhotoCapture({
         <button type="button" onClick={pick} className="relative block h-full w-full">
           {previewUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={previewUrl} alt="Catch photo" className="h-full w-full object-cover" />
+            <img
+              src={previewUrl}
+              alt="Catch photo"
+              className="h-full w-full object-cover"
+              data-testid={hideEmptyWell ? "bait-photo" : undefined}
+            />
           ) : (
             <>
               <span className="photo-capture-brand-seal-wrap" aria-hidden>
@@ -167,6 +176,12 @@ export function PhotoCapture({
           </div>
         ) : null}
       </div>
+      ) : (
+        <p className="px-3 pt-3 text-sm text-ink-muted" data-testid="photo-optional">
+          {emptyTitle ?? "Photo optional"}
+          {hint ? ` ${hint}` : ""}
+        </p>
+      )}
       <div className={`grid min-w-0 gap-2 p-3 ${libraryOnly ? "grid-cols-1" : "grid-cols-2"}`}>
         {libraryOnly ? null : (
           <button

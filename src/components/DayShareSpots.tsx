@@ -107,9 +107,9 @@ export function DayShareSpots({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={row.thumbSrc} alt="" className="h-full w-full object-cover" />
                 </span>
-              ) : (
+              ) : row.kind === "bait" ? null : (
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-[9px] leading-tight text-ink-muted">
-                  {row.kind === "bait" ? "Bait" : "Spot"}
+                  Spot
                 </span>
               )}
               <span className="min-w-0 flex-1">
