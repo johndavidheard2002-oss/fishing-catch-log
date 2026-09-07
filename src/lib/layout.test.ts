@@ -84,7 +84,7 @@ describe("phone-width Log and Backfill", () => {
     expect(css).toMatch(/\.photo-capture-brand-seal-frame \{[\s\S]*?width: 62\.25%/);
     expect(css).toMatch(/\.photo-capture-brand-copy \{[\s\S]*?position: absolute/);
     expect(css).toMatch(/\.photo-capture-brand-copy \{[\s\S]*?bottom: 0/);
-    expect(css).toMatch(/\.tide-mark-seal-img \{[\s\S]*?width: 168%/);
+    expect(css).toMatch(/\.tide-mark-seal-img \{[\s\S]*?width: 100%/);
     expect(css).toMatch(/\.tide-mark-seal-img \{[\s\S]*?transform: translate\(-50%, -50%\)/);
     const photo = readFileSync(resolve(__dirname, "../components/PhotoCapture.tsx"), "utf8");
     expect(photo).toContain("APP_LOGO_SRC");

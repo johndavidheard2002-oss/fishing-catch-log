@@ -13,7 +13,7 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
 | Pricing draft | **$39.99/year** after a **1-month free trial** |
 | In-App Purchase | `tidemark_premium_yearly` (auto-renewable, group **TideMarkPremium**) |
-| Icon / seal | `public/brand/tide-mark-logo.png` (locked — do not redraw; copper ring is centered in the 1024 square) |
+| Icon / seal | `public/brand/tide-mark-logo.png` (locked seal-fill — copper ring reaches the 1024 edges; original trout wash in the corners; do not redraw) |
 | PWA icons | `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png` |
 | PWA splash | `public/splash/apple-splash-*.png` |
 
@@ -37,7 +37,7 @@ No Mac pool was available. Already in the repo:
 2. `capacitor.config.ts` pointed at the production URL
 3. `ios/` Xcode project from `npx cap add ios` (worked on Linux; **CocoaPods and xcodebuild were skipped**)
 4. Usage strings and `WKAppBoundDomains` in `ios/App/App/Info.plist`
-5. App icon + splash files copied from `public/brand/tide-mark-logo.png` (same seal, not new art)
+5. App icon + splash files copied from `public/brand/tide-mark-logo.png` (seal-fill + trout-wash corners, not new art)
 6. Public `/privacy` page (Help, sign-in footer, and Home → More link to it)
 7. This checklist
 
@@ -71,7 +71,7 @@ Confirm `ios/App/App/Info.plist` still has the three usage strings above (they a
 
 ### Icons and splash (existing art only)
 
-Do not redraw the copper seal. Copy the locked files, then let Capacitor resize them on the Mac:
+Do not redraw the copper seal. The locked 1024 is seal-fill with the original trout-wash corners (no teal fill). Copies are already in `resources/`; on a Mac you can still refresh them, then let Capacitor resize:
 
 ```bash
 mkdir -p resources
@@ -144,11 +144,13 @@ Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs
    - `CERTIFICATE_PRIVATE_KEY` — PEM RSA private key (including `-----BEGIN RSA PRIVATE KEY-----` / `-----END RSA PRIVATE KEY-----` lines) used only so `--create` can mint a new Apple Distribution certificate whose private key Codemagic holds. **Do not put this key in the repo.** Generate one locally (e.g. `openssl genrsa -out cert_key.pem 2048`) and paste the PEM into the Secret. This is a different key from `APP_STORE_CONNECT_PRIVATE_KEY` (the App Store Connect API `.p8`).
 4. Start the **ios-testflight** workflow on that branch. Signing files (Apple Distribution cert + App Store profile for `com.tidemark.logbook`) are created by `app-store-connect fetch-signing-files --type IOS_APP_STORE --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create` using those env vars. Without `--certificate-key`, the CLI finds existing Apple Distribution certs on the account but cannot save them (`Cannot save Signing Certificates without certificate private key`). No Codemagic Team, no Developer Portal integration, and no manual `.p12` upload. When it finishes, the build appears in App Store Connect → TestFlight. Publishing authenticates with the same env vars (`api_key` / `key_id` / `issuer_id`). See [Signing iOS apps](https://docs.codemagic.io/yaml-code-signing/signing-ios/) and [App Store Connect publishing](https://docs.codemagic.io/yaml-publishing/app-store-connect/).
 
+   **Home-screen / App Store icon:** a Render (web) deploy does **not** update the native iOS icon. After this asset changes, start a fresh Codemagic **ios-testflight** build so TestFlight testers get a new IPA with `AppIcon.appiconset`.
+
    If Apple is at the Distribution certificate limit (**3**), revoke an unused **iOS Distribution** cert in [developer.apple.com → Certificates](https://developer.apple.com/account/resources/certificates/list) before re-running the workflow. Revoking a cert invalidates profiles that used it; `--create` will issue a new cert + App Store profile.
 
 ## Out of scope (this wrap)
 
-- Regenerating `public/brand/tide-mark-logo.png` or the PWA icons
+- Regenerating `public/brand/tide-mark-logo.png` or the PWA icons (locked seal-fill + trout wash)
 - Teal / bait / share UI changes
 - Compiling or running StoreKit on Linux — use a Mac for the real purchase sheet
 - Submitting the IPA to App Store review (`submit_to_app_store` stays false)

@@ -4,8 +4,9 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * Native shell for Tide Mark. The WebView loads the live Render site so
  * sign-in cookies, photo uploads, GPS, and the camera keep working.
  *
- * Icon / splash sources (do not regenerate the copper seal):
+ * Icon / splash sources (locked seal-fill + trout-wash corners):
  *   public/brand/tide-mark-logo.png
+ *   resources/icon.png, resources/splash.png
  *   public/icon-512.png, public/icon-192.png, public/apple-icon.png
  *   public/splash/apple-splash-*.png
  *

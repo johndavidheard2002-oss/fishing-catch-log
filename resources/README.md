@@ -1,12 +1,13 @@
 # Native icon / splash sources
 
-Do **not** regenerate the Tide Mark copper seal. The 1024 master
+Do **not** redraw the Tide Mark copper seal. The 1024 master
 (`public/brand/tide-mark-logo.png`, copied to
-`ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`)
-is the locked artwork with the circular seal shifted so the copper
-ring is dead-center in the square — do not redraw it.
+`ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
+and `resources/icon.png`) is the locked artwork: the circular seal
+fills the square, and the original trout-wash texture sits in the
+corners. Do not swap in a flat teal (or any other) corner fill.
 
-On a Mac, copy these existing files (same pixels, new filename only) before `npx @capacitor/assets generate`:
+On a Mac, these copies are already in place before `npx @capacitor/assets generate`:
 
 | Capacitor expects | Copy from |
 | --- | --- |
@@ -21,5 +22,9 @@ Also already shipped for the web / PWA:
 - `public/icon-512.png`
 - `public/apple-icon.png`
 - `public/splash/apple-splash-*.png`
+
+The iPhone home-screen / TestFlight icon is the native AppIcon. A
+Render web deploy does **not** update it — run the Codemagic
+`ios-testflight` workflow so the next IPA picks up this asset.
 
 See [docs/app-store.md](../docs/app-store.md).
