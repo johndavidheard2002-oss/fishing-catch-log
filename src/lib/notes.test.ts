@@ -256,6 +256,9 @@ describe("Plan add-to-day UI", () => {
     expect(plan).not.toContain("Save to Photos");
     expect(plan).not.toContain("matches.flatMap");
     expect(plan).not.toContain("matches.map((m) => void onAddSpot");
+    expect(plan).toContain("commitPendingSpot");
+    expect(plan).toContain('data-testid="plan-pending-spot"');
+    expect(plan).toContain("void commitPendingSpot(date)");
   });
 
   it("adds one place from a same-spot card that lists several past trips", () => {

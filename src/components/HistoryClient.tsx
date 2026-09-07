@@ -326,6 +326,7 @@ export function HistoryClient({
           viewerId={viewerId}
           layout={view === "grid" ? "grid" : "list"}
           testId="calendar-log-own-feed"
+          showAddToPlan
         />
       )}
 
@@ -344,18 +345,25 @@ function JournalCards({
   viewerId,
   layout,
   testId,
+  showAddToPlan = false,
 }: {
   feed: JournalFeedItem[];
   viewerId?: string;
   layout: "list" | "grid";
   testId?: string;
+  showAddToPlan?: boolean;
 }) {
   if (layout === "grid") {
     return (
       <div className="grid grid-cols-2 gap-3" data-testid={testId}>
         {feed.map((item) =>
           item.kind === "catch" ? (
-            <CatchGridCard key={item.id} record={item.record} viewerId={viewerId} />
+            <CatchGridCard
+              key={item.id}
+              record={item.record}
+              viewerId={viewerId}
+              showAddToPlan={showAddToPlan}
+            />
           ) : (
             <BaitSpotGridCard key={item.id} spot={item.spot} viewerId={viewerId} />
           ),
@@ -367,7 +375,12 @@ function JournalCards({
     <div className="space-y-3" data-testid={testId}>
       {feed.map((item) =>
         item.kind === "catch" ? (
-          <CatchCard key={item.id} record={item.record} viewerId={viewerId} />
+          <CatchCard
+            key={item.id}
+            record={item.record}
+            viewerId={viewerId}
+            showAddToPlan={showAddToPlan}
+          />
         ) : (
           <BaitSpotCard key={item.id} spot={item.spot} viewerId={viewerId} />
         ),

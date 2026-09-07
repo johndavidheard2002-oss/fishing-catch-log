@@ -5,6 +5,12 @@ import { habitatLabel } from "@/lib/habitat";
 import { catchSpotLabel, yearFromDateKey } from "@/lib/calendar";
 import { formatCatchWhen, formatTimeOnly, TIME_OF_DAY_LABELS } from "@/lib/time";
 import { catchSpeciesTitle } from "@/lib/count";
+import {
+  canShowAddToPlan,
+  pendingPlanSpotFromCatch,
+  planHrefForPendingSpot,
+  writePendingPlanSpot,
+} from "@/lib/pending-plan-spot";
 import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
 import type { CatchRecord } from "@/lib/types";
 
@@ -16,21 +22,42 @@ function photoFilename(record: CatchRecord): string {
   });
 }
 
+function AddToPlanButton({ record }: { record: CatchRecord }) {
+  const spot = pendingPlanSpotFromCatch(record);
+  if (!spot) return null;
+  return (
+    <Link
+      href={planHrefForPendingSpot(spot)}
+      data-testid="add-to-plan"
+      aria-label={`Add ${spot.placeName} to plan`}
+      onClick={() => {
+        writePendingPlanSpot(typeof sessionStorage === "undefined" ? null : sessionStorage, spot);
+      }}
+      className="rounded-full bg-teal px-3 py-1 text-xs font-semibold text-white"
+    >
+      Add to plan
+    </Link>
+  );
+}
+
 export function CatchCard({
   record,
   compact = false,
   showTime = false,
   showYear = false,
   viewerId,
+  showAddToPlan = false,
 }: {
   record: CatchRecord;
   compact?: boolean;
   showTime?: boolean;
   showYear?: boolean;
   viewerId?: string;
+  showAddToPlan?: boolean;
 }) {
   const src = photoSrc(record.photoPath);
   const theirs = viewerId && record.anglerId !== viewerId;
+  const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan);
   const body = (
     <>
         <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 overflow-hidden bg-paper-deep`}>
@@ -87,16 +114,23 @@ export function CatchCard({
     </>
   );
   return (
-    <div className="journal-card relative flex overflow-hidden rounded-2xl">
-      <Link
-        href={`/catch/${record.id}`}
-        className="flex min-w-0 flex-1"
-        data-testid="calendar-catch-open"
-      >
-        {body}
-      </Link>
-      {src ? (
-        <SaveToPhotosButton src={src} filename={photoFilename(record)} variant="overlay" />
+    <div className="journal-card relative flex flex-col overflow-hidden rounded-2xl">
+      <div className="relative flex min-w-0">
+        <Link
+          href={`/catch/${record.id}`}
+          className="flex min-w-0 flex-1"
+          data-testid="calendar-catch-open"
+        >
+          {body}
+        </Link>
+        {src ? (
+          <SaveToPhotosButton src={src} filename={photoFilename(record)} variant="overlay" />
+        ) : null}
+      </div>
+      {addToPlan ? (
+        <div className="flex justify-end px-3 pb-2">
+          <AddToPlanButton record={record} />
+        </div>
       ) : null}
     </div>
   );
@@ -105,12 +139,15 @@ export function CatchCard({
 export function CatchGridCard({
   record,
   viewerId,
+  showAddToPlan = false,
 }: {
   record: CatchRecord;
   viewerId?: string;
+  showAddToPlan?: boolean;
 }) {
   const src = photoSrc(record.photoPath);
   const theirs = viewerId && record.anglerId !== viewerId;
+  const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan);
   return (
     <div className="journal-card relative overflow-hidden rounded-2xl">
       <Link href={`/catch/${record.id}`} className="block" data-testid="calendar-catch-open">
@@ -141,6 +178,11 @@ export function CatchGridCard({
       </Link>
       {src ? (
         <SaveToPhotosButton src={src} filename={photoFilename(record)} variant="overlay" />
+      ) : null}
+      {addToPlan ? (
+        <div className="flex justify-end px-2.5 pb-2">
+          <AddToPlanButton record={record} />
+        </div>
       ) : null}
     </div>
   );

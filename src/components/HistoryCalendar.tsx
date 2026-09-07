@@ -389,6 +389,7 @@ export function HistoryCalendar({
                     record={record}
                     showTime
                     viewerId={viewerId}
+                    showAddToPlan
                   />
                 ))}
                 {thisYearBait.length ? (
@@ -454,6 +455,7 @@ export function HistoryCalendar({
                           showTime
                           showYear
                           viewerId={viewerId}
+                          showAddToPlan
                         />
                       ))}
                       {block.spots.length ? (

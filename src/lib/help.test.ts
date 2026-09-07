@@ -91,6 +91,9 @@ describe("HELP_SECTIONS", () => {
     const calendarHelp = HELP_SECTIONS.find((section) => section.title === "Calendar Log")?.steps ?? [];
     expect(calendarHelp.some((step) => step.includes("List, Calendar, Grid, then Shared"))).toBe(true);
     expect(calendarHelp.some((step) => step.includes("Calendar still links"))).toBe(true);
+    expect(calendarHelp.some((step) => step.includes("Add to plan") && step.includes("pick the day"))).toBe(
+      true,
+    );
     expect(share.some((step) => step.includes("Never public") && step.includes("Linking shares nothing"))).toBe(true);
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);
