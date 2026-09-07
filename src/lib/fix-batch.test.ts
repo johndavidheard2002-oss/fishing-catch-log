@@ -9,21 +9,58 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(picker).not.toContain("selected.length <= 1");
   });
 
-  it("opens Calendar Log on List with List, Calendar, Grid tabs", () => {
+  it("opens Calendar Log on List with List, Calendar, Grid, Shared tabs", () => {
     const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
     const calendarLib = readFileSync(resolve(__dirname, "./calendar.ts"), "utf8");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryCalendar.tsx"), "utf8");
     const historyRedirect = readFileSync(resolve(__dirname, "../app/history/page.tsx"), "utf8");
+    const calendarPage = readFileSync(resolve(__dirname, "../app/calendar/page.tsx"), "utf8");
     expect(history).toContain("resolveCalendarLogView");
     expect(history).toContain("CALENDAR_LOG_VIEW_TABS");
     expect(history).toContain("DEFAULT_CALENDAR_LOG_VIEW");
-    expect(calendarLib).toContain('["list", "calendar", "grid"]');
+    expect(history).toContain("ownJournalRecords");
+    expect(history).toContain("friendSharedRecords");
+    expect(history).toContain('view === "shared"');
+    expect(history).toContain("calendar-log-shared-feed");
+    expect(history).toContain("calendar-log-own-feed");
+    expect(history).toContain("grid-cols-4");
+    expect(history).toContain("sharedQuery(true)");
+    expect(history).not.toContain("SharedToggle");
+    expect(history).not.toContain("useIncludeShared");
+    expect(history).toContain("catches={filtered}");
+    expect(history).toContain("baitSpots={baitSpots}");
+    expect(history).not.toContain("catches={ownCatches}");
+    expect(calendarLib).toContain('["list", "calendar", "grid", "shared"]');
     expect(calendarLib).toContain('DEFAULT_CALENDAR_LOG_VIEW: CalendarLogView = "list"');
+    expect(calendarPage).toContain("includeShared: true");
     expect(historyRedirect).toContain("DEFAULT_CALENDAR_LOG_VIEW");
     expect(historyRedirect).not.toContain('=== "grid"');
     expect(calendar).toContain("calendarHeaderScrollDelta");
     expect(calendar).toContain("calendar-prev-year");
     expect(calendar).toContain("shiftYear");
+  });
+
+  it("puts Share under Edit and makes share-with names a little bigger", () => {
+    const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
+    const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
+    const picker = readFileSync(resolve(__dirname, "../components/ShareFriendPicker.tsx"), "utf8");
+    const editRowEnd = catchDetail.indexOf('data-testid="catch-edit-spot"');
+    const shareBlock = catchDetail.indexOf('data-testid="catch-share-block"');
+    const shareBtn = catchDetail.indexOf('data-testid="catch-share"');
+    expect(editRowEnd).toBeGreaterThan(-1);
+    expect(shareBlock).toBeGreaterThan(editRowEnd);
+    expect(shareBtn).toBeGreaterThan(shareBlock);
+    expect(catchDetail.slice(catchDetail.indexOf("flex flex-wrap gap-2"), shareBlock)).not.toContain(
+      "catch-share",
+    );
+    const baitEdit = baitDetail.indexOf('data-testid="bait-edit-spot"');
+    const baitShareBlock = baitDetail.indexOf('data-testid="bait-share-block"');
+    expect(baitShareBlock).toBeGreaterThan(baitEdit);
+    expect(baitDetail.slice(baitDetail.indexOf("flex flex-wrap gap-2"), baitShareBlock)).not.toContain(
+      "bait-share",
+    );
+    expect(picker).toContain("text-base font-semibold");
+    expect(picker).toContain("{buddy.name}");
   });
 
   it("lets bait Edit spot focus the map the same as a catch", () => {

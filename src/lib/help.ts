@@ -51,6 +51,8 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: "Calendar Log",
     steps: [
+      "Tabs are List, Calendar, Grid, then Shared. List and Grid are yours.",
+      "Calendar still links your trips and friend shares on the same dates.",
       "Tap a day to open that date’s map, notes, and trips.",
       "Open a day and use Select spots to share for several pins at once. Off until you choose.",
       "Same date across years stays grouped so you can compare.",
@@ -80,9 +82,9 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "On Home, open More, then Linked friends. Enter their invite code and tap Link, or copy yours.",
       "Linking shares nothing. Never public. Pick which friend sees each spot — not a broadcast to every friend.",
-      "Open a catch photo and tap Share next to Edit. Choose the friend. That person only sees that spot.",
+      "Open a catch photo and tap Share under Edit. Choose the friend. That person only sees that spot.",
       "On Calendar Log, open a day and use Select spots to share for several pins at once.",
-      "On Calendar Log, your friend checks Include shared from linked friends to see spots you shared with them.",
+      "On Calendar Log, your friend opens the Shared tab to see spots you shared with them.",
     ],
   },
   {

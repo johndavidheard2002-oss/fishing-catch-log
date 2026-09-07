@@ -33,8 +33,8 @@ export default async function CalendarLogPage() {
     if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
       return <Paywall entitlement={entitlement} />;
     }
-    initialCatches = await listCatches({ viewerId, includeShared: false });
-    initialBaitSpots = await listBaitSpots({ viewerId, includeShared: false });
+    initialCatches = await listCatches({ viewerId, includeShared: true });
+    initialBaitSpots = await listBaitSpots({ viewerId, includeShared: true });
     initialNotes = await listCalendarNotes(viewerId);
   } catch {
     return <JournalUnavailable title="Calendar Log" />;

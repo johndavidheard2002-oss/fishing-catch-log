@@ -77,9 +77,12 @@ describe("HELP_SECTIONS", () => {
     expect(share.some((step) => step.includes("More") && step.includes("Linked friends") && step.includes("Link"))).toBe(
       true,
     );
-    expect(share.some((step) => step.includes("Share next to Edit") && step.includes("Choose the friend"))).toBe(true);
+    expect(share.some((step) => step.includes("Share under Edit") && step.includes("Choose the friend"))).toBe(true);
     expect(share.some((step) => step.includes("Select spots to share"))).toBe(true);
-    expect(share.some((step) => step.includes("Include shared from linked friends"))).toBe(true);
+    expect(share.some((step) => step.includes("Shared tab"))).toBe(true);
+    const calendarHelp = HELP_SECTIONS.find((section) => section.title === "Calendar Log")?.steps ?? [];
+    expect(calendarHelp.some((step) => step.includes("List, Calendar, Grid, then Shared"))).toBe(true);
+    expect(calendarHelp.some((step) => step.includes("Calendar still links"))).toBe(true);
     expect(share.some((step) => step.includes("Never public") && step.includes("Linking shares nothing"))).toBe(true);
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);

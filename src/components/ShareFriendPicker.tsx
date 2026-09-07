@@ -22,7 +22,7 @@ export function ShareFriendPicker({
       {buddies.map((buddy) => {
         const on = selectedIds.includes(buddy.id);
         return (
-          <label key={buddy.id} className="flex items-center gap-2 text-sm">
+          <label key={buddy.id} className="flex items-center gap-2">
             <input
               type="checkbox"
               data-testid={`share-friend-${buddy.id}`}
@@ -33,7 +33,7 @@ export function ShareFriendPicker({
                 else onChange(selectedIds.filter((id) => id !== buddy.id));
               }}
             />
-            <span>{buddy.name}</span>
+            <span className="text-base font-semibold leading-tight">{buddy.name}</span>
           </label>
         );
       })}
