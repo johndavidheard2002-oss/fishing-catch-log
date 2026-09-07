@@ -1,6 +1,8 @@
 import { and, asc, eq } from "drizzle-orm";
 import {
   calendarNoteHasContent,
+  isPlanSpotNote,
+  parseCalendarNoteKind,
   parseSpeciesTargets,
   parseSpeciesTargetsJson,
 } from "../notes";
@@ -22,12 +24,16 @@ function mapRow(row: typeof calendarNotes.$inferSelect): CalendarNote {
     notes: row.notes,
     placeName: row.placeName,
     speciesTargets: parseSpeciesTargetsJson(row.speciesTargets),
+    kind: parseCalendarNoteKind(row.kind),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
 }
 
-export async function listCalendarNotes(anglerId: string): Promise<CalendarNote[]> {
+export async function listCalendarNotes(
+  anglerId: string,
+  options?: { forPlan?: boolean },
+): Promise<CalendarNote[]> {
   const db = await ensureDb();
   const rows = await allRows(
     db
@@ -36,7 +42,9 @@ export async function listCalendarNotes(anglerId: string): Promise<CalendarNote[
       .where(eq(calendarNotes.anglerId, anglerId))
       .orderBy(asc(calendarNotes.day), asc(calendarNotes.createdAt)),
   );
-  return rows.map(mapRow);
+  const notes = rows.map(mapRow);
+  if (options?.forPlan) return notes;
+  return notes.filter((note) => !isPlanSpotNote(note));
 }
 
 export async function getCalendarNote(id: string): Promise<CalendarNote | null> {
@@ -59,6 +67,7 @@ export async function createCalendarNote(anglerId: string, input: CalendarNoteIn
       notes: input.notes ?? null,
       placeName: input.placeName ?? null,
       speciesTargets: JSON.stringify(speciesTargets),
+      kind: parseCalendarNoteKind(input.kind),
       createdAt: stamp,
       updatedAt: stamp,
     }),
@@ -85,6 +94,7 @@ export async function updateCalendarNote(
         notes: input.notes ?? null,
         placeName: input.placeName ?? null,
         speciesTargets: JSON.stringify(speciesTargets),
+        kind: parseCalendarNoteKind(input.kind ?? existing.kind),
         updatedAt: nowIso(),
       })
       .where(and(eq(calendarNotes.id, id), eq(calendarNotes.anglerId, anglerId))),

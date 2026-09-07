@@ -360,6 +360,7 @@ function NoteForm({
           notes: notes.trim() || null,
           placeName: placeName.trim() || null,
           speciesTargets,
+          kind: "journal",
         };
         if (!input.title && !input.notes && !input.placeName && !speciesTargets.length) {
           setError("Add a title, note, place, or species.");

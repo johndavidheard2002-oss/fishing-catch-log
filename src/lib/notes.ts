@@ -1,4 +1,7 @@
-import type { CalendarNote, CalendarNoteInput } from "./types";
+import type { CalendarNote, CalendarNoteInput, CalendarNoteKind } from "./types";
+
+export const JOURNAL_NOTE_KIND: CalendarNoteKind = "journal";
+export const PLAN_SPOT_NOTE_KIND: CalendarNoteKind = "plan-spot";
 
 export const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -58,7 +61,9 @@ export function calendarNoteHasContent(input: {
 export function planNoteInput(
   day: string,
   notesText: string,
-  existing?: Pick<CalendarNote, "title" | "placeName" | "speciesTargets"> | null,
+  existing?: (Pick<CalendarNote, "title" | "placeName" | "speciesTargets"> & {
+    kind?: CalendarNoteKind | null;
+  }) | null,
 ): CalendarNoteInput {
   return {
     day,
@@ -66,7 +71,21 @@ export function planNoteInput(
     title: existing?.title ?? null,
     placeName: existing?.placeName ?? null,
     speciesTargets: existing?.speciesTargets ?? [],
+    kind: existing?.kind === PLAN_SPOT_NOTE_KIND ? PLAN_SPOT_NOTE_KIND : JOURNAL_NOTE_KIND,
   };
+}
+
+export function parseCalendarNoteKind(value: unknown): CalendarNoteKind {
+  return value === PLAN_SPOT_NOTE_KIND ? PLAN_SPOT_NOTE_KIND : JOURNAL_NOTE_KIND;
+}
+
+export function isPlanSpotNote(note: { kind?: string | null }): boolean {
+  return note.kind === PLAN_SPOT_NOTE_KIND;
+}
+
+/** Calendar Log Planned trips — never includes Plan-only suggested spots. */
+export function journalNotesForCalendarLog(notes: CalendarNote[]): CalendarNote[] {
+  return notes.filter((note) => !isPlanSpotNote(note));
 }
 
 export function normalizeNotePlace(place?: string | null): string {
@@ -87,26 +106,29 @@ export function planSpotNoteInput(
     notes: null,
     placeName,
     speciesTargets: parseSpeciesTargets(spot.speciesTargets),
+    kind: PLAN_SPOT_NOTE_KIND,
   };
   return calendarNoteHasContent(input) ? input : null;
 }
 
 export function dayHasPlanSpot(
-  notes: Array<{ placeName?: string | null }>,
+  notes: Array<{ placeName?: string | null; kind?: string | null }>,
   placeName?: string | null,
 ): boolean {
   const key = normalizeNotePlace(placeName);
   if (!key) return false;
-  return notes.some((note) => normalizeNotePlace(note.placeName) === key);
+  return notes.some(
+    (note) => isPlanSpotNote(note) && normalizeNotePlace(note.placeName) === key,
+  );
 }
 
 export function plannedSpotsOnDay(notes: CalendarNote[]): CalendarNote[] {
-  return notes.filter((note) => Boolean(note.placeName?.trim()));
+  return notes.filter((note) => isPlanSpotNote(note) && Boolean(note.placeName?.trim()));
 }
 
-/** Build a save payload only when that place is not already on the day. */
+/** Build a save payload only when that place is not already on the Plan day. */
 export function addPlanSpotToDay(
-  notes: Array<{ placeName?: string | null }>,
+  notes: Array<{ placeName?: string | null; kind?: string | null }>,
   day: string,
   spot: { placeName?: string | null; speciesTargets?: string[] | null },
 ): CalendarNoteInput | null {
@@ -122,7 +144,8 @@ export function parseCalendarNoteInput(body: Record<string, unknown>): CalendarN
   const notes = trimToNull(body.notes, MAX_NOTES);
   const placeName = trimToNull(body.placeName, MAX_PLACE);
   const speciesTargets = parseSpeciesTargets(body.speciesTargets);
-  const input: CalendarNoteInput = { day, title, notes, placeName, speciesTargets };
+  const kind = parseCalendarNoteKind(body.kind);
+  const input: CalendarNoteInput = { day, title, notes, placeName, speciesTargets, kind };
   if (!calendarNoteHasContent(input)) return null;
   return input;
 }

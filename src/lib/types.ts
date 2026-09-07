@@ -274,6 +274,9 @@ export type PlanResult = {
   baitSuggestions: BaitPlanSuggestion[];
 };
 
+/** `journal` shows on Calendar Log. `plan-spot` stays on Plan’s day only. */
+export type CalendarNoteKind = "journal" | "plan-spot";
+
 /** A personal planned trip / calendar note — not a logged catch. */
 export type CalendarNote = {
   id: string;
@@ -283,6 +286,7 @@ export type CalendarNote = {
   notes: string | null;
   placeName: string | null;
   speciesTargets: string[];
+  kind: CalendarNoteKind;
   createdAt: string;
   updatedAt: string;
 };
@@ -293,6 +297,7 @@ export type CalendarNoteInput = {
   notes?: string | null;
   placeName?: string | null;
   speciesTargets?: string[] | null;
+  kind?: CalendarNoteKind | null;
 };
 
 export type NamedArea = {

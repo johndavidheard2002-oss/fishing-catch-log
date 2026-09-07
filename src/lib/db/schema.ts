@@ -70,6 +70,7 @@ export const calendarNotes = sqliteTable("calendar_notes", {
   notes: text("notes"),
   placeName: text("place_name"),
   speciesTargets: text("species_targets"),
+  kind: text("kind").notNull().default("journal"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

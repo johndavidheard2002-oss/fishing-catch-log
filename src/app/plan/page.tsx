@@ -31,7 +31,7 @@ export default async function PlanPage({
     if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
       return <Paywall entitlement={entitlement} />;
     }
-    initialNotes = await listCalendarNotes(viewer.id);
+    initialNotes = await listCalendarNotes(viewer.id, { forPlan: true });
   } catch {
     return <JournalUnavailable title="Plan a day" />;
   }
