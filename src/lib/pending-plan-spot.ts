@@ -1,4 +1,9 @@
-import { parseSpeciesTargets } from "./notes";
+import {
+  normalizeNotePlace,
+  parseSpeciesTargets,
+  planSpotSourceKind,
+  type CommittedPlanSpot,
+} from "./notes";
 
 export const PENDING_PLAN_SPOT_STORAGE_KEY = "tide-mark-pending-plan-spot";
 export const PENDING_PLAN_CATCH_QUERY = "addCatch";
@@ -7,6 +12,8 @@ export const PENDING_PLAN_PLACE_QUERY = "addPlace";
 export const PENDING_PLAN_SPECIES_QUERY = "addSpecies";
 export const PENDING_PLAN_PHOTO_QUERY = "addPhoto";
 export const PENDING_PLAN_DAY_STORAGE_KEY = "tide-mark-pending-plan-day";
+export const COMMITTED_PLAN_SPOTS_STORAGE_KEY = "tide-mark-committed-plan-spots";
+export const COMMITTED_PLAN_SPOT_TTL_MS = 10 * 60 * 1000;
 
 /** Drop an abandoned handoff after this long so a later Plan visit stays clean. */
 export const PENDING_PLAN_SPOT_TTL_MS = 2 * 60 * 60 * 1000;
@@ -156,6 +163,79 @@ export function clearPendingPlanSpot(storage: Pick<Storage, "removeItem"> | null
     /* private mode */
   }
 }
+
+export function rememberCommittedPlanSpot(
+  storage: Pick<Storage, "getItem" | "setItem"> | null | undefined,
+  spot: CommittedPlanSpot,
+): void {
+  if (!storage || !spot.placeName.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(spot.day)) return;
+  const next = [
+    ...readCommittedPlanSpots(storage).filter((item) => {
+      if (item.day !== spot.day) return true;
+      if (normalizeNotePlace(item.placeName) !== normalizeNotePlace(spot.placeName)) return true;
+      return planSpotSourceKind(item) !== planSpotSourceKind(spot);
+    }),
+    { ...spot, savedAt: spot.savedAt ?? Date.now() },
+  ].slice(-12);
+  try {
+    storage.setItem(COMMITTED_PLAN_SPOTS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode */
+  }
+}
+
+export function readCommittedPlanSpots(
+  storage: Pick<Storage, "getItem"> | null | undefined,
+  now = Date.now(),
+): CommittedPlanSpot[] {
+  if (!storage) return [];
+  try {
+    const raw = storage.getItem(COMMITTED_PLAN_SPOTS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.flatMap((item) => {
+      if (!item || typeof item !== "object") return [];
+      const row = item as Partial<CommittedPlanSpot>;
+      const day = typeof row.day === "string" ? row.day.trim() : "";
+      const placeName = typeof row.placeName === "string" ? row.placeName.trim() : "";
+      const savedAt = typeof row.savedAt === "number" ? row.savedAt : now;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !placeName) return [];
+      if (now - savedAt > COMMITTED_PLAN_SPOT_TTL_MS) return [];
+      const photoPath = typeof row.photoPath === "string" ? row.photoPath.trim() : "";
+      const sourceCatchId = typeof row.sourceCatchId === "string" ? row.sourceCatchId.trim() : "";
+      const sourceBaitId = typeof row.sourceBaitId === "string" ? row.sourceBaitId.trim() : "";
+      return [
+        {
+          day,
+          placeName,
+          savedAt,
+          speciesTargets: parseSpeciesTargets(row.speciesTargets),
+          ...(sourceCatchId ? { sourceCatchId } : {}),
+          ...(sourceBaitId ? { sourceBaitId } : {}),
+          ...(photoPath ? { photoPath } : {}),
+        },
+      ];
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function dropCommittedPlanSpotsForDay(
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null | undefined,
+  day: string,
+): void {
+  if (!storage || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return;
+  const next = readCommittedPlanSpots(storage).filter((spot) => spot.day !== day);
+  try {
+    if (!next.length) storage.removeItem(COMMITTED_PLAN_SPOTS_STORAGE_KEY);
+    else storage.setItem(COMMITTED_PLAN_SPOTS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode */
+  }
+}
+
 
 export function writePendingPlanDay(
   storage: Pick<Storage, "setItem"> | null | undefined,

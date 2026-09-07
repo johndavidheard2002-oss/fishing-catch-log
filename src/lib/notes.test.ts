@@ -22,9 +22,11 @@ import {
   plannedSpotsOnDay,
   listedPlanNotes,
   isPlausiblePlanToday,
+  mergeCommittedPlanSpots,
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
+  planSpotSourceKind,
   restorePlanDay,
   safePlanDayPurgeBeforeKey,
   shiftDayKey,
@@ -192,6 +194,34 @@ describe("dayHasPlanSpot", () => {
     ).toBe("Mosquito Lagoon");
   });
 
+  it("still adds bait when a catch is already planned at that place", () => {
+    const catchSpot = note({
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+      sourceCatchId: "c1",
+    });
+    expect(dayHasPlanSpot([catchSpot], "Haulover Canal", { baitId: "b1" })).toBe(false);
+    expect(dayHasPlanSpot([catchSpot], "Haulover Canal", { catchId: "c2" })).toBe(true);
+    expect(
+      addPlanSpotToDay([catchSpot], "2026-09-10", {
+        placeName: "Haulover Canal",
+        baitId: "b1",
+        photoPath: "shrimp.jpg",
+      }),
+    ).toEqual({
+      day: "2026-09-10",
+      title: null,
+      notes: null,
+      placeName: "Haulover Canal",
+      speciesTargets: [],
+      kind: "plan-spot",
+      sourceBaitId: "b1",
+      photoPath: "shrimp.jpg",
+    });
+    expect(planSpotSourceKind({ baitId: "b1" })).toBe("bait");
+    expect(planSpotSourceKind({ sourceCatchId: "c1" })).toBe("catch");
+  });
+
   it("keeps Plan-day adds out of Calendar Log Planned trips", () => {
     const planSpot = note({
       id: "s",
@@ -231,6 +261,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("dedupeCatchSuggestionsByPlace");
     expect(plan).toContain("extraPastTripMatches");
     expect(plan).toContain("uniqueNotesByPlace");
+    expect(plan).toContain("mergeCommittedPlanSpots");
+    expect(plan).toContain("rememberCommittedPlanSpot");
     expect(plan).toContain("/api/calendar-notes?for=plan&today=");
     expect(plan).toContain("listedPlanNotes");
     expect(plan).toContain("mergeListedPlanNotes");
@@ -494,6 +526,40 @@ describe("expired Plan days", () => {
       "today-note",
     ]);
     expect(mergeListedPlanNotes([spot], null, today).map((n) => n.id)).toEqual(["today-spot"]);
+    const justAddedBait = note({
+      id: "just-bait",
+      day: today,
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+      sourceBaitId: "b1",
+      photoPath: "shrimp.jpg",
+    });
+    expect(
+      mergeListedPlanNotes([spot, justAddedBait], [spot], today).map((n) => n.id),
+    ).toEqual(["today-spot", "just-bait"]);
+    expect(
+      mergeCommittedPlanSpots([spot], [
+        {
+          day: today,
+          placeName: "Haulover Canal",
+          sourceBaitId: "b1",
+          photoPath: "shrimp.jpg",
+          savedAt: Date.parse("2026-09-10T12:00:00.000Z"),
+        },
+      ]).map((n) => ({ id: n.id, sourceBaitId: n.sourceBaitId, photoPath: n.photoPath })),
+    ).toEqual([
+      { id: "today-spot", sourceBaitId: null, photoPath: null },
+      {
+        id: "local:2026-09-10:bait:haulover canal",
+        sourceBaitId: "b1",
+        photoPath: "shrimp.jpg",
+      },
+    ]);
+    expect(
+      mergeCommittedPlanSpots([justAddedBait], [
+        { day: today, placeName: "Haulover Canal", sourceBaitId: "b1" },
+      ]).map((n) => n.id),
+    ).toEqual(["just-bait"]);
     const cached = [
       {
         id: "today-spot",

@@ -15,10 +15,12 @@ import {
   groupNotesByDay,
   journalNotesForCalendarLog,
   listedPlanNotes,
+  mergeCommittedPlanSpots,
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
   plannedSpotsOnDay,
+  planSpotSourceKind,
   restorePlanDay,
   type PlanSpotSource,
 } from "@/lib/notes";
@@ -29,14 +31,17 @@ import {
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
   clearPendingPlanSpot,
+  dropCommittedPlanSpotsForDay,
   parsePendingPlanSpotSearch,
   pendingPlanDayToCommit,
   pendingPlanPrompt,
   pendingPlanSpotFromBait,
   pendingPlanSpotFromCatch,
   planHrefForPendingSpot,
+  readCommittedPlanSpots,
   readPendingPlanDay,
   readPendingPlanSpot,
+  rememberCommittedPlanSpot,
   resolvePendingPlanSpot,
   writePendingPlanDay,
   type PendingPlanSpot,
@@ -118,6 +123,9 @@ export function PlanClient({
   const [notes, setNotes] = useState<CalendarNote[]>(() =>
     listedPlanNotes(initialNotes, todayKey()) ?? [],
   );
+  const [committedSpots, setCommittedSpots] = useState(() =>
+    readCommittedPlanSpots(typeof sessionStorage === "undefined" ? null : sessionStorage),
+  );
   const [year, setYear] = useState(() => {
     const parsed = parsePlanDate(selectedDay);
     return parsed ? parsed.getFullYear() : now.getFullYear();
@@ -176,6 +184,10 @@ export function PlanClient({
       readPendingPlanDay(typeof sessionStorage === "undefined" ? null : sessionStorage),
     );
     if (picked) pendingDayRef.current = picked;
+    else if (next) setSelectedDay(null);
+    setCommittedSpots(
+      readCommittedPlanSpots(typeof sessionStorage === "undefined" ? null : sessionStorage),
+    );
   }, []);
 
   useEffect(() => {
@@ -243,7 +255,33 @@ export function PlanClient({
     });
     if (!res.ok) throw new Error("save failed");
     const data = await res.json();
-    if (data.note) setNotes((current) => [...current, data.note]);
+    if (data.note) {
+      setNotes((current) => [...current, data.note]);
+      if (data.note.kind === "plan-spot" && data.note.placeName) {
+        const committed = {
+          day: data.note.day,
+          placeName: data.note.placeName,
+          sourceCatchId: data.note.sourceCatchId,
+          sourceBaitId: data.note.sourceBaitId,
+          photoPath: data.note.photoPath,
+          speciesTargets: data.note.speciesTargets,
+          savedAt: Date.now(),
+        };
+        rememberCommittedPlanSpot(
+          typeof sessionStorage === "undefined" ? null : sessionStorage,
+          committed,
+        );
+        setCommittedSpots((current) => [
+          ...current.filter(
+            (item) =>
+              item.day !== committed.day ||
+              planSpotSourceKind(item) !== planSpotSourceKind(committed) ||
+              item.placeName.trim().toLowerCase() !== committed.placeName.trim().toLowerCase(),
+          ),
+          committed,
+        ]);
+      }
+    }
   }
 
   async function onUpdateNote(id: string, input: CalendarNoteInput) {
@@ -275,6 +313,11 @@ export function PlanClient({
       if (!res.ok) throw new Error("delete failed");
       const day = selectedDay;
       setNotes((current) => current.filter((n) => n.day !== day));
+      setCommittedSpots((current) => current.filter((spot) => spot.day !== day));
+      dropCommittedPlanSpotsForDay(
+        typeof sessionStorage === "undefined" ? null : sessionStorage,
+        day,
+      );
       setSpotSaved(false);
     } catch {
       setAddError("Could not delete this plan.");
@@ -335,7 +378,8 @@ export function PlanClient({
     (plan?.baitSuggestions ?? []).flatMap(splitBaitSuggestionByPlace),
   );
   const lookupFailure = planLookupFailureNote(plan?.note);
-  const notesByDay = groupNotesByDay(notes);
+  const visibleNotes = mergeCommittedPlanSpots(notes, committedSpots);
+  const notesByDay = groupNotesByDay(visibleNotes);
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const journalNotes = journalNotesForCalendarLog(selectedNotes);
@@ -380,14 +424,12 @@ export function PlanClient({
     pendingDayRef.current = null;
     const dayNotes = notesByDay.get(day) ?? [];
     const input = addPlanSpotToDay(dayNotes, day, spot);
-    setPendingSpot(null);
-    dropSessionPendingSpot();
     try {
-      if (!input?.placeName) {
-        window.history.replaceState(null, "", `/plan?date=${day}`);
-        return;
+      if (input?.placeName) {
+        await onAddSpot(spot, day);
       }
-      await onAddSpot(spot, day);
+      setPendingSpot(null);
+      dropSessionPendingSpot();
       window.history.replaceState(null, "", `/plan?date=${day}`);
     } finally {
       committingRef.current = false;
@@ -422,6 +464,7 @@ export function PlanClient({
         year={year}
         month={month}
         selectedDay={selectedDay}
+        pendingSpot={pendingSpot}
         notedDays={notedDays}
         onMonthChange={(next) => {
           setYear(next.year);
@@ -486,7 +529,12 @@ export function PlanClient({
                   {spotsOnDay.map((note) => {
                     const photo = plannedPhotos.find((item) => item.id === note.id);
                     return (
-                      <li key={note.id} className="flex items-center gap-2" data-testid="plan-day-spot">
+                      <li
+                        key={note.id}
+                        className="flex items-center gap-2"
+                        data-testid="plan-day-spot"
+                        data-plan-source={planSpotSourceKind(note)}
+                      >
                         {photo ? (
                           <Link
                             href={photo.href}
@@ -505,6 +553,11 @@ export function PlanClient({
                         <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
                           {note.placeName}
                         </span>
+                        {planSpotSourceKind(note) === "bait" ? (
+                          <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
+                            Bait
+                          </span>
+                        ) : null}
                       </li>
                     );
                   })}
@@ -550,7 +603,9 @@ export function PlanClient({
                   key={s.id}
                   suggestion={s}
                   showOwner={includeShared}
-                  added={dayHasPlanSpot(selectedNotes, s.placeName)}
+                  added={dayHasPlanSpot(selectedNotes, s.placeName, {
+                    sourceCatchId: s.matches[0]?.catch.id,
+                  })}
                   adding={addingSpotId === s.placeName}
                   plannedPlaceNames={spotsOnDay.map((note) => note.placeName)}
                   onAdd={() => {
@@ -579,7 +634,9 @@ export function PlanClient({
                       key={s.id}
                       suggestion={s}
                       showOwner={includeShared}
-                      added={dayHasPlanSpot(selectedNotes, s.placeName)}
+                      added={dayHasPlanSpot(selectedNotes, s.placeName, {
+                        sourceBaitId: s.matches[0]?.baitSpot.id,
+                      })}
                       adding={addingSpotId === s.placeName}
                       plannedPlaceNames={spotsOnDay.map((note) => note.placeName)}
                       onAdd={() =>
@@ -610,6 +667,7 @@ function PlanDayCalendar({
   year,
   month,
   selectedDay,
+  pendingSpot,
   notedDays,
   onMonthChange,
   onSelectDay,
@@ -617,6 +675,7 @@ function PlanDayCalendar({
   year: number;
   month: number;
   selectedDay: string | null;
+  pendingSpot: PendingPlanSpot | null;
   notedDays: Set<string>;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
@@ -657,7 +716,11 @@ function PlanDayCalendar({
           return (
             <Link
               key={cell.date}
-              href={`/plan?date=${cell.date}`}
+              href={
+                pendingSpot
+                  ? planHrefForPendingSpot(pendingSpot, cell.date)
+                  : `/plan?date=${cell.date}`
+              }
               scroll={false}
               onClick={(event) => {
                 event.preventDefault();

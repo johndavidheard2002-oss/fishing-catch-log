@@ -122,6 +122,15 @@ function planSpotSourceFields(spot: PlanSpotSource): Partial<CalendarNoteInput> 
   return fields;
 }
 
+/** Catch and bait at the same hole are different Planned entries. */
+export function planSpotSourceKind(spot: PlanSpotSource): "catch" | "bait" | "place" {
+  const sourceCatchId = trimToNull(spot.sourceCatchId ?? spot.catchId, MAX_SOURCE_ID);
+  const sourceBaitId = trimToNull(spot.sourceBaitId ?? spot.baitId, MAX_SOURCE_ID);
+  if (sourceBaitId && !sourceCatchId) return "bait";
+  if (sourceCatchId) return "catch";
+  return "place";
+}
+
 /** Suggested Plan spot → a calendar note that pins that place onto the day. */
 export function planSpotNoteInput(day: string, spot: PlanSpotSource): CalendarNoteInput | null {
   if (!DAY_KEY_RE.test(day)) return null;
@@ -140,14 +149,23 @@ export function planSpotNoteInput(day: string, spot: PlanSpotSource): CalendarNo
 }
 
 export function dayHasPlanSpot(
-  notes: Array<{ placeName?: string | null; kind?: string | null }>,
+  notes: Array<
+    PlanSpotSource & {
+      placeName?: string | null;
+      kind?: string | null;
+    }
+  >,
   placeName?: string | null,
+  source?: PlanSpotSource | null,
 ): boolean {
   const key = normalizeNotePlace(placeName);
   if (!key) return false;
-  return notes.some(
-    (note) => isPlanSpotNote(note) && normalizeNotePlace(note.placeName) === key,
-  );
+  const want = source ? planSpotSourceKind(source) : null;
+  return notes.some((note) => {
+    if (!isPlanSpotNote(note) || normalizeNotePlace(note.placeName) !== key) return false;
+    if (!want || want === "place") return true;
+    return planSpotSourceKind(note) === want;
+  });
 }
 
 export function plannedSpotsOnDay(notes: CalendarNote[]): CalendarNote[] {
@@ -165,14 +183,19 @@ export function planHrefForDay(day: string): string {
   return `/plan?date=${day}`;
 }
 
-/** Build a save payload only when that place is not already on the Plan day. */
+/** Build a save payload only when that catch or bait place is not already on the day. */
 export function addPlanSpotToDay(
-  notes: Array<{ placeName?: string | null; kind?: string | null }>,
+  notes: Array<
+    PlanSpotSource & {
+      placeName?: string | null;
+      kind?: string | null;
+    }
+  >,
   day: string,
   spot: PlanSpotSource,
 ): CalendarNoteInput | null {
   const input = planSpotNoteInput(day, spot);
-  if (!input || dayHasPlanSpot(notes, input.placeName)) return null;
+  if (!input || dayHasPlanSpot(notes, input.placeName, spot)) return null;
   return input;
 }
 
@@ -302,16 +325,65 @@ export function listedPlanNotes<T extends { day: string }>(
  * Remount refetch: trust a successful list, but do not replace surviving
  * plan-spots / write-ups with an empty payload (failed purge / empty cache).
  */
-export function mergeListedPlanNotes<T extends { day: string }>(
+export function mergeListedPlanNotes<T extends { day: string; id?: string }>(
   current: T[],
   listed: T[] | null | undefined,
   today: string,
 ): T[] {
   if (!Array.isArray(listed)) return upcomingPlanNotes(current, today);
   const next = upcomingPlanNotes(listed, today);
-  if (next.length) return next;
   const keep = upcomingPlanNotes(current, today);
-  return keep.length ? keep : next;
+  if (!next.length) return keep.length ? keep : next;
+  const listedIds = new Set(next.map((note) => note.id).filter(Boolean));
+  const extras = keep.filter((note) => note.id && !listedIds.has(note.id));
+  return extras.length ? [...next, ...extras] : next;
+}
+
+export type CommittedPlanSpot = PlanSpotSource & {
+  day: string;
+  placeName: string;
+  savedAt?: number;
+};
+
+function committedPlanSpotNote(spot: CommittedPlanSpot): CalendarNote {
+  const savedAt =
+    typeof spot.savedAt === "number" ? new Date(spot.savedAt).toISOString() : new Date().toISOString();
+  const source = planSpotSourceFields(spot);
+  return {
+    id: `local:${spot.day}:${planSpotSourceKind(spot)}:${normalizeNotePlace(spot.placeName)}`,
+    anglerId: "",
+    day: spot.day,
+    title: null,
+    notes: null,
+    placeName: spot.placeName,
+    speciesTargets: parseSpeciesTargets(spot.speciesTargets),
+    kind: PLAN_SPOT_NOTE_KIND,
+    sourceCatchId: source.sourceCatchId ?? null,
+    sourceBaitId: source.sourceBaitId ?? null,
+    photoPath: source.photoPath ?? null,
+    createdAt: savedAt,
+    updatedAt: savedAt,
+  };
+}
+
+/**
+ * Keep a just-saved catch/bait plan-spot visible if a remount refetch is stale.
+ * Drop the local copy once the server list already has that source at the place.
+ */
+export function mergeCommittedPlanSpots(
+  notes: CalendarNote[],
+  committed: CommittedPlanSpot[] = [],
+): CalendarNote[] {
+  if (!committed.length) return notes;
+  const extras: CalendarNote[] = [];
+  for (const spot of committed) {
+    const placeName = trimToNull(spot.placeName, MAX_PLACE);
+    if (!placeName || !DAY_KEY_RE.test(spot.day)) continue;
+    const dayNotes = notes.filter((note) => note.day === spot.day);
+    if (dayHasPlanSpot(dayNotes, placeName, spot)) continue;
+    extras.push(committedPlanSpotNote({ ...spot, placeName }));
+  }
+  return extras.length ? [...notes, ...extras] : notes;
 }
 
 export type PlannedPlacePhoto = {

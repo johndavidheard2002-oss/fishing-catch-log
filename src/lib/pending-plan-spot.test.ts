@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { addPlanSpotToDay } from "./notes";
 import {
+  COMMITTED_PLAN_SPOTS_STORAGE_KEY,
   PENDING_PLAN_BAIT_QUERY,
   PENDING_PLAN_CATCH_QUERY,
   PENDING_PLAN_DAY_STORAGE_KEY,
@@ -13,14 +14,17 @@ import {
   PENDING_PLAN_SPOT_TTL_MS,
   canShowAddToPlan,
   clearPendingPlanSpot,
+  dropCommittedPlanSpotsForDay,
   parsePendingPlanSpotSearch,
   pendingPlanDayToCommit,
   pendingPlanPrompt,
   pendingPlanSpotFromBait,
   pendingPlanSpotFromCatch,
   planHrefForPendingSpot,
+  readCommittedPlanSpots,
   readPendingPlanDay,
   readPendingPlanSpot,
+  rememberCommittedPlanSpot,
   resolvePendingPlanSpot,
   writePendingPlanDay,
   writePendingPlanSpot,
@@ -237,6 +241,29 @@ describe("session handoff", () => {
     clearPendingPlanSpot(storage);
     expect(readPendingPlanDay(storage)).toBeNull();
   });
+
+  it("remembers a saved bait plan-spot across a Plan remount", () => {
+    const storage = memoryStorage();
+    rememberCommittedPlanSpot(storage, {
+      day: "2026-09-12",
+      placeName: "Haulover Canal",
+      sourceBaitId: "b1",
+      photoPath: "shrimp.jpg",
+    });
+    expect(storage.getItem(COMMITTED_PLAN_SPOTS_STORAGE_KEY)).toContain("b1");
+    expect(readCommittedPlanSpots(storage)).toEqual([
+      expect.objectContaining({
+        day: "2026-09-12",
+        placeName: "Haulover Canal",
+        sourceBaitId: "b1",
+        photoPath: "shrimp.jpg",
+      }),
+    ]);
+    clearPendingPlanSpot(storage);
+    expect(readCommittedPlanSpots(storage)).toHaveLength(1);
+    dropCommittedPlanSpotsForDay(storage, "2026-09-12");
+    expect(readCommittedPlanSpots(storage)).toEqual([]);
+  });
 });
 
 describe("Add to plan visibility", () => {
@@ -393,8 +420,16 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("onSelectDay");
     expect(plan).toContain("void commitPendingSpot(date)");
     expect(plan).toContain("planHrefForPendingSpot(pending, date)");
+    expect(plan).toContain("planHrefForPendingSpot(pendingSpot, cell.date)");
     expect(plan).toContain("pendingPlanDayToCommit");
     expect(plan).toContain('window.history.replaceState(null, "", `/plan?date=${day}`)');
+    const commitFn = plan.slice(plan.indexOf("async function commitPendingSpot"));
+    expect(commitFn.indexOf("await onAddSpot(spot, day)")).toBeLessThan(
+      commitFn.indexOf("dropSessionPendingSpot()"),
+    );
+    expect(commitFn.indexOf("await onAddSpot(spot, day)")).toBeLessThan(
+      commitFn.indexOf('window.history.replaceState(null, "", `/plan?date=${day}`)'),
+    );
     expect(plan).toContain("/api/catches/");
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");
@@ -402,6 +437,10 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("dedupeCatchSuggestionsByPlace");
     expect(plan).toContain("extraPastTripMatches");
     expect(plan).toContain("uniqueNotesByPlace");
+    expect(plan).toContain("mergeCommittedPlanSpots");
+    expect(plan).toContain("rememberCommittedPlanSpot");
+    expect(plan).toContain('data-plan-source={planSpotSourceKind(note)}');
+    expect(plan).toContain("Bait");
     expect(plan).not.toContain("setSelectedDay(pending");
     expect(page).toContain("addCatch");
     expect(page).toContain("addBait");
