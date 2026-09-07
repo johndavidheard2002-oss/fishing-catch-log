@@ -214,6 +214,14 @@ describe("Plan add-to-day UI", () => {
     expect(calendar).not.toContain("for=plan");
     expect(plan).toContain('data-testid="plan-suggested-spots"');
     expect(plan).toContain('data-testid="plan-day-spots"');
+    expect(plan).toContain('data-testid="plan-planned"');
+    expect(plan).toContain('data-testid="plan-planned-photos"');
+    expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(
+      plan.indexOf('data-testid="plan-suggested-spots"'),
+    );
+    expect(plan).toContain(">Planned<");
+    expect(plan).not.toContain("On this day");
+    expect(plan).not.toContain("everything planned");
     expect(plan).toContain("Tap Add on a place to put");
     expect(plan).toContain("only that one place");
     expect(plan).toContain("Past trips at this place");
