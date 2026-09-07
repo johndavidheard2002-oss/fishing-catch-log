@@ -24,20 +24,22 @@ export function ShareFriendPicker({
         return (
           <label
             key={buddy.id}
-            className="flex items-center gap-3 rounded-2xl border border-line bg-card px-3 py-2.5"
+            className={`flex items-center gap-3 rounded-xl bg-teal px-4 py-3 text-white ${
+              disabled ? "opacity-50" : ""
+            }`}
           >
             <input
               type="checkbox"
               data-testid={`share-friend-${buddy.id}`}
               checked={on}
               disabled={disabled}
-              className="h-5 w-5 shrink-0 accent-teal"
+              className="h-5 w-5 shrink-0 accent-white"
               onChange={(event) => {
                 if (event.target.checked) onChange([...selectedIds, buddy.id]);
                 else onChange(selectedIds.filter((id) => id !== buddy.id));
               }}
             />
-            <span className="text-2xl font-semibold leading-snug">{buddy.name}</span>
+            <span className="text-xl font-semibold leading-snug">{buddy.name}</span>
           </label>
         );
       })}

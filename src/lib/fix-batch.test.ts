@@ -40,7 +40,7 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(calendar).toContain("shiftYear");
   });
 
-  it("uses one Edit on catch and bait detail, then Share, with larger share-with names", () => {
+  it("uses one Edit on catch and bait detail, then Share, with teal share-with name chips", () => {
     const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     const picker = readFileSync(resolve(__dirname, "../components/ShareFriendPicker.tsx"), "utf8");
@@ -77,10 +77,13 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(baitDetail.slice(baitRow, baitShareBlock)).not.toContain("w-full");
     expect(baitDetail).not.toContain("Edit spot");
     expect(baitDetail).not.toContain("bait-edit-spot");
-    expect(picker).toContain("text-2xl font-semibold");
+    expect(picker).toContain("rounded-xl bg-teal px-4 py-3 text-white");
+    expect(picker).toContain("text-xl font-semibold");
     expect(picker).toContain("{buddy.name}");
+    expect(picker).not.toContain("text-2xl font-semibold");
     expect(picker).not.toContain("text-base font-semibold");
     expect(picker).not.toContain("text-lg font-semibold");
+    expect(picker).not.toContain("bg-card");
     expect(catchDetail).toContain('data-testid="catch-owner-actions"');
     expect(baitDetail).toContain('data-testid="bait-owner-actions"');
     expect(catchDetail).toContain("Boolean(viewerId && record.anglerId === viewerId)");
