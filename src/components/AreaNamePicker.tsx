@@ -10,11 +10,14 @@ export function AreaNamePicker({
   onChange,
   onPickArea,
   onLookupTown,
+  hasPin = false,
 }: {
   value: string;
   onChange: (placeName: string) => void;
   onPickArea: (area: NamedArea) => void;
   onLookupTown?: (query: string) => void;
+  /** A dropped pin locks the map — name edits must not geocode or recenter. */
+  hasPin?: boolean;
 }) {
   const [areas, setAreas] = useState<NamedArea[] | null>(null);
   const [showPast, setShowPast] = useState(false);
@@ -27,14 +30,20 @@ export function AreaNamePicker({
     [],
   );
 
+  useEffect(() => {
+    if (!hasPin || !lookupTimer.current) return;
+    clearTimeout(lookupTimer.current);
+    lookupTimer.current = null;
+  }, [hasPin]);
+
   function scheduleLookup(query: string) {
-    if (!onLookupTown) return;
+    if (!onLookupTown || hasPin) return;
     if (lookupTimer.current) clearTimeout(lookupTimer.current);
     lookupTimer.current = setTimeout(() => onLookupTown(query), TOWN_LOOKUP_DEBOUNCE_MS);
   }
 
   function flushLookup(query: string) {
-    if (!onLookupTown) return;
+    if (!onLookupTown || hasPin) return;
     if (lookupTimer.current) clearTimeout(lookupTimer.current);
     lookupTimer.current = null;
     onLookupTown(query);
@@ -73,7 +82,11 @@ export function AreaNamePicker({
           className="w-full rounded-xl border border-line bg-card px-3 py-3"
         />
       </label>
-      <p className="on-wash-chip text-xs">Type a town to move the map, then tap to drop the pin.</p>
+      <p className="on-wash-chip text-xs">
+        {hasPin
+          ? "Name this spot — the pin stays where you dropped it."
+          : "Type a town to move the map, then tap to drop the pin."}
+      </p>
       <details
         className="text-xs"
         onToggle={(e) => {

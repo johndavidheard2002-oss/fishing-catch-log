@@ -36,6 +36,23 @@ export function shouldGeocodeTownQuery(query: string): boolean {
   return true;
 }
 
+/**
+ * Town search may pan an empty map so the angler can drop a pin.
+ * A dropped pin locks camera and coordinates — naming must not geocode-move it.
+ */
+export function shouldLookupTownForMapFocus(query: string, hasPin: boolean): boolean {
+  return !hasPin && shouldGeocodeTownQuery(query);
+}
+
+/** Apply a town camera only when no pin exists yet. */
+export function townMapFocusForName(
+  focus: TownMapCenter | null | undefined,
+  hasPin: boolean,
+): TownMapCenter | null {
+  if (!focus || hasPin) return null;
+  return focus;
+}
+
 export function boundsFromNominatimBox(box: unknown): TownBounds | null {
   if (!Array.isArray(box) || box.length < 4) return null;
   const south = Number(box[0]);

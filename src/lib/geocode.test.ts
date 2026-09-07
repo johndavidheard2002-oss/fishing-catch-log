@@ -4,9 +4,11 @@ import {
   geocodeTown,
   MIN_TOWN_QUERY_LENGTH,
   shouldGeocodeTownQuery,
+  shouldLookupTownForMapFocus,
   TOWN_MAP_ZOOM,
   townHitFromNominatim,
   townMapCenterFromHit,
+  townMapFocusForName,
 } from "./geocode";
 
 const ROCKPORT = {
@@ -24,6 +26,25 @@ describe("shouldGeocodeTownQuery", () => {
     expect(shouldGeocodeTownQuery("28.7400°N, 80.7500°W")).toBe(false);
     expect(shouldGeocodeTownQuery("Rockport")).toBe(true);
     expect(shouldGeocodeTownQuery("  Port Aransas, TX  ")).toBe(true);
+  });
+});
+
+describe("shouldLookupTownForMapFocus", () => {
+  it("looks up a town only before a pin exists", () => {
+    expect(shouldLookupTownForMapFocus("Rockport", false)).toBe(true);
+    expect(shouldLookupTownForMapFocus("Rockport", true)).toBe(false);
+    expect(shouldLookupTownForMapFocus("Ro", false)).toBe(false);
+    expect(shouldLookupTownForMapFocus("28.7400°N, 80.7500°W", false)).toBe(false);
+  });
+});
+
+describe("townMapFocusForName", () => {
+  it("keeps a typed-town camera and drops it once a pin is down", () => {
+    const rockport = townMapCenterFromHit(townHitFromNominatim([ROCKPORT])!);
+    expect(townMapFocusForName(rockport, false)).toEqual(rockport);
+    expect(townMapFocusForName(rockport, true)).toBeNull();
+    expect(townMapFocusForName(null, false)).toBeNull();
+    expect(townMapFocusForName(undefined, true)).toBeNull();
   });
 });
 

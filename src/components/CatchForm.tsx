@@ -236,7 +236,6 @@ export function CatchForm({
   onSaved?: (record: CatchRecord) => void;
 }) {
   const router = useRouter();
-  const { focusCenter, lookupTown } = useTownMapFocus();
   const [form, setForm] = useState<FormState>(() => {
     const base = initial ? fromRecord(initial) : emptyForm(pastMode, importedCaughtAt);
     if (importedPhotoLat == null || importedPhotoLon == null) return base;
@@ -246,6 +245,9 @@ export function CatchForm({
       photoTakenLongitude: String(importedPhotoLon),
     };
   });
+  const hasDroppedPin =
+    numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
+  const { focusCenter, lookupTown } = useTownMapFocus(hasDroppedPin);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initial
@@ -1558,6 +1560,7 @@ function CatchLocationFields({
         onChange={onPlace}
         onPickArea={onSelectArea}
         onLookupTown={onLookupTown}
+        hasPin={catchLat != null && catchLon != null}
       />
       <MapPicker
         latitude={catchLat}

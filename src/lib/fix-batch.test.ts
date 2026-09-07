@@ -144,6 +144,7 @@ describe("Tide Mark next-pass UI contracts", () => {
     const picker = readFileSync(resolve(__dirname, "../components/AreaNamePicker.tsx"), "utf8");
     const catchForm = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
     const bait = readFileSync(resolve(__dirname, "../components/BaitSpotForm.tsx"), "utf8");
+    const focusHook = readFileSync(resolve(__dirname, "../components/useTownMapFocus.ts"), "utf8");
     const focusFn = map.slice(map.indexOf("function applyTownFocus"), map.indexOf("const PIN_BOX"));
     expect(picker).toContain("onLookupTown");
     expect(picker).toContain("Type a town to move the map");
@@ -156,6 +157,16 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(catchForm).toContain("focusCenter={focusCenter}");
     expect(bait).toContain("lookupTown");
     expect(bait).toContain("focusCenter={focusCenter}");
+    expect(focusFn).toContain("townMapFocusForName");
+    expect(focusFn).toContain("hasPin");
+    expect(focusHook).toContain("shouldLookupTownForMapFocus");
+    expect(focusHook).toContain("hasPinRef.current");
+    expect(catchForm).toContain("useTownMapFocus(hasDroppedPin)");
+    expect(bait).toContain("useTownMapFocus(hasDroppedPin)");
+    expect(catchForm).toContain("hasPin={catchLat != null && catchLon != null}");
+    expect(bait).toContain("hasPin={catchLat != null && catchLon != null}");
+    expect(picker).toContain("if (!onLookupTown || hasPin) return");
+    expect(picker).toContain("the pin stays where you dropped it");
   });
 
   it("treats live Camera as supplied by the form, not EXIF-only", () => {

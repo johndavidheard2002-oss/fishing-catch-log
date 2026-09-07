@@ -118,8 +118,10 @@ export function BaitSpotForm({
   onSaved?: (spot: BaitSpot) => void;
 }) {
   const router = useRouter();
-  const { focusCenter, lookupTown } = useTownMapFocus();
   const [form, setForm] = useState<FormState>(() => (initial ? fromRecord(initial) : emptyForm()));
+  const hasDroppedPin =
+    numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
+  const { focusCenter, lookupTown } = useTownMapFocus(hasDroppedPin);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     initial ? personalPhotoSrc(initial.photoPath) : null,
@@ -305,6 +307,7 @@ export function BaitSpotForm({
         onChange={(placeName) => patch({ placeName })}
         onPickArea={onPickArea}
         onLookupTown={lookupTown}
+        hasPin={catchLat != null && catchLon != null}
       />
       {catchLat == null ? (
         <div className="rounded-2xl border border-dashed border-line bg-paper px-3 py-2 text-xs">
