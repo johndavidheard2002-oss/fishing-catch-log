@@ -26,6 +26,7 @@ import {
   mergeListedPlanNotes,
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
+  planSpotDetailHref,
   planSpotSourceKind,
   restorePlanDay,
   safePlanDayPurgeBeforeKey,
@@ -220,6 +221,18 @@ describe("dayHasPlanSpot", () => {
     });
     expect(planSpotSourceKind({ baitId: "b1" })).toBe("bait");
     expect(planSpotSourceKind({ sourceCatchId: "c1" })).toBe("catch");
+    expect(planSpotDetailHref({ sourceBaitId: "b1" })).toBe("/bait/b1");
+    expect(planSpotDetailHref({ baitId: "b1" })).toBe("/bait/b1");
+    expect(planSpotDetailHref({ sourceBaitId: "b1", photoPath: null })).toBe("/bait/b1");
+    expect(planSpotDetailHref({ sourceCatchId: "c1" })).toBe("/catch/c1");
+    expect(planSpotDetailHref({ catchId: "c1" })).toBe("/catch/c1");
+    expect(
+      planSpotDetailHref({ sourceBaitId: "b1" }, { href: "/catch/wrong" }),
+    ).toBe("/bait/b1");
+    expect(planSpotDetailHref({ placeName: "Haulover Canal" })).toBeNull();
+    expect(
+      planSpotDetailHref({ placeName: "Haulover Canal" }, { href: "/catch/c1" }),
+    ).toBe("/catch/c1");
   });
 
   it("keeps Plan-day adds out of Calendar Log Planned trips", () => {
@@ -268,6 +281,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("mergeListedPlanNotes");
     expect(plan).toContain("mergePlannedPlacePhotos");
     expect(plan).toContain("photosForPlannedPlaces");
+    expect(plan).toContain("planSpotDetailHref");
+    expect(plan).toContain('data-testid="plan-day-spot-open"');
     expect(plan).toContain("sourceCatchId");
     expect(plan).toContain("sourceBaitId");
     expect(plan).toContain("restorePlanDay");

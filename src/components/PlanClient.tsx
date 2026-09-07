@@ -20,6 +20,7 @@ import {
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
   plannedSpotsOnDay,
+  planSpotDetailHref,
   planSpotSourceKind,
   restorePlanDay,
   type PlanSpotSource,
@@ -528,19 +529,12 @@ export function PlanClient({
                 <ul className="flex flex-col gap-2" data-testid="plan-planned-photos">
                   {spotsOnDay.map((note) => {
                     const photo = plannedPhotos.find((item) => item.id === note.id);
-                    return (
-                      <li
-                        key={note.id}
-                        className="flex items-center gap-2"
-                        data-testid="plan-day-spot"
-                        data-plan-source={planSpotSourceKind(note)}
-                      >
+                    const kind = planSpotSourceKind(note);
+                    const href = planSpotDetailHref(note, photo);
+                    const row = (
+                      <>
                         {photo ? (
-                          <Link
-                            href={photo.href}
-                            className={`block shrink-0 overflow-hidden rounded-xl ${TAP_RESET}`}
-                            aria-label={`${photo.placeName} photo`}
-                          >
+                          <span className="block shrink-0 overflow-hidden rounded-xl">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={photo.src}
@@ -548,16 +542,39 @@ export function PlanClient({
                               className="h-16 w-16 object-cover"
                               data-testid="plan-planned-photo"
                             />
-                          </Link>
+                          </span>
                         ) : null}
                         <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
                           {note.placeName}
                         </span>
-                        {planSpotSourceKind(note) === "bait" ? (
+                        {kind === "bait" ? (
                           <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
                             Bait
                           </span>
                         ) : null}
+                      </>
+                    );
+                    return (
+                      <li
+                        key={note.id}
+                        className="flex items-center gap-2"
+                        data-testid="plan-day-spot"
+                        data-plan-source={kind}
+                      >
+                        {href ? (
+                          <Link
+                            href={href}
+                            className={`flex min-w-0 items-center gap-2 ${TAP_RESET}`}
+                            aria-label={
+                              kind === "bait" ? `${note.placeName} bait` : `${note.placeName} catch`
+                            }
+                            data-testid="plan-day-spot-open"
+                          >
+                            {row}
+                          </Link>
+                        ) : (
+                          row
+                        )}
                       </li>
                     );
                   })}
