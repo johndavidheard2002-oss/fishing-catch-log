@@ -364,6 +364,7 @@ function BaitSpotPanel({
   onOpenLocation: (target: LocationMapTarget) => void;
 }) {
   const latestNotes = group.spots.find((s) => s.notes?.trim())?.notes?.trim() ?? null;
+  const thumb = baitGroupThumbSrc(group);
   return (
     <section
       data-testid="spot-detail-panel"
@@ -376,7 +377,11 @@ function BaitSpotPanel({
           className="shrink-0"
           aria-label={`Show ${group.placeName} on the map`}
         >
-          <OptionThumb src={baitGroupThumbSrc(group)} kind="bait" size={40} />
+          {thumb ? (
+            <OptionThumb src={thumb} kind="bait" size={40} />
+          ) : (
+            <span className="text-xs font-semibold text-teal">Map</span>
+          )}
         </button>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl text-teal">{group.placeName}</h2>

@@ -4,7 +4,7 @@ import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
 import { baitSpotLabel, yearFromDateKey } from "@/lib/calendar";
 import { formatCatchWhen, formatTimeOnly, TIME_OF_DAY_LABELS } from "@/lib/time";
-import { photoSrc, weatherLine } from "@/lib/photo";
+import { personalPhotoSrc, weatherLine } from "@/lib/photo";
 import type { BaitSpot } from "@/lib/types";
 
 export function BaitSpotCard({
@@ -20,22 +20,19 @@ export function BaitSpotCard({
   showYear?: boolean;
   viewerId?: string;
 }) {
-  const src = photoSrc(spot.photoPath);
+  const src = personalPhotoSrc(spot.photoPath);
   const theirs = viewerId && spot.anglerId !== viewerId;
+  const badge = theirs ? <SharedOwnerBadge name={spot.ownerName} compact={compact} /> : null;
   return (
     <div className="journal-card relative flex overflow-hidden rounded-2xl" data-testid="calendar-bait-entry">
       <Link href={`/bait/${spot.id}`} className="flex min-w-0 flex-1" data-testid="calendar-bait-open">
-        <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 overflow-hidden bg-paper-deep`}>
-          {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center px-1 text-center text-[10px] font-semibold uppercase tracking-wide text-copper">
-              Bait
-            </div>
-          )}
-          {theirs ? <SharedOwnerBadge name={spot.ownerName} compact={compact} /> : null}
-        </div>
+        {src ? (
+          <div className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 overflow-hidden bg-paper-deep`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt="" className="h-full w-full object-cover" data-testid="bait-photo" />
+            {badge}
+          </div>
+        ) : null}
         <div className="min-w-0 flex-1 px-3 py-2">
           <p className="truncate font-semibold text-ink">{baitTypesLabel(spot.baitTypes)}</p>
           <p className="truncate text-sm text-ink-muted">{baitSpotLabel(spot)}</p>
@@ -70,6 +67,7 @@ export function BaitSpotCard({
           </p>
         </div>
       </Link>
+      {!src ? badge : null}
     </div>
   );
 }
@@ -81,22 +79,19 @@ export function BaitSpotGridCard({
   spot: BaitSpot;
   viewerId?: string;
 }) {
-  const src = photoSrc(spot.photoPath);
+  const src = personalPhotoSrc(spot.photoPath);
   const theirs = viewerId && spot.anglerId !== viewerId;
+  const badge = theirs ? <SharedOwnerBadge name={spot.ownerName} /> : null;
   return (
     <div className="journal-card relative overflow-hidden rounded-2xl" data-testid="calendar-bait-entry">
       <Link href={`/bait/${spot.id}`} className="block" data-testid="calendar-bait-open">
-        <div className="relative aspect-square overflow-hidden bg-paper-deep">
-          {src ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-xs font-semibold uppercase tracking-wide text-copper">
-              Bait
-            </div>
-          )}
-          {theirs ? <SharedOwnerBadge name={spot.ownerName} /> : null}
-        </div>
+        {src ? (
+          <div className="relative aspect-square overflow-hidden bg-paper-deep">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt="" className="h-full w-full object-cover" data-testid="bait-photo" />
+            {badge}
+          </div>
+        ) : null}
         <div className="px-2.5 py-2">
           <p className="truncate text-sm font-semibold">{baitTypesLabel(spot.baitTypes)}</p>
           <p className="truncate text-xs text-ink-muted">{baitSpotLabel(spot)}</p>
@@ -105,6 +100,7 @@ export function BaitSpotGridCard({
           </p>
         </div>
       </Link>
+      {!src ? badge : null}
     </div>
   );
 }

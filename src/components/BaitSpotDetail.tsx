@@ -21,7 +21,7 @@ import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { PRIVACY_LINE } from "@/lib/privacy";
-import { photoSrc } from "@/lib/photo";
+import { personalPhotoSrc } from "@/lib/photo";
 import { formatCaughtAt } from "@/lib/time";
 import type { BaitSpot } from "@/lib/types";
 
@@ -135,7 +135,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
     );
   }
 
-  const src = photoSrc(record.photoPath);
+  const src = personalPhotoSrc(record.photoPath);
   return (
     <div className="space-y-4">
       <Link href="/spots?kind=bait" className="on-wash-chip w-fit text-sm font-semibold text-teal">
@@ -151,7 +151,7 @@ export function BaitSpotDetail({ id }: { id: string }) {
       ) : null}
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="w-full rounded-3xl object-cover" />
+        <img src={src} alt="" className="w-full rounded-3xl object-cover" data-testid="bait-photo" />
       ) : null}
       <div className="page-intro">
         <p className="text-xs font-semibold uppercase tracking-wide text-copper">Bait</p>

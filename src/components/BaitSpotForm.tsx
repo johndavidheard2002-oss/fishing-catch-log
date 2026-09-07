@@ -12,7 +12,7 @@ import { DEFAULT_HABITAT, HABITAT_LABELS, isDuckHabitat, isSaltwaterHabitat, typ
 import { formatTideDetail, tidesApplyToHabitat } from "@/lib/tides/snapshot";
 import { inHgToMb, mbToInHg } from "@/lib/pressure";
 import { PRIVACY_LINE } from "@/lib/privacy";
-import { photoSrc } from "@/lib/photo";
+import { personalPhotoSrc } from "@/lib/photo";
 import { dateFromDatetimeLocal, datetimeLocalValue, isoFromDatetimeLocal, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import type { BaitSpot, NamedArea, Season, TimeOfDay } from "@/lib/types";
 
@@ -122,7 +122,7 @@ export function BaitSpotForm({
   const [form, setForm] = useState<FormState>(() => (initial ? fromRecord(initial) : emptyForm()));
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    initial ? photoSrc(initial.photoPath) : null,
+    initial ? personalPhotoSrc(initial.photoPath) : null,
   );
   const [customBait, setCustomBait] = useState("");
   const [saving, setSaving] = useState(false);
@@ -286,6 +286,7 @@ export function BaitSpotForm({
       ) : null}
       <PhotoCapture
         previewUrl={previewUrl}
+        hideEmptyWell
         onFile={(file) => {
           setPhotoFile(file);
           setPreviewUrl(URL.createObjectURL(file));

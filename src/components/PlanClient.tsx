@@ -677,14 +677,12 @@ function BaitSuggestionCard({
         data-testid="plan-bait-card"
       >
         <div className="flex gap-3">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
-            {src ? (
-              // eslint-disable-next-line @next/next/no-img-element
+          {src ? (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-paper-deep">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" className="h-full w-full object-cover" data-testid="plan-bait-photo" />
-            ) : (
-              <span className="px-1.5 text-center text-[10px] leading-tight text-ink-muted">Bait</span>
-            )}
-          </div>
+            </div>
+          ) : null}
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <span className="font-semibold">{suggestion.placeName}</span>
@@ -760,11 +758,7 @@ function BaitSuggestionCard({
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={baitSrc} alt="" className="h-full w-full object-cover" data-testid="plan-bait-photo" />
                   </span>
-                ) : (
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-paper-deep text-center text-[9px] leading-tight text-ink-muted">
-                    Bait
-                  </span>
-                )}
+                ) : null}
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-teal">
                     {baitTypesLabel(m.baitSpot.baitTypes)} · {formatDateOnly(m.baitSpot.loggedAt)}

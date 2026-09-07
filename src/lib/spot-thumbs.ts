@@ -1,4 +1,4 @@
-import { photoSrc } from "./photo";
+import { personalPhotoSrc, photoSrc } from "./photo";
 import type { BaitSpot, BaitSpotGroup, CatchRecord, SpotGroup } from "./types";
 
 const SPECIES_PLACEHOLDERS: { test: RegExp; src: string }[] = [
@@ -34,7 +34,7 @@ export function catchRecordThumbSrc(record: CatchRecord): string | null {
 }
 
 export function baitRecordThumbSrc(spot: BaitSpot): string | null {
-  return photoSrc(spot.photoPath);
+  return personalPhotoSrc(spot.photoPath);
 }
 
 export function catchGroupThumbSrc(group: SpotGroup): string | null {
@@ -42,5 +42,9 @@ export function catchGroupThumbSrc(group: SpotGroup): string | null {
 }
 
 export function baitGroupThumbSrc(group: BaitSpotGroup): string | null {
-  return firstPhotoSrc(group.spots.map((s) => s.photoPath));
+  for (const path of group.spots.map((s) => s.photoPath)) {
+    const src = personalPhotoSrc(path ?? null);
+    if (src) return src;
+  }
+  return null;
 }
