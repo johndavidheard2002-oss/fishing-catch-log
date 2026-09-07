@@ -205,4 +205,14 @@ describe("Tide Mark next-pass UI contracts", () => {
     );
     expect(linkBtn).not.toContain("bg-copper");
   });
+
+  it("shows shared spot names next to Home shared dates", () => {
+    const buddies = readFileSync(resolve(__dirname, "../components/BuddyPanel.tsx"), "utf8");
+    const shared = buddies.slice(buddies.indexOf("SharedDaysList"));
+    expect(shared).toContain("ownerSharedDays");
+    expect(shared).toContain("/api/bait-spots");
+    expect(shared).toContain("formatWeekdayDate(row.day)");
+    expect(shared).toContain("row.placeNames");
+    expect(shared).toContain("home-shared-days");
+  });
 });
