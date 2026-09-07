@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ensureDefaultAngler } from "./anglers";
 import { getDb, resetDbForTests } from "./index";
-import { addPlanSpotToDay } from "../notes";
+import { addPlanSpotToDay, listedPlanNotes, restorePlanDay } from "../notes";
 import { createCatch, listCatches } from "./catches";
 import {
   createCalendarNote,
@@ -197,6 +197,30 @@ describe("calendar notes", () => {
     const catches = await listCatches();
     expect(catches.map((record) => record.id)).toEqual([loggedCatch.id]);
     expect(catches[0]?.placeName).toBe("Haulover Canal");
+  });
+
+  it("keeps today's plan-spots after a second Plan list (leave and return)", async () => {
+    const anglerId = freshDb();
+    const todaySpot = await createCalendarNote(anglerId, {
+      day: "2026-09-10",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+    });
+    const writeup = await createCalendarNote(anglerId, {
+      day: "2026-09-10",
+      notes: "Wind east 10.",
+    });
+    const first = await listCalendarNotes(anglerId, { forPlan: true, today: "2026-09-10" });
+    expect(first.map((note) => note.id).sort()).toEqual([todaySpot.id, writeup.id].sort());
+    const second = await listCalendarNotes(anglerId, { forPlan: true, today: "2026-09-10" });
+    expect(second.map((note) => note.id).sort()).toEqual([todaySpot.id, writeup.id].sort());
+    expect(listedPlanNotes(second, "2026-09-10")?.map((note) => note.id).sort()).toEqual(
+      [todaySpot.id, writeup.id].sort(),
+    );
+    expect(restorePlanDay(second, "2026-09-10", null)).toBe("2026-09-10");
+    expect(second.filter((note) => note.kind === "plan-spot").map((note) => note.placeName)).toEqual([
+      "Haulover Canal",
+    ]);
   });
 
   it("leaves expired Plan notes in place when Calendar Log lists without forPlan", async () => {

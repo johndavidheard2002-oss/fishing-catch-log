@@ -8,6 +8,9 @@ import {
   forecastWindowWhenLabel,
   isPositiveCatch,
   parsePlanDate,
+  LAST_PLAN_DAY_STORAGE_KEY,
+  readLastPlanDay,
+  writeLastPlanDay,
   planHeadline,
   planLookupFailureNote,
   planPlaceToAdd,
@@ -683,6 +686,25 @@ describe("parsePlanDate", () => {
     expect(parsePlanDate("not-a-day")).toBeNull();
     expect(parsePlanDate("2026-13-40")).toBeNull();
     expect(parsePlanDate(null)).toBeNull();
+  });
+});
+
+describe("last Plan day storage", () => {
+  it("remembers a picked day so /plan without a date can reopen it", () => {
+    const store = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        store.set(key, value);
+      },
+    };
+    expect(readLastPlanDay(storage)).toBeNull();
+    writeLastPlanDay("nope", storage);
+    expect(store.size).toBe(0);
+    writeLastPlanDay("2026-09-11", storage);
+    expect(store.get(LAST_PLAN_DAY_STORAGE_KEY)).toBe("2026-09-11");
+    expect(readLastPlanDay(storage)).toBe("2026-09-11");
+    expect(readLastPlanDay(null)).toBeNull();
   });
 });
 

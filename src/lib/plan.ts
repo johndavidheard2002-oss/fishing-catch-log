@@ -538,6 +538,31 @@ export function parsePlanDate(raw: string | null | undefined): Date | null {
   return date;
 }
 
+/** Survives tab switches when `/plan` is opened without `?date=`. */
+export const LAST_PLAN_DAY_STORAGE_KEY = "tide-mark-plan-day";
+
+export function readLastPlanDay(storage?: Pick<Storage, "getItem"> | null): string | null {
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(LAST_PLAN_DAY_STORAGE_KEY);
+    return raw && parsePlanDate(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastPlanDay(
+  day: string,
+  storage?: Pick<Storage, "setItem"> | null,
+): void {
+  if (!storage || !parsePlanDate(day)) return;
+  try {
+    storage.setItem(LAST_PLAN_DAY_STORAGE_KEY, day);
+  } catch {
+    /* private browsing */
+  }
+}
+
 export async function buildPlan(
   records: CatchRecord[],
   days: number,

@@ -14,9 +14,10 @@ import {
   dayHasPlanSpot,
   groupNotesByDay,
   journalNotesForCalendarLog,
+  listedPlanNotes,
   normalizeNotePlace,
   plannedSpotsOnDay,
-  upcomingPlanNotes,
+  restorePlanDay,
 } from "@/lib/notes";
 import {
   PENDING_PLAN_BAIT_QUERY,
@@ -39,9 +40,11 @@ import {
   planWhyChips,
   forecastWindowWhenLabel,
   dedupeBaitSuggestionsByPlace,
+  readLastPlanDay,
   splitBaitSuggestionByPlace,
   splitPlanSuggestionByPlace,
   uniqueNotesByPlace,
+  writeLastPlanDay,
 } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
@@ -135,7 +138,7 @@ export function PlanClient({
     return parsePlanDate(initialDate) ? initialDate : null;
   });
   const [notes, setNotes] = useState<CalendarNote[]>(() =>
-    upcomingPlanNotes(initialNotes, todayKey()),
+    listedPlanNotes(initialNotes, todayKey()) ?? [],
   );
   const [year, setYear] = useState(() => {
     const parsed = parsePlanDate(selectedDay);
@@ -157,12 +160,29 @@ export function PlanClient({
 
   useEffect(() => {
     function onPop() {
+      if (pendingSpot) return;
       const date = new URLSearchParams(window.location.search).get("date");
-      setSelectedDay(parsePlanDate(date) ? date : null);
+      setSelectedDay(
+        restorePlanDay(
+          notes,
+          todayKey(),
+          parsePlanDate(date) ? date : readLastPlanDay(sessionStorage),
+        ),
+      );
     }
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  }, [notes, pendingSpot]);
+
+  useEffect(() => {
+    if (pendingSpot) return;
+    if (selectedDay) {
+      writeLastPlanDay(selectedDay, sessionStorage);
+      return;
+    }
+    const restored = restorePlanDay(notes, todayKey(), readLastPlanDay(sessionStorage));
+    if (restored) setSelectedDay(restored);
+  }, [selectedDay, notes, pendingSpot]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -200,11 +220,16 @@ export function PlanClient({
     let cancelled = false;
     const today = todayKey();
     fetch(`/api/calendar-notes?for=plan&today=${today}`, { cache: "no-store" })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!cancelled && Array.isArray(data.notes)) {
-          setNotes(upcomingPlanNotes(data.notes, today));
-        }
+        if (cancelled) return;
+        const next = listedPlanNotes(data?.notes, today);
+        if (!next) return;
+        setNotes(next);
+        setSelectedDay((current) => {
+          if (current || pendingSpot) return current;
+          return restorePlanDay(next, today, readLastPlanDay(sessionStorage));
+        });
       })
       .catch(() => {});
     return () => {

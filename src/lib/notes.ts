@@ -200,6 +200,37 @@ export function upcomingPlanNotes<T extends { day: string }>(notes: T[], today: 
   return notes.filter((note) => !isExpiredPlanDay(note.day, today));
 }
 
+/**
+ * GET / remount pipeline: keep plan-spots and write-ups that are not 3+ days old.
+ * A missing or non-array list is treated as “no update”, not an empty plan.
+ */
+export function listedPlanNotes<T extends { day: string }>(
+  notes: T[] | null | undefined,
+  today: string,
+): T[] | null {
+  if (!Array.isArray(notes)) return null;
+  return upcomingPlanNotes(notes, today);
+}
+
+/**
+ * Which day the Planned panel should open on after leaving Plan and coming back.
+ * A still-valid `?date=` (or last picked day) wins; otherwise the soonest day
+ * that still has notes — today, then the next future day, then the latest grace day.
+ */
+export function restorePlanDay(
+  notes: Array<{ day: string }>,
+  today: string,
+  requestedDay?: string | null,
+): string | null {
+  const requested = parseDayKey(requestedDay);
+  if (requested && !isExpiredPlanDay(requested, today)) return requested;
+  const days = [...new Set(upcomingPlanNotes(notes, today).map((note) => note.day))].sort();
+  if (days.includes(today)) return today;
+  const future = days.find((day) => day > today);
+  if (future) return future;
+  return days.length ? days[days.length - 1]! : null;
+}
+
 export function groupNotesByDay(notes: CalendarNote[]): Map<string, CalendarNote[]> {
   const groups = new Map<string, CalendarNote[]>();
   for (const note of notes) {

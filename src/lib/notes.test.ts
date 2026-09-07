@@ -18,6 +18,8 @@ import {
   planNotesOnDay,
   planSpotNoteInput,
   plannedSpotsOnDay,
+  listedPlanNotes,
+  restorePlanDay,
   shiftDayKey,
   upcomingPlanNotes,
 } from "./notes";
@@ -215,8 +217,15 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("dedupeBaitSuggestionsByPlace");
     expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).toContain("/api/calendar-notes?for=plan&today=");
-    expect(plan).toContain("upcomingPlanNotes");
+    expect(plan).toContain("listedPlanNotes");
+    expect(plan).toContain("restorePlanDay");
+    expect(plan).toContain("readLastPlanDay");
+    expect(plan).toContain("r.ok ? r.json() : null");
     expect(plan).toContain("onDeletePlan");
+    const planPage = readFileSync(resolve(__dirname, "../app/plan/page.tsx"), "utf8");
+    expect(planPage).toContain("restorePlanDay");
+    expect(planPage).toContain("listCalendarNotes(viewer.id, { forPlan: true })");
+    expect(planPage).not.toContain("today:");
     expect(plan).toContain('confirm("Delete this plan?")');
     expect(plan).toContain("/api/calendar-notes?day=");
     expect(plan).toContain('data-testid="plan-delete-day"');
@@ -358,6 +367,54 @@ describe("expired Plan days", () => {
       "future-note",
     ]);
     expect(planNotesOnDay(all, "2026-09-10").map((n) => n.id)).toEqual(["today-spot"]);
+  });
+
+  it("keeps today's plan-spots through the Plan remount list/refetch path", () => {
+    const today = "2026-09-10";
+    const spot = note({
+      id: "today-spot",
+      day: today,
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+    });
+    const writeup = note({
+      id: "today-note",
+      day: today,
+      notes: "Wind east 10.",
+    });
+    const grace = note({
+      id: "grace-spot",
+      day: "2026-09-08",
+      placeName: "Farm Pond",
+      kind: "plan-spot",
+    });
+    // SSR lists without today (no purge). Client refetch filters with local today.
+    const ssr = [spot, writeup, grace];
+    const afterRefetch = listedPlanNotes(ssr, today);
+    expect(afterRefetch?.map((n) => n.id)).toEqual(["today-spot", "today-note", "grace-spot"]);
+    expect(listedPlanNotes(undefined, today)).toBeNull();
+    expect(listedPlanNotes({ notes: ssr } as unknown as CalendarNote[], today)).toBeNull();
+    expect(restorePlanDay(afterRefetch ?? [], today, null)).toBe(today);
+    expect(restorePlanDay(afterRefetch ?? [], today, "2026-09-11")).toBe("2026-09-11");
+    expect(plannedSpotsOnDay(planNotesOnDay(afterRefetch ?? [], today)).map((n) => n.placeName)).toEqual([
+      "Haulover Canal",
+    ]);
+  });
+
+  it("reopens the Planned panel on a day that still has notes when /plan has no date", () => {
+    const today = "2026-09-10";
+    const tomorrow = note({
+      id: "t",
+      day: "2026-09-11",
+      placeName: "The point",
+      kind: "plan-spot",
+    });
+    expect(restorePlanDay([], today, null)).toBeNull();
+    expect(restorePlanDay([tomorrow], today, null)).toBe("2026-09-11");
+    expect(restorePlanDay([tomorrow], today, "2026-09-07")).toBe("2026-09-11");
+    expect(restorePlanDay([note({ day: "2026-09-09", notes: "Grace" })], today, null)).toBe(
+      "2026-09-09",
+    );
   });
 });
 
