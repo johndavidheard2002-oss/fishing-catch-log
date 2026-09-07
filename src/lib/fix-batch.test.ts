@@ -63,9 +63,16 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(baitDetail).not.toContain("Edit spot");
     expect(baitDetail).not.toContain("bait-edit-spot");
     expect(baitDetail.slice(baitEdit, baitShareBlock)).not.toContain("Delete");
-    expect(picker).toContain("text-xl font-semibold");
+    expect(picker).toContain("text-2xl font-semibold");
     expect(picker).toContain("{buddy.name}");
     expect(picker).not.toContain("text-base font-semibold");
+    expect(picker).not.toContain("text-lg font-semibold");
+    expect(catchDetail).toContain('data-testid="catch-owner-actions"');
+    expect(baitDetail).toContain('data-testid="bait-owner-actions"');
+    expect(catchDetail).toContain("Boolean(viewerId && record.anglerId === viewerId)");
+    expect(baitDetail).toContain("Boolean(viewerId && record.anglerId === viewerId)");
+    expect(catchDetail).toContain("if (editing && isOwner)");
+    expect(baitDetail).toContain("if (editing && isOwner)");
   });
 
   it("lets a single Edit change bait location on the same form as a catch", () => {

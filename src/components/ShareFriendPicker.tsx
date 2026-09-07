@@ -37,7 +37,7 @@ export function ShareFriendPicker({
                 else onChange(selectedIds.filter((id) => id !== buddy.id));
               }}
             />
-            <span className="text-xl font-semibold leading-snug">{buddy.name}</span>
+            <span className="text-2xl font-semibold leading-snug">{buddy.name}</span>
           </label>
         );
       })}

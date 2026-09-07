@@ -115,11 +115,11 @@ export function CatchDetail({ id }: { id: string }) {
   if (error) return <p className="on-wash-chip text-ink">{error}</p>;
   if (!record) return <p className="on-wash-chip">Opening the page…</p>;
 
-  const isOwner = !viewerId || record.anglerId === viewerId;
+  const isOwner = Boolean(viewerId && record.anglerId === viewerId);
 
   const src = photoSrc(record.photoPath);
 
-  if (editing) {
+  if (editing && isOwner) {
     return (
       <div className="space-y-4">
         <button type="button" className="on-wash-chip w-fit text-sm text-teal" onClick={() => setEditing(false)}>
@@ -203,7 +203,7 @@ export function CatchDetail({ id }: { id: string }) {
             <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
           </header>
 
-          <CatchLocationMap record={record} />
+          <CatchLocationMap record={record} canEdit={isOwner} />
 
           <section data-testid="catch-conditions">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Conditions</h2>
@@ -320,16 +320,16 @@ export function CatchDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          data-testid="catch-edit"
-          className="w-full rounded-xl bg-teal py-3 font-semibold text-white"
-        >
-          Edit
-        </button>
-        {isOwner ? (
+      {isOwner ? (
+        <div className="space-y-3" data-testid="catch-owner-actions">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            data-testid="catch-edit"
+            className="w-full rounded-xl bg-teal py-3 font-semibold text-white"
+          >
+            Edit
+          </button>
           <div data-testid="catch-share-block">
             <button
               type="button"
@@ -365,16 +365,17 @@ export function CatchDetail({ id }: { id: string }) {
               }}
             />
           </div>
-        ) : null}
-        <button
-          type="button"
-          onClick={onDelete}
-          className="w-full rounded-xl border border-line px-4 py-3 font-semibold"
-        >
-          Delete
-        </button>
-        {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
-      </div>
+          <button
+            type="button"
+            onClick={onDelete}
+            data-testid="catch-delete"
+            className="w-full rounded-xl border border-line px-4 py-3 font-semibold"
+          >
+            Delete
+          </button>
+          {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
+        </div>
+      ) : null}
 
       <section id="similar" className="space-y-3">
         <h2 className="on-wash-chip w-fit font-display text-2xl text-teal">Similar to this catch</h2>
@@ -393,7 +394,7 @@ export function CatchDetail({ id }: { id: string }) {
   );
 }
 
-function CatchLocationMap({ record }: { record: CatchRecord }) {
+function CatchLocationMap({ record, canEdit }: { record: CatchRecord; canEdit: boolean }) {
   const hasPin = hasSavedPin(record.latitude, record.longitude);
   const spots = hasPin ? groupSpots([record]) : [];
   return (
@@ -411,7 +412,9 @@ function CatchLocationMap({ record }: { record: CatchRecord }) {
             className="rounded-2xl border border-line bg-paper-deep px-3 py-6 text-sm text-ink-muted"
             data-testid="catch-location-map-empty"
           >
-            This catch has no saved pin. Tap Edit to drop one on the map.
+            {canEdit
+              ? "This catch has no saved pin. Tap Edit to drop one on the map."
+              : "This catch has no saved pin."}
           </p>
         )}
       </div>
