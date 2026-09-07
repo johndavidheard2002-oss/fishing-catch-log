@@ -44,25 +44,39 @@ describe("Tide Mark next-pass UI contracts", () => {
     const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     const picker = readFileSync(resolve(__dirname, "../components/ShareFriendPicker.tsx"), "utf8");
+    const catchRow = catchDetail.indexOf('data-testid="catch-action-row"');
     const catchEdit = catchDetail.indexOf('data-testid="catch-edit"');
-    const shareBlock = catchDetail.indexOf('data-testid="catch-share-block"');
     const shareBtn = catchDetail.indexOf('data-testid="catch-share"');
-    const catchDelete = catchDetail.indexOf("Delete", catchEdit);
-    expect(catchEdit).toBeGreaterThan(-1);
-    expect(shareBlock).toBeGreaterThan(catchEdit);
-    expect(shareBtn).toBeGreaterThan(shareBlock);
-    expect(catchDelete).toBeGreaterThan(shareBlock);
+    const catchDelete = catchDetail.indexOf('data-testid="catch-delete"');
+    const shareBlock = catchDetail.indexOf('data-testid="catch-share-block"');
+    expect(catchRow).toBeGreaterThan(-1);
+    expect(catchEdit).toBeGreaterThan(catchRow);
+    expect(shareBtn).toBeGreaterThan(catchEdit);
+    expect(catchDelete).toBeGreaterThan(shareBtn);
+    expect(shareBlock).toBeGreaterThan(catchDelete);
+    expect(catchDetail).toContain("flex flex-wrap gap-2");
+    expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-edit");
+    expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-share");
+    expect(catchDetail.slice(catchRow, shareBlock)).toContain("catch-delete");
+    expect(catchDetail.slice(catchRow, shareBlock)).not.toContain("w-full");
     expect(catchDetail).not.toContain("Edit spot");
     expect(catchDetail).not.toContain("catch-edit-spot");
-    expect(catchDetail.slice(catchEdit, shareBlock)).not.toContain("Delete");
+    const baitRow = baitDetail.indexOf('data-testid="bait-action-row"');
     const baitEdit = baitDetail.indexOf('data-testid="bait-edit"');
+    const baitShare = baitDetail.indexOf('data-testid="bait-share"');
+    const baitDelete = baitDetail.indexOf('data-testid="bait-delete"');
     const baitShareBlock = baitDetail.indexOf('data-testid="bait-share-block"');
-    const baitDelete = baitDetail.indexOf("Delete", baitEdit);
-    expect(baitShareBlock).toBeGreaterThan(baitEdit);
-    expect(baitDelete).toBeGreaterThan(baitShareBlock);
+    expect(baitEdit).toBeGreaterThan(baitRow);
+    expect(baitShare).toBeGreaterThan(baitEdit);
+    expect(baitDelete).toBeGreaterThan(baitShare);
+    expect(baitShareBlock).toBeGreaterThan(baitDelete);
+    expect(baitDetail).toContain("flex flex-wrap gap-2");
+    expect(baitDetail.slice(baitRow, baitShareBlock)).toContain("bait-edit");
+    expect(baitDetail.slice(baitRow, baitShareBlock)).toContain("bait-share");
+    expect(baitDetail.slice(baitRow, baitShareBlock)).toContain("bait-delete");
+    expect(baitDetail.slice(baitRow, baitShareBlock)).not.toContain("w-full");
     expect(baitDetail).not.toContain("Edit spot");
     expect(baitDetail).not.toContain("bait-edit-spot");
-    expect(baitDetail.slice(baitEdit, baitShareBlock)).not.toContain("Delete");
     expect(picker).toContain("text-2xl font-semibold");
     expect(picker).toContain("{buddy.name}");
     expect(picker).not.toContain("text-base font-semibold");
@@ -73,6 +87,27 @@ describe("Tide Mark next-pass UI contracts", () => {
     expect(baitDetail).toContain("Boolean(viewerId && record.anglerId === viewerId)");
     expect(catchDetail).toContain("if (editing && isOwner)");
     expect(baitDetail).toContain("if (editing && isOwner)");
+  });
+
+  it("has no user-facing Edit spot label on catch or bait detail", () => {
+    const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
+    const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
+    const dayShare = readFileSync(resolve(__dirname, "../components/DayShareSpots.tsx"), "utf8");
+    const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
+    const mapPicker = readFileSync(resolve(__dirname, "../components/MapPicker.tsx"), "utf8");
+    const locationMap = catchDetail.slice(catchDetail.indexOf("function CatchLocationMap"));
+    for (const source of [catchDetail, baitDetail, dayShare, history, mapPicker, locationMap]) {
+      expect(source).not.toMatch(/Edit spot/i);
+      expect(source).not.toContain("edit-spot");
+      expect(source).not.toContain("focusSpot");
+      expect(source).not.toContain("focusLocation");
+    }
+    expect(locationMap).toContain("Tap Edit to drop one on the map.");
+    expect(locationMap).not.toContain("Tap Edit spot");
+    expect(catchDetail).toMatch(/data-testid="catch-edit"[\s\S]*?>\s*Edit\s*</);
+    expect(baitDetail).toMatch(/data-testid="bait-edit"[\s\S]*?>\s*Edit\s*</);
+    expect(catchDetail.match(/data-testid="catch-edit"/g)?.length).toBe(1);
+    expect(baitDetail.match(/data-testid="bait-edit"/g)?.length).toBe(1);
   });
 
   it("lets a single Edit change bait location on the same form as a catch", () => {
