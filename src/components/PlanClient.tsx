@@ -11,7 +11,13 @@ import { speciesLabel } from "@/lib/species";
 import { PlanDayNotes } from "@/components/CalendarNotes";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
-import { addPlanSpotToDay, dayHasPlanSpot, groupNotesByDay, plannedSpotsOnDay } from "@/lib/notes";
+import {
+  addPlanSpotToDay,
+  dayHasPlanSpot,
+  groupNotesByDay,
+  journalNotesForCalendarLog,
+  plannedSpotsOnDay,
+} from "@/lib/notes";
 import { parsePlanDate, planLookupFailureNote, planWhyChips, forecastWindowWhenLabel } from "@/lib/plan";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
@@ -87,7 +93,7 @@ export function PlanClient({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/calendar-notes", { cache: "no-store" })
+    fetch("/api/calendar-notes?for=plan", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled && Array.isArray(data.notes)) setNotes(data.notes);
@@ -158,6 +164,7 @@ export function PlanClient({
   const notesByDay = groupNotesByDay(notes);
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
+  const journalNotes = journalNotesForCalendarLog(selectedNotes);
   const spotsOnDay = plannedSpotsOnDay(selectedNotes);
 
   async function onAddSpot(spot: { placeName?: string | null; speciesTargets?: string[] | null }) {
@@ -245,7 +252,7 @@ export function PlanClient({
           <PlanDayNotes
             key={selectedDay}
             day={selectedDay}
-            notes={selectedNotes}
+            notes={journalNotes}
             onCreate={onCreateNote}
             onUpdate={onUpdateNote}
             onDelete={onDeleteNote}

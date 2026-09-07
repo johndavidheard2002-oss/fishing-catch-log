@@ -11,7 +11,8 @@ export async function GET(request: NextRequest) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
-  const notes = await listCalendarNotes(viewerId);
+  const forPlan = request.nextUrl.searchParams.get("for") === "plan";
+  const notes = await listCalendarNotes(viewerId, { forPlan });
   return jsonWithViewer({ notes }, viewerId);
 }
 

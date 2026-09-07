@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS calendar_notes (
   notes TEXT,
   place_name TEXT,
   species_targets TEXT,
+  kind TEXT NOT NULL DEFAULT 'journal',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -163,7 +164,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 `;
 
 /** File SQLite uses PRAGMA user_version. LibSQL/Turso stores the same number in schema_meta. */
-export const SCHEMA_VERSION = 15;
+export const SCHEMA_VERSION = 16;
 const SCHEMA_META_KEY = "schema_version";
 
 /**
@@ -528,6 +529,13 @@ function migrate(sqlite: Database.Database) {
     `);
     sqlite.pragma("user_version = 15");
   }
+  if (version < 16) {
+    const cols = sqlite.prepare(`PRAGMA table_info(calendar_notes)`).all() as { name: string }[];
+    if (!cols.some((col) => col.name === "kind")) {
+      sqlite.exec(`ALTER TABLE calendar_notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'journal'`);
+    }
+    sqlite.pragma("user_version = 16");
+  }
 }
 
 async function libsqlColumns(client: Client, table: string): Promise<string[]> {
@@ -634,6 +642,11 @@ export async function migrateLibsql(client: Client) {
   }
   if (!latestAnglerCols.includes("subscription_expires_at")) {
     await execSoft(client, "ALTER TABLE anglers ADD COLUMN subscription_expires_at TEXT");
+  }
+
+  const noteCols = await libsqlColumns(client, "calendar_notes");
+  if (!noteCols.includes("kind")) {
+    await execSoft(client, "ALTER TABLE calendar_notes ADD COLUMN kind TEXT NOT NULL DEFAULT 'journal'");
   }
 
   const version = await libsqlSchemaVersion(client);
