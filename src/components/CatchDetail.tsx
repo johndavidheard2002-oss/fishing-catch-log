@@ -322,12 +322,12 @@ export function CatchDetail({ id }: { id: string }) {
 
       {isOwner ? (
         <div className="space-y-3" data-testid="catch-owner-actions">
-          <div className="flex flex-wrap gap-2" data-testid="catch-action-row">
+          <div className="owner-action-row" data-testid="catch-action-row">
             <button
               type="button"
               onClick={() => setEditing(true)}
               data-testid="catch-edit"
-              className="rounded-xl bg-teal px-4 py-3 font-semibold text-white"
+              className="rounded-full bg-teal px-4 py-2 text-sm font-semibold text-white"
             >
               Edit
             </button>
@@ -339,7 +339,7 @@ export function CatchDetail({ id }: { id: string }) {
               onClick={() =>
                 void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
               }
-              className={`rounded-xl px-4 py-3 font-semibold ${
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${
                 record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
                   ? "border-2 border-teal bg-teal/15 text-teal"
                   : "bg-teal text-white"
@@ -351,7 +351,7 @@ export function CatchDetail({ id }: { id: string }) {
               type="button"
               onClick={onDelete}
               data-testid="catch-delete"
-              className="rounded-xl border border-line px-4 py-3 font-semibold"
+              className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
             >
               Delete
             </button>

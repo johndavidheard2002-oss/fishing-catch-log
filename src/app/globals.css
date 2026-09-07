@@ -591,6 +591,24 @@ main button.home-plan-cta {
   transform: rotate(90deg);
 }
 
+/* Catch/bait owner actions: compact pills in one row, never full-width stacked. */
+.owner-action-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.owner-action-row > button {
+  width: auto !important;
+  flex: 0 0 auto;
+}
+@media (min-width: 22rem) {
+  .owner-action-row {
+    flex-wrap: nowrap;
+  }
+}
+
 .catch-map-pin.leaflet-div-icon {
   background: transparent;
   border: none;
