@@ -20,7 +20,9 @@ describe("shared friend name on photos", () => {
   it("overlays CatchCard and CatchGridCard photos and drops the text-area chip", () => {
     expect(catchCard).toContain("SharedOwnerBadge");
     expect(catchCard).toContain("record.ownerName");
-    expect(catchCard).toContain("theirs ? <SharedOwnerBadge name={record.ownerName}");
+    expect(catchCard).toContain("theirs ? (");
+    expect(catchCard).toContain("<SharedOwnerBadge name={record.ownerName} compact={compact} />");
+    expect(catchCard).toContain("<SharedOwnerBadge name={record.ownerName} />");
     expect(catchCard.match(/ownerName/g)).toHaveLength(2);
     expect(catchCard).not.toContain("bg-copper/15");
     expect(catchCard).toContain("relative aspect-square");
@@ -29,7 +31,8 @@ describe("shared friend name on photos", () => {
   it("overlays BaitSpotCard and BaitSpotGridCard photos the same way", () => {
     expect(baitCard).toContain("SharedOwnerBadge");
     expect(baitCard).toContain("spot.ownerName");
-    expect(baitCard).toContain("theirs ? <SharedOwnerBadge name={spot.ownerName}");
+    expect(baitCard).toContain("<SharedOwnerBadge name={spot.ownerName} compact={compact} />");
+    expect(baitCard).toContain("<SharedOwnerBadge name={spot.ownerName} />");
     expect(baitCard.match(/ownerName/g)).toHaveLength(2);
     expect(baitCard).not.toMatch(/theirs \? \(\s*<span className="rounded-full bg-copper\/15/);
   });

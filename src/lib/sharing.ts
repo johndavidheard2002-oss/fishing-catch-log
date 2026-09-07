@@ -121,6 +121,37 @@ export function isOwnerSharedSpot(record: {
   return Boolean(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0);
 }
 
+export type ShareFriendName = { id: string; name: string };
+
+/** Linked friends this owner shared the spot with, in friend-list order. */
+export function ownerShareFriendNames(args: {
+  sharedWithLinked?: boolean;
+  sharedWithBuddyIds?: string[] | null;
+  friends: ShareFriendName[];
+}): string[] {
+  if (!isOwnerSharedSpot(args)) return [];
+  if (args.sharedWithLinked) {
+    return args.friends.map((friend) => friend.name.trim()).filter(Boolean);
+  }
+  const picked = new Set(args.sharedWithBuddyIds ?? []);
+  return args.friends
+    .filter((friend) => picked.has(friend.id))
+    .map((friend) => friend.name.trim())
+    .filter(Boolean);
+}
+
+/** Calendar List photo overlay: Private, Shared, or Shared · Tyler, Mo. */
+export function ownerShareBadgeLabel(args: {
+  sharedWithLinked?: boolean;
+  sharedWithBuddyIds?: string[] | null;
+  friends: ShareFriendName[];
+}): string {
+  if (!isOwnerSharedSpot(args)) return "Private";
+  const names = ownerShareFriendNames(args);
+  if (!names.length) return "Shared";
+  return `Shared · ${names.join(", ")}`;
+}
+
 /** Place name already on the record — empty when missing, never a placeholder. */
 export function recordedSharePlaceName(placeName?: string | null): string | null {
   const label = (placeName ?? "").trim().replace(/^bait:/, "").trim();

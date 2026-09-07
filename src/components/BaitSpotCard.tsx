@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AddToPlanButton } from "@/components/AddToPlanButton";
+import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { SharedOwnerBadge } from "@/components/SharedOwnerBadge";
 import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
@@ -66,7 +67,15 @@ export function BaitSpotCard({
 }) {
   const src = personalPhotoSrc(spot.photoPath);
   const theirs = viewerId && spot.anglerId !== viewerId;
-  const badge = theirs ? <SharedOwnerBadge name={spot.ownerName} compact={compact} /> : null;
+  const badge = theirs ? (
+    <SharedOwnerBadge name={spot.ownerName} compact={compact} />
+  ) : src ? (
+    <OwnerShareBadge
+      sharedWithLinked={spot.sharedWithLinked}
+      sharedWithBuddyIds={spot.sharedWithBuddyIds}
+      compact={compact}
+    />
+  ) : null;
   const addToPlan = canShowAddToPlan(spot, viewerId, showAddToPlan);
   return (
     <div className="journal-card relative flex min-w-0 overflow-visible rounded-2xl" data-testid="calendar-bait-entry">

@@ -3,6 +3,8 @@ import { baitOf, catchOf } from "./testing";
 import {
   dayShareSpots,
   isCatchVisibleToViewer,
+  ownerShareBadgeLabel,
+  ownerShareFriendNames,
   ownerSharedDays,
   recordedSharePlaceName,
   resolveShareTargets,
@@ -72,6 +74,67 @@ describe("isCatchVisibleToViewer", () => {
         linkedBuddyIds: [buddy],
       }),
     ).toBe(false);
+  });
+});
+
+describe("ownerShareBadgeLabel", () => {
+  const friends = [
+    { id: "tyler", name: "Tyler" },
+    { id: "mo", name: "Mo" },
+  ];
+
+  it("says Private when the owner has not shared with anyone", () => {
+    expect(
+      ownerShareBadgeLabel({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: [],
+        friends,
+      }),
+    ).toBe("Private");
+  });
+
+  it("names the friends on a selective share, not Private", () => {
+    expect(
+      ownerShareBadgeLabel({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["tyler"],
+        friends,
+      }),
+    ).toBe("Shared · Tyler");
+    expect(
+      ownerShareFriendNames({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["tyler", "mo"],
+        friends,
+      }),
+    ).toEqual(["Tyler", "Mo"]);
+    expect(
+      ownerShareBadgeLabel({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["tyler", "mo"],
+        friends,
+      }),
+    ).toBe("Shared · Tyler, Mo");
+  });
+
+  it("lists every linked friend when the spot is shared with all", () => {
+    expect(
+      ownerShareBadgeLabel({
+        sharedWithLinked: true,
+        sharedWithBuddyIds: [],
+        friends,
+      }),
+    ).toBe("Shared · Tyler, Mo");
+  });
+
+  it("says Shared without names when friends have not loaded yet", () => {
+    expect(
+      ownerShareBadgeLabel({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["tyler"],
+        friends: [],
+      }),
+    ).toBe("Shared");
   });
 });
 
