@@ -108,10 +108,10 @@ describe("phone-width Log and Backfill", () => {
 });
 
 describe("owner action pills", () => {
-  it("keeps Edit Share Delete as auto-width pills in one row", () => {
+  it("keeps Edit Share Plan Delete as auto-width pills in one row", () => {
     const css = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
     const row = css.match(/\.owner-action-row \{[\s\S]*?\n\}/)?.[0] ?? "";
-    const kids = css.match(/\.owner-action-row > button \{[\s\S]*?\n\}/)?.[0] ?? "";
+    const kids = css.match(/\.owner-action-row > button,[\s\S]*?\.owner-action-row > a \{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(row).toContain("display: flex");
     expect(row).toContain("flex-direction: row");
     expect(kids).toContain("width: auto !important");
@@ -119,6 +119,8 @@ describe("owner action pills", () => {
     const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
     expect(catchDetail).toContain('className="owner-action-row"');
+    expect(catchDetail).toContain('testId="catch-plan"');
+    expect(catchDetail).toContain("AddToPlanButton");
     expect(baitDetail).toContain('className="owner-action-row"');
   });
 });

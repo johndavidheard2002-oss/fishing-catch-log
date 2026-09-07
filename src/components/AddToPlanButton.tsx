@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   planHrefForPendingSpot,
   writePendingPlanSpot,
@@ -13,15 +14,19 @@ export const ADD_TO_PLAN_CHIP =
 export function AddToPlanButton({
   spot,
   className = ADD_TO_PLAN_CHIP,
+  children = "Add to plan",
+  testId = "add-to-plan",
 }: {
   spot: PendingPlanSpot;
   className?: string;
+  children?: ReactNode;
+  testId?: string;
 }) {
   return (
     <Link
       href={planHrefForPendingSpot(spot)}
-      data-testid="add-to-plan"
-      aria-label={`Add ${spot.placeName} to plan`}
+      data-testid={testId}
+      aria-label={`Add ${spot.placeName || "this catch"} to plan`}
       onClick={(event) => {
         event.stopPropagation();
         writePendingPlanSpot(typeof sessionStorage === "undefined" ? null : sessionStorage, spot);
@@ -29,7 +34,7 @@ export function AddToPlanButton({
       onPointerDown={(event) => event.stopPropagation()}
       className={className}
     >
-      Add to plan
+      {children}
     </Link>
   );
 }
