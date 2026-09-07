@@ -4,7 +4,7 @@ import {
   deleteCalendarNotesForDay,
   listCalendarNotes,
 } from "@/lib/db/notes";
-import { parseCalendarNoteInput, parseDayKey } from "@/lib/notes";
+import { parseCalendarNoteInput, parseDayKey, utcTodayKey } from "@/lib/notes";
 import { requireUnlockedViewer } from "@/lib/journal-access";
 import { jsonWithViewer } from "@/lib/viewer";
 
@@ -17,7 +17,11 @@ export async function GET(request: NextRequest) {
   const { viewerId } = access;
   const forPlan = request.nextUrl.searchParams.get("for") === "plan";
   const today = parseDayKey(request.nextUrl.searchParams.get("today")) ?? undefined;
-  const notes = await listCalendarNotes(viewerId, { forPlan, today });
+  const notes = await listCalendarNotes(viewerId, {
+    forPlan,
+    today,
+    serverToday: utcTodayKey(),
+  });
   return jsonWithViewer({ notes }, viewerId);
 }
 

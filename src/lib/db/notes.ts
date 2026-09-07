@@ -7,7 +7,8 @@ import {
   parseDayKey,
   parseSpeciesTargets,
   parseSpeciesTargetsJson,
-  planDayPurgeBeforeKey,
+  safePlanDayPurgeBeforeKey,
+  utcTodayKey,
 } from "../notes";
 import type { CalendarNote, CalendarNoteInput } from "../types";
 import { ensureDb } from "./index";
@@ -35,11 +36,11 @@ function mapRow(row: typeof calendarNotes.$inferSelect): CalendarNote {
 
 export async function listCalendarNotes(
   anglerId: string,
-  options?: { forPlan?: boolean; today?: string },
+  options?: { forPlan?: boolean; today?: string; serverToday?: string },
 ): Promise<CalendarNote[]> {
   if (options?.forPlan) {
     const today = parseDayKey(options.today);
-    if (today) await purgePastPlanNotes(anglerId, today);
+    if (today) await purgePastPlanNotes(anglerId, today, options.serverToday);
   }
   const db = await ensureDb();
   const rows = await allRows(
@@ -66,8 +67,12 @@ export async function deleteCalendarNotesForDay(anglerId: string, day: string): 
 }
 
 /** Drop plan-spot and plan-day notes 3+ local days after their plan day. */
-export async function purgePastPlanNotes(anglerId: string, today: string): Promise<number> {
-  const before = planDayPurgeBeforeKey(today);
+export async function purgePastPlanNotes(
+  anglerId: string,
+  today: string,
+  serverToday?: string,
+): Promise<number> {
+  const before = safePlanDayPurgeBeforeKey(today, parseDayKey(serverToday) ?? utcTodayKey());
   if (!before) return 0;
   const db = await ensureDb();
   return runChange(
