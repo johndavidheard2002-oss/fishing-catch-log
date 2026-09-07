@@ -16,6 +16,7 @@ import {
   journalNotesForCalendarLog,
   normalizeNotePlace,
   plannedSpotsOnDay,
+  upcomingPlanNotes,
 } from "@/lib/notes";
 import {
   parsePlanDate,
@@ -90,7 +91,9 @@ export function PlanClient({
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>
     parsePlanDate(initialDate) ? initialDate : null,
   );
-  const [notes, setNotes] = useState<CalendarNote[]>(initialNotes);
+  const [notes, setNotes] = useState<CalendarNote[]>(() =>
+    upcomingPlanNotes(initialNotes, todayKey()),
+  );
   const [year, setYear] = useState(() => {
     const parsed = parsePlanDate(selectedDay);
     return parsed ? parsed.getFullYear() : now.getFullYear();
@@ -105,6 +108,7 @@ export function PlanClient({
   const [addingSpotId, setAddingSpotId] = useState<string | null>(null);
   const [spotSaved, setSpotSaved] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+  const [deletingPlan, setDeletingPlan] = useState(false);
   const resultsRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -118,10 +122,13 @@ export function PlanClient({
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/calendar-notes?for=plan", { cache: "no-store" })
+    const today = todayKey();
+    fetch(`/api/calendar-notes?for=plan&today=${today}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
-        if (!cancelled && Array.isArray(data.notes)) setNotes(data.notes);
+        if (!cancelled && Array.isArray(data.notes)) {
+          setNotes(upcomingPlanNotes(data.notes, today));
+        }
       })
       .catch(() => {});
     return () => {
@@ -157,6 +164,24 @@ export function PlanClient({
     const res = await fetch(`/api/calendar-notes/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("delete failed");
     setNotes((current) => current.filter((n) => n.id !== id));
+  }
+
+  async function onDeletePlan() {
+    if (!selectedDay) return;
+    if (!confirm("Delete this plan?")) return;
+    setDeletingPlan(true);
+    setAddError(null);
+    try {
+      const res = await fetch(`/api/calendar-notes?day=${selectedDay}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("delete failed");
+      const day = selectedDay;
+      setNotes((current) => current.filter((n) => n.day !== day));
+      setSpotSaved(false);
+    } catch {
+      setAddError("Could not delete this plan.");
+    } finally {
+      setDeletingPlan(false);
+    }
   }
 
   useEffect(() => {
@@ -235,6 +260,7 @@ export function PlanClient({
           setSelectedDay(date);
           setSpotSaved(false);
           setAddError(null);
+          setDeletingPlan(false);
           window.history.pushState(null, "", `/plan?date=${date}`);
         }}
       />
@@ -251,8 +277,23 @@ export function PlanClient({
             className="journal-card space-y-3 rounded-2xl border-2 border-teal/45 p-3"
             data-testid="plan-planned"
           >
-            <h3 className="font-display text-xl text-teal">Planned</h3>
-            <p className="text-sm text-ink-muted">{formatWeekdayDate(selectedDay)}</p>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="font-display text-xl text-teal">Planned</h3>
+                <p className="text-sm text-ink-muted">{formatWeekdayDate(selectedDay)}</p>
+              </div>
+              {selectedNotes.length ? (
+                <button
+                  type="button"
+                  onClick={() => void onDeletePlan()}
+                  disabled={deletingPlan}
+                  className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-copper disabled:opacity-60"
+                  data-testid="plan-delete-day"
+                >
+                  {deletingPlan ? "Deleting…" : "Delete plan"}
+                </button>
+              ) : null}
+            </div>
             {spotSaved ? (
               <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
                 {CHANGES_SAVED_LABEL}

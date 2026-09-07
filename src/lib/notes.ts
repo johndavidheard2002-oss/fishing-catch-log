@@ -150,6 +150,56 @@ export function parseCalendarNoteInput(body: Record<string, unknown>): CalendarN
   return input;
 }
 
+/** YYYY-MM-DD from a query or form value. */
+export function parseDayKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const day = value.trim();
+  return DAY_KEY_RE.test(day) ? day : null;
+}
+
+/** Auto-clear a Plan day when local today is this many days after that day. */
+export const PLAN_DAY_AUTO_PURGE_AFTER_DAYS = 3;
+
+function padDayPart(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Shift a YYYY-MM-DD key by whole local calendar days. */
+export function shiftDayKey(day: string, deltaDays: number): string | null {
+  if (!DAY_KEY_RE.test(day)) return null;
+  const [year, month, date] = day.split("-").map(Number);
+  const shifted = new Date(year, month - 1, date + deltaDays);
+  return `${shifted.getFullYear()}-${padDayPart(shifted.getMonth() + 1)}-${padDayPart(shifted.getDate())}`;
+}
+
+/**
+ * Exclusive cutoff: notes with `day <` this key are old enough to auto-purge.
+ * Keep the plan day and the next 2 local days (`today - 2` stays).
+ */
+export function planDayPurgeBeforeKey(today: string): string | null {
+  return shiftDayKey(today, -(PLAN_DAY_AUTO_PURGE_AFTER_DAYS - 1));
+}
+
+/** True when local today is 3+ calendar days after that Plan day. */
+export function isExpiredPlanDay(day: string, today: string): boolean {
+  const before = planDayPurgeBeforeKey(today);
+  return Boolean(before && DAY_KEY_RE.test(day) && day < before);
+}
+
+export function planNotesOnDay<T extends { day: string }>(notes: T[], day: string): T[] {
+  return notes.filter((note) => note.day === day);
+}
+
+/** Notes old enough to auto-purge — keep today, future, and the 2 days after a plan day. */
+export function expiredPlanNotes<T extends { day: string }>(notes: T[], today: string): T[] {
+  return notes.filter((note) => isExpiredPlanDay(note.day, today));
+}
+
+/** Plan notes that should still show — not yet 3 days after their plan day. */
+export function upcomingPlanNotes<T extends { day: string }>(notes: T[], today: string): T[] {
+  return notes.filter((note) => !isExpiredPlanDay(note.day, today));
+}
+
 export function groupNotesByDay(notes: CalendarNote[]): Map<string, CalendarNote[]> {
   const groups = new Map<string, CalendarNote[]>();
   for (const note of notes) {
