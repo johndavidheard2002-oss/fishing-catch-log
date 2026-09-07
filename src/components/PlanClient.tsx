@@ -272,14 +272,12 @@ export function PlanClient({
           className="space-y-3"
           data-testid="plan-day-results"
         >
-          <h2 className="on-wash-chip w-fit font-display text-xl text-teal">
-            {formatWeekdayDate(selectedDay)}
-          </h2>
           <section
             className="journal-card space-y-3 rounded-2xl border-2 border-teal/45 p-3"
             data-testid="plan-planned"
           >
             <h3 className="font-display text-xl text-teal">Planned</h3>
+            <p className="text-sm text-ink-muted">{formatWeekdayDate(selectedDay)}</p>
             {spotSaved ? (
               <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
                 {CHANGES_SAVED_LABEL}
