@@ -157,6 +157,26 @@ describe("session handoff", () => {
       }),
     ).toEqual({ catchId: "other", placeName: "", speciesTargets: [] });
   });
+
+  it("lets the URL bait id win and fills place from session", () => {
+    expect(
+      resolvePendingPlanSpot(
+        { baitId: "b1", placeName: "", speciesTargets: [] },
+        { baitId: "b1", placeName: "Haulover Canal", speciesTargets: [] },
+      ),
+    ).toEqual({
+      baitId: "b1",
+      placeName: "Haulover Canal",
+      speciesTargets: [],
+    });
+    expect(
+      resolvePendingPlanSpot({ baitId: "other", placeName: "", speciesTargets: [] }, {
+        baitId: "b1",
+        placeName: "Haulover Canal",
+        speciesTargets: [],
+      }),
+    ).toEqual({ baitId: "other", placeName: "", speciesTargets: [] });
+  });
 });
 
 describe("Add to plan visibility", () => {
@@ -168,9 +188,13 @@ describe("Add to plan visibility", () => {
     expect(canShowAddToPlan(mine, "you", false)).toBe(false);
     expect(canShowAddToPlan(mine, undefined, true)).toBe(false);
     expect(canShowAddToPlan(catchOf({ id: "no-place", placeName: null }), "you", true)).toBe(false);
-    expect(canShowAddToPlan(baitOf({ id: "b1", anglerId: "you", placeName: "Haulover Canal" }), "you", true)).toBe(
-      true,
-    );
+    expect(
+      canShowAddToPlan(
+        baitOf({ id: "b1", anglerId: "you", placeName: "Haulover Canal", photoPath: null }),
+        "you",
+        true,
+      ),
+    ).toBe(true);
     expect(canShowAddToPlan(baitOf({ id: "b2", anglerId: "friend", placeName: "Haulover Canal" }), "you", true)).toBe(
       false,
     );
@@ -254,7 +278,12 @@ describe("Calendar Log and Plan wiring", () => {
     expect(calendar).toContain("showAddToPlan");
     expect(similar).not.toContain("showAddToPlan");
     const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
+    const spots = readFileSync(resolve(__dirname, "../components/SpotsClient.tsx"), "utf8");
     expect(baitDetail).toContain("AddToPlanButton");
+    expect(spots).toContain("AddToPlanButton");
+    expect(spots).toContain("pendingFromOwnBait");
+    expect(spots).toContain("pendingPlanSpotFromBait");
+    expect(spots).toMatch(/kind === "bait"[\s\S]*AddToPlanButton/);
   });
 
   it("lets Plan wait for a day tap, then add the pending spot", () => {

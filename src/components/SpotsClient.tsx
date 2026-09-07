@@ -4,8 +4,10 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AddToPlanButton } from "./AddToPlanButton";
 import { OptionThumb } from "./OptionThumb";
 import { SharedToggle, sharedQuery, useIncludeShared } from "./BuddyPanel";
+import { canShowAddToPlan, pendingPlanSpotFromBait } from "@/lib/pending-plan-spot";
 import { baitTypesLabel } from "@/lib/bait";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { formatCoords } from "@/lib/location";
@@ -35,6 +37,14 @@ const SpotMap = dynamic(() => import("./SpotMap").then((m) => m.SpotMap), {
     </div>
   ),
 });
+
+function pendingFromOwnBait(
+  spots: BaitSpot[],
+  viewerId?: string,
+): ReturnType<typeof pendingPlanSpotFromBait> {
+  const own = spots.find((spot) => canShowAddToPlan(spot, viewerId, true));
+  return own ? pendingPlanSpotFromBait(own) : null;
+}
 
 function baitGroupsToMapSpots(groups: BaitSpotGroup[]): SpotGroup[] {
   return groups.map((g) => ({
@@ -248,31 +258,39 @@ export function SpotsClient() {
             </ul>
           ) : (
             <ul className="space-y-2">
-              {baitGroups.map((spot) => (
-                <li key={spot.key}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(spot.key)}
-                    className={`journal-card flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left ${
-                      spot.key === selected ? "ring-2 ring-copper" : ""
-                    }`}
-                  >
-                    <OptionThumb src={baitGroupThumbSrc(spot)} kind="bait" size={40} />
-                    <span className="min-w-0 flex-1">
-                      <p className="font-semibold">{spot.placeName}</p>
-                      <p className="truncate text-sm text-ink-muted">
-                        {baitTypesLabel(spot.baitTypes)} · {spot.visitCount}{" "}
-                        {spot.visitCount === 1 ? "visit" : "visits"}
-                        {spot.avgTempF != null ? ` · ~${spot.avgTempF}°F` : ""}
-                        {spot.typicalCondition
-                          ? ` · ${CONDITION_LABELS[spot.typicalCondition]}`
-                          : ""}
-                      </p>
-                      <p className="text-xs text-ink-muted">Last {formatCatchWhen(spot.lastLoggedAt)}</p>
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {baitGroups.map((spot) => {
+                const pending = pendingFromOwnBait(spot.spots, viewerId);
+                return (
+                  <li key={spot.key} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onSelect(spot.key)}
+                      className={`journal-card flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-3 py-2.5 text-left ${
+                        spot.key === selected ? "ring-2 ring-copper" : ""
+                      }`}
+                    >
+                      <OptionThumb src={baitGroupThumbSrc(spot)} kind="bait" size={40} />
+                      <span className="min-w-0 flex-1">
+                        <p className="font-semibold">{spot.placeName}</p>
+                        <p className="truncate text-sm text-ink-muted">
+                          {baitTypesLabel(spot.baitTypes)} · {spot.visitCount}{" "}
+                          {spot.visitCount === 1 ? "visit" : "visits"}
+                          {spot.avgTempF != null ? ` · ~${spot.avgTempF}°F` : ""}
+                          {spot.typicalCondition
+                            ? ` · ${CONDITION_LABELS[spot.typicalCondition]}`
+                            : ""}
+                        </p>
+                        <p className="text-xs text-ink-muted">Last {formatCatchWhen(spot.lastLoggedAt)}</p>
+                      </span>
+                    </button>
+                    {pending ? (
+                      <span className="shrink-0">
+                        <AddToPlanButton spot={pending} />
+                      </span>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </>
@@ -365,6 +383,7 @@ function BaitSpotPanel({
 }) {
   const latestNotes = group.spots.find((s) => s.notes?.trim())?.notes?.trim() ?? null;
   const thumb = baitGroupThumbSrc(group);
+  const pending = pendingFromOwnBait(group.spots, viewerId);
   return (
     <section
       data-testid="spot-detail-panel"
@@ -389,6 +408,11 @@ function BaitSpotPanel({
             {baitTypesLabel(group.baitTypes)} · {group.visitCount}{" "}
             {group.visitCount === 1 ? "visit" : "visits"}
           </p>
+          {pending ? (
+            <p className="mt-2">
+              <AddToPlanButton spot={pending} />
+            </p>
+          ) : null}
         </div>
       </div>
       <p className="text-sm text-ink-muted">
@@ -405,15 +429,25 @@ function BaitSpotPanel({
       </p>
       {latestNotes ? <p className="text-sm">{latestNotes}</p> : null}
       <ul className="space-y-1.5">
-        {group.spots.map((spot) => (
-          <li key={spot.id}>
-            <BaitVisitRow
-              spot={spot}
-              viewerId={viewerId}
-              onOpenLocation={() => onOpenLocation(targetFromBait(spot))}
-            />
-          </li>
-        ))}
+        {group.spots.map((spot) => {
+          const visitPending = pendingFromOwnBait([spot], viewerId);
+          return (
+            <li key={spot.id} className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <BaitVisitRow
+                  spot={spot}
+                  viewerId={viewerId}
+                  onOpenLocation={() => onOpenLocation(targetFromBait(spot))}
+                />
+              </div>
+              {visitPending ? (
+                <span className="shrink-0">
+                  <AddToPlanButton spot={visitPending} />
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
       <Link href="/plan" className="inline-block text-sm font-semibold text-teal">
         See similar-condition windows on Plan

@@ -96,6 +96,10 @@ describe("HELP_SECTIONS", () => {
         (step) => step.includes("Add to plan") && step.includes("bait") && step.includes("pick the day"),
       ),
     ).toBe(true);
+    const spotsHelp = HELP_SECTIONS.find((section) => section.title === "Spots")?.steps ?? [];
+    expect(
+      spotsHelp.some((step) => step.includes("Add to plan") && step.includes("bait") && step.includes("Plan")),
+    ).toBe(true);
     expect(share.some((step) => step.includes("Never public") && step.includes("Linking shares nothing"))).toBe(true);
     for (const section of HELP_SECTIONS) {
       expect(section.steps.length).toBeGreaterThan(0);
