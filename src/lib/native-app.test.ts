@@ -61,6 +61,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(docs).toContain("TestFlight");
     expect(docs).toContain("npx cap add ios");
     expect(docs).toContain(NATIVE_ICON_SOURCE);
+    expect(docs).toContain("ITSAppUsesNonExemptEncryption");
 
     const plugin = readFileSync(resolve(process.cwd(), "ios/App/App/TideMarkStorePlugin.swift"), "utf8");
     expect(plugin).toContain(APP_STORE_PRODUCT_YEARLY);
@@ -89,6 +90,9 @@ describe("App Store / Capacitor wrap", () => {
       expect(xml).toContain(IOS_USAGE_DESCRIPTIONS.NSLocationWhenInUseUsageDescription);
       expect(xml).toContain("NSPhotoLibraryUsageDescription");
       expect(xml).toContain(IOS_USAGE_DESCRIPTIONS.NSPhotoLibraryUsageDescription);
+      expect(xml).toMatch(
+        /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\s*\/>/,
+      );
     }
   });
 
