@@ -17,6 +17,9 @@ import {
   type EntitlementSnapshot,
 } from "@/lib/entitlement";
 import { ENTITLEMENT_CHANGED_EVENT } from "@/lib/native-iap";
+import { OfflineSyncHost } from "@/components/OfflineSyncHost";
+import { isBrowserOnline } from "@/lib/offline";
+import { readCachedSession, writeCachedSession } from "@/lib/offline-store";
 
 const NAV: {
   href: string;
@@ -55,7 +58,13 @@ function navIsActive(href: string, pathname: string) {
     return pathname === "/backfill" || pathname.startsWith("/log/scan");
   }
   if (href === "/calendar") {
-    return pathname === "/calendar" || pathname === "/history" || pathname.startsWith("/calendar/");
+    return (
+      pathname === "/calendar" ||
+      pathname === "/history" ||
+      pathname.startsWith("/calendar/") ||
+      pathname === "/catch/view" ||
+      pathname.startsWith("/catch/")
+    );
   }
   if (href === "/spots") {
     return pathname === "/spots" || pathname.startsWith("/bait");
@@ -136,15 +145,34 @@ export function AppShell({ children }: { children: ReactNode }) {
         router.replace("/signin");
         return;
       }
-      setAnglerId(typeof data.me?.id === "string" ? data.me.id : "");
+      const id = typeof data.me?.id === "string" ? data.me.id : "";
+      setAnglerId(id);
       setEntitlement(data.entitlement ?? null);
       setEntitlementReady(true);
+      if (id) {
+        void writeCachedSession({
+          signedIn: true,
+          me: { id },
+          entitlement: data.entitlement ?? null,
+          cachedAt: new Date().toISOString(),
+        });
+      }
     }
     fetch("/api/me", { cache: "no-store" })
       .then((r) => r.json())
       .then(applyMe)
-      .catch(() => {
-        if (!cancelled) router.replace("/signin");
+      .catch(async () => {
+        const cached = await readCachedSession();
+        if (cancelled) return;
+        if (cached?.signedIn && cached.me.id) {
+          applyMe(cached);
+          return;
+        }
+        if (!isBrowserOnline()) {
+          setEntitlementReady(true);
+          return;
+        }
+        router.replace("/signin");
       });
     function onEntitlement(event: Event) {
       const next = (event as CustomEvent<EntitlementSnapshot | null>).detail;
@@ -398,6 +426,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
     {onSignIn ? null : <HelpGuide />}
     {onSignIn ? null : <FirstRunSetup />}
+    {onSignIn ? null : <OfflineSyncHost entitlement={entitlement} />}
     {onSignIn || hideJournal || !paywallOpen ? null : (
       <div
         className="app-fixed-overlay fixed inset-0 z-30 flex items-end justify-center bg-black/45 sm:items-center"

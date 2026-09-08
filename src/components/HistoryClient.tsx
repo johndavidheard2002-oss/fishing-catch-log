@@ -23,6 +23,14 @@ import {
   scanQueueCount,
   subscribeScanQueue,
 } from "@/lib/scan-queue";
+import {
+  getOfflineQueueVersion,
+  getOfflineQueueVersionServerSnapshot,
+  mergeJournalWithPending,
+  subscribeOfflineQueue,
+} from "@/lib/offline";
+import { readJournalCache, writeJournalCache } from "@/lib/offline-store";
+import { queuedCatchRecords } from "@/lib/offline-sync";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -73,6 +81,13 @@ export function HistoryClient({
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => setViewerId(data.me?.id));
+    void readJournalCache().then((cache) => {
+      if (!cache) return;
+      setCatches((current) => (current.length ? current : cache.catches));
+      setBaitSpots((current) => (current.length ? current : cache.baitSpots));
+      setNotes((current) => (current.length ? current : cache.notes));
+      if (cache.viewerId) setViewerId((current) => current ?? cache.viewerId);
+    });
   }, []);
 
   useEffect(() => {
@@ -84,7 +99,11 @@ export function HistoryClient({
           setNotes(data.notes);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        void readJournalCache().then((cache) => {
+          if (!cancelled && cache?.notes) setNotes(cache.notes);
+        });
+      });
     return () => {
       cancelled = true;
     };
@@ -103,8 +122,15 @@ export function HistoryClient({
         if (Array.isArray(data.catches)) setCatches(data.catches);
         setLoadError(null);
       })
-      .catch(() => {
-        if (!cancelled) setLoadError("Could not open the journal. Try again.");
+      .catch(async () => {
+        const cache = await readJournalCache();
+        if (cancelled) return;
+        if (cache?.catches.length) {
+          setCatches(cache.catches);
+          setLoadError(null);
+          return;
+        }
+        setLoadError("Could not open the journal. Try again.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -126,11 +152,43 @@ export function HistoryClient({
         if (cancelled) return;
         if (Array.isArray(data.spots)) setBaitSpots(data.spots);
       })
-      .catch(() => {});
+      .catch(() => {
+        void readJournalCache().then((cache) => {
+          if (!cancelled && cache?.baitSpots) setBaitSpots(cache.baitSpots);
+        });
+      });
     return () => {
       cancelled = true;
     };
   }, [shareEpoch]);
+
+  useEffect(() => {
+    if (!viewerId || loading) return;
+    void writeJournalCache({
+      viewerId,
+      catches,
+      baitSpots,
+      notes,
+      cachedAt: new Date().toISOString(),
+    });
+  }, [baitSpots, catches, loading, notes, viewerId]);
+
+  const queueEpoch = useSyncExternalStore(
+    subscribeOfflineQueue,
+    getOfflineQueueVersion,
+    getOfflineQueueVersionServerSnapshot,
+  );
+  const [pendingCatches, setPendingCatches] = useState<CatchRecord[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void queuedCatchRecords().then((rows) => {
+      if (!cancelled) setPendingCatches(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [queueEpoch, shareEpoch]);
 
   function clearFilters() {
     setFilters({});
@@ -150,9 +208,13 @@ export function HistoryClient({
     router.replace(logPath(next));
   }
 
+  const journalCatches = useMemo(
+    () => mergeJournalWithPending(catches, pendingCatches),
+    [catches, pendingCatches],
+  );
   const filtered = useMemo(
-    () => catches.filter((c) => matchesFilters(c, filters)),
-    [catches, filters],
+    () => journalCatches.filter((c) => matchesFilters(c, filters)),
+    [filters, journalCatches],
   );
   const ownCatches = useMemo(() => ownJournalRecords(filtered, viewerId), [filtered, viewerId]);
   const ownBait = useMemo(() => ownJournalRecords(baitSpots, viewerId), [baitSpots, viewerId]);
@@ -169,7 +231,7 @@ export function HistoryClient({
     () => mergeJournalFeed(sharedCatches, sharedBait),
     [sharedCatches, sharedBait],
   );
-  const journalEmpty = catches.length === 0 && baitSpots.length === 0;
+  const journalEmpty = journalCatches.length === 0 && baitSpots.length === 0;
   const ownEmpty = ownCatches.length === 0 && ownBait.length === 0;
   const sharedEmpty = sharedCatches.length === 0 && sharedBait.length === 0;
   const active = hasActiveFilters(filters);

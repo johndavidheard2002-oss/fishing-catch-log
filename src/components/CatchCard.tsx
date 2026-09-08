@@ -9,6 +9,8 @@ import { formatCatchWhen, formatTimeOnly, TIME_OF_DAY_LABELS } from "@/lib/time"
 import { catchSpeciesTitle } from "@/lib/count";
 import { canShowAddToPlan, pendingPlanSpotFromCatch } from "@/lib/pending-plan-spot";
 import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
+import { catchDetailHref, isPendingCatchId } from "@/lib/offline";
+import { WaitingForServiceChip } from "@/components/OfflineBanners";
 import type { CatchRecord } from "@/lib/types";
 
 function photoFilename(record: CatchRecord): string {
@@ -54,6 +56,7 @@ function CatchStampChips({
           Sample
         </span>
       ) : null}
+      {isPendingCatchId(record.id) ? <WaitingForServiceChip /> : null}
       {pending ? <AddToPlanButton spot={pending} /> : null}
     </p>
   );
@@ -76,11 +79,12 @@ export function CatchCard({
 }) {
   const src = photoSrc(record.photoPath);
   const theirs = viewerId && record.anglerId !== viewerId;
-  const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan);
+  const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan) && !isPendingCatchId(record.id);
+  const href = catchDetailHref(record.id);
   return (
     <div className="journal-card relative flex min-w-0 overflow-visible rounded-2xl">
       <Link
-        href={`/catch/${record.id}`}
+        href={href}
         className={`relative ${compact ? "h-20 w-20" : "h-24 w-24"} shrink-0 overflow-hidden bg-paper-deep`}
         data-testid="calendar-catch-open"
       >
@@ -98,7 +102,7 @@ export function CatchCard({
       </Link>
       <div className="min-w-0 flex-1 px-3 py-2">
         <div className="flex items-start gap-2">
-          <Link href={`/catch/${record.id}`} className="block min-w-0 flex-1" data-testid="calendar-catch-open">
+          <Link href={href} className="block min-w-0 flex-1" data-testid="calendar-catch-open">
             <p className="truncate font-semibold text-ink">
               {catchSpeciesTitle(record)}
               {record.speciesCounts?.length > 1
@@ -143,11 +147,12 @@ export function CatchGridCard({
 }) {
   const src = photoSrc(record.photoPath);
   const theirs = viewerId && record.anglerId !== viewerId;
-  const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan);
+  const addToPlan = canShowAddToPlan(record, viewerId, showAddToPlan) && !isPendingCatchId(record.id);
+  const href = catchDetailHref(record.id);
   return (
     <div className="journal-card relative min-w-0 overflow-hidden rounded-2xl">
       <div className="relative aspect-square overflow-hidden bg-paper-deep">
-        <Link href={`/catch/${record.id}`} className="absolute inset-0" data-testid="calendar-catch-open">
+        <Link href={href} className="absolute inset-0" data-testid="calendar-catch-open">
           {src ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={src} alt="" className="h-full w-full object-cover" />
@@ -164,7 +169,12 @@ export function CatchGridCard({
           <CatchStampChips record={record} addToPlan />
         </div>
       ) : null}
-      <Link href={`/catch/${record.id}`} className="block px-2.5 py-2" data-testid="calendar-catch-open">
+      <Link href={href} className="block px-2.5 py-2" data-testid="calendar-catch-open">
+        {isPendingCatchId(record.id) ? (
+          <p className="mb-1">
+            <WaitingForServiceChip />
+          </p>
+        ) : null}
         <p className="truncate text-sm font-semibold">
           {catchSpeciesTitle(record)}
           {record.speciesCounts?.length > 1 || record.fishCount <= 1

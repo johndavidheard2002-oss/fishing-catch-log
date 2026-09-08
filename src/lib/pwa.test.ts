@@ -14,6 +14,9 @@ import {
   appleStartupImageMetadata,
   appleStartupImagePath,
   isPwaApiPath,
+  isPwaAuthApiPath,
+  isPwaJournalGetPath,
+  isPwaShellPath,
   isPwaStaticAssetPath,
 } from "@/lib/pwa";
 
@@ -56,10 +59,16 @@ describe("PWA install metadata", () => {
 });
 
 describe("PWA cache rules", () => {
-  it("never treats API, media, or HTML routes as cacheable assets", () => {
+  it("never treats auth or HTML routes as static image assets", () => {
     expect(isPwaApiPath("/api/catches")).toBe(true);
     expect(isPwaApiPath("/api/media/photo.jpg")).toBe(true);
     expect(isPwaApiPath("/api/auth/login")).toBe(true);
+    expect(isPwaAuthApiPath("/api/auth/login")).toBe(true);
+    expect(isPwaAuthApiPath("/api/entitlement/storekit")).toBe(true);
+    expect(isPwaJournalGetPath("/api/catches")).toBe(true);
+    expect(isPwaJournalGetPath("/api/media/photo.jpg")).toBe(true);
+    expect(isPwaJournalGetPath("/api/me")).toBe(true);
+    expect(isPwaJournalGetPath("/api/auth/login")).toBe(false);
     expect(isPwaStaticAssetPath("/api/media/photo.jpg")).toBe(false);
     expect(isPwaStaticAssetPath("/")).toBe(false);
     expect(isPwaStaticAssetPath("/calendar")).toBe(false);
@@ -67,11 +76,14 @@ describe("PWA cache rules", () => {
     expect(isPwaStaticAssetPath("/_next/static/chunks/app.js")).toBe(true);
     expect(isPwaStaticAssetPath("/brand/tide-mark-logo.png")).toBe(true);
     expect(isPwaStaticAssetPath("/icon-192.png")).toBe(true);
+    expect(isPwaShellPath("/calendar")).toBe(true);
+    expect(isPwaShellPath("/catch/view")).toBe(true);
+    expect(isPwaShellPath("/signin")).toBe(false);
   });
 
-  it("keeps the service worker network-first for HTML and API", () => {
+  it("keeps the service worker network-first with an offline journal fallback", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(PWA_CACHE_NAME).toBe("tide-mark-static-v5");
+    expect(PWA_CACHE_NAME).toBe("tide-mark-static-v6");
     expect(sw).toContain(`"${PWA_CACHE_NAME}"`);
     expect(sw).not.toContain("catch-compass-static");
     expect(sw).toContain("skipWaiting");
@@ -81,5 +93,9 @@ describe("PWA cache rules", () => {
     expect(sw).toMatch(/pathname\.startsWith\("\/api\/"\)/);
     expect(sw).toMatch(/request\.mode === "navigate"/);
     expect(sw).toMatch(/_next\/static/);
+    expect(sw).toMatch(/networkFirst/);
+    expect(sw).toContain("/api/catches");
+    expect(sw).toContain("/api/media/");
+    expect(sw).not.toContain("Do not invent an offline journal");
   });
 });

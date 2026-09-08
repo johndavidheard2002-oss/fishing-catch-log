@@ -25,6 +25,13 @@ import { hasSavedPin } from "@/lib/location-map";
 import { DEFAULT_MAP_FRAME_CLASS } from "@/lib/map-tiles";
 import { APP_DISPLAY_NAME } from "@/lib/brand";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
+import {
+  isPendingCatchId,
+  needsManualEntryAfterReconnect,
+} from "@/lib/offline";
+import { listManualEntryCatchIds, readJournalCache, removeQueuedLog } from "@/lib/offline-store";
+import { readQueuedCatchRecord } from "@/lib/offline-sync";
+import { ManualEntryAfterReconnectNote, OfflineLogSavedNote, WaitingForServiceChip } from "@/components/OfflineBanners";
 import type { CatchRecord, SimilarMatch } from "@/lib/types";
 
 const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotMap), {
@@ -47,11 +54,16 @@ export function CatchDetail({ id }: { id: string }) {
   const [shareError, setShareError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
   const [buddies, setBuddies] = useState<ShareFriend[]>([]);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const pending = isPendingCatchId(id);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/me")
       .then((r) => r.json())
-      .then((data) => setViewerId(data.me?.id))
+      .then((data) => {
+        if (!cancelled) setViewerId(data.me?.id);
+      })
       .catch(() => {});
     fetch("/api/buddies")
       .then((r) => r.json())
@@ -62,24 +74,71 @@ export function CatchDetail({ id }: { id: string }) {
         ),
       )
       .catch(() => {});
-    fetch(`/api/catches/${id}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error("missing");
-        return r.json();
-      })
-      .then((data) => {
-        if (data.catch) setRecord(data.catch);
-        else setError("Catch not found");
-      })
-      .catch(() => setError("Could not open this catch. Go back and try again."));
-    fetch(`/api/catches/${id}/similar`)
-      .then(async (r) => (r.ok ? r.json() : { matches: [] }))
-      .then((data) => setMatches(data.matches ?? []))
-      .catch(() => {});
+
+    async function load() {
+      if (isPendingCatchId(id)) {
+        const queued = await readQueuedCatchRecord(id);
+        if (cancelled) return;
+        if (queued) {
+          setRecord(queued);
+          setError(null);
+          return;
+        }
+        setError("Catch not found");
+        return;
+      }
+      try {
+        const res = await fetch(`/api/catches/${id}`);
+        if (!res.ok) throw new Error("missing");
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.catch) {
+          setRecord(data.catch);
+          setError(null);
+        } else setError("Catch not found");
+      } catch {
+        const cache = await readJournalCache();
+        const cached = cache?.catches.find((row) => row.id === id) ?? null;
+        const queued = cached ? null : await readQueuedCatchRecord(id);
+        if (cancelled) return;
+        if (cached) {
+          setRecord(cached);
+          setError(null);
+          return;
+        }
+        if (queued) {
+          setRecord(queued);
+          setError(null);
+          return;
+        }
+        setError("Could not open this catch. Go back and try again.");
+      }
+    }
+
+    void load();
+    if (!isPendingCatchId(id)) {
+      fetch(`/api/catches/${id}/similar`)
+        .then(async (r) => (r.ok ? r.json() : { matches: [] }))
+        .then((data) => {
+          if (!cancelled) setMatches(data.matches ?? []);
+        })
+        .catch(() => {});
+    }
+    void listManualEntryCatchIds().then((ids) => {
+      if (!cancelled) setShowManualEntry(ids.includes(id));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   async function onDelete() {
     if (!confirm("Delete this catch?")) return;
+    if (isPendingCatchId(id)) {
+      await removeQueuedLog(id);
+      router.push("/calendar");
+      return;
+    }
     await fetch(`/api/catches/${id}`, { method: "DELETE" });
     router.push("/calendar");
   }
@@ -159,6 +218,10 @@ export function CatchDetail({ id }: { id: string }) {
           {CHANGES_SAVED_LABEL}
         </p>
       ) : null}
+      {pending ? <OfflineLogSavedNote /> : null}
+      {pending || showManualEntry ? (
+        needsManualEntryAfterReconnect(record) ? <ManualEntryAfterReconnectNote /> : null
+      ) : null}
 
       <div className="journal-card overflow-hidden rounded-3xl" data-testid="catch-trip">
         <div className="relative aspect-[4/3] bg-paper-deep">
@@ -185,6 +248,7 @@ export function CatchDetail({ id }: { id: string }) {
           <header className="space-y-1.5">
             <div className="flex items-start gap-2">
               <h1 className="min-w-0 flex-1 font-display text-3xl text-teal">{catchSpeciesTitle(record)}</h1>
+              {pending ? <WaitingForServiceChip /> : null}
               {isOwner ? (
                 <OwnerShareBadge
                   sharedWithLinked={record.sharedWithLinked}
@@ -345,11 +409,13 @@ export function CatchDetail({ id }: { id: string }) {
             </button>
             <button
               type="button"
-              disabled={shareBusy}
+              disabled={shareBusy || pending}
               aria-pressed={record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0}
               data-testid="catch-share"
               onClick={() =>
-                void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
+                pending
+                  ? undefined
+                  : void onShare(!(record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0))
               }
               className={`whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold ${
                 record.sharedWithLinked || (record.sharedWithBuddyIds?.length ?? 0) > 0
@@ -388,7 +454,7 @@ export function CatchDetail({ id }: { id: string }) {
             </p>
             <ShareFriendPicker
               buddies={buddies}
-              disabled={shareBusy}
+              disabled={shareBusy || pending}
               selectedIds={selectedShareBuddyIds({
                 sharedWithLinked: record.sharedWithLinked,
                 sharedWithBuddyIds: record.sharedWithBuddyIds,

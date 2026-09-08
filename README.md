@@ -19,7 +19,7 @@ npm test          # similarity / filter / time-of-day / plan / calendar unit tes
 npm run build && npm start
 ```
 
-Phone: add to home screen from the browser. The app is a PWA (standalone display, service worker for the shell). A Capacitor iOS wrap is scaffolded in this repo (`capacitor.config.ts`) and loads the live site in a WebView. App Store enrollment, signing, and TestFlight are documented in [docs/app-store.md](docs/app-store.md) — not done from Linux. In the browser, **Save to Photos** uses the share sheet or a download — iPhone may ask you to tap Save Image.
+Phone: add to home screen from the browser. The app is a PWA (standalone display, service worker for the shell and already-logged journal). A camera photo and a full draft log can be saved on this phone and upload when service returns. A Capacitor iOS wrap is scaffolded in this repo (`capacitor.config.ts`) and loads the live site in a WebView. App Store enrollment, signing, and TestFlight are documented in [docs/app-store.md](docs/app-store.md) — not done from Linux. In the browser, **Save to Photos** uses the share sheet or a download — iPhone may ask you to tap Save Image.
 
 **Find fishing photos in your library** ships with every Tide Mark journal — not a developer extra. Each angler chooses pictures from *their* phone and confirms each one onto *their* calendar. Species is tagged by hand. Only that person’s selected photos are processed. The browser cannot silently scan the whole camera roll; a later native wrap can offer a fuller scan on the same product path.
 

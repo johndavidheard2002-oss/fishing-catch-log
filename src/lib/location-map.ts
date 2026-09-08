@@ -2,6 +2,7 @@ import { baitSpotLabel, catchSpotLabel } from "./calendar";
 import { groupSpots } from "./filters";
 import { baitTypesLabel } from "./bait";
 import { catchSpeciesTitle } from "./count";
+import { catchDetailHref } from "./offline";
 import type { BaitSpot, BaitSpotGroup, CatchRecord, SpotGroup } from "./types";
 
 export type LocationMapTarget = {
@@ -33,7 +34,7 @@ export function targetFromCatch(record: CatchRecord): LocationMapTarget {
     longitude: record.longitude,
     spots: hasPin ? groupSpots([record]) : [],
     baitSpots: [],
-    href: `/catch/${record.id}`,
+    href: catchDetailHref(record.id),
     hrefLabel: "Open catch",
   };
 }
@@ -62,7 +63,7 @@ export function targetFromSpotGroup(spot: SpotGroup): LocationMapTarget {
     longitude: spot.longitude,
     spots: hasSavedPin(spot.latitude, spot.longitude) ? [spot] : [],
     baitSpots: [],
-    href: pinned ? `/catch/${pinned.id}` : undefined,
+    href: pinned ? catchDetailHref(pinned.id) : undefined,
     hrefLabel: pinned ? "Open catch" : undefined,
   };
 }
