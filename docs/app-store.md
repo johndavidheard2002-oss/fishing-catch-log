@@ -13,7 +13,7 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
 | Pricing draft | **$29.99/year** after a **1-month free trial** |
 | In-App Purchase | `tidemark_premium_yearly` (auto-renewable, group **TideMarkPremium**) |
-| Icon / seal | `public/brand/tide-mark-logo.png` (locked seal-fill — copper ring reaches the 1024 edges; original trout wash in the corners; do not redraw) |
+| Icon / seal | `public/brand/tide-mark-logo.png` (locked copper seal — TIDE MARK / SALTWATER LOGBOOK, fish-eye map pin; do not redraw). iOS AppIcon is the opaque 1024 near-black square. |
 | PWA icons | `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png` |
 | PWA splash | `public/splash/apple-splash-*.png` |
 
@@ -37,7 +37,7 @@ No Mac pool was available. Already in the repo:
 2. `capacitor.config.ts` pointed at the production URL
 3. `ios/` Xcode project from `npx cap add ios` (worked on Linux; **CocoaPods and xcodebuild were skipped**)
 4. Usage strings and `WKAppBoundDomains` in `ios/App/App/Info.plist`
-5. App icon + splash files copied from `public/brand/tide-mark-logo.png` (seal-fill + trout-wash corners, not new art)
+5. App icon + splash files copied from the locked copper seal (TIDE MARK / SALTWATER LOGBOOK). iOS AppIcon is opaque 1024, no alpha.
 6. Public `/privacy` page (Help, sign-in footer, and Home → More link to it)
 7. This checklist
 
@@ -71,11 +71,11 @@ Confirm `ios/App/App/Info.plist` still has the three usage strings above (they a
 
 ### Icons and splash (existing art only)
 
-Do not redraw the copper seal. The locked 1024 is seal-fill with the original trout-wash corners (no teal fill). Copies are already in `resources/`; on a Mac you can still refresh them, then let Capacitor resize:
+Do not redraw the copper seal. The locked art is the circular ring with TIDE MARK / SALTWATER LOGBOOK and the fish-eye map pin. iOS AppIcon is the opaque near-black 1024. Copies are already in `resources/`; on a Mac you can still refresh them, then let Capacitor resize:
 
 ```bash
 mkdir -p resources
-cp public/brand/tide-mark-logo.png resources/icon.png
+cp ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png resources/icon.png
 cp public/brand/tide-mark-logo.png resources/splash.png
 npx @capacitor/assets generate --ios \
   --iconBackgroundColor '#040a13' \
@@ -150,7 +150,7 @@ Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs
 
 ## Out of scope (this wrap)
 
-- Regenerating `public/brand/tide-mark-logo.png` or the PWA icons (locked seal-fill + trout wash)
+- Regenerating `public/brand/tide-mark-logo.png` or the PWA icons (locked copper seal)
 - Teal / bait / share UI changes
 - Compiling or running StoreKit on Linux — use a Mac for the real purchase sheet
 - Submitting the IPA to App Store review (`submit_to_app_store` stays false)

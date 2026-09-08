@@ -1,17 +1,19 @@
 # Native icon / splash sources
 
-Do **not** redraw the Tide Mark copper seal. The 1024 master
-(`public/brand/tide-mark-logo.png`, copied to
-`ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
-and `resources/icon.png`) is the locked artwork: the circular seal
-fills the square, and the original trout-wash texture sits in the
-corners. Do not swap in a flat teal (or any other) corner fill.
+Do **not** redraw the Tide Mark copper seal. The locked masters are:
+
+- In-app / PWA: `public/brand/tide-mark-logo.png` — circular copper
+  ring, **TIDE MARK** on top, **SALTWATER LOGBOOK** on the bottom,
+  orange-amber fish-eye in the map pin.
+- iOS App Store: `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png`
+  (copied to `resources/icon.png`) — the same seal on an opaque
+  near-black 1024 square. No alpha channel.
 
 On a Mac, these copies are already in place before `npx @capacitor/assets generate`:
 
 | Capacitor expects | Copy from |
 | --- | --- |
-| `resources/icon.png` | `public/brand/tide-mark-logo.png` |
+| `resources/icon.png` | iOS AppIcon 1024 (opaque) |
 | `resources/splash.png` | `public/brand/tide-mark-logo.png` |
 
 Background color for generate: `#040a13` (matches the PWA theme).

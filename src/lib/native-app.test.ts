@@ -92,7 +92,7 @@ describe("App Store / Capacitor wrap", () => {
     }
   });
 
-  it("keeps the seal-fill 1024 trout-wash App Store icon as the iOS AppIcon", () => {
+  it("keeps the locked 1024 copper seal as the opaque iOS AppIcon", () => {
     const icon = resolve(process.cwd(), "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png");
     const brand = resolve(process.cwd(), "public/brand/tide-mark-logo.png");
     const resources = resolve(process.cwd(), "resources/icon.png");
@@ -101,9 +101,13 @@ describe("App Store / Capacitor wrap", () => {
     const brandBytes = readFileSync(brand);
     expect(existsSync(icon)).toBe(true);
     expect(iconBytes.subarray(0, 8).equals(png)).toBe(true);
-    expect(iconBytes.equals(brandBytes)).toBe(true);
+    expect(brandBytes.subarray(0, 8).equals(png)).toBe(true);
     expect(iconBytes.equals(readFileSync(resources))).toBe(true);
     expect(iconBytes.readUInt32BE(16)).toBe(1024);
     expect(iconBytes.readUInt32BE(20)).toBe(1024);
+    expect(brandBytes.readUInt32BE(16)).toBe(1024);
+    expect(brandBytes.readUInt32BE(20)).toBe(1024);
+    // iOS App Store icons cannot have an alpha channel (PNG color type 2 = RGB).
+    expect(iconBytes[25]).toBe(2);
   });
 });

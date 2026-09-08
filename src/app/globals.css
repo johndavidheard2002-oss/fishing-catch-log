@@ -135,9 +135,10 @@ body::after {
 }
 
 /*
-  Locked 1024² PNG is seal-fill: the copper ring reaches the square
-  edges and the original trout wash sits in the corners. Size 100% so
-  the in-app header and camera-well crops show the full seal.
+  Locked 1024² PNG is the copper ring seal: TIDE MARK on top,
+  SALTWATER LOGBOOK on the bottom, orange-amber fish-eye in the map
+  pin. Size 100% so the in-app header and camera-well crops show the
+  full seal.
 */
 .tide-mark-seal-img {
   position: absolute;
