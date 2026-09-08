@@ -36,7 +36,7 @@ No Mac pool was available. Already in the repo:
 1. `@capacitor/core`, `@capacitor/cli`, and `@capacitor/ios`
 2. `capacitor.config.ts` pointed at the production URL
 3. `ios/` Xcode project from `npx cap add ios` (worked on Linux; **CocoaPods and xcodebuild were skipped**)
-4. Usage strings and `WKAppBoundDomains` in `ios/App/App/Info.plist`
+4. Usage strings, `WKAppBoundDomains`, and `ITSAppUsesNonExemptEncryption` (`false`) in `ios/App/App/Info.plist`
 5. App icon + splash files copied from the locked copper seal (TIDE MARK / SALTWATER LOGBOOK). iOS AppIcon is opaque 1024, no alpha.
 6. Public `/privacy` page (Help, sign-in footer, and Home → More link to it)
 7. This checklist
@@ -60,7 +60,7 @@ npx cap add ios
 
 ### Info.plist
 
-Confirm `ios/App/App/Info.plist` still has the three usage strings above (they are already committed). Keep the live host as an app-bound domain so cookies and the service worker stay first-party:
+Confirm `ios/App/App/Info.plist` still has the three usage strings above (they are already committed). The app uses only standard HTTPS / OS encryption, so export compliance is already baked in as `ITSAppUsesNonExemptEncryption` = `false`. The next Codemagic IPA upload should skip the App Store Connect export-compliance questionnaire. Keep the live host as an app-bound domain so cookies and the service worker stay first-party:
 
 ```xml
 <key>WKAppBoundDomains</key>
@@ -99,7 +99,7 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 2. **Privacy** — Policy URL `https://fishing-catch-log-ivl7.onrender.com/privacy`. Declare account email, photos, precise location, and friend sharing. Deletion: email from the account address (see the privacy page).
 3. **Certificates / profiles** — In Xcode, enable Automatic Signing and pick the team. Or create an Apple Distribution cert and App Store provisioning profile in the developer portal. Not done in this repo.
 4. **Archive** — Destination: Any iOS Device. Product → Archive.
-5. **TestFlight** — Prefer the Codemagic `ios-testflight` workflow below. Manual path: archive in Xcode, upload to App Store Connect, add internal testers.
+5. **TestFlight** — Prefer the Codemagic `ios-testflight` workflow below. Manual path: archive in Xcode, upload to App Store Connect, add internal testers. `Info.plist` already sets `ITSAppUsesNonExemptEncryption` to `false` (HTTPS / OS encryption only), so App Store Connect should not ask the export-compliance questions on each upload.
 6. **Subscription** — Auto-renewable product **`tidemark_premium_yearly`** in subscription group **TideMarkPremium**, **$29.99/year**, with the **1-month free intro** already configured in App Store Connect. The web journal still runs its own 30-day trial clock; StoreKit purchase/restore is what marks `subscription_status` **active**. **John must set the $29.99 price tier in App Store Connect** — ASC is authoritative for real charges; in-app strings already say $29.99/year. Do not create a new product id.
 7. **Review notes** — Demo account if Review cannot create one; explain camera, location, and photo library prompts with the strings above.
 8. **In-App Purchase capability** — In Xcode, add the **In-App Purchase** capability on the App target. StoreKit 2 lives in `ios/App/App/TideMarkStorePlugin.swift` (Capacitor plugin `TideMarkStore`). Minimum iOS is **15.0**.
