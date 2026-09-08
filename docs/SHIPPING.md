@@ -111,7 +111,7 @@ A cheap always-on Node box with a real disk can skip Turso and keep the sqlite f
 
 ## PWA
 
-Already wired. `AppShell` registers `/sw.js`. After the real host is up, Add to Home Screen from the phone browser. No extra shipping step.
+Already wired. `AppShell` registers `/sw.js`. After the real host is up, Add to Home Screen from the phone browser. The worker keeps the shell and already-logged Calendar / catch photos on this phone; queued logs upload when service returns. No extra shipping step. Offline checks: [docs/app-store.md](app-store.md#verify-offline-device--simulator).
 
 ## Do not commit
 

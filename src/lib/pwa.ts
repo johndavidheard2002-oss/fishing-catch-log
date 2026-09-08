@@ -38,20 +38,49 @@ export function appleStartupImageMetadata() {
 }
 
 /** Bump this (and public/sw.js) so leftover home-screen SW caches drop. */
-export const PWA_CACHE_NAME = "tide-mark-static-v5";
+export const PWA_CACHE_NAME = "tide-mark-static-v6";
 
-/** Paths the service worker must never intercept (photos, auth, Turso APIs). */
+/** Paths the service worker must never intercept (auth, billing, mutations). */
 export function isPwaApiPath(pathname: string) {
   return pathname === "/api" || pathname.startsWith("/api/");
 }
 
-/** Hashed and brand files the service worker may cache. HTML and API stay network-only. */
+export function isPwaAuthApiPath(pathname: string) {
+  return (
+    pathname === "/api/auth" ||
+    pathname.startsWith("/api/auth/") ||
+    pathname === "/api/entitlement" ||
+    pathname.startsWith("/api/entitlement/")
+  );
+}
+
+/** Already-logged journal GETs the SW may keep for offline Calendar List/Grid/detail. */
+export function isPwaJournalGetPath(pathname: string) {
+  if (isPwaAuthApiPath(pathname)) return false;
+  if (pathname === "/api/me") return true;
+  if (pathname === "/api/catches" || pathname.startsWith("/api/catches/")) return true;
+  if (pathname === "/api/bait-spots" || pathname.startsWith("/api/bait-spots/")) return true;
+  if (pathname === "/api/calendar-notes" || pathname.startsWith("/api/calendar-notes/")) return true;
+  if (pathname.startsWith("/api/media/")) return true;
+  return false;
+}
+
+/** Hashed and brand files the service worker may cache. */
 export function isPwaStaticAssetPath(pathname: string) {
   if (isPwaApiPath(pathname)) return false;
   if (pathname === "/sw.js") return false;
   if (pathname.startsWith("/_next/static/")) return true;
+  if (pathname.startsWith("/_next/")) return true;
   if (pathname.startsWith("/brand/")) return true;
   if (pathname.startsWith("/splash/")) return true;
   if (pathname.startsWith("/seed/")) return true;
-  return /\.(png|jpe?g|svg|ico|webp|woff2?)$/i.test(pathname);
+  return /\.(png|jpe?g|svg|ico|webp|woff2?|css|js)$/i.test(pathname);
+}
+
+/** HTML / RSC navigations the SW keeps network-first with a cache fallback. */
+export function isPwaShellPath(pathname: string) {
+  if (isPwaApiPath(pathname)) return false;
+  if (pathname === "/sw.js") return false;
+  if (pathname === "/signin" || pathname.startsWith("/signin/")) return false;
+  return true;
 }

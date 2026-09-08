@@ -38,6 +38,7 @@ import {
   journalNotesForCalendarLog,
   planHrefForDay,
 } from "@/lib/notes";
+import { catchDetailHref } from "@/lib/offline";
 import { photoSrc } from "@/lib/photo";
 import { speciesLabel } from "@/lib/species";
 import { formatTimeOnly, formatWeekdayDate } from "@/lib/time";
@@ -655,7 +656,7 @@ function DayThumbs({
           return (
             <Link
               key={record.id}
-              href={`/catch/${record.id}`}
+              href={catchDetailHref(record.id)}
               title={`${formatTimeOnly(record.caughtAt)} · ${speciesLabel(record.speciesList?.length ? record.speciesList : record.species)} · ${catchSpotLabel(record)}`}
               aria-label={`Open catch at ${catchSpotLabel(record)}`}
               data-testid="calendar-day-photo"

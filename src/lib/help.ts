@@ -65,6 +65,16 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    title: "Offline",
+    steps: [
+      "Calendar List, Grid, and a catch already on this phone stay readable without service.",
+      "Take a photo on Log. Offline. This log is saved on this phone until service returns.",
+      "This phone’s GPS still pins. Map tiles and pin dropping can wait for a connection.",
+      "Weather, tides, and conditions fill when you are back online.",
+      "Waiting for service means the log is queued. Enter location or date-time by hand if they stay empty.",
+    ],
+  },
+  {
     title: "Your journal",
     steps: [
       "Sign in or create an account with email and a password to open your journal.",

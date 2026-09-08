@@ -148,6 +148,20 @@ Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs
 
    If Apple is at the Distribution certificate limit (**3**), revoke an unused **iOS Distribution** cert in [developer.apple.com → Certificates](https://developer.apple.com/account/resources/certificates/list) before re-running the workflow. Revoking a cert invalidates profiles that used it; `--create` will issue a new cert + App Store profile.
 
+## Verify offline (device / simulator)
+
+The App Store wrap still loads the live site. Offline / local-first uses the existing service worker plus an on-device queue (IndexedDB): already-opened Calendar List/Grid/detail, a camera photo, and a full draft log (photo + form + GPS). Weather, tides, and map tiles wait for service.
+
+1. Open Tide Mark online (Safari Add to Home Screen, or the Capacitor WebView) and sign in. Visit **Calendar Log** (List, Grid, and at least one catch detail) and **Log** so the shell is cached.
+2. Turn on Airplane Mode, or in Safari Web Inspector → Network choose Offline.
+3. Calendar List/Grid/detail should still show trips already on this phone. Photos already viewed stay from cache.
+4. On **Log**, take a camera photo. Device GPS can still drop a pin. Map tiles may be blank — pin dropping on the map can wait. Save the catch.
+5. Confirm the locked copy: **Offline. This log is saved…**, location/conditions fill-later notes, and a **Waiting for service** chip on the queued trip.
+6. Turn the network back on. The queued log should upload. Weather/tides/conditions fill on sync. If location or date-time are still empty, the manual-entry note appears.
+7. Soft-lock stays intact: an expired journal still shows the paywall and does not sync a queued log until the journal is unlocked.
+
+Linux CI covers the queue/sync unit tests (`npm test`). It cannot exercise Airplane Mode on a phone.
+
 ## Out of scope (this wrap)
 
 - Regenerating `public/brand/tide-mark-logo.png` or the PWA icons (locked copper seal)

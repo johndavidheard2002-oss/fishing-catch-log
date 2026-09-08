@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { ManualEntryAfterReconnectNote, OfflineLogSavedNote } from "@/components/OfflineBanners";
 import exifr from "exifr";
 import { MapPicker } from "./MapPicker";
 import { PhotoCapture, type PhotoSource } from "./PhotoCapture";
@@ -62,6 +63,24 @@ import {
 import { localDateKey } from "@/lib/calendar";
 import { formFieldsFromNamedArea } from "@/lib/areas";
 import type { TownMapCenter } from "@/lib/geocode";
+import {
+  catchDetailHref,
+  getOfflineOnlineServerSnapshot,
+  getOfflineOnlineSnapshot,
+  isPendingCatchId,
+  needsManualEntryAfterReconnect,
+  offlineFormNotes,
+  pendingCatchRecord,
+  shouldQueueOfflineSave,
+  subscribeOfflineQueue,
+} from "@/lib/offline";
+import { readCachedSession } from "@/lib/offline-store";
+import {
+  enqueueOfflineLog,
+  holdOfflinePhoto,
+  readHeldOfflinePhoto,
+  updateQueuedLog,
+} from "@/lib/offline-sync";
 import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
@@ -316,6 +335,13 @@ export function CatchForm({
   photoOnFormRef.current = Boolean(previewHold.current || photoFile || importedPhotoPath);
   pinEmptyRef.current = !form.latitude.trim();
   const useLiveGps = mode === "create" && !pastMode;
+  const online = useSyncExternalStore(
+    subscribeOfflineQueue,
+    getOfflineOnlineSnapshot,
+    getOfflineOnlineServerSnapshot,
+  );
+  const [offlineSaved, setOfflineSaved] = useState(false);
+  const viewerIdRef = useRef("");
 
   useEffect(() => {
     catchPinUserMovedRef.current = catchPinUserMoved;
@@ -366,7 +392,30 @@ export function CatchForm({
         setBuddyNames(((data.buddies ?? []) as { name: string }[]).map((b) => b.name));
       })
       .catch(() => {});
+    void readCachedSession().then((session) => {
+      if (session?.me.id) viewerIdRef.current = session.me.id;
+    });
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (typeof data.me?.id === "string") viewerIdRef.current = data.me.id;
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (mode !== "create" || pastMode || initial || importedPhotoPath || photoFile) return;
+    let cancelled = false;
+    void readHeldOfflinePhoto().then((blob) => {
+      if (cancelled || !blob) return;
+      const file = new File([blob], "catch.jpg", { type: blob.type || "image/jpeg" });
+      setPhotoFile(file);
+      showPreview(URL.createObjectURL(file));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [importedPhotoPath, initial, mode, pastMode, photoFile]);
 
   useEffect(() => {
     return () => {
@@ -390,6 +439,7 @@ export function CatchForm({
     const lon = numOrNull(form.longitude);
     const at = caughtDate(form.caughtAt);
     if (lat == null || lon == null || Number.isNaN(at.getTime())) return;
+    if (!online) return;
     let cancelled = false;
     fetch("/api/assist/weather", {
       method: "POST",
@@ -417,7 +467,7 @@ export function CatchForm({
     return () => {
       cancelled = true;
     };
-  }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked]);
+  }, [form.caughtAt, form.latitude, form.longitude, form.habitat, moonLocked, tideLocked, online]);
 
   function rememberLiveGps(gps: { latitude: number; longitude: number } | null) {
     if (!gps) return;
@@ -566,6 +616,7 @@ export function CatchForm({
     setPhotoFile(nextFile);
     const url = URL.createObjectURL(nextFile);
     showPreview(url);
+    void holdOfflinePhoto(nextFile);
 
     if (liveCamera) {
       setBusyLabel(DROPPING_PIN_HINT);
@@ -671,6 +722,69 @@ export function CatchForm({
     }
   }
 
+  function catchPayload(photoPath: string | null) {
+    return {
+      photoPath,
+      species: primarySpecies(form.speciesList),
+      speciesList: form.speciesList,
+      speciesSuggested: form.speciesSuggested || null,
+      speciesConfidence: form.speciesConfidence,
+      speciesSource:
+        form.speciesList.length &&
+        form.speciesSuggested &&
+        !form.speciesList.map((s) => s.toLowerCase()).includes(form.speciesSuggested.toLowerCase())
+          ? "edited"
+          : form.speciesSource,
+      latitude: numOrNull(form.latitude),
+      longitude: numOrNull(form.longitude),
+      photoTakenLatitude: numOrNull(form.photoTakenLatitude),
+      photoTakenLongitude: numOrNull(form.photoTakenLongitude),
+      placeName: form.placeName || null,
+      temperatureF: numOrNull(form.temperatureF),
+      weatherCondition: form.weatherCondition || null,
+      windSpeedMph: numOrNull(form.windSpeedMph),
+      windDirection: form.windDirection || null,
+      precipitationIn: numOrNull(form.precipitationIn),
+      humidity: numOrNull(form.humidity),
+      moonPhase: form.moonPhase || null,
+      moonIllumination: numOrNull(form.moonIllumination),
+      pressureInHg: numOrNull(form.pressureInHg),
+      pressureMb: numOrNull(form.pressureMb),
+      pressureTrend: form.pressureTrend || null,
+      ...clockFromCaughtAt(form.caughtAt),
+      caughtAt: isoFromDatetimeLocal(form.caughtAt),
+      notes: form.notes || null,
+      bait: form.bait || null,
+      tide: form.tide || null,
+      tideHeightFt: numOrNull(form.tideHeightFt),
+      tideDetail: form.tideDetail || null,
+      waterClarity: form.waterClarity || null,
+      habitat: form.habitat,
+      ...(() => {
+        const rows = countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount);
+        return { fishCount: totalFishCount(rows), speciesCounts: rows };
+      })(),
+      sharedWithLinked: form.sharedWithLinked,
+    };
+  }
+
+  async function finishQueuedSave(queuedId: string, payload: ReturnType<typeof catchPayload>) {
+    setOfflineSaved(true);
+    const fromScan = Boolean(importedPhotoPath && pastMode);
+    if (fromScan) {
+      removeScanQueueByPhotoPath(importedPhotoPath ?? "");
+    }
+    const dayKey = payload.caughtAt ? localDateKey(payload.caughtAt) : localDateKey(new Date().toISOString());
+    router.push(
+      pathAfterScanCatchSave({
+        remainingCount: fromScan ? scanQueueCount() : 0,
+        afterSave,
+        catchId: queuedId,
+        dayKey,
+      }).replace(`/catch/${queuedId}`, catchDetailHref(queuedId, false)),
+    );
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (savingRef.current) return;
@@ -678,7 +792,37 @@ export function CatchForm({
     setSaving(true);
     setError(null);
     try {
-      let photoPath = initial?.photoPath ?? importedPhotoPath ?? null;
+      const draftPhotoPath = initial?.photoPath ?? importedPhotoPath ?? null;
+      const draft = catchPayload(draftPhotoPath);
+
+      if (mode === "edit" && initial && isPendingCatchId(initial.id)) {
+        const updated = await updateQueuedLog(initial.id, { payload: draft, photo: photoFile });
+        setSavedNotice(true);
+        if (updated) {
+          onSaved?.(
+            pendingCatchRecord({
+              queued: updated,
+              photoPath: photoFile ? URL.createObjectURL(photoFile) : initial.photoPath,
+              ownerName: initial.ownerName,
+            }),
+          );
+        }
+        if (onSaved) return;
+        await finishQueuedSave(initial.id, draft);
+        return;
+      }
+
+      if (mode === "create" && shouldQueueOfflineSave({ online })) {
+        const queued = await enqueueOfflineLog({
+          payload: draft,
+          photo: photoFile,
+          viewerId: viewerIdRef.current,
+        });
+        await finishQueuedSave(queued.id, draft);
+        return;
+      }
+
+      let photoPath = draftPhotoPath;
       if (photoFile) {
         const fd = new FormData();
         fd.set("photo", photoFile);
@@ -688,49 +832,7 @@ export function CatchForm({
         photoPath = data.photoPath;
       }
 
-      const payload = {
-        photoPath,
-        species: primarySpecies(form.speciesList),
-        speciesList: form.speciesList,
-        speciesSuggested: form.speciesSuggested || null,
-        speciesConfidence: form.speciesConfidence,
-        speciesSource:
-          form.speciesList.length &&
-          form.speciesSuggested &&
-          !form.speciesList.map((s) => s.toLowerCase()).includes(form.speciesSuggested.toLowerCase())
-            ? "edited"
-            : form.speciesSource,
-        latitude: numOrNull(form.latitude),
-        longitude: numOrNull(form.longitude),
-        photoTakenLatitude: numOrNull(form.photoTakenLatitude),
-        photoTakenLongitude: numOrNull(form.photoTakenLongitude),
-        placeName: form.placeName || null,
-        temperatureF: numOrNull(form.temperatureF),
-        weatherCondition: form.weatherCondition || null,
-        windSpeedMph: numOrNull(form.windSpeedMph),
-        windDirection: form.windDirection || null,
-        precipitationIn: numOrNull(form.precipitationIn),
-        humidity: numOrNull(form.humidity),
-        moonPhase: form.moonPhase || null,
-        moonIllumination: numOrNull(form.moonIllumination),
-        pressureInHg: numOrNull(form.pressureInHg),
-        pressureMb: numOrNull(form.pressureMb),
-        pressureTrend: form.pressureTrend || null,
-        ...clockFromCaughtAt(form.caughtAt),
-        caughtAt: isoFromDatetimeLocal(form.caughtAt),
-        notes: form.notes || null,
-        bait: form.bait || null,
-        tide: form.tide || null,
-        tideHeightFt: numOrNull(form.tideHeightFt),
-        tideDetail: form.tideDetail || null,
-        waterClarity: form.waterClarity || null,
-        habitat: form.habitat,
-        ...(() => {
-          const rows = countsFromDrafts(form.speciesList, form.speciesCountDrafts, form.fishCount);
-          return { fishCount: totalFishCount(rows), speciesCounts: rows };
-        })(),
-        sharedWithLinked: form.sharedWithLinked,
-      };
+      const payload = { ...draft, photoPath };
 
       const url = mode === "edit" && initial ? `/api/catches/${initial.id}` : "/api/catches";
       const res = await fetch(url, {
@@ -759,6 +861,15 @@ export function CatchForm({
       );
       router.refresh();
     } catch (err) {
+      if (mode === "create" && shouldQueueOfflineSave({ online, error: err })) {
+        const queued = await enqueueOfflineLog({
+          payload: catchPayload(initial?.photoPath ?? importedPhotoPath ?? null),
+          photo: photoFile,
+          viewerId: viewerIdRef.current,
+        });
+        await finishQueuedSave(queued.id, catchPayload(initial?.photoPath ?? importedPhotoPath ?? null));
+        return;
+      }
       setError(err instanceof Error ? err.message : "Could not save");
     } finally {
       savingRef.current = false;
@@ -861,6 +972,35 @@ export function CatchForm({
         <p className="rounded-2xl border border-copper bg-paper-deep px-3 py-2 text-sm font-medium text-ink">
           {assistNote}
         </p>
+      ) : null}
+
+      {offlineSaved ? <OfflineLogSavedNote /> : null}
+
+      {offlineFormNotes({
+        online,
+        hasLocation: Boolean(form.latitude.trim() && form.longitude.trim()),
+        mapTilesAvailable: online,
+        hasApiConditions: Boolean(
+          form.temperatureF.trim() || form.weatherCondition || form.tide.trim(),
+        ),
+      }).map((note) => (
+        <p
+          key={note}
+          data-testid="offline-fill-later"
+          className="rounded-2xl border border-copper bg-paper-deep px-3 py-2 text-sm font-medium text-ink"
+        >
+          {note}
+        </p>
+      ))}
+
+      {online &&
+      (isPendingCatchId(initial?.id) || offlineSaved) &&
+      needsManualEntryAfterReconnect({
+        latitude: numOrNull(form.latitude),
+        longitude: numOrNull(form.longitude),
+        caughtAt: form.caughtAt,
+      }) ? (
+        <ManualEntryAfterReconnectNote />
       ) : null}
 
       {pastMode ? (

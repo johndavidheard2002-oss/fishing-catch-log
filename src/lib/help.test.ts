@@ -10,6 +10,7 @@ describe("HELP_SECTIONS", () => {
       "Log bait",
       "Plan a day",
       "Calendar Log",
+      "Offline",
       "Your journal",
       "Free month and yearly journal",
       "Share with a friend",
@@ -93,6 +94,10 @@ describe("HELP_SECTIONS", () => {
     expect(share.some((step) => step.includes("Share under Edit") && step.includes("Choose the friend"))).toBe(true);
     expect(share.some((step) => step.includes("Select spots to share"))).toBe(true);
     expect(share.some((step) => step.includes("Shared tab"))).toBe(true);
+    const offlineHelp = HELP_SECTIONS.find((section) => section.title === "Offline")?.steps ?? [];
+    expect(offlineHelp.some((step) => step.includes("Offline. This log is saved"))).toBe(true);
+    expect(offlineHelp.some((step) => step.includes("Waiting for service"))).toBe(true);
+    expect(offlineHelp.some((step) => step.includes("Weather, tides, and conditions fill"))).toBe(true);
     const calendarHelp = HELP_SECTIONS.find((section) => section.title === "Calendar Log")?.steps ?? [];
     expect(calendarHelp.some((step) => step.includes("List, Calendar, Grid, then Shared"))).toBe(true);
     expect(calendarHelp.some((step) => step.includes("Calendar still links"))).toBe(true);
