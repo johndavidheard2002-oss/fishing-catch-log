@@ -1,3 +1,5 @@
+import { YEARLY_PRICE_LABEL } from "./entitlement";
+
 export const PRIVACY_LINE = "Only shared with people you’ve linked.";
 
 export const PRIVACY_DETAIL =
@@ -56,7 +58,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: "subscriptions",
     title: "Free month and yearly journal",
     paragraphs: [
-      "New accounts get a free month of full Tide Mark access from the first time the trial starts (account creation, or the first successful sign-in that starts it). After that month, the journal is $39.99/year.",
+      `New accounts get a free month of full Tide Mark access from the first time the trial starts (account creation, or the first successful sign-in that starts it). After that month, the journal is ${YEARLY_PRICE_LABEL}.`,
       "If the free month ends without a paid year, Home stays open — account, subscribe, help, log out, and export. Other tabs lock. We do not delete your catches, photos, spots, or notes when the trial ends or the journal locks. App Store purchase will ship with the native build.",
     ],
   },

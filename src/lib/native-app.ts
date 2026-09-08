@@ -21,7 +21,7 @@ export const IOS_USAGE_DESCRIPTIONS = {
     "Tide Mark accesses your photo library so you can attach past catch photos.",
 } as const;
 
-export const APP_STORE_PRICE_YEARLY = "$39.99/year";
+export const APP_STORE_PRICE_YEARLY = "$29.99/year";
 export const APP_STORE_TRIAL = "1-month free trial";
 
 /** App Store Connect auto-renewable subscription. Do not rename. */

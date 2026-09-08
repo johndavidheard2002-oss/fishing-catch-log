@@ -79,9 +79,9 @@ describe("HELP_SECTIONS", () => {
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
     expect(journal.some((step) => step.includes("Allow location") && step.includes("Turn location on"))).toBe(true);
     expect(journal.some((step) => step.includes("Log out"))).toBe(true);
-    expect(journal.some((step) => step.includes("first month") && step.includes("$39.99/year"))).toBe(true);
+    expect(journal.some((step) => step.includes("first month") && step.includes("$29.99/year"))).toBe(true);
     const billing = HELP_SECTIONS.find((section) => section.title === "Free month and yearly journal")?.steps ?? [];
-    expect(billing.some((step) => step.includes("Home stays open") && step.includes("$39.99/year"))).toBe(true);
+    expect(billing.some((step) => step.includes("Home stays open") && step.includes("$29.99/year"))).toBe(true);
     expect(billing.some((step) => step.includes("Nothing is deleted"))).toBe(true);
     expect(
       billing.some((step) => step.includes("iPhone") && step.includes("App Store") && step.includes("Restore")),
