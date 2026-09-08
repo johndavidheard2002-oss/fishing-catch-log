@@ -3,8 +3,12 @@ import { localDateKey } from "./calendar";
 import { fishCountLabel } from "./count";
 import { groupSpots } from "./filters";
 import { personalPhotoSrc } from "./photo";
+import { PRIVACY_LINE } from "./privacy";
 import { speciesLabel } from "./species";
 import type { BaitSpot, CatchRecord } from "./types";
+
+export const OWNER_PRIVATE_STATUS_LINE = "Private to you. Not shared with anyone.";
+export const OWNER_SHARED_PUBLIC_NOTE = "Never public. No feed.";
 
 /** A catch is visible to the viewer only if they own it, or it was shared with them. */
 export function isCatchVisibleToViewer(args: {
@@ -150,6 +154,25 @@ export function ownerShareBadgeLabel(args: {
   const names = ownerShareFriendNames(args);
   if (!names.length) return "Shared";
   return `Shared · ${names.join(", ")}`;
+}
+
+function joinFriendNames(names: string[]): string {
+  if (names.length === 1) return names[0] ?? "";
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
+/** Catch/bait detail prose: Private, Shared with Mo, or Shared with all linked. */
+export function ownerShareStatusLine(args: {
+  sharedWithLinked?: boolean;
+  sharedWithBuddyIds?: string[] | null;
+  friends: ShareFriendName[];
+}): string {
+  if (!isOwnerSharedSpot(args)) return OWNER_PRIVATE_STATUS_LINE;
+  const names = ownerShareFriendNames(args);
+  if (names.length) return `Shared with ${joinFriendNames(names)}. ${OWNER_SHARED_PUBLIC_NOTE}`;
+  if (args.sharedWithLinked) return `${PRIVACY_LINE} ${OWNER_SHARED_PUBLIC_NOTE}`;
+  return `Shared. ${OWNER_SHARED_PUBLIC_NOTE}`;
 }
 
 /** Place name already on the record — empty when missing, never a placeholder. */

@@ -6,6 +6,8 @@ const badge = readFileSync(resolve(__dirname, "../components/OwnerShareBadge.tsx
 const catchCard = readFileSync(resolve(__dirname, "../components/CatchCard.tsx"), "utf8");
 const baitCard = readFileSync(resolve(__dirname, "../components/BaitSpotCard.tsx"), "utf8");
 const history = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
+const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
+const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
 
 const catchList = catchCard.slice(
   catchCard.indexOf("export function CatchCard"),
@@ -54,5 +56,23 @@ describe("owner share badge on Calendar List rows", () => {
     expect(history).toContain('view === "shared"');
     expect(history).toContain("calendar-log-shared-feed");
     expect(history).toContain("calendar-log-own-feed");
+  });
+
+  it("uses the same share status on catch and bait detail, including buddy ids", () => {
+    expect(catchDetail).toContain("OwnerShareBadge");
+    expect(catchDetail).toContain("ownerShareStatusLine");
+    expect(catchDetail).toContain("sharedWithBuddyIds={record.sharedWithBuddyIds}");
+    expect(catchDetail).toContain('data-testid="owner-share-status"');
+    expect(catchDetail).toContain("flex items-start gap-2");
+    expect(catchDetail).not.toContain("Private to you. Not shared with anyone.");
+    expect(catchDetail).not.toMatch(/sharedWithLinked \? \([\s\S]*PRIVACY_LINE/);
+
+    expect(baitDetail).toContain("OwnerShareBadge");
+    expect(baitDetail).toContain("ownerShareStatusLine");
+    expect(baitDetail).toContain("sharedWithBuddyIds={record.sharedWithBuddyIds}");
+    expect(baitDetail).toContain('data-testid="owner-share-status"');
+    expect(baitDetail).toContain("flex items-start gap-2");
+    expect(baitDetail).not.toContain("Private to you. Not shared with anyone.");
+    expect(baitDetail).not.toMatch(/sharedWithLinked\s*\n\s*\? `\$\{PRIVACY_LINE\}/);
   });
 });

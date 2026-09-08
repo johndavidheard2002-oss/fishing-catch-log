@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BaitSpotForm } from "./BaitSpotForm";
+import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { hasSavedPin } from "@/lib/location-map";
 
@@ -22,7 +23,7 @@ import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
 import { canShowAddToPlan, pendingPlanSpotFromBait } from "@/lib/pending-plan-spot";
 import { CONDITION_LABELS } from "@/lib/labels";
-import { PRIVACY_LINE } from "@/lib/privacy";
+import { ownerShareStatusLine } from "@/lib/sharing";
 import { personalPhotoSrc } from "@/lib/photo";
 import { formatCaughtAt } from "@/lib/time";
 import type { BaitSpot } from "@/lib/types";
@@ -160,7 +161,16 @@ export function BaitSpotDetail({ id }: { id: string }) {
       ) : null}
       <div className="page-intro">
         <p className="text-xs font-semibold uppercase tracking-wide text-copper">Bait</p>
-        <h1 className="font-display text-3xl text-teal">{record.placeName || "Unnamed hole"}</h1>
+        <div className="flex items-start gap-2">
+          <h1 className="min-w-0 flex-1 font-display text-3xl text-teal">{record.placeName || "Unnamed hole"}</h1>
+          {isOwner ? (
+            <OwnerShareBadge
+              sharedWithLinked={record.sharedWithLinked}
+              sharedWithBuddyIds={record.sharedWithBuddyIds}
+              friends={buddies}
+            />
+          ) : null}
+        </div>
         <p className="mt-1 text-sm text-ink-muted">
           {baitTypesLabel(record.baitTypes)} · {formatCaughtAt(record.loggedAt)} ·{" "}
           {habitatLabel(record.habitat)}
@@ -197,10 +207,12 @@ export function BaitSpotDetail({ id }: { id: string }) {
         )}
       </section>
       {record.notes ? <p className="rounded-2xl border border-line bg-card px-3 py-3 text-sm">{record.notes}</p> : null}
-      <p className="on-wash-chip text-xs">
-        {record.sharedWithLinked
-          ? `${PRIVACY_LINE} Never public. No feed.`
-          : "Private to you. Not shared with anyone."}
+      <p className="on-wash-chip text-xs" data-testid="owner-share-status">
+        {ownerShareStatusLine({
+          sharedWithLinked: record.sharedWithLinked,
+          sharedWithBuddyIds: record.sharedWithBuddyIds,
+          friends: buddies,
+        })}
       </p>
       {isOwner ? (
         <div className="space-y-3" data-testid="bait-owner-actions">

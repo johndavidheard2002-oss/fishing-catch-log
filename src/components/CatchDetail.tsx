@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
+import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { SimilarList } from "@/components/SimilarList";
 import { AddToPlanButton } from "@/components/AddToPlanButton";
@@ -13,7 +14,7 @@ import { pendingPlanSpotFromCatch } from "@/lib/pending-plan-spot";
 import { habitatLabel } from "@/lib/habitat";
 import { catchFishLabel, catchSpeciesTitle } from "@/lib/count";
 import { speciesLabel } from "@/lib/species";
-import { PRIVACY_LINE } from "@/lib/privacy";
+import { ownerShareStatusLine } from "@/lib/sharing";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { coordsLookDifferent } from "@/lib/location";
 import { catchPhotoFilename, photoSrc, weatherLine } from "@/lib/photo";
@@ -182,7 +183,16 @@ export function CatchDetail({ id }: { id: string }) {
 
         <div className="space-y-5 p-4">
           <header className="space-y-1.5">
-            <h1 className="font-display text-3xl text-teal">{catchSpeciesTitle(record)}</h1>
+            <div className="flex items-start gap-2">
+              <h1 className="min-w-0 flex-1 font-display text-3xl text-teal">{catchSpeciesTitle(record)}</h1>
+              {isOwner ? (
+                <OwnerShareBadge
+                  sharedWithLinked={record.sharedWithLinked}
+                  sharedWithBuddyIds={record.sharedWithBuddyIds}
+                  friends={buddies}
+                />
+              ) : null}
+            </div>
             <p className="text-sm font-semibold" data-testid="catch-when">
               {formatCaughtAt(record.caughtAt)}
             </p>
@@ -195,13 +205,13 @@ export function CatchDetail({ id }: { id: string }) {
             <p className="text-sm text-ink-muted">
               {catchFishLabel(record)} · {habitatLabel(record.habitat)} · {weatherLine(record)}
             </p>
-            {record.sharedWithLinked ? (
-              <p className="text-xs text-ink-muted">
-                {PRIVACY_LINE} Never public. No feed.
-              </p>
-            ) : (
-              <p className="text-xs text-ink-muted">Private to you. Not shared with anyone.</p>
-            )}
+            <p className="text-xs text-ink-muted" data-testid="owner-share-status">
+              {ownerShareStatusLine({
+                sharedWithLinked: record.sharedWithLinked,
+                sharedWithBuddyIds: record.sharedWithBuddyIds,
+                friends: buddies,
+              })}
+            </p>
             <p className="text-xs text-ink-muted">Logged by {record.ownerName}</p>
           </header>
 
