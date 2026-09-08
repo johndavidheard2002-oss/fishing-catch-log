@@ -1,6 +1,6 @@
-// Tide Mark SW — cache v4. HTML/API stay network-only. Claims clients so leftover
+// Tide Mark SW — cache v5. HTML/API stay network-only. Claims clients so leftover
 // home-screen tabs pick up the sign-in gate instead of a precached pre-login app.
-const CACHE = "tide-mark-static-v4";
+const CACHE = "tide-mark-static-v5";
 
 function isApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/");
