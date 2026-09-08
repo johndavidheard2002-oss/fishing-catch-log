@@ -3,13 +3,16 @@ import { baitOf, catchOf } from "./testing";
 import {
   dayShareSpots,
   isCatchVisibleToViewer,
+  OWNER_PRIVATE_STATUS_LINE,
   ownerShareBadgeLabel,
   ownerShareFriendNames,
+  ownerShareStatusLine,
   ownerSharedDays,
   recordedSharePlaceName,
   resolveShareTargets,
   sharePlaceName,
 } from "./sharing";
+import { PRIVACY_LINE } from "./privacy";
 
 describe("isCatchVisibleToViewer", () => {
   const you = "you";
@@ -135,6 +138,82 @@ describe("ownerShareBadgeLabel", () => {
         friends: [],
       }),
     ).toBe("Shared");
+  });
+});
+
+describe("ownerShareStatusLine", () => {
+  const friends = [
+    { id: "tyler", name: "Tyler Tamburin" },
+    { id: "mo", name: "Mo" },
+  ];
+
+  it("keeps the private line when the owner has not shared", () => {
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: [],
+        friends,
+      }),
+    ).toBe(OWNER_PRIVATE_STATUS_LINE);
+    expect(OWNER_PRIVATE_STATUS_LINE).toBe("Private to you. Not shared with anyone.");
+  });
+
+  it("names a selective share instead of saying Private", () => {
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["mo"],
+        friends,
+      }),
+    ).toBe("Shared with Mo. Never public. No feed.");
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["tyler", "mo"],
+        friends,
+      }),
+    ).toBe("Shared with Tyler Tamburin and Mo. Never public. No feed.");
+  });
+
+  it("does not invent Unnamed when a buddy id has no linked name", () => {
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["ghost"],
+        friends,
+      }),
+    ).toBe("Shared. Never public. No feed.");
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["mo"],
+        friends: [],
+      }),
+    ).toBe("Shared. Never public. No feed.");
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: false,
+        sharedWithBuddyIds: ["mo"],
+        friends,
+      }),
+    ).not.toMatch(/Unnamed/i);
+  });
+
+  it("keeps the linked-friends line when shared with all and names are not loaded", () => {
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: true,
+        sharedWithBuddyIds: [],
+        friends: [],
+      }),
+    ).toBe(`${PRIVACY_LINE} Never public. No feed.`);
+    expect(
+      ownerShareStatusLine({
+        sharedWithLinked: true,
+        sharedWithBuddyIds: [],
+        friends,
+      }),
+    ).toBe("Shared with Tyler Tamburin and Mo. Never public. No feed.");
   });
 });
 
