@@ -385,6 +385,52 @@ describe("Calendar List Add to plan can save more than one day", () => {
     expect(readPendingPlanDay(storage)).toBeNull();
     expect(pendingPlanDayToCommit(pending, "2026-10-11", null)).toBe("2026-10-11");
   });
+
+  it("saves two different List catches onto the same plan day", () => {
+    const redfish = pendingPlanSpotFromCatch(
+      catchOf({ id: "c-red", placeName: "Beach marker 42", speciesList: ["Redfish"] }),
+    )!;
+    const trout = pendingPlanSpotFromCatch(
+      catchOf({
+        id: "c-trout",
+        placeName: "Beach marker 42",
+        speciesList: ["Speckled Trout"],
+      }),
+    )!;
+    const first = addPlanSpotToDay([], "2026-10-10", redfish);
+    expect(first).toMatchObject({ day: "2026-10-10", sourceCatchId: "c-red", placeName: "Beach marker 42" });
+    const afterFirst = [
+      {
+        day: "2026-10-10",
+        placeName: first!.placeName,
+        kind: "plan-spot" as const,
+        sourceCatchId: "c-red",
+      },
+    ];
+    expect(addPlanSpotToDay(afterFirst, "2026-10-10", redfish)).toBeNull();
+    const second = addPlanSpotToDay(afterFirst, "2026-10-10", trout);
+    expect(second).toMatchObject({
+      day: "2026-10-10",
+      sourceCatchId: "c-trout",
+      placeName: "Beach marker 42",
+      speciesTargets: ["Speckled Trout"],
+    });
+    const storage = memoryStorage();
+    rememberCommittedPlanSpot(storage, {
+      day: "2026-10-10",
+      placeName: "Beach marker 42",
+      sourceCatchId: "c-red",
+    });
+    rememberCommittedPlanSpot(storage, {
+      day: "2026-10-10",
+      placeName: "Beach marker 42",
+      sourceCatchId: "c-trout",
+    });
+    expect(readCommittedPlanSpots(storage).map((spot) => spot.sourceCatchId)).toEqual([
+      "c-red",
+      "c-trout",
+    ]);
+  });
 });
 
 describe("pending spot uses the same Plan add path", () => {
@@ -546,6 +592,7 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).toContain("mergeCommittedPlanSpots");
     expect(plan).toContain("rememberCommittedPlanSpot");
+    expect(plan).toContain("planSpotIdentityKey");
     expect(plan).toContain("data-plan-source={kind}");
     expect(plan).toContain("planSpotDetailHref");
     expect(plan).toContain("labelsForPlannedSpot");

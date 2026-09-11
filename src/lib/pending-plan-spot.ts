@@ -1,7 +1,6 @@
 import {
-  normalizeNotePlace,
   parseSpeciesTargets,
-  planSpotSourceKind,
+  planSpotIdentityKey,
   type CommittedPlanSpot,
 } from "./notes";
 
@@ -175,8 +174,7 @@ export function rememberCommittedPlanSpot(
   const next = [
     ...readCommittedPlanSpots(storage).filter((item) => {
       if (item.day !== spot.day) return true;
-      if (normalizeNotePlace(item.placeName) !== normalizeNotePlace(spot.placeName)) return true;
-      return planSpotSourceKind(item) !== planSpotSourceKind(spot);
+      return planSpotIdentityKey(item) !== planSpotIdentityKey(spot);
     }),
     { ...spot, savedAt: spot.savedAt ?? Date.now() },
   ].slice(-12);

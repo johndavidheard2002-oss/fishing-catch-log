@@ -225,7 +225,20 @@ describe("dayHasPlanSpot", () => {
       sourceCatchId: "c1",
     });
     expect(dayHasPlanSpot([catchSpot], "Haulover Canal", { baitId: "b1" })).toBe(false);
-    expect(dayHasPlanSpot([catchSpot], "Haulover Canal", { catchId: "c2" })).toBe(true);
+    expect(dayHasPlanSpot([catchSpot], "Haulover Canal", { catchId: "c1" })).toBe(true);
+    expect(dayHasPlanSpot([catchSpot], "Haulover Canal", { catchId: "c2" })).toBe(false);
+    expect(
+      addPlanSpotToDay([catchSpot], "2026-09-10", {
+        placeName: "Haulover Canal",
+        catchId: "c2",
+        speciesTargets: ["Speckled Trout"],
+      }),
+    ).toMatchObject({
+      day: "2026-09-10",
+      placeName: "Haulover Canal",
+      sourceCatchId: "c2",
+      speciesTargets: ["Speckled Trout"],
+    });
     expect(
       addPlanSpotToDay([catchSpot], "2026-09-10", {
         placeName: "Haulover Canal",
@@ -360,6 +373,7 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("extraPastTripMatches");
     expect(plan).toContain("uniqueNotesByPlace");
     expect(plan).toContain("mergeCommittedPlanSpots");
+    expect(plan).toContain("planSpotIdentityKey");
     expect(plan).toContain("rememberCommittedPlanSpot");
     expect(plan).toContain("/api/calendar-notes?for=plan&today=");
     expect(plan).toContain("listedPlanNotes");

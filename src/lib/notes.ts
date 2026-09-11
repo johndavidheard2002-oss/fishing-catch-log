@@ -208,6 +208,22 @@ export function planSpotSourceKind(spot: PlanSpotSource): "catch" | "bait" | "pl
   return "place";
 }
 
+function planSpotSourceId(spot: PlanSpotSource): string | null {
+  const kind = planSpotSourceKind(spot);
+  if (kind === "bait") return trimToNull(spot.sourceBaitId ?? spot.baitId, MAX_SOURCE_ID);
+  if (kind === "catch") return trimToNull(spot.sourceCatchId ?? spot.catchId, MAX_SOURCE_ID);
+  return null;
+}
+
+/** One Planned chip / duplicate key: kind + place + catch/bait id when we have one. */
+export function planSpotIdentityKey(spot: PlanSpotSource): string | null {
+  const place = normalizeNotePlace(spot.placeName);
+  if (!place) return null;
+  const kind = planSpotSourceKind(spot);
+  const sourceId = planSpotSourceId(spot);
+  return sourceId ? `${kind}:${place}:${sourceId}` : `${kind}:${place}`;
+}
+
 /**
  * Planned chip/row → that bait or catch, even when there is no thumbnail.
  * Photo href is only a fallback for older place-only spots.
@@ -336,10 +352,14 @@ export function dayHasPlanSpot(
   const key = normalizeNotePlace(placeName);
   if (!key) return false;
   const want = source ? planSpotSourceKind(source) : null;
+  const wantId = source ? planSpotSourceId(source) : null;
   return notes.some((note) => {
     if (!isPlanSpotNote(note) || normalizeNotePlace(note.placeName) !== key) return false;
     if (!want || want === "place") return true;
-    return planSpotSourceKind(note) === want;
+    if (planSpotSourceKind(note) !== want) return false;
+    if (!wantId) return true;
+    const haveId = planSpotSourceId(note);
+    return !haveId || haveId === wantId;
   });
 }
 

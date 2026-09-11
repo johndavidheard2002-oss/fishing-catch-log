@@ -27,6 +27,7 @@ import {
   plannedSpotOpenLabel,
   plannedSpotsOnDay,
   planDayAfterSelect,
+  planSpotIdentityKey,
   selectPlanDay,
   planSpotDetailHref,
   planSpotSourceKind,
@@ -286,8 +287,7 @@ export function PlanClient({
           ...current.filter(
             (item) =>
               item.day !== committed.day ||
-              planSpotSourceKind(item) !== planSpotSourceKind(committed) ||
-              item.placeName.trim().toLowerCase() !== committed.placeName.trim().toLowerCase(),
+              planSpotIdentityKey(item) !== planSpotIdentityKey(committed),
           ),
           committed,
         ]);

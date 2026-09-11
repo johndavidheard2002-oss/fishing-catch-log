@@ -640,8 +640,9 @@ describe("dedupeBaitSuggestionsByPlace", () => {
         { id: "catch", placeName: "Haulover Canal", sourceCatchId: "c1" },
         { id: "bait", placeName: "haulover canal", sourceBaitId: "b1" },
         { id: "bait-again", placeName: "Haulover Canal", sourceBaitId: "b2" },
+        { id: "catch-2", placeName: "Haulover Canal", sourceCatchId: "c2" },
       ]).map((note) => note.id),
-    ).toEqual(["catch", "bait"]);
+    ).toEqual(["catch", "bait", "bait-again", "catch-2"]);
   });
 });
 
