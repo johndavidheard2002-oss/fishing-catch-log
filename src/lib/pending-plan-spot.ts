@@ -112,7 +112,7 @@ export function parsePendingPlanSpotSearch(search: {
 }
 
 export function writePendingPlanSpot(
-  storage: Pick<Storage, "setItem"> | null | undefined,
+  storage: Pick<Storage, "setItem" | "removeItem"> | null | undefined,
   spot: PendingPlanSpot,
 ): void {
   if (!storage) return;
@@ -121,6 +121,8 @@ export function writePendingPlanSpot(
       PENDING_PLAN_SPOT_STORAGE_KEY,
       JSON.stringify({ ...spot, savedAt: Date.now() }),
     );
+    // A new Calendar List / Add to plan has not picked a day yet.
+    storage.removeItem(PENDING_PLAN_DAY_STORAGE_KEY);
   } catch {
     /* private mode */
   }
@@ -250,6 +252,17 @@ export function writePendingPlanDay(
   }
 }
 
+export function clearPendingPlanDay(
+  storage: Pick<Storage, "removeItem"> | null | undefined,
+): void {
+  if (!storage) return;
+  try {
+    storage.removeItem(PENDING_PLAN_DAY_STORAGE_KEY);
+  } catch {
+    /* private mode */
+  }
+}
+
 export function readPendingPlanDay(
   storage: Pick<Storage, "getItem"> | null | undefined,
 ): string | null {
@@ -262,18 +275,27 @@ export function readPendingPlanDay(
   }
 }
 
-/** URL has the add handoff plus a picked day, or the angler already tapped a day. */
+/**
+ * URL has the add handoff plus a picked day, or the angler already tapped a day.
+ * A fresh Calendar List / Add to plan has the catch/bait in the query and no
+ * `date=` — do not inherit the last planned day from session.
+ */
 export function pendingPlanDayToCommit(
   fromSearch: PendingPlanSpot | null,
   dateFromUrl?: string | null,
   storedDay?: string | null,
 ): string | null {
-  const day =
-    (dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl) ? dateFromUrl : null) ||
-    (storedDay && /^\d{4}-\d{2}-\d{2}$/.test(storedDay) ? storedDay : null);
+  const urlDay =
+    dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl) ? dateFromUrl : null;
+  const savedDay = storedDay && /^\d{4}-\d{2}-\d{2}$/.test(storedDay) ? storedDay : null;
+  const freshListAdd = Boolean(
+    fromSearch?.catchId || fromSearch?.baitId || fromSearch?.placeName,
+  );
+  if (freshListAdd && !urlDay) return null;
+  const day = urlDay || savedDay;
   if (!day) return null;
-  if (fromSearch?.catchId || fromSearch?.baitId || fromSearch?.placeName) return day;
-  if (storedDay === day) return day;
+  if (freshListAdd) return day;
+  if (savedDay === day) return day;
   return null;
 }
 

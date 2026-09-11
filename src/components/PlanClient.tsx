@@ -39,7 +39,7 @@ import {
   PENDING_PLAN_PHOTO_QUERY,
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
-  clearPendingPlanSpot,
+  clearPendingPlanDay,
   dropCommittedPlanSpotsForDay,
   parsePendingPlanSpotSearch,
   pendingPlanDayToCommit,
@@ -90,9 +90,8 @@ function readSessionPendingSpot(): PendingPlanSpot | null {
   return readPendingPlanSpot(sessionStorage);
 }
 
-function dropSessionPendingSpot() {
-  if (typeof sessionStorage === "undefined") return;
-  clearPendingPlanSpot(sessionStorage);
+function sessionStore(): Storage | null {
+  return typeof sessionStorage === "undefined" ? null : sessionStorage;
 }
 
 export function PlanClient({
@@ -187,17 +186,20 @@ export function PlanClient({
     const fromSearch = parsePendingPlanSpotSearch(params);
     const next = resolvePendingPlanSpot(fromSearch, readSessionPendingSpot());
     if (next) setPendingSpot(next);
+    const dateFromUrl = params.get("date");
     const picked = pendingPlanDayToCommit(
       fromSearch,
-      params.get("date"),
-      readPendingPlanDay(typeof sessionStorage === "undefined" ? null : sessionStorage),
+      dateFromUrl,
+      readPendingPlanDay(sessionStore()),
     );
     if (picked) pendingDayRef.current = picked;
-    else if (next) setSelectedDay(null);
-    setCommittedSpots(
-      readCommittedPlanSpots(typeof sessionStorage === "undefined" ? null : sessionStorage),
-    );
-  }, []);
+    // Fresh List / Add to plan has no date= yet — wait for a tap.
+    // After a save we keep the spot and replaceState to /plan?date=…; do not wipe that day.
+    else if (next && !(dateFromUrl && /^\d{4}-\d{2}-\d{2}$/.test(dateFromUrl))) {
+      setSelectedDay(null);
+    }
+    setCommittedSpots(readCommittedPlanSpots(sessionStore()));
+  }, [initialAddCatch, initialAddBait, initialAddPlace]);
 
   useEffect(() => {
     const catchId = pendingSpot?.catchId;
@@ -427,7 +429,7 @@ export function PlanClient({
     const spot = pendingSpotRef.current;
     if (!spot?.placeName) {
       pendingDayRef.current = day;
-      writePendingPlanDay(typeof sessionStorage === "undefined" ? null : sessionStorage, day);
+      writePendingPlanDay(sessionStore(), day);
       return;
     }
     if (committingRef.current) return;
@@ -439,8 +441,15 @@ export function PlanClient({
       if (input?.placeName) {
         await onAddSpot(spot, day);
       }
-      setPendingSpot(null);
-      dropSessionPendingSpot();
+      // Keep the List / Add to plan spot so the next calendar tap can save another day.
+      setSelectedDay(day);
+      writeLastPlanDay(day, sessionStore());
+      const parsed = parsePlanDate(day);
+      if (parsed) {
+        setYear(parsed.getFullYear());
+        setMonth(parsed.getMonth());
+      }
+      clearPendingPlanDay(sessionStore());
       window.history.replaceState(null, "", `/plan?date=${day}`);
     } finally {
       committingRef.current = false;

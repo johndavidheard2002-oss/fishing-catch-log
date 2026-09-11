@@ -205,6 +205,17 @@ describe("dayHasPlanSpot", () => {
     expect(
       addPlanSpotToDay(afterAdd, "2026-09-10", { placeName: "Mosquito Lagoon" })?.placeName,
     ).toBe("Mosquito Lagoon");
+    expect(
+      addPlanSpotToDay([], "2026-10-11", {
+        placeName: "Haulover Canal",
+        speciesTargets: ["Redfish"],
+        catchId: "c1",
+      }),
+    ).toMatchObject({
+      day: "2026-10-11",
+      placeName: "Haulover Canal",
+      sourceCatchId: "c1",
+    });
   });
 
   it("still adds bait when a catch is already planned at that place", () => {

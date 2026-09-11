@@ -13,6 +13,7 @@ import {
   PENDING_PLAN_SPOT_STORAGE_KEY,
   PENDING_PLAN_SPOT_TTL_MS,
   canShowAddToPlan,
+  clearPendingPlanDay,
   clearPendingPlanSpot,
   dropCommittedPlanSpotsForDay,
   parsePendingPlanSpotSearch,
@@ -164,6 +165,19 @@ describe("plan href and query contract", () => {
 });
 
 describe("session handoff", () => {
+  it("clears a leftover pending day so a new List add does not inherit it", () => {
+    const storage = memoryStorage();
+    writePendingPlanDay(storage, "2026-10-10");
+    writePendingPlanSpot(storage, {
+      catchId: "c1",
+      placeName: "Beach marker 42",
+      speciesTargets: ["Redfish"],
+    });
+    expect(readPendingPlanDay(storage)).toBeNull();
+    expect(storage.getItem(PENDING_PLAN_DAY_STORAGE_KEY)).toBeNull();
+    expect(readPendingPlanSpot(storage)?.catchId).toBe("c1");
+  });
+
   it("round-trips a spot and expires a stale one", () => {
     const storage = memoryStorage();
     writePendingPlanSpot(storage, {
@@ -238,6 +252,20 @@ describe("session handoff", () => {
       pendingPlanDayToCommit(null, "2026-09-12", "2026-09-12"),
     ).toBe("2026-09-12");
     expect(pendingPlanDayToCommit(null, "2026-09-12", null)).toBeNull();
+    expect(
+      pendingPlanDayToCommit(
+        { catchId: "c1", placeName: "Beach marker 42", speciesTargets: ["Redfish"] },
+        null,
+        "2026-10-10",
+      ),
+    ).toBeNull();
+    expect(
+      pendingPlanDayToCommit(
+        { catchId: "c1", placeName: "Beach marker 42", speciesTargets: ["Redfish"] },
+        "2026-10-11",
+        "2026-10-10",
+      ),
+    ).toBe("2026-10-11");
     clearPendingPlanSpot(storage);
     expect(readPendingPlanDay(storage)).toBeNull();
   });
@@ -297,6 +325,65 @@ describe("pending prompt", () => {
       "Looking up that spot…",
     );
     expect(pendingPlanPrompt(null)).toBeNull();
+  });
+});
+
+describe("Calendar List Add to plan can save more than one day", () => {
+  it("does not auto-commit a leftover stored day when List opens /plan without date=", () => {
+    const leftover = "2026-10-10";
+    const fromSearch = pendingPlanSpotFromCatch(
+      catchOf({
+        id: "c-beach",
+        placeName: "Beach marker 42",
+        speciesList: ["Redfish"],
+      }),
+    );
+    const storage = memoryStorage({ [PENDING_PLAN_DAY_STORAGE_KEY]: leftover });
+    writePendingPlanSpot(storage, fromSearch!);
+    expect(readPendingPlanDay(storage)).toBeNull();
+    expect(pendingPlanDayToCommit(fromSearch, null, leftover)).toBeNull();
+    expect(pendingPlanDayToCommit(fromSearch, null, readPendingPlanDay(storage))).toBeNull();
+  });
+
+  it("saves the same catch onto two different days after List Add to plan", () => {
+    const pending = pendingPlanSpotFromCatch(
+      catchOf({
+        id: "c-beach",
+        placeName: "Beach marker 42",
+        speciesList: ["Redfish"],
+      }),
+    )!;
+    const storage = memoryStorage();
+    writePendingPlanDay(storage, "2026-10-10");
+    writePendingPlanSpot(storage, pending);
+    expect(pendingPlanDayToCommit(pending, null, readPendingPlanDay(storage))).toBeNull();
+
+    const oct10 = addPlanSpotToDay([], "2026-10-10", pending);
+    expect(oct10).toMatchObject({
+      day: "2026-10-10",
+      placeName: "Beach marker 42",
+      kind: "plan-spot",
+      sourceCatchId: "c-beach",
+    });
+    const afterOct10 = [
+      {
+        day: "2026-10-10",
+        placeName: oct10!.placeName,
+        kind: "plan-spot" as const,
+        sourceCatchId: "c-beach",
+      },
+    ];
+    expect(addPlanSpotToDay(afterOct10, "2026-10-10", pending)).toBeNull();
+
+    const oct11 = addPlanSpotToDay([], "2026-10-11", pending);
+    const oct12 = addPlanSpotToDay([], "2026-10-12", pending);
+    expect(oct11).toMatchObject({ day: "2026-10-11", placeName: "Beach marker 42", sourceCatchId: "c-beach" });
+    expect(oct12).toMatchObject({ day: "2026-10-12", placeName: "Beach marker 42", sourceCatchId: "c-beach" });
+
+    clearPendingPlanDay(storage);
+    expect(readPendingPlanSpot(storage)?.placeName).toBe("Beach marker 42");
+    expect(readPendingPlanDay(storage)).toBeNull();
+    expect(pendingPlanDayToCommit(pending, "2026-10-11", null)).toBe("2026-10-11");
   });
 });
 
@@ -437,12 +524,19 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain("pendingPlanDayToCommit");
     expect(plan).toContain('window.history.replaceState(null, "", `/plan?date=${day}`)');
     const commitFn = plan.slice(plan.indexOf("async function commitPendingSpot"));
+    expect(commitFn).toContain("clearPendingPlanDay");
+    expect(commitFn).not.toContain("setPendingSpot(null)");
+    expect(commitFn).not.toContain("dropSessionPendingSpot()");
+    expect(commitFn).not.toContain("clearPendingPlanSpot");
     expect(commitFn.indexOf("await onAddSpot(spot, day)")).toBeLessThan(
-      commitFn.indexOf("dropSessionPendingSpot()"),
+      commitFn.indexOf("clearPendingPlanDay"),
     );
     expect(commitFn.indexOf("await onAddSpot(spot, day)")).toBeLessThan(
       commitFn.indexOf('window.history.replaceState(null, "", `/plan?date=${day}`)'),
     );
+    expect(plan).toContain("dateFromUrl && /^\\d{4}-\\d{2}-\\d{2}$/.test(dateFromUrl)");
+    expect(page).toContain('key={');
+    expect(page).toContain("`add:${initialAddCatch");
     expect(plan).toContain("/api/catches/");
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");
