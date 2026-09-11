@@ -757,45 +757,55 @@ export function PlanClient({
                             />
                           </span>
                         ) : null}
-                        <span className="min-w-0">
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
-                              {note.placeName}
+                        <span className="flex min-w-0 items-start gap-2">
+                          <span className="min-w-0">
+                            <span className="flex flex-wrap items-center gap-1.5">
+                              <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
+                                {note.placeName}
+                              </span>
+                              {kind === "bait" ? (
+                                <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
+                                  Bait
+                                </span>
+                              ) : null}
                             </span>
-                            {kind === "bait" ? (
-                              <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
-                                Bait
+                            {labels.fish.length || labels.bait.length ? (
+                              <span className="mt-1 flex flex-wrap gap-1">
+                                {labels.fish.map((name) => (
+                                  <span
+                                    key={`fish:${name}`}
+                                    className="rounded-full bg-teal/10 px-2 py-0.5 text-[10px] font-semibold text-teal"
+                                    data-testid="plan-day-spot-fish"
+                                  >
+                                    {name}
+                                  </span>
+                                ))}
+                                {labels.bait.map((name) => (
+                                  <span
+                                    key={`bait:${name}`}
+                                    className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper"
+                                    data-testid="plan-day-spot-bait"
+                                  >
+                                    {name}
+                                  </span>
+                                ))}
                               </span>
                             ) : null}
-                            {closestTide ? (
+                          </span>
+                          {closestTide ? (
+                            <span className="flex shrink-0 flex-col items-start gap-0.5">
+                              <span
+                                className="text-xs text-ink-muted"
+                                data-testid="plan-day-spot-tide-label"
+                              >
+                                matching tide
+                              </span>
                               <span
                                 className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold text-ink"
                                 data-testid="plan-day-spot-tide"
                               >
                                 {closestTide}
                               </span>
-                            ) : null}
-                          </span>
-                          {labels.fish.length || labels.bait.length ? (
-                            <span className="mt-1 flex flex-wrap gap-1">
-                              {labels.fish.map((name) => (
-                                <span
-                                  key={`fish:${name}`}
-                                  className="rounded-full bg-teal/10 px-2 py-0.5 text-[10px] font-semibold text-teal"
-                                  data-testid="plan-day-spot-fish"
-                                >
-                                  {name}
-                                </span>
-                              ))}
-                              {labels.bait.map((name) => (
-                                <span
-                                  key={`bait:${name}`}
-                                  className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper"
-                                  data-testid="plan-day-spot-bait"
-                                >
-                                  {name}
-                                </span>
-                              ))}
                             </span>
                           ) : null}
                         </span>

@@ -461,6 +461,8 @@ describe("Plan Planned panel wires day tides", () => {
     expect(plan).toContain("/api/assist/weather");
     expect(plan).toContain('data-testid="plan-day-tides"');
     expect(plan).toContain('data-testid="plan-day-spot-tide"');
+    expect(plan).toContain('data-testid="plan-day-spot-tide-label"');
+    expect(plan).toContain("matching tide");
     expect(plan).toContain("selectPlanDay");
     expect(plan).toContain("data-no-tab-swipe");
     expect(plan).toContain('type="button"');
