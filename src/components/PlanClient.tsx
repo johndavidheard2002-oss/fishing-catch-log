@@ -63,7 +63,7 @@ import {
   pinForPlannedSpot,
   planDayReferenceAt,
   plannedDayTideDetail,
-  plannedSpotClosestTide,
+  plannedSpotSameTide,
 } from "@/lib/plan-tides";
 import { tidesApplyToHabitat, type TideSnapshot } from "@/lib/tides/snapshot";
 import {
@@ -164,8 +164,8 @@ export function PlanClient({
   const [journalBait, setJournalBait] = useState<BaitSpot[]>([]);
   const [planTides, setPlanTides] = useState<{
     detail: string;
-    closestById: Record<string, string>;
-  }>({ detail: "", closestById: {} });
+    sameTideById: Record<string, string>;
+  }>({ detail: "", sameTideById: {} });
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
@@ -437,7 +437,7 @@ export function PlanClient({
 
   useEffect(() => {
     if (!selectedDay || !spotsOnDay.length) {
-      setPlanTides({ detail: "", closestById: {} });
+      setPlanTides({ detail: "", sameTideById: {} });
       return;
     }
     let cancelled = false;
@@ -445,7 +445,7 @@ export function PlanClient({
     const spots = spotsOnDay;
     void (async () => {
       const snaps = new Map<string, TideSnapshot>();
-      const closestById: Record<string, string> = {};
+      const sameTideById: Record<string, string> = {};
       let detail = "";
       for (const note of spots) {
         const pin = pinForPlannedSpot(note, { catches: journalCatches, baitSpots: journalBait });
@@ -475,10 +475,36 @@ export function PlanClient({
         }
         if (!snap) continue;
         if (!detail) detail = plannedDayTideDetail(snap, pin.longitude);
-        const closest = plannedSpotClosestTide(snap, day, pin);
-        if (closest) closestById[note.id] = closest;
+        let resolved = pin;
+        if (resolved.tideHeightFt == null && resolved.caughtAt) {
+          try {
+            const res = await fetch("/api/assist/weather", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: pin.latitude,
+                longitude: pin.longitude,
+                at: resolved.caughtAt,
+                habitat: pin.habitat,
+              }),
+            });
+            const data = res.ok ? await res.json() : null;
+            const catchSnap = data?.tide as TideSnapshot | undefined;
+            if (catchSnap?.heightFt != null) {
+              resolved = {
+                ...resolved,
+                tideHeightFt: catchSnap.heightFt,
+                tide: resolved.tide ?? catchSnap.tide,
+              };
+            }
+          } catch {
+            /* keep pin without height */
+          }
+        }
+        const label = plannedSpotSameTide(snap, day, resolved);
+        if (label) sameTideById[note.id] = label;
       }
-      if (!cancelled) setPlanTides({ detail, closestById });
+      if (!cancelled) setPlanTides({ detail, sameTideById });
     })();
     return () => {
       cancelled = true;
@@ -659,7 +685,7 @@ export function PlanClient({
                       catches: journalCatches,
                       baitSpots: journalBait,
                     });
-                    const closestTide = planTides.closestById[note.id];
+                    const closestTide = planTides.sameTideById[note.id];
                     const row = (
                       <>
                         {photo ? (

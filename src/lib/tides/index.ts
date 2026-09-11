@@ -3,6 +3,7 @@ import { demoTide } from "./demo";
 import { fetchNoaaExtremes } from "./noaa";
 import {
   emptyTideSnapshot,
+  serializeTideExtremes,
   snapshotFromExtremes,
   timeZoneFromLongitude,
   tidesApplyToHabitat,
@@ -97,6 +98,7 @@ export async function getTideSnapshot(args: {
         source: "noaa",
         note: "",
         stationName,
+        extremes: serializeTideExtremes(extremes),
       };
     }
   } catch {
@@ -116,6 +118,7 @@ export async function getTideSnapshot(args: {
           ...snap,
           source: "worldtides",
           note: "",
+          extremes: serializeTideExtremes(extremes),
         };
       }
     } catch {

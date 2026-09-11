@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { getTideSnapshot } from "./index";
 import {
-  closestCivilDayTide,
-  formatClosestTideLabel,
+  formatSameTideLabel,
   formatTideClock,
   formatTideDetail,
+  pickSameTideMatch,
+  sameTideMatches,
   snapshotFromExtremes,
   timeZoneFromLongitude,
   tidesApplyToHabitat,
@@ -194,25 +195,29 @@ describe("timeZoneFromLongitude", () => {
   });
 });
 
-describe("closestCivilDayTide", () => {
-  it("picks the nearer high or low to the planned-day clock", () => {
-    const snap = {
-      nextHighAt: "2026-10-10T16:00:00.000Z",
-      nextHighFt: 2.8,
-      nextLowAt: "2026-10-10T22:00:00.000Z",
-      nextLowFt: 0.2,
-    };
-    expect(closestCivilDayTide(snap, new Date("2026-10-10T15:00:00.000Z"))).toMatchObject({
-      type: "high",
-      at: "2026-10-10T16:00:00.000Z",
-    });
-    expect(closestCivilDayTide(snap, new Date("2026-10-10T21:00:00.000Z"))).toMatchObject({
-      type: "low",
-      at: "2026-10-10T22:00:00.000Z",
-    });
-    expect(formatClosestTideLabel({ type: "high", at: "2026-10-10T16:00:00.000Z", heightFt: 2.8 }, "UTC")).toBe(
-      "High 4:00 PM",
-    );
+describe("sameTideMatches", () => {
+  const extremes = [
+    { at: "2026-10-10T05:46:00.000Z", type: "low" as const, heightFt: 0.5 },
+    { at: "2026-10-10T12:09:00.000Z", type: "high" as const, heightFt: 4.7 },
+    { at: "2026-10-10T18:46:00.000Z", type: "low" as const, heightFt: 0.6 },
+  ];
+
+  it("interpolates the plan-day time at the catch height, not the nearer named Low", () => {
+    const matches = sameTideMatches(extremes, 4.5, "2026-10-10", "America/New_York");
+    const falling = pickSameTideMatch(matches, "falling");
+    expect(falling?.direction).toBe("falling");
+    expect(falling?.onExtreme).toBeNull();
+    expect(formatSameTideLabel(falling, "America/New_York")).toBe("8:28 AM falling");
+    expect(formatSameTideLabel(falling, "America/New_York")).not.toMatch(/^Low\b/);
+    const rising = pickSameTideMatch(matches, "rising");
+    expect(rising?.direction).toBe("rising");
+    expect(formatSameTideLabel(rising, "America/New_York")).toMatch(/rising/);
+  });
+
+  it("labels High only when the equal-height instant is the High", () => {
+    const matches = sameTideMatches(extremes, 4.7, "2026-10-10", "America/New_York");
+    const atHigh = pickSameTideMatch(matches, "falling");
+    expect(formatSameTideLabel(atHigh, "America/New_York")).toBe("High 8:09 AM");
   });
 });
 

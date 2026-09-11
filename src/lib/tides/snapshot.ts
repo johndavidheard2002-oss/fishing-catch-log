@@ -6,6 +6,12 @@ export type TideExtreme = {
   heightFt: number;
 };
 
+export type SerializedTideExtreme = {
+  at: string;
+  type: "high" | "low";
+  heightFt: number;
+};
+
 export type TideSnapshot = {
   applies: boolean;
   tide: Tide | null;
@@ -17,6 +23,7 @@ export type TideSnapshot = {
   source: "worldtides" | "noaa" | "none";
   note: string;
   stationName?: string | null;
+  extremes?: SerializedTideExtreme[];
 };
 
 export function emptyTideSnapshot(
@@ -35,6 +42,7 @@ export function emptyTideSnapshot(
     source,
     note,
     stationName: null,
+    extremes: [],
   };
 }
 
@@ -132,53 +140,143 @@ export function timeZoneFromLongitude(lon: number | null | undefined): string | 
   return undefined;
 }
 
-export type ClosestTide = {
-  type: "high" | "low";
-  at: string;
-  heightFt: number | null;
+export type TideDirection = "rising" | "falling";
+
+export type SameTideMatch = {
+  at: Date;
+  direction: TideDirection;
+  heightFt: number;
+  onExtreme: "high" | "low" | null;
 };
 
-/** Nearer civil-day high or low to `at` (Plan photo stamp, catch clock). */
-export function closestCivilDayTide(
-  snap: {
-    nextHighAt?: string | null;
-    nextHighFt?: number | null;
-    nextLowAt?: string | null;
-    nextLowFt?: number | null;
-  },
-  at: Date,
-): ClosestTide | null {
-  if (Number.isNaN(at.getTime())) return null;
-  const candidates: ClosestTide[] = [];
-  if (snap.nextHighAt && !Number.isNaN(Date.parse(snap.nextHighAt))) {
-    candidates.push({
-      type: "high",
-      at: snap.nextHighAt,
-      heightFt: snap.nextHighFt ?? null,
-    });
-  }
-  if (snap.nextLowAt && !Number.isNaN(Date.parse(snap.nextLowAt))) {
-    candidates.push({
-      type: "low",
-      at: snap.nextLowAt,
-      heightFt: snap.nextLowFt ?? null,
-    });
-  }
-  if (!candidates.length) return null;
-  const target = at.getTime();
-  return candidates.reduce((best, cur) =>
-    Math.abs(Date.parse(cur.at) - target) < Math.abs(Date.parse(best.at) - target) ? cur : best,
-  );
+const HEIGHT_EPS = 0.001;
+const ON_EXTREME_MS = 60 * 1000;
+
+export function serializeTideExtremes(extremes: TideExtreme[]): SerializedTideExtreme[] {
+  return [...extremes]
+    .filter((e) => Number.isFinite(e.at.getTime()) && Number.isFinite(e.heightFt))
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .map((e) => ({ at: e.at.toISOString(), type: e.type, heightFt: e.heightFt }));
 }
 
-export function formatClosestTideLabel(
-  tide: ClosestTide | null | undefined,
+export function parseTideExtremes(
+  raw: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+): TideExtreme[] {
+  if (!raw?.length) return [];
+  return raw
+    .map((row) => {
+      const at = row.at instanceof Date ? row.at : new Date(row.at);
+      return {
+        at,
+        type: row.type === "low" ? ("low" as const) : ("high" as const),
+        heightFt: row.heightFt,
+      };
+    })
+    .filter((e) => Number.isFinite(e.at.getTime()) && Number.isFinite(e.heightFt))
+    .sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
+/** Catch/bait `tide` stage → rising or falling water. */
+export function directionFromTide(tide?: string | null): TideDirection | null {
+  if (tide === "incoming") return "rising";
+  if (tide === "outgoing") return "falling";
+  if (tide === "high") return "falling";
+  if (tide === "low") return "rising";
+  return null;
+}
+
+function civilClockMinutes(at: Date, timeZone?: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timeZone ?? "UTC",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(at);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return 0;
+  return hour * 60 + minute;
+}
+
+function interpolateHeightCrossing(a: TideExtreme, b: TideExtreme, targetHeightFt: number): Date | null {
+  const spanH = b.heightFt - a.heightFt;
+  const min = Math.min(a.heightFt, b.heightFt);
+  const max = Math.max(a.heightFt, b.heightFt);
+  if (targetHeightFt < min - HEIGHT_EPS || targetHeightFt > max + HEIGHT_EPS) return null;
+  if (Math.abs(spanH) < HEIGHT_EPS) {
+    return Math.abs(a.heightFt - targetHeightFt) <= HEIGHT_EPS ? a.at : null;
+  }
+  const frac = (targetHeightFt - a.heightFt) / spanH;
+  if (frac < -HEIGHT_EPS || frac > 1 + HEIGHT_EPS) return null;
+  const clamped = Math.min(1, Math.max(0, frac));
+  return new Date(a.at.getTime() + (b.at.getTime() - a.at.getTime()) * clamped);
+}
+
+/**
+ * Plan-day instants when interpolated height equals the catch height.
+ * Linear between successive High/Low points — not “nearest named extreme”.
+ */
+export function sameTideMatches(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  targetHeightFt: number,
+  day: string,
+  timeZone?: string,
+): SameTideMatch[] {
+  if (!Number.isFinite(targetHeightFt) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+  const sorted = parseTideExtremes(extremes);
+  if (sorted.length < 2) return [];
+  const matches: SameTideMatch[] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    const at = interpolateHeightCrossing(a, b, targetHeightFt);
+    if (!at) continue;
+    if (civilDateKey(at, timeZone) !== day) continue;
+    const direction: TideDirection = b.heightFt > a.heightFt ? "rising" : "falling";
+    const onA = Math.abs(at.getTime() - a.at.getTime()) <= ON_EXTREME_MS;
+    const onB = Math.abs(at.getTime() - b.at.getTime()) <= ON_EXTREME_MS;
+    matches.push({
+      at,
+      direction,
+      heightFt: targetHeightFt,
+      onExtreme: onA ? a.type : onB ? b.type : null,
+    });
+  }
+  return matches;
+}
+
+export function pickSameTideMatch(
+  matches: SameTideMatch[],
+  prefer?: TideDirection | null,
+  preferAt?: Date | null,
+  timeZone?: string,
+): SameTideMatch | null {
+  if (!matches.length) return null;
+  const preferred =
+    prefer && matches.some((m) => m.direction === prefer)
+      ? matches.filter((m) => m.direction === prefer)
+      : matches;
+  if (preferred.length === 1 || !preferAt || Number.isNaN(preferAt.getTime())) {
+    return preferred[0] ?? null;
+  }
+  const targetMin = civilClockMinutes(preferAt, timeZone);
+  return preferred.reduce((best, cur) => {
+    const bestDt = Math.abs(civilClockMinutes(best.at, timeZone) - targetMin);
+    const curDt = Math.abs(civilClockMinutes(cur.at, timeZone) - targetMin);
+    return curDt < bestDt ? cur : best;
+  });
+}
+
+export function formatSameTideLabel(
+  match: SameTideMatch | null | undefined,
   timeZone?: string,
 ): string {
-  if (!tide?.at) return "";
-  const clock = formatTideClock(tide.at, timeZone);
+  if (!match) return "";
+  const clock = formatTideClock(match.at.toISOString(), timeZone);
   if (!clock) return "";
-  return `${tide.type === "low" ? "Low" : "High"} ${clock}`;
+  if (match.onExtreme === "high") return `High ${clock}`;
+  if (match.onExtreme === "low") return `Low ${clock}`;
+  return `${clock} ${match.direction}`;
 }
 
 export function formatTideClock(
