@@ -83,6 +83,9 @@ import {
   updateQueuedLog,
 } from "@/lib/offline-sync";
 import {
+  clearLogPhotoSessionDraft,
+  isLogPhotoSessionDraft,
+  markLogPhotoSessionDraft,
   shouldApplyHeldLogPhoto,
   shouldClearHeldLogPhotoAfterSave,
   shouldRestoreHeldLogPhoto,
@@ -285,9 +288,18 @@ export function CatchForm({
   );
   const previewHold = useRef<string | null>(previewUrl);
 
-  function showPreview(next: string | null) {
-    if (next) previewHold.current = next;
-    setPreviewUrl(next ?? previewHold.current);
+  function showPreview(next: string | null, opts?: { force?: boolean }) {
+    if (next) {
+      previewHold.current = next;
+      setPreviewUrl(next);
+      return;
+    }
+    if (opts?.force) {
+      previewHold.current = null;
+      setPreviewUrl(null);
+      return;
+    }
+    setPreviewUrl(previewHold.current);
   }
   const [assistNote, setAssistNote] = useState<string | null>(null);
   const [pinHint, setPinHint] = useState<string | null>(null);
@@ -419,6 +431,7 @@ export function CatchForm({
         hasInitial: Boolean(initial),
         importedPhotoPath,
         hasPhotoFile: Boolean(photoFile),
+        hasSessionDraft: isLogPhotoSessionDraft(),
       })
     ) {
       return;
@@ -432,6 +445,7 @@ export function CatchForm({
           hasBlob: Boolean(blob),
           restoreGeneration,
           chosenGeneration: photoChosenGenerationRef.current,
+          hasSessionDraft: isLogPhotoSessionDraft(),
         }) ||
         !blob
       ) {
@@ -569,6 +583,7 @@ export function CatchForm({
 
   async function handleFile(file: File, source: PhotoSource = "library") {
     photoChosenGenerationRef.current += 1;
+    markLogPhotoSessionDraft();
     setError(null);
     setBusy(true);
     setBusyLabel("Reading the photo…");
@@ -800,7 +815,16 @@ export function CatchForm({
     };
   }
 
+  async function discardLogPhotoDraft() {
+    if (!shouldClearHeldLogPhotoAfterSave({ mode })) return;
+    clearLogPhotoSessionDraft();
+    await clearHeldOfflinePhoto();
+    showPreview(null, { force: true });
+    setPhotoFile(null);
+  }
+
   async function finishQueuedSave(queuedId: string, payload: ReturnType<typeof catchPayload>) {
+    await discardLogPhotoDraft();
     setOfflineSaved(true);
     const fromScan = Boolean(importedPhotoPath && pastMode);
     if (fromScan) {
@@ -874,9 +898,7 @@ export function CatchForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
-      if (shouldClearHeldLogPhotoAfterSave({ mode })) {
-        await clearHeldOfflinePhoto();
-      }
+      await discardLogPhotoDraft();
       if (mode === "edit" && data.catch) {
         setSavedNotice(true);
         onSaved?.(data.catch);

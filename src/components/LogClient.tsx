@@ -4,13 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CatchForm } from "@/components/CatchForm";
-import { shouldRemountLogFormAfterPageShow } from "@/lib/log-photo-draft";
-import { readHeldOfflinePhoto } from "@/lib/offline-sync";
+import {
+  isLogPhotoSessionDraft,
+  markStaleHoldMigrationDone,
+  shouldClearStaleHeldLogPhoto,
+  shouldRemountLogFormAfterPageShow,
+  shouldRunStaleHoldMigration,
+} from "@/lib/log-photo-draft";
+import { clearHeldOfflinePhoto } from "@/lib/offline-sync";
 
 export function LogClient() {
   const params = useSearchParams();
   const router = useRouter();
   const [formEpoch, setFormEpoch] = useState(0);
+  const [holdReady, setHoldReady] = useState(false);
   const shouldBackfill = params.get("past") === "1" || Boolean(params.get("photo"));
 
   useEffect(() => {
@@ -20,19 +27,34 @@ export function LogClient() {
   }, [shouldBackfill, params, router]);
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const sessionDraft = isLogPhotoSessionDraft();
+      if (shouldRunStaleHoldMigration() || shouldClearStaleHeldLogPhoto({ hasSessionDraft: sessionDraft })) {
+        await clearHeldOfflinePhoto();
+        markStaleHoldMigrationDone();
+      }
+      if (!cancelled) setHoldReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     function onPageShow(event: PageTransitionEvent) {
-      if (!event.persisted) return;
-      void readHeldOfflinePhoto().then((blob) => {
-        if (
-          !shouldRemountLogFormAfterPageShow({
-            persisted: true,
-            hasHeldPhoto: Boolean(blob),
-          })
-        ) {
-          return;
-        }
+      if (
+        !shouldRemountLogFormAfterPageShow({
+          persisted: event.persisted,
+          hasSessionDraft: isLogPhotoSessionDraft(),
+        })
+      ) {
+        return;
+      }
+      void (async () => {
+        await clearHeldOfflinePhoto();
         setFormEpoch((n) => n + 1);
-      });
+      })();
     }
     window.addEventListener("pageshow", onPageShow);
     return () => window.removeEventListener("pageshow", onPageShow);
@@ -40,6 +62,10 @@ export function LogClient() {
 
   if (shouldBackfill) {
     return <p className="on-wash-chip text-sm">Opening Backfill…</p>;
+  }
+
+  if (!holdReady) {
+    return <p className="on-wash-chip text-sm">Opening the log…</p>;
   }
 
   return (
