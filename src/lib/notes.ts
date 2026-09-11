@@ -98,7 +98,7 @@ export function isPlanSpotNote(note: { kind?: string | null }): boolean {
 }
 
 /**
- * Plan “Remove from plan” targets the calendar note only.
+ * Plan “Remove” targets the calendar note only.
  * Never a catch or bait journal id — those stay in Calendar Log.
  */
 export function planSpotRemoveTarget(note: {

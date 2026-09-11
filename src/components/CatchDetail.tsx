@@ -491,7 +491,7 @@ export function CatchDetail({
                 data-testid="catch-unplan"
                 className="whitespace-nowrap rounded-full border border-line bg-card px-3 py-2 text-sm font-semibold"
               >
-                Remove from plan
+                Remove
               </button>
             ) : (
               <button

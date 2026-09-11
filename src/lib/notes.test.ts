@@ -320,7 +320,8 @@ describe("dayHasPlanSpot", () => {
     const plan = readFileSync(resolve(__dirname, "../components/PlanClient.tsx"), "utf8");
     const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
     expect(plan).toContain('data-testid="plan-day-spot-remove"');
-    expect(plan).toContain("Remove from plan");
+    expect(plan).toContain("Remove");
+    expect(plan).not.toContain("Remove from plan");
     expect(plan).toContain("planSpotRemoveTarget");
     const removeStart = plan.indexOf("async function onRemovePlanSpot");
     const removeFn = plan.slice(removeStart, plan.indexOf("async function onDeletePlan", removeStart));
@@ -394,7 +395,8 @@ describe("dayHasPlanSpot", () => {
     ).toEqual(["unplan-me"]);
     expect(catchDetail).toContain("plannedPhotoUnplanRequest");
     expect(catchDetail).toContain('data-testid="catch-unplan"');
-    expect(catchDetail).toContain("Remove from plan");
+    expect(catchDetail).toContain("Remove");
+    expect(catchDetail).not.toContain("Remove from plan");
     expect(catchDetail).toContain("/api/calendar-notes/");
     const unplanStart = catchDetail.indexOf('if (unplan.mode === "unplan")');
     const journalDelete = catchDetail.indexOf('if (!confirm("Delete this catch?"))');
@@ -409,6 +411,8 @@ describe("dayHasPlanSpot", () => {
     expect(catchPage).toContain("fromPlan={planned.fromPlan}");
     expect(baitPage).toContain("parsePlannedPhotoContext");
     expect(baitDetail).toContain('data-testid="bait-unplan"');
+    expect(baitDetail).toContain("Remove");
+    expect(baitDetail).not.toContain("Remove from plan");
     const baitUnplanStart = baitDetail.indexOf('if (unplan.mode === "unplan")');
     const baitJournal = baitDetail.indexOf('if (!confirm("Delete this bait spot?"))');
     const baitUnplanFn = baitDetail.slice(baitUnplanStart, baitJournal);
