@@ -15,6 +15,7 @@ import {
   canShowAddToPlan,
   clearPendingPlanDay,
   clearPendingPlanSpot,
+  dropCommittedPlanSpot,
   dropCommittedPlanSpotsForDay,
   parsePendingPlanSpotSearch,
   pendingPlanDayToCommit,
@@ -289,6 +290,17 @@ describe("session handoff", () => {
     ]);
     clearPendingPlanSpot(storage);
     expect(readCommittedPlanSpots(storage)).toHaveLength(1);
+    dropCommittedPlanSpot(storage, {
+      day: "2026-09-12",
+      placeName: "Haulover Canal",
+      sourceBaitId: "b1",
+    });
+    expect(readCommittedPlanSpots(storage)).toEqual([]);
+    rememberCommittedPlanSpot(storage, {
+      day: "2026-09-12",
+      placeName: "Haulover Canal",
+      sourceBaitId: "b1",
+    });
     dropCommittedPlanSpotsForDay(storage, "2026-09-12");
     expect(readCommittedPlanSpots(storage)).toEqual([]);
   });

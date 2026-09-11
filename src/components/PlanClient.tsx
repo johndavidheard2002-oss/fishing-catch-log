@@ -28,6 +28,7 @@ import {
   plannedSpotsOnDay,
   planDayAfterSelect,
   planSpotIdentityKey,
+  planSpotRemoveTarget,
   selectPlanDay,
   planSpotDetailHref,
   planSpotSourceKind,
@@ -41,6 +42,7 @@ import {
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
   clearPendingPlanDay,
+  dropCommittedPlanSpot,
   dropCommittedPlanSpotsForDay,
   parsePendingPlanSpotSearch,
   pendingPlanDayToCommit,
@@ -323,6 +325,28 @@ export function PlanClient({
     const res = await fetch(`/api/calendar-notes/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("delete failed");
     setNotes((current) => current.filter((n) => n.id !== id));
+  }
+
+  async function onRemovePlanSpot(note: CalendarNote) {
+    const target = planSpotRemoveTarget(note);
+    if (!target) return;
+    if (!confirm("Remove this spot from the plan? The catch stays in Calendar Log.")) return;
+    try {
+      if (target.calendarNoteId) {
+        const res = await fetch(`/api/calendar-notes/${target.calendarNoteId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("remove failed");
+      }
+      setNotes((current) => current.filter((row) => row.id !== note.id));
+      setCommittedSpots((current) =>
+        current.filter(
+          (item) =>
+            item.day !== note.day || planSpotIdentityKey(item) !== planSpotIdentityKey(note),
+        ),
+      );
+      dropCommittedPlanSpot(sessionStore(), note);
+    } catch {
+      setAddError("Could not remove that spot from the plan.");
+    }
   }
 
   async function onDeletePlan() {
@@ -695,22 +719,30 @@ export function PlanClient({
                     return (
                       <li
                         key={note.id}
-                        className="flex items-center gap-2"
+                        className="flex items-start gap-2"
                         data-testid="plan-day-spot"
                         data-plan-source={kind}
                       >
                         {href ? (
                           <Link
                             href={href}
-                            className={`flex min-w-0 items-center gap-2 ${TAP_RESET}`}
+                            className={`flex min-w-0 flex-1 items-center gap-2 ${TAP_RESET}`}
                             aria-label={plannedSpotOpenLabel(note.placeName, kind, labels)}
                             data-testid="plan-day-spot-open"
                           >
                             {row}
                           </Link>
                         ) : (
-                          row
+                          <div className="flex min-w-0 flex-1 items-center gap-2">{row}</div>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => void onRemovePlanSpot(note)}
+                          className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-copper"
+                          data-testid="plan-day-spot-remove"
+                        >
+                          Remove from plan
+                        </button>
                       </li>
                     );
                   })}

@@ -223,6 +223,31 @@ export function readCommittedPlanSpots(
   }
 }
 
+export function dropCommittedPlanSpot(
+  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null | undefined,
+  spot: {
+    day: string;
+    placeName?: string | null;
+    sourceCatchId?: string | null;
+    sourceBaitId?: string | null;
+    catchId?: string | null;
+    baitId?: string | null;
+  },
+): void {
+  if (!storage || !/^\d{4}-\d{2}-\d{2}$/.test(spot.day)) return;
+  const key = planSpotIdentityKey(spot);
+  const next = readCommittedPlanSpots(storage).filter((item) => {
+    if (item.day !== spot.day) return true;
+    return planSpotIdentityKey(item) !== key;
+  });
+  try {
+    if (!next.length) storage.removeItem(COMMITTED_PLAN_SPOTS_STORAGE_KEY);
+    else storage.setItem(COMMITTED_PLAN_SPOTS_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode */
+  }
+}
+
 export function dropCommittedPlanSpotsForDay(
   storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null | undefined,
   day: string,
