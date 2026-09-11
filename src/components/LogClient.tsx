@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CatchForm } from "@/components/CatchForm";
+import { shouldRemountLogFormAfterPageShow } from "@/lib/log-photo-draft";
+import { readHeldOfflinePhoto } from "@/lib/offline-sync";
 
 export function LogClient() {
   const params = useSearchParams();
   const router = useRouter();
+  const [formEpoch, setFormEpoch] = useState(0);
   const shouldBackfill = params.get("past") === "1" || Boolean(params.get("photo"));
 
   useEffect(() => {
@@ -15,6 +18,25 @@ export function LogClient() {
     const next = new URLSearchParams(params.toString());
     router.replace(`/backfill?${next.toString()}`);
   }, [shouldBackfill, params, router]);
+
+  useEffect(() => {
+    function onPageShow(event: PageTransitionEvent) {
+      if (!event.persisted) return;
+      void readHeldOfflinePhoto().then((blob) => {
+        if (
+          !shouldRemountLogFormAfterPageShow({
+            persisted: true,
+            hasHeldPhoto: Boolean(blob),
+          })
+        ) {
+          return;
+        }
+        setFormEpoch((n) => n + 1);
+      });
+    }
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   if (shouldBackfill) {
     return <p className="on-wash-chip text-sm">Opening Backfill…</p>;
@@ -34,7 +56,7 @@ export function LogClient() {
           </Link>
         </p>
       </div>
-      <CatchForm mode="create" />
+      <CatchForm key={formEpoch} mode="create" />
     </div>
   );
 }

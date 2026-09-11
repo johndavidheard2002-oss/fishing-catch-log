@@ -76,11 +76,18 @@ import {
 } from "@/lib/offline";
 import { readCachedSession } from "@/lib/offline-store";
 import {
+  clearHeldOfflinePhoto,
   enqueueOfflineLog,
   holdOfflinePhoto,
   readHeldOfflinePhoto,
   updateQueuedLog,
 } from "@/lib/offline-sync";
+import {
+  shouldApplyHeldLogPhoto,
+  shouldClearHeldLogPhotoAfterSave,
+  shouldRestoreHeldLogPhoto,
+  shouldShowPhotoAtCatchPrompt,
+} from "@/lib/log-photo-draft";
 import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
@@ -331,6 +338,7 @@ export function CatchForm({
     () => {},
   );
   const photoOnFormRef = useRef(Boolean(previewUrl || photoFile || importedPhotoPath));
+  const photoChosenGenerationRef = useRef(0);
   const pinEmptyRef = useRef(!form.latitude.trim());
   photoOnFormRef.current = Boolean(previewHold.current || photoFile || importedPhotoPath);
   pinEmptyRef.current = !form.latitude.trim();
@@ -404,10 +412,31 @@ export function CatchForm({
   }, []);
 
   useEffect(() => {
-    if (mode !== "create" || pastMode || initial || importedPhotoPath || photoFile) return;
+    if (
+      !shouldRestoreHeldLogPhoto({
+        mode,
+        pastMode,
+        hasInitial: Boolean(initial),
+        importedPhotoPath,
+        hasPhotoFile: Boolean(photoFile),
+      })
+    ) {
+      return;
+    }
+    const restoreGeneration = photoChosenGenerationRef.current;
     let cancelled = false;
     void readHeldOfflinePhoto().then((blob) => {
-      if (cancelled || !blob) return;
+      if (
+        !shouldApplyHeldLogPhoto({
+          cancelled,
+          hasBlob: Boolean(blob),
+          restoreGeneration,
+          chosenGeneration: photoChosenGenerationRef.current,
+        }) ||
+        !blob
+      ) {
+        return;
+      }
       const file = new File([blob], "catch.jpg", { type: blob.type || "image/jpeg" });
       setPhotoFile(file);
       showPreview(URL.createObjectURL(file));
@@ -539,9 +568,12 @@ export function CatchForm({
   }
 
   async function handleFile(file: File, source: PhotoSource = "library") {
+    photoChosenGenerationRef.current += 1;
     setError(null);
     setBusy(true);
     setBusyLabel("Reading the photo…");
+    setPhotoFile(file);
+    showPreview(URL.createObjectURL(file));
     setPhotoAtCatch(source === "camera" && !pastMode ? true : null);
     setPinHint(null);
     const liveCamera = source === "camera" && !pastMode;
@@ -842,6 +874,9 @@ export function CatchForm({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save");
+      if (shouldClearHeldLogPhotoAfterSave({ mode })) {
+        await clearHeldOfflinePhoto();
+      }
       if (mode === "edit" && data.catch) {
         setSavedNotice(true);
         onSaved?.(data.catch);
@@ -910,9 +945,13 @@ export function CatchForm({
         }
       />
 
-      {!busy &&
-      photoAtCatch === null &&
-      Boolean(photoFile || (mode === "create" && importedPhotoPath)) ? (
+      {shouldShowPhotoAtCatchPrompt({
+        busy,
+        photoAtCatch,
+        hasPhotoFile: Boolean(photoFile),
+        importedPhotoPath,
+        mode,
+      }) ? (
         <div
           data-testid="photo-at-catch-prompt"
           className="rounded-2xl border border-line bg-card px-3 py-3"
