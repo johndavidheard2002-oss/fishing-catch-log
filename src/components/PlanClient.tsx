@@ -757,10 +757,10 @@ export function PlanClient({
                             />
                           </span>
                         ) : null}
-                        <span className="flex min-w-0 items-start gap-2">
+                        <span className="flex min-w-0 flex-wrap items-start gap-2">
                           <span className="min-w-0">
                             <span className="flex flex-wrap items-center gap-1.5">
-                              <span className="rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
+                              <span className="whitespace-nowrap rounded-full bg-teal/15 px-2.5 py-1 text-xs font-semibold text-teal">
                                 {note.placeName}
                               </span>
                               {kind === "bait" ? (
