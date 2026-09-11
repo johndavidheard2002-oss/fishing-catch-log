@@ -430,9 +430,10 @@ describe("Calendar Log and Plan wiring", () => {
     expect(plan).toContain('data-testid="plan-pending-spot"');
     expect(plan).toContain("commitPendingSpot");
     expect(plan).toContain("onSelectDay");
-    expect(plan).toContain("void commitPendingSpot(date)");
-    expect(plan).toContain("planHrefForPendingSpot(pending, date)");
-    expect(plan).toContain("planHrefForPendingSpot(pendingSpot, cell.date)");
+    expect(plan).toContain("void commitPendingSpot(picked.day)");
+    expect(plan).toContain("planHrefForPendingSpot(pending, picked.day)");
+    expect(plan).toContain("planDayAfterSelect");
+    expect(plan).toContain("selectPlanDay");
     expect(plan).toContain("pendingPlanDayToCommit");
     expect(plan).toContain('window.history.replaceState(null, "", `/plan?date=${day}`)');
     const commitFn = plan.slice(plan.indexOf("async function commitPendingSpot"));

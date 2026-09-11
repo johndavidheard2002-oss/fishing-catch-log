@@ -22,6 +22,8 @@ import {
   photosForPlannedPlaces,
   plannedSpotOpenLabel,
   plannedSpotsOnDay,
+  planDayAfterSelect,
+  selectPlanDay,
   planSpotDetailHref,
   planSpotSourceKind,
   restorePlanDay,
@@ -467,24 +469,36 @@ export function PlanClient({
         year={year}
         month={month}
         selectedDay={selectedDay}
-        pendingSpot={pendingSpot}
         notedDays={notedDays}
         onMonthChange={(next) => {
           setYear(next.year);
           setMonth(next.month);
         }}
         onSelectDay={(date) => {
-          setSelectedDay(date);
+          const day = selectPlanDay(date);
+          if (!day) return;
+          const picked = planDayAfterSelect(notes, day);
+          if (!picked) return;
+          setSelectedDay(picked.day);
+          writeLastPlanDay(picked.day, typeof sessionStorage === "undefined" ? null : sessionStorage);
+          const parsed = parsePlanDate(picked.day);
+          if (parsed) {
+            setYear(parsed.getFullYear());
+            setMonth(parsed.getMonth());
+          }
           setSpotSaved(false);
           setAddError(null);
           setDeletingPlan(false);
           const pending = pendingSpotRef.current;
           if (pending) {
-            writePendingPlanDay(typeof sessionStorage === "undefined" ? null : sessionStorage, date);
-            window.history.pushState(null, "", planHrefForPendingSpot(pending, date));
-            void commitPendingSpot(date);
+            writePendingPlanDay(
+              typeof sessionStorage === "undefined" ? null : sessionStorage,
+              picked.day,
+            );
+            window.history.pushState(null, "", planHrefForPendingSpot(pending, picked.day));
+            void commitPendingSpot(picked.day);
           } else {
-            window.history.pushState(null, "", `/plan?date=${date}`);
+            window.history.pushState(null, "", `/plan?date=${picked.day}`);
           }
         }}
       />
@@ -718,7 +732,6 @@ function PlanDayCalendar({
   year,
   month,
   selectedDay,
-  pendingSpot,
   notedDays,
   onMonthChange,
   onSelectDay,
@@ -726,7 +739,6 @@ function PlanDayCalendar({
   year: number;
   month: number;
   selectedDay: string | null;
-  pendingSpot: PendingPlanSpot | null;
   notedDays: Set<string>;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
@@ -734,7 +746,11 @@ function PlanDayCalendar({
   const cells = monthGrid(year, month);
   const today = todayKey();
   return (
-    <section className="journal-card overflow-visible rounded-2xl px-3 py-3" data-testid="plan-day-calendar">
+    <section
+      className="journal-card overflow-visible rounded-2xl px-3 py-3"
+      data-testid="plan-day-calendar"
+      data-no-tab-swipe
+    >
       <div className="mb-2 flex items-center justify-between gap-2">
         <button
           type="button"
@@ -765,22 +781,14 @@ function PlanDayCalendar({
           const isToday = cell.date === today;
           const hasNote = notedDays.has(cell.date);
           return (
-            <Link
+            <button
               key={cell.date}
-              href={
-                pendingSpot
-                  ? planHrefForPendingSpot(pendingSpot, cell.date)
-                  : `/plan?date=${cell.date}`
-              }
-              scroll={false}
-              onClick={(event) => {
-                event.preventDefault();
-                onSelectDay(cell.date);
-              }}
+              type="button"
+              onClick={() => onSelectDay(cell.date)}
               aria-label={hasNote ? `${cell.date}, has notes` : cell.date}
               aria-current={isSelected ? "date" : undefined}
               data-testid={`plan-day-${cell.date}`}
-              className={`box-border flex min-h-12 flex-col items-center justify-center overflow-visible rounded-xl border-2 py-2 text-sm ${TAP_RESET} ${
+              className={`box-border flex min-h-12 w-full flex-col items-center justify-center overflow-visible rounded-xl border-2 py-2 text-sm ${TAP_RESET} ${
                 isSelected
                   ? "border-teal bg-card font-semibold"
                   : isToday
@@ -797,7 +805,7 @@ function PlanDayCalendar({
               ) : (
                 <span className="mt-0.5 h-1.5 w-1.5" />
               )}
-            </Link>
+            </button>
           );
         })}
       </div>

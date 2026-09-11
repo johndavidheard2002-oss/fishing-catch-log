@@ -633,6 +633,28 @@ export function mergePlannedPlacePhotos(
 }
 
 /**
+ * Calendar tap → the day the Planned panel should open.
+ * Always the tapped YYYY-MM-DD. Never substitutes a different day that
+ * already has notes (`restorePlanDay` does that when `/plan` has no date).
+ */
+export function selectPlanDay(tappedDay: string | null | undefined): string | null {
+  return parseDayKey(tappedDay);
+}
+
+/**
+ * After a calendar tap: notes already on that day, or `[]` so the angler can
+ * start a plan there (add a note or a spot). Does not invent another day.
+ */
+export function planDayAfterSelect<T extends { day: string }>(
+  notes: T[],
+  tappedDay: string,
+): { day: string; notes: T[] } | null {
+  const day = selectPlanDay(tappedDay);
+  if (!day) return null;
+  return { day, notes: planNotesOnDay(notes, day) };
+}
+
+/**
  * Which day the Planned panel should open on after leaving Plan and coming back.
  * A still-valid `?date=` (or last picked day) wins; otherwise the soonest day
  * that still has notes — today, then the next future day, then the latest grace day.
@@ -642,7 +664,7 @@ export function restorePlanDay(
   today: string,
   requestedDay?: string | null,
 ): string | null {
-  const requested = parseDayKey(requestedDay);
+  const requested = selectPlanDay(requestedDay);
   if (requested && !isExpiredPlanDay(requested, today)) return requested;
   const days = [...new Set(upcomingPlanNotes(notes, today).map((note) => note.day))].sort();
   if (days.includes(today)) return today;

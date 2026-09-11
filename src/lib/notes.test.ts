@@ -29,9 +29,11 @@ import {
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
   planSpotDetailHref,
+  planDayAfterSelect,
   planSpotSourceKind,
   restorePlanDay,
   safePlanDayPurgeBeforeKey,
+  selectPlanDay,
   shiftDayKey,
   upcomingPlanNotes,
 } from "./notes";
@@ -354,7 +356,14 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("sourceCatchId");
     expect(plan).toContain("sourceBaitId");
     expect(plan).toContain("restorePlanDay");
+    expect(plan).toContain("planDayAfterSelect");
+    expect(plan).toContain("selectPlanDay");
     expect(plan).toContain("readLastPlanDay");
+    expect(plan).toContain("writeLastPlanDay");
+    expect(plan).toContain("data-no-tab-swipe");
+    expect(plan).toContain('type="button"');
+    expect(plan).toContain("onClick={() => onSelectDay(cell.date)}");
+    expect(plan).not.toContain("planHrefForPendingSpot(pendingSpot, cell.date)");
     expect(plan).toContain("r.ok ? r.json() : null");
     expect(plan).toContain("onDeletePlan");
     const planPage = readFileSync(resolve(__dirname, "../app/plan/page.tsx"), "utf8");
@@ -426,8 +435,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).not.toContain("matches.map((m) => void onAddSpot");
     expect(plan).toContain("commitPendingSpot");
     expect(plan).toContain('data-testid="plan-pending-spot"');
-    expect(plan).toContain("planHrefForPendingSpot(pending, date)");
-    expect(plan).toContain("void commitPendingSpot(date)");
+    expect(plan).toContain("planHrefForPendingSpot(pending, picked.day)");
+    expect(plan).toContain("void commitPendingSpot(picked.day)");
     expect(plan).toContain('window.history.replaceState(null, "", `/plan?date=${day}`)');
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");
@@ -560,6 +569,48 @@ describe("expired Plan days", () => {
     expect(plannedSpotsOnDay(planNotesOnDay(afterRefetch ?? [], today)).map((n) => n.placeName)).toEqual([
       "Haulover Canal",
     ]);
+  });
+
+  it("selects an empty calendar day so a new plan can start there", () => {
+    const today = "2026-09-11";
+    const planned = note({
+      id: "oct10",
+      day: "2026-10-10",
+      placeName: "Beach marker 42",
+      speciesTargets: ["Redfish"],
+      kind: "plan-spot",
+      notes: "Sharkathon",
+    });
+    expect(selectPlanDay("2026-10-11")).toBe("2026-10-11");
+    expect(selectPlanDay("2026-10-10")).toBe("2026-10-10");
+    expect(selectPlanDay("not-a-day")).toBeNull();
+    expect(selectPlanDay(null)).toBeNull();
+    const empty = planDayAfterSelect([planned], "2026-10-11");
+    expect(empty).toEqual({ day: "2026-10-11", notes: [] });
+    expect(empty?.day).not.toBe(planned.day);
+    expect(addPlanSpotToDay(empty?.notes ?? [], empty!.day, { placeName: "The point" })).toEqual({
+      day: "2026-10-11",
+      title: null,
+      notes: null,
+      placeName: "The point",
+      speciesTargets: [],
+      kind: "plan-spot",
+    });
+    expect(planNoteInput(empty!.day, "Try the flood.")).toEqual({
+      day: "2026-10-11",
+      notes: "Try the flood.",
+      title: null,
+      placeName: null,
+      speciesTargets: [],
+      kind: "journal",
+    });
+    expect(restorePlanDay([planned], today, empty!.day)).toBe("2026-10-11");
+    expect(restorePlanDay([planned], today, null)).toBe("2026-10-10");
+    const existing = planDayAfterSelect([planned], "2026-10-10");
+    expect(existing?.day).toBe("2026-10-10");
+    expect(existing?.notes.map((n) => n.placeName)).toEqual(["Beach marker 42"]);
+    expect(calendarDayHasPlan(existing?.notes ?? [])).toBe(true);
+    expect(calendarDayHasPlan(empty?.notes ?? [])).toBe(false);
   });
 
   it("reopens the Planned panel on a day that still has notes when /plan has no date", () => {
