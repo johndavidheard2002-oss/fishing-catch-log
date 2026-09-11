@@ -45,21 +45,33 @@ function defaultViewerId(explicit?: string) {
   return explicit?.trim() || "you";
 }
 
+let holdEpoch = 0;
+let holdChain: Promise<void> = Promise.resolve();
+
+function enqueueHoldOp(run: (epoch: number) => Promise<void>): Promise<void> {
+  const epoch = ++holdEpoch;
+  const next = holdChain.then(() => (epoch === holdEpoch ? run(epoch) : undefined)).catch(() => {});
+  holdChain = next;
+  return next;
+}
+
 export async function holdOfflinePhoto(photo: Blob | File) {
   const name = "name" in photo && photo.name ? photo.name : "catch.jpg";
   const type = photo.type || "image/jpeg";
-  await saveQueuedPhoto(OFFLINE_PHOTO_HOLD_ID, photo);
-  await saveQueuedLog({
-    id: OFFLINE_PHOTO_HOLD_ID,
-    createdAt: new Date().toISOString(),
-    payload: { photoName: name, photoType: type },
-    photoName: name,
-    photoType: type,
-    hasPhotoBlob: true,
-    serverPhotoPath: null,
-    status: "queued",
-    needsConditions: false,
-    viewerId: "",
+  await enqueueHoldOp(async () => {
+    await saveQueuedPhoto(OFFLINE_PHOTO_HOLD_ID, photo);
+    await saveQueuedLog({
+      id: OFFLINE_PHOTO_HOLD_ID,
+      createdAt: new Date().toISOString(),
+      payload: { photoName: name, photoType: type },
+      photoName: name,
+      photoType: type,
+      hasPhotoBlob: true,
+      serverPhotoPath: null,
+      status: "queued",
+      needsConditions: false,
+      viewerId: "",
+    });
   });
 }
 
@@ -68,7 +80,9 @@ export async function readHeldOfflinePhoto(): Promise<Blob | null> {
 }
 
 export async function clearHeldOfflinePhoto() {
-  await removeQueuedLog(OFFLINE_PHOTO_HOLD_ID);
+  await enqueueHoldOp(async () => {
+    await removeQueuedLog(OFFLINE_PHOTO_HOLD_ID);
+  });
 }
 
 export async function enqueueOfflineLog(args: EnqueueOfflineLogArgs): Promise<QueuedLog> {
