@@ -14,6 +14,10 @@ export const PLAN_SPOT_NOTE_KIND: CalendarNoteKind = "plan-spot";
 export const DAY_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const MAX_TITLE = 80;
+/** Short trip name on a Plan day — long enough for “Sharkathon”, short enough for a cell. */
+export const PLAN_DAY_LABEL_MAX = 32;
+/** Calendar cell copy; longer labels ellipsize. */
+export const PLAN_CALENDAR_LABEL_MAX = 10;
 const MAX_NOTES = 2000;
 const MAX_PLACE = 120;
 const MAX_SPECIES = 8;
@@ -96,6 +100,78 @@ export function isPlanSpotNote(note: { kind?: string | null }): boolean {
 /** Calendar Log Planned trips — never includes Plan-only suggested spots. */
 export function journalNotesForCalendarLog(notes: CalendarNote[]): CalendarNote[] {
   return notes.filter((note) => !isPlanSpotNote(note));
+}
+
+/** Plan Notes list — write-ups only. A title-only row is the day label, not a note. */
+export function journalNotesForPlanWriteups(notes: CalendarNote[]): CalendarNote[] {
+  return journalNotesForCalendarLog(notes).filter((note) =>
+    Boolean(note.notes?.trim() || note.placeName?.trim() || note.speciesTargets.length),
+  );
+}
+
+/** Journal note that holds this day’s calendar label (title), if any. */
+export function planDayLabelNote<T extends { title?: string | null; kind?: string | null }>(
+  notes: T[],
+): T | null {
+  const journal = notes.filter((note) => !isPlanSpotNote(note));
+  return journal.find((note) => note.title?.trim()) ?? journal[0] ?? null;
+}
+
+/** Explicit Plan day title — never a place name or note body. */
+export function planDayLabel(
+  notes: Array<{ title?: string | null; kind?: string | null }>,
+): string | null {
+  for (const note of notes) {
+    if (isPlanSpotNote(note)) continue;
+    const title = note.title?.trim();
+    if (title) return title;
+  }
+  return null;
+}
+
+export function formatPlanCalendarLabel(label: string | null | undefined): string | null {
+  const text = label?.trim() ?? "";
+  if (!text) return null;
+  if (text.length <= PLAN_CALENDAR_LABEL_MAX) return text;
+  return `${text.slice(0, PLAN_CALENDAR_LABEL_MAX - 1)}…`;
+}
+
+export function labelsByPlanDay(
+  notes: Array<{ day: string; title?: string | null; kind?: string | null }>,
+): Map<string, string> {
+  const byDay = new Map<string, typeof notes>();
+  for (const note of notes) {
+    const list = byDay.get(note.day) ?? [];
+    list.push(note);
+    byDay.set(note.day, list);
+  }
+  const map = new Map<string, string>();
+  for (const [day, list] of byDay) {
+    const label = planDayLabel(list);
+    if (label) map.set(day, label);
+  }
+  return map;
+}
+
+/** Save or clear the Plan day label on a journal note. Null when there is nothing to write. */
+export function planDayLabelInput(
+  day: string,
+  label: string,
+  existing?: (Pick<CalendarNote, "notes" | "placeName" | "speciesTargets"> & {
+    kind?: CalendarNoteKind | null;
+  }) | null,
+): CalendarNoteInput | null {
+  if (!DAY_KEY_RE.test(day)) return null;
+  const title = trimToNull(label, PLAN_DAY_LABEL_MAX);
+  const input: CalendarNoteInput = {
+    day,
+    title,
+    notes: existing ? trimToNull(existing.notes, MAX_NOTES) : null,
+    placeName: existing?.placeName ?? null,
+    speciesTargets: existing?.speciesTargets ?? [],
+    kind: JOURNAL_NOTE_KIND,
+  };
+  return calendarNoteHasContent(input) ? input : null;
 }
 
 export function normalizeNotePlace(place?: string | null): string {
@@ -633,6 +709,28 @@ export function mergePlannedPlacePhotos(
 }
 
 /**
+ * Calendar tap → the day the Planned panel should open.
+ * Always the tapped YYYY-MM-DD. Never substitutes a different day that
+ * already has notes (`restorePlanDay` does that when `/plan` has no date).
+ */
+export function selectPlanDay(tappedDay: string | null | undefined): string | null {
+  return parseDayKey(tappedDay);
+}
+
+/**
+ * After a calendar tap: notes already on that day, or `[]` so the angler can
+ * start a plan there (add a note or a spot). Does not invent another day.
+ */
+export function planDayAfterSelect<T extends { day: string }>(
+  notes: T[],
+  tappedDay: string,
+): { day: string; notes: T[] } | null {
+  const day = selectPlanDay(tappedDay);
+  if (!day) return null;
+  return { day, notes: planNotesOnDay(notes, day) };
+}
+
+/**
  * Which day the Planned panel should open on after leaving Plan and coming back.
  * A still-valid `?date=` (or last picked day) wins; otherwise the soonest day
  * that still has notes — today, then the next future day, then the latest grace day.
@@ -642,7 +740,7 @@ export function restorePlanDay(
   today: string,
   requestedDay?: string | null,
 ): string | null {
-  const requested = parseDayKey(requestedDay);
+  const requested = selectPlanDay(requestedDay);
   if (requested && !isExpiredPlanDay(requested, today)) return requested;
   const days = [...new Set(upcomingPlanNotes(notes, today).map((note) => note.day))].sort();
   if (days.includes(today)) return today;

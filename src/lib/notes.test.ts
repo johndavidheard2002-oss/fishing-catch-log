@@ -9,8 +9,16 @@ import {
   groupNotesByDay,
   expiredPlanNotes,
   isExpiredPlanDay,
+  formatPlanCalendarLabel,
   journalNotesForCalendarLog,
+  journalNotesForPlanWriteups,
+  labelsByPlanDay,
   labelsForPlannedSpot,
+  PLAN_CALENDAR_LABEL_MAX,
+  PLAN_DAY_LABEL_MAX,
+  planDayLabel,
+  planDayLabelInput,
+  planDayLabelNote,
   noteHeadline,
   parseCalendarNoteInput,
   plannedSpotOpenLabel,
@@ -29,9 +37,11 @@ import {
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
   planSpotDetailHref,
+  planDayAfterSelect,
   planSpotSourceKind,
   restorePlanDay,
   safePlanDayPurgeBeforeKey,
+  selectPlanDay,
   shiftDayKey,
   upcomingPlanNotes,
 } from "./notes";
@@ -354,7 +364,14 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("sourceCatchId");
     expect(plan).toContain("sourceBaitId");
     expect(plan).toContain("restorePlanDay");
+    expect(plan).toContain("planDayAfterSelect");
+    expect(plan).toContain("selectPlanDay");
     expect(plan).toContain("readLastPlanDay");
+    expect(plan).toContain("writeLastPlanDay");
+    expect(plan).toContain("data-no-tab-swipe");
+    expect(plan).toContain('type="button"');
+    expect(plan).toContain("onClick={() => onSelectDay(cell.date)}");
+    expect(plan).not.toContain("planHrefForPendingSpot(pendingSpot, cell.date)");
     expect(plan).toContain("r.ok ? r.json() : null");
     expect(plan).toContain("onDeletePlan");
     const planPage = readFileSync(resolve(__dirname, "../app/plan/page.tsx"), "utf8");
@@ -366,11 +383,22 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain('data-testid="plan-delete-day"');
     expect(plan).toContain("Delete plan");
     expect(plan).toContain("journalNotesForCalendarLog");
+    expect(plan).toContain("journalNotesForPlanWriteups");
+    expect(plan).toContain("PlanDayLabel");
     expect(plan).toContain("PlanDayNotes");
+    expect(plan).toContain("labelsByPlanDay");
+    expect(plan).toContain("formatPlanCalendarLabel");
+    expect(plan).toContain("planDayLabel");
+    expect(plan).toContain('data-testid="plan-day-label"');
     expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(plan.indexOf("<PlanDayNotes"));
+    expect(plan.indexOf("<PlanDayLabel")).toBeLessThan(plan.indexOf("<PlanDayNotes"));
     const planNotes = readFileSync(resolve(__dirname, "../components/CalendarNotes.tsx"), "utf8");
     expect(planNotes).toContain('data-testid="plan-day-notes"');
     expect(planNotes).toContain('data-testid="plan-day-note"');
+    expect(planNotes).toContain('data-testid="plan-day-label-field"');
+    expect(planNotes).toContain('data-testid="plan-day-label-input"');
+    expect(planNotes).toContain('data-testid="plan-day-label-save"');
+    expect(planNotes).toContain("planDayLabelInput");
     expect(plan).toContain('data-testid="plan-add-spot"');
     expect(plan).toContain("data-place-name");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
@@ -385,6 +413,7 @@ describe("Plan add-to-day UI", () => {
     expect(calendarGrid).toContain("planHrefForDay");
     expect(calendarGrid).toContain("Planned");
     expect(calendarGrid).toContain('data-testid="calendar-day-planned"');
+    expect(calendarGrid).not.toContain('data-testid="plan-day-label"');
     const calendarPage = readFileSync(resolve(__dirname, "../app/calendar/page.tsx"), "utf8");
     expect(calendarPage).toContain("includePlanSpots: true");
     expect(plan).toContain('data-testid="plan-suggested-spots"');
@@ -426,8 +455,8 @@ describe("Plan add-to-day UI", () => {
     expect(plan).not.toContain("matches.map((m) => void onAddSpot");
     expect(plan).toContain("commitPendingSpot");
     expect(plan).toContain('data-testid="plan-pending-spot"');
-    expect(plan).toContain("planHrefForPendingSpot(pending, date)");
-    expect(plan).toContain("void commitPendingSpot(date)");
+    expect(plan).toContain("planHrefForPendingSpot(pending, picked.day)");
+    expect(plan).toContain("void commitPendingSpot(picked.day)");
     expect(plan).toContain('window.history.replaceState(null, "", `/plan?date=${day}`)');
     expect(plan).toContain("/api/bait-spots/");
     expect(plan).toContain("pendingPlanSpotFromBait");
@@ -560,6 +589,48 @@ describe("expired Plan days", () => {
     expect(plannedSpotsOnDay(planNotesOnDay(afterRefetch ?? [], today)).map((n) => n.placeName)).toEqual([
       "Haulover Canal",
     ]);
+  });
+
+  it("selects an empty calendar day so a new plan can start there", () => {
+    const today = "2026-09-11";
+    const planned = note({
+      id: "oct10",
+      day: "2026-10-10",
+      placeName: "Beach marker 42",
+      speciesTargets: ["Redfish"],
+      kind: "plan-spot",
+      notes: "Sharkathon",
+    });
+    expect(selectPlanDay("2026-10-11")).toBe("2026-10-11");
+    expect(selectPlanDay("2026-10-10")).toBe("2026-10-10");
+    expect(selectPlanDay("not-a-day")).toBeNull();
+    expect(selectPlanDay(null)).toBeNull();
+    const empty = planDayAfterSelect([planned], "2026-10-11");
+    expect(empty).toEqual({ day: "2026-10-11", notes: [] });
+    expect(empty?.day).not.toBe(planned.day);
+    expect(addPlanSpotToDay(empty?.notes ?? [], empty!.day, { placeName: "The point" })).toEqual({
+      day: "2026-10-11",
+      title: null,
+      notes: null,
+      placeName: "The point",
+      speciesTargets: [],
+      kind: "plan-spot",
+    });
+    expect(planNoteInput(empty!.day, "Try the flood.")).toEqual({
+      day: "2026-10-11",
+      notes: "Try the flood.",
+      title: null,
+      placeName: null,
+      speciesTargets: [],
+      kind: "journal",
+    });
+    expect(restorePlanDay([planned], today, empty!.day)).toBe("2026-10-11");
+    expect(restorePlanDay([planned], today, null)).toBe("2026-10-10");
+    const existing = planDayAfterSelect([planned], "2026-10-10");
+    expect(existing?.day).toBe("2026-10-10");
+    expect(existing?.notes.map((n) => n.placeName)).toEqual(["Beach marker 42"]);
+    expect(calendarDayHasPlan(existing?.notes ?? [])).toBe(true);
+    expect(calendarDayHasPlan(empty?.notes ?? [])).toBe(false);
   });
 
   it("reopens the Planned panel on a day that still has notes when /plan has no date", () => {
@@ -753,6 +824,71 @@ describe("expired Plan days", () => {
         baitSpots: [{ id: "other", placeName: "Haulover Canal", photoPath: "other.jpg" }],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("Plan day labels", () => {
+  it("saves an explicit title and shows a truncated copy on the calendar", () => {
+    const spot = note({
+      id: "spot",
+      placeName: "Beach marker 42",
+      speciesTargets: ["Redfish"],
+      kind: "plan-spot",
+    });
+    const writeup = note({ id: "note", notes: "Try the flood." });
+    expect(planDayLabel([])).toBeNull();
+    expect(planDayLabel([spot])).toBeNull();
+    expect(planDayLabel([spot, writeup])).toBeNull();
+    expect(planDayLabel([note({ title: "Sharkathon" })])).toBe("Sharkathon");
+    expect(planDayLabel([spot, note({ title: "Sharkathon", notes: "Meet at dawn." })])).toBe(
+      "Sharkathon",
+    );
+    expect(planDayLabelNote([spot, writeup])?.id).toBe("note");
+    expect(planDayLabelInput("2026-10-10", "  Sharkathon  ")).toEqual({
+      day: "2026-10-10",
+      title: "Sharkathon",
+      notes: null,
+      placeName: null,
+      speciesTargets: [],
+      kind: "journal",
+    });
+    expect(
+      planDayLabelInput("2026-10-10", "Sharkathon weekend", {
+        notes: "Meet at dawn.",
+        placeName: null,
+        speciesTargets: [],
+      }),
+    ).toEqual({
+      day: "2026-10-10",
+      title: "Sharkathon weekend",
+      notes: "Meet at dawn.",
+      placeName: null,
+      speciesTargets: [],
+      kind: "journal",
+    });
+    expect(planDayLabelInput("2026-10-10", "   ", writeup)).toEqual({
+      day: "2026-10-10",
+      title: null,
+      notes: "Try the flood.",
+      placeName: null,
+      speciesTargets: [],
+      kind: "journal",
+    });
+    expect(planDayLabelInput("2026-10-10", "")).toBeNull();
+    expect(formatPlanCalendarLabel(null)).toBeNull();
+    expect(formatPlanCalendarLabel("Sharkathon")).toBe("Sharkathon");
+    expect(formatPlanCalendarLabel("Sharkathon")).toHaveLength(10);
+    expect(PLAN_CALENDAR_LABEL_MAX).toBe(10);
+    expect(PLAN_DAY_LABEL_MAX).toBe(32);
+    expect(formatPlanCalendarLabel("Sharkathon weekend")).toBe("Sharkatho…");
+    expect(labelsByPlanDay([spot, note({ day: "2026-10-11", title: "Island run" })]).get("2026-10-11")).toBe(
+      "Island run",
+    );
+    expect(labelsByPlanDay([spot]).has("2026-10-10")).toBe(false);
+    const titled = note({ id: "label", title: "Sharkathon" });
+    expect(journalNotesForPlanWriteups([spot, titled])).toEqual([]);
+    expect(journalNotesForPlanWriteups([spot, writeup]).map((n) => n.id)).toEqual(["note"]);
+    expect(journalNotesForCalendarLog([titled]).map((n) => n.title)).toEqual(["Sharkathon"]);
   });
 });
 
