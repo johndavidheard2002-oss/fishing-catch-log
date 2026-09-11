@@ -221,6 +221,23 @@ function interpolateHeightCrossing(a: TideExtreme, b: TideExtreme, targetHeightF
  * Plan-day instants when interpolated height equals the catch height.
  * Linear between successive High/Low points — not “nearest named extreme”.
  */
+/** Keep a target height inside this day's High/Low range so every row can still chip. */
+export function clampHeightToExtremes(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  heightFt: number,
+): number | null {
+  if (!Number.isFinite(heightFt)) return null;
+  const sorted = parseTideExtremes(extremes);
+  if (!sorted.length) return null;
+  let min = sorted[0].heightFt;
+  let max = sorted[0].heightFt;
+  for (const row of sorted) {
+    if (row.heightFt < min) min = row.heightFt;
+    if (row.heightFt > max) max = row.heightFt;
+  }
+  return Math.min(max, Math.max(min, heightFt));
+}
+
 export function sameTideMatches(
   extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
   targetHeightFt: number,

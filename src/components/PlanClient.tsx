@@ -63,6 +63,8 @@ import {
   pinForPlannedSpot,
   planDayReferenceAt,
   plannedDayTideDetail,
+  applyCatchTideSnapshot,
+  catchTideLookupKey,
   plannedSpotSameTide,
 } from "@/lib/plan-tides";
 import { tidesApplyToHabitat, type TideSnapshot } from "@/lib/tides/snapshot";
@@ -445,6 +447,7 @@ export function PlanClient({
     const spots = spotsOnDay;
     void (async () => {
       const snaps = new Map<string, TideSnapshot>();
+      const catchSnaps = new Map<string, TideSnapshot | null>();
       const sameTideById: Record<string, string> = {};
       let detail = "";
       for (const note of spots) {
@@ -476,30 +479,27 @@ export function PlanClient({
         if (!snap) continue;
         if (!detail) detail = plannedDayTideDetail(snap, pin.longitude);
         let resolved = pin;
-        if (resolved.tideHeightFt == null && resolved.caughtAt) {
-          try {
-            const res = await fetch("/api/assist/weather", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                latitude: pin.latitude,
-                longitude: pin.longitude,
-                at: resolved.caughtAt,
-                habitat: pin.habitat,
-              }),
-            });
-            const data = res.ok ? await res.json() : null;
-            const catchSnap = data?.tide as TideSnapshot | undefined;
-            if (catchSnap?.heightFt != null) {
-              resolved = {
-                ...resolved,
-                tideHeightFt: catchSnap.heightFt,
-                tide: resolved.tide ?? catchSnap.tide,
-              };
+        const lookup = catchTideLookupKey(pin);
+        if (lookup) {
+          if (!catchSnaps.has(lookup)) {
+            try {
+              const res = await fetch("/api/assist/weather", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  latitude: pin.latitude,
+                  longitude: pin.longitude,
+                  at: pin.caughtAt,
+                  habitat: pin.habitat,
+                }),
+              });
+              const data = res.ok ? await res.json() : null;
+              catchSnaps.set(lookup, (data?.tide as TideSnapshot | undefined) ?? null);
+            } catch {
+              catchSnaps.set(lookup, null);
             }
-          } catch {
-            /* keep pin without height */
           }
+          resolved = applyCatchTideSnapshot(pin, catchSnaps.get(lookup));
         }
         const label = plannedSpotSameTide(snap, day, resolved);
         if (label) sameTideById[note.id] = label;
