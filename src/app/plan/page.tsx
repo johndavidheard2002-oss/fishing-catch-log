@@ -39,6 +39,7 @@ export default async function PlanPage({
   const initialAddSpecies = firstQuery(params.addSpecies);
   const initialAddPhoto = firstQuery(params.addPhoto);
   let initialNotes;
+  let viewerId = "";
   try {
     const jar = await cookies();
     const viewer = await resolveViewerFromCookies(
@@ -46,13 +47,14 @@ export default async function PlanPage({
       jar.get(SESSION_COOKIE)?.value,
     );
     if (!viewer.signedIn || !viewer.id) redirect("/signin");
+    viewerId = viewer.id;
     const entitlement = await getEntitlementForAngler(viewer.id);
     if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
       return <Paywall entitlement={entitlement} />;
     }
     // List surviving plan notes without a server-TZ `today`. Purge still runs on
     // client refetch with the user's local today plus a same-day server guard.
-    initialNotes = await listCalendarNotes(viewer.id, { forPlan: true });
+    initialNotes = await listCalendarNotes(viewer.id, { forPlan: true, includeShared: true });
   } catch {
     return <JournalUnavailable title="Plan a day" />;
   }
@@ -69,6 +71,7 @@ export default async function PlanPage({
           ? `add:${initialAddCatch ?? ""}:${initialAddBait ?? ""}:${initialAddPlace ?? ""}`
           : "plan"
       }
+      viewerId={viewerId}
       initialDate={initialDate}
       initialNotes={initialNotes}
       initialAddCatch={initialAddCatch}

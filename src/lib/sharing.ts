@@ -5,7 +5,7 @@ import { groupSpots } from "./filters";
 import { personalPhotoSrc } from "./photo";
 import { PRIVACY_LINE } from "./privacy";
 import { speciesLabel } from "./species";
-import type { BaitSpot, CatchRecord } from "./types";
+import type { BaitSpot, CalendarNote, CatchRecord } from "./types";
 
 export const OWNER_PRIVATE_STATUS_LINE = "Private to you. Not shared with anyone.";
 export const OWNER_SHARED_PUBLIC_NOTE = "Never public. No feed.";
@@ -181,6 +181,29 @@ export function recordedSharePlaceName(placeName?: string | null): string | null
   return label || null;
 }
 
+/** spot_shares.record_id for a plan day — owner-scoped so two anglers can share the same date. */
+export function planShareRecordId(ownerId: string, day: string): string {
+  return `${ownerId}:${day}`;
+}
+
+/** Share flags for the Planned card — one day, one set of friends. */
+export function planDayShareState(
+  notes: Array<{
+    sharedWithLinked?: boolean;
+    sharedWithBuddyIds?: string[] | null;
+  }>,
+): { sharedWithLinked: boolean; sharedWithBuddyIds: string[] } {
+  const buddyIds = new Set<string>();
+  let sharedWithLinked = false;
+  for (const note of notes) {
+    if (note.sharedWithLinked) sharedWithLinked = true;
+    for (const id of note.sharedWithBuddyIds ?? []) {
+      if (id) buddyIds.add(id);
+    }
+  }
+  return { sharedWithLinked, sharedWithBuddyIds: [...buddyIds] };
+}
+
 export type OwnerSharedDay = {
   day: string;
   placeNames: string[];
@@ -211,6 +234,10 @@ export function ownerSharedDays(args: {
     Pick<BaitSpot, "loggedAt" | "placeName" | "sharedWithLinked"> &
       Partial<Pick<BaitSpot, "anglerId" | "sharedWithBuddyIds">>
   >;
+  notes?: Array<
+    Pick<CalendarNote, "day" | "placeName" | "sharedWithLinked"> &
+      Partial<Pick<CalendarNote, "anglerId" | "sharedWithBuddyIds" | "title">>
+  >;
   ownerId?: string;
 }): OwnerSharedDay[] {
   const byDay = new Map<string, SharedDayAcc>();
@@ -226,6 +253,16 @@ export function ownerSharedDays(args: {
     if (!isOwnerSharedSpot(spot)) continue;
     if (typeof spot.loggedAt !== "string" || !spot.loggedAt) continue;
     addSharedDayPlace(byDay, localDateKey(spot.loggedAt), recordedSharePlaceName(spot.placeName));
+  }
+  for (const note of args.notes ?? []) {
+    if (args.ownerId && note.anglerId && note.anglerId !== args.ownerId) continue;
+    if (!isOwnerSharedSpot(note)) continue;
+    if (typeof note.day !== "string" || !note.day) continue;
+    addSharedDayPlace(
+      byDay,
+      note.day,
+      recordedSharePlaceName(note.placeName) ?? recordedSharePlaceName(note.title),
+    );
   }
 
   return [...byDay.values()]

@@ -653,6 +653,21 @@ export function upcomingPlanNotes<T extends { day: string }>(notes: T[], today: 
  * GET / remount pipeline: keep plan-spots and write-ups that are not 3+ days old.
  * A missing or non-array list is treated as “no update”, not an empty plan.
  */
+/** Own plan on a day wins over a friend’s shared plan on the same date. */
+export function preferOwnPlanNotes<T extends { day: string; anglerId?: string | null }>(
+  notes: T[],
+  viewerId?: string | null,
+): T[] {
+  if (!viewerId) return notes;
+  const ownDays = new Set(
+    notes.filter((note) => note.anglerId === viewerId).map((note) => note.day),
+  );
+  if (!ownDays.size) return notes;
+  return notes.filter(
+    (note) => !note.anglerId || note.anglerId === viewerId || !ownDays.has(note.day),
+  );
+}
+
 export function listedPlanNotes<T extends { day: string }>(
   notes: T[] | null | undefined,
   today: string,
@@ -703,6 +718,9 @@ function committedPlanSpotNote(spot: CommittedPlanSpot): CalendarNote {
     sourceCatchId: source.sourceCatchId ?? null,
     sourceBaitId: source.sourceBaitId ?? null,
     photoPath: source.photoPath ?? null,
+    sharedWithLinked: false,
+    sharedWithBuddyIds: [],
+    ownerName: "",
     createdAt: savedAt,
     updatedAt: savedAt,
   };

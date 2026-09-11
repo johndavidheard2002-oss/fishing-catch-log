@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
+import { OwnerShareBadge } from "@/components/OwnerShareBadge";
+import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
@@ -29,6 +31,7 @@ import {
   planDayAfterSelect,
   planSpotIdentityKey,
   planSpotRemoveTarget,
+  preferOwnPlanNotes,
   UNPLAN_SPOT_CONFIRM,
   selectPlanDay,
   planSpotDetailHref,
@@ -36,6 +39,7 @@ import {
   restorePlanDay,
   type PlanSpotSource,
 } from "@/lib/notes";
+import { ownerShareStatusLine, planDayShareState } from "@/lib/sharing";
 import {
   PENDING_PLAN_BAIT_QUERY,
   PENDING_PLAN_CATCH_QUERY,
@@ -119,6 +123,7 @@ function sessionStore(): Storage | null {
 }
 
 export function PlanClient({
+  viewerId = "",
   initialDate,
   initialNotes = [],
   initialAddCatch = null,
@@ -127,6 +132,7 @@ export function PlanClient({
   initialAddSpecies = null,
   initialAddPhoto = null,
 }: {
+  viewerId?: string;
   initialDate: string | null;
   initialNotes?: CalendarNote[];
   initialAddCatch?: string | null;
@@ -173,6 +179,9 @@ export function PlanClient({
   const [spotSaved, setSpotSaved] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [deletingPlan, setDeletingPlan] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [buddies, setBuddies] = useState<ShareFriend[]>([]);
   const [journalCatches, setJournalCatches] = useState<CatchRecord[]>([]);
   const [journalBait, setJournalBait] = useState<BaitSpot[]>([]);
   const [planTides, setPlanTides] = useState<{
@@ -275,15 +284,35 @@ export function PlanClient({
   }, [pendingSpot?.catchId, pendingSpot?.baitId, pendingSpot?.placeName, pendingSpot?.photoPath]);
 
   useEffect(() => {
+    fetch("/api/buddies")
+      .then((r) => r.json())
+      .then((data) =>
+        setBuddies(
+          ((data.buddies ?? []) as { id?: string; name?: string }[])
+            .filter((buddy): buddy is ShareFriend => Boolean(buddy.id && buddy.name)),
+        ),
+      )
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const today = todayKey();
-    fetch(`/api/calendar-notes?for=plan&today=${today}`, { cache: "no-store" })
+    fetch(`/api/calendar-notes?for=plan&today=${today}&includeShared=1`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (cancelled) return;
         const listed = Array.isArray(data?.notes) ? (data.notes as CalendarNote[]) : null;
         if (listed == null) return;
         setNotes((current) => mergeListedPlanNotes(current, listed, today));
+        if (Array.isArray(data?.catches)) {
+          setJournalCatches((current) =>
+            (data.catches as CatchRecord[]).reduce(mergeRecordById, current),
+          );
+        }
+        if (Array.isArray(data?.spots)) {
+          setJournalBait((current) => (data.spots as BaitSpot[]).reduce(mergeRecordById, current));
+        }
         setSelectedDay((current) => {
           if (current || pendingSpot) return current;
           return restorePlanDay(listed, today, readLastPlanDay(sessionStorage));
@@ -351,6 +380,7 @@ export function PlanClient({
   }
 
   async function onRemovePlanSpot(note: CalendarNote) {
+    if (viewerId && note.anglerId && note.anglerId !== viewerId) return;
     const target = planSpotRemoveTarget(note);
     if (!target) return;
     if (!confirm(UNPLAN_SPOT_CONFIRM)) return;
@@ -373,7 +403,7 @@ export function PlanClient({
   }
 
   async function onDeletePlan() {
-    if (!selectedDay) return;
+    if (!selectedDay || viewingFriendPlan) return;
     if (!confirm("Delete this plan?")) return;
     setDeletingPlan(true);
     setAddError(null);
@@ -447,7 +477,10 @@ export function PlanClient({
     (plan?.baitSuggestions ?? []).flatMap(splitBaitSuggestionByPlace),
   );
   const lookupFailure = planLookupFailureNote(plan?.note);
-  const visibleNotes = mergeCommittedPlanSpots(notes, committedSpots);
+  const visibleNotes = preferOwnPlanNotes(
+    mergeCommittedPlanSpots(notes, committedSpots),
+    viewerId,
+  );
   const notesByDay = groupNotesByDay(visibleNotes);
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
@@ -455,6 +488,14 @@ export function PlanClient({
   const writeupNotes = journalNotesForPlanWriteups(selectedNotes);
   const dayLabels = labelsByPlanDay(visibleNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
+  const viewingFriendPlan = Boolean(
+    viewerId && selectedNotes.some((note) => note.anglerId && note.anglerId !== viewerId),
+  );
+  const isPlanOwner = Boolean(viewerId && selectedNotes.length && !viewingFriendPlan);
+  const shareState = planDayShareState(selectedNotes);
+  const planShared = shareState.sharedWithLinked || shareState.sharedWithBuddyIds.length > 0;
+  const friendOwnerName =
+    selectedNotes.find((note) => note.ownerName?.trim())?.ownerName?.trim() ?? "";
   const tideJournal = { catches: journalCatches, baitSpots: journalBait };
   const stationPin =
     spotsOnDay
@@ -601,8 +642,46 @@ export function PlanClient({
   );
   if (freshPlannedPhotos.length) plannedPhotoCacheRef.current = plannedPhotos;
 
+  async function onSharePlan(shared: boolean, buddyIds?: string[]) {
+    if (!selectedDay || !isPlanOwner) return;
+    setShareBusy(true);
+    setShareError(null);
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planDay: selectedDay,
+          shared,
+          ...(buddyIds ? { buddyIds } : {}),
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { updated?: number };
+      if (!res.ok || data.updated === 0) {
+        setShareError("Could not update sharing.");
+        return;
+      }
+      const day = selectedDay;
+      setNotes((current) =>
+        current.map((note) =>
+          note.day === day && note.anglerId === viewerId
+            ? {
+                ...note,
+                sharedWithLinked: shared && !buddyIds,
+                sharedWithBuddyIds: shared ? (buddyIds ?? []) : [],
+              }
+            : note,
+        ),
+      );
+    } catch {
+      setShareError("Could not update sharing.");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
   async function onAddSpot(spot: PlanSpotSource, day = selectedDay) {
-    if (!day) return;
+    if (!day || viewingFriendPlan) return;
     const dayNotes = notesByDay.get(day) ?? [];
     const input = addPlanSpotToDay(dayNotes, day, spot);
     if (!input?.placeName) return;
@@ -728,26 +807,85 @@ export function PlanClient({
           >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-display text-xl text-teal">Planned</h3>
+                <div className="flex items-start gap-2">
+                  <h3 className="font-display text-xl text-teal">Planned</h3>
+                  {isPlanOwner ? (
+                    <OwnerShareBadge
+                      sharedWithLinked={shareState.sharedWithLinked}
+                      sharedWithBuddyIds={shareState.sharedWithBuddyIds}
+                      friends={buddies}
+                    />
+                  ) : null}
+                </div>
                 <p className="text-sm text-ink-muted">{formatWeekdayDate(selectedDay)}</p>
+                {viewingFriendPlan && friendOwnerName ? (
+                  <p className="pt-1 text-xs font-semibold text-copper" data-testid="plan-shared-by">
+                    Shared by {friendOwnerName}
+                  </p>
+                ) : null}
                 {planTides.detail ? (
                   <p data-testid="plan-day-tides" className="pt-1 text-sm font-semibold text-teal">
                     {planTides.detail}
                   </p>
                 ) : null}
               </div>
-              {selectedNotes.length ? (
-                <button
-                  type="button"
-                  onClick={() => void onDeletePlan()}
-                  disabled={deletingPlan}
-                  className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-copper disabled:opacity-60"
-                  data-testid="plan-delete-day"
-                >
-                  {deletingPlan ? "Deleting…" : "Delete plan"}
-                </button>
+              {selectedNotes.length && !viewingFriendPlan ? (
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  {isPlanOwner ? (
+                    <button
+                      type="button"
+                      disabled={shareBusy}
+                      aria-pressed={planShared}
+                      data-testid="plan-share"
+                      onClick={() => void onSharePlan(!planShared)}
+                      className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
+                        planShared
+                          ? "border-2 border-teal bg-teal/15 text-teal"
+                          : "bg-teal text-white"
+                      } disabled:opacity-50`}
+                    >
+                      {shareState.sharedWithLinked ? "Shared" : "Share"}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void onDeletePlan()}
+                    disabled={deletingPlan}
+                    className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-copper disabled:opacity-60"
+                    data-testid="plan-delete-day"
+                  >
+                    {deletingPlan ? "Deleting…" : "Delete plan"}
+                  </button>
+                </div>
               ) : null}
             </div>
+            {isPlanOwner ? (
+              <div data-testid="plan-share-block">
+                <p className="text-xs text-ink-muted" data-testid="owner-share-status">
+                  {ownerShareStatusLine({
+                    sharedWithLinked: shareState.sharedWithLinked,
+                    sharedWithBuddyIds: shareState.sharedWithBuddyIds,
+                    friends: buddies,
+                  })}
+                </p>
+                <p className="text-xs text-ink-muted">Pick who sees this plan. Off until you choose.</p>
+                <ShareFriendPicker
+                  buddies={buddies}
+                  disabled={shareBusy}
+                  selectedIds={selectedShareBuddyIds({
+                    sharedWithLinked: shareState.sharedWithLinked,
+                    sharedWithBuddyIds: shareState.sharedWithBuddyIds,
+                    buddyIds: buddies.map((buddy) => buddy.id),
+                  })}
+                  onChange={(ids) => {
+                    if (!ids.length) void onSharePlan(false);
+                    else if (ids.length === buddies.length) void onSharePlan(true);
+                    else void onSharePlan(true, ids);
+                  }}
+                />
+                {shareError ? <p className="mt-1 text-xs text-copper">{shareError}</p> : null}
+              </div>
+            ) : null}
             {spotSaved ? (
               <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
                 {CHANGES_SAVED_LABEL}
@@ -850,7 +988,7 @@ export function PlanClient({
                         data-testid="plan-day-spot"
                         data-plan-source={kind}
                       >
-                        {href ? (
+                        {href && !viewingFriendPlan ? (
                           <Link
                             href={href}
                             className={`flex min-w-0 flex-1 items-center gap-2 ${TAP_RESET}`}
@@ -862,14 +1000,16 @@ export function PlanClient({
                         ) : (
                           <div className="flex min-w-0 flex-1 items-center gap-2">{row}</div>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => void onRemovePlanSpot(note)}
-                          className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-copper"
-                          data-testid="plan-day-spot-remove"
-                        >
-                          Remove
-                        </button>
+                        {viewingFriendPlan ? null : (
+                          <button
+                            type="button"
+                            onClick={() => void onRemovePlanSpot(note)}
+                            className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-copper"
+                            data-testid="plan-day-spot-remove"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </li>
                     );
                   })}
@@ -885,6 +1025,7 @@ export function PlanClient({
               key={`${selectedDay}-label`}
               day={selectedDay}
               notes={journalNotes}
+              readOnly={viewingFriendPlan}
               onCreate={onCreateNote}
               onUpdate={onUpdateNote}
               onDelete={onDeleteNote}
@@ -894,6 +1035,7 @@ export function PlanClient({
               day={selectedDay}
               notes={writeupNotes}
               embedded
+              readOnly={viewingFriendPlan}
               onCreate={onCreateNote}
               onUpdate={onUpdateNote}
               onDelete={onDeleteNote}
@@ -923,6 +1065,7 @@ export function PlanClient({
                   key={s.id}
                   suggestion={s}
                   showOwner={includeShared}
+                  allowAdd={!viewingFriendPlan}
                   added={dayHasPlanSpot(selectedNotes, s.placeName, {
                     sourceCatchId: s.matches[0]?.catch.id,
                   })}
@@ -954,6 +1097,7 @@ export function PlanClient({
                       key={s.id}
                       suggestion={s}
                       showOwner={includeShared}
+                      allowAdd={!viewingFriendPlan}
                       added={dayHasPlanSpot(selectedNotes, s.placeName, {
                         sourceBaitId: s.matches[0]?.baitSpot.id,
                       })}
@@ -1097,6 +1241,7 @@ function SuggestionCard({
   added,
   adding,
   plannedPlaceNames = [],
+  allowAdd = true,
   onAdd,
 }: {
   suggestion: PlanSuggestion;
@@ -1104,6 +1249,7 @@ function SuggestionCard({
   added: boolean;
   adding: boolean;
   plannedPlaceNames?: Array<string | null | undefined>;
+  allowAdd?: boolean;
   onAdd: () => void;
 }) {
   const w = suggestion.window;
@@ -1124,7 +1270,7 @@ function SuggestionCard({
     placeOf: (row) => row.placeName,
   });
 
-  const canAdd = Boolean(suggestion.placeName?.trim());
+  const canAdd = allowAdd && Boolean(suggestion.placeName?.trim());
 
   return (
     <article className="journal-card overflow-hidden rounded-2xl">
@@ -1257,6 +1403,7 @@ function BaitSuggestionCard({
   added,
   adding,
   plannedPlaceNames = [],
+  allowAdd = true,
   onAdd,
 }: {
   suggestion: BaitPlanSuggestion;
@@ -1264,12 +1411,13 @@ function BaitSuggestionCard({
   added: boolean;
   adding: boolean;
   plannedPlaceNames?: Array<string | null | undefined>;
+  allowAdd?: boolean;
   onAdd: () => void;
 }) {
   const w = suggestion.window;
   const first = suggestion.matches[0]?.baitSpot;
   const src = first ? personalPhotoSrc(first.photoPath) : null;
-  const canAdd = Boolean(suggestion.placeName?.trim());
+  const canAdd = allowAdd && Boolean(suggestion.placeName?.trim());
   const extraTrips = extraPastTripMatches(suggestion.matches, {
     cardPlaceName: suggestion.placeName,
     plannedPlaceNames,

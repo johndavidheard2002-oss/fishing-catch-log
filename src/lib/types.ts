@@ -290,6 +290,9 @@ export type CalendarNote = {
   sourceCatchId: string | null;
   sourceBaitId: string | null;
   photoPath: string | null;
+  sharedWithLinked: boolean;
+  sharedWithBuddyIds: string[];
+  ownerName: string;
   createdAt: string;
   updatedAt: string;
 };

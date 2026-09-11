@@ -74,6 +74,7 @@ export const calendarNotes = sqliteTable("calendar_notes", {
   sourceCatchId: text("source_catch_id"),
   sourceBaitId: text("source_bait_id"),
   photoPath: text("photo_path"),
+  sharedWithLinked: integer("shared_with_linked").notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
