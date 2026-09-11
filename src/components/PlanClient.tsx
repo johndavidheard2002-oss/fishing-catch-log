@@ -69,6 +69,7 @@ import {
   plannedDayTideDetail,
   catchTideLookupKey,
   catchTideLookupsForSpots,
+  catchNeedsPlanTideFetch,
   fallbackChipFromDayTides,
   plannedSpotTideRefreshKey,
   sameTideChipsForSpots,
@@ -119,11 +120,36 @@ function scrollPlanResultsBelowStatusBar(el: HTMLElement) {
   window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
 }
 
+function keepFilled<T>(incoming: T, previous: T): T {
+  if (incoming == null || incoming === "") return previous;
+  return incoming;
+}
+
 function mergeRecordById<T extends { id: string }>(current: T[], row: T): T[] {
   const index = current.findIndex((item) => item.id === row.id);
   if (index === -1) return [...current, row];
+  const prev = current[index] as T & {
+    latitude?: number | null;
+    longitude?: number | null;
+    photoTakenLatitude?: number | null;
+    photoTakenLongitude?: number | null;
+    caughtAt?: string | null;
+    tide?: string | null;
+    tideHeightFt?: number | null;
+  };
   const next = [...current];
-  next[index] = row;
+  const incoming = row as typeof prev;
+  next[index] = {
+    ...prev,
+    ...row,
+    latitude: keepFilled(incoming.latitude, prev.latitude),
+    longitude: keepFilled(incoming.longitude, prev.longitude),
+    photoTakenLatitude: keepFilled(incoming.photoTakenLatitude, prev.photoTakenLatitude),
+    photoTakenLongitude: keepFilled(incoming.photoTakenLongitude, prev.photoTakenLongitude),
+    caughtAt: keepFilled(incoming.caughtAt, prev.caughtAt),
+    tide: keepFilled(incoming.tide, prev.tide),
+    tideHeightFt: keepFilled(incoming.tideHeightFt, prev.tideHeightFt),
+  } as T;
   return next;
 }
 
@@ -530,10 +556,9 @@ export function PlanClient({
     .filter((id): id is string => Boolean(id));
 
   useEffect(() => {
-    const missing = plannedCatchIds.filter((id) => {
-      const row = journalCatches.find((item) => item.id === id);
-      return !row || !row.caughtAt;
-    });
+    const missing = plannedCatchIds.filter((id) =>
+      catchNeedsPlanTideFetch(journalCatches.find((item) => item.id === id)),
+    );
     if (!missing.length) return;
     let cancelled = false;
     void Promise.all(
@@ -948,17 +973,15 @@ export function PlanClient({
                       catches: journalCatches,
                       baitSpots: journalBait,
                     });
+                    const rowPin = pinForPlannedSpot(note, tideJournal, stationPin);
                     const closestTide =
                       sameTideById[note.id] ||
-                      (note.sourceCatchId || note.sourceBaitId
-                        ? ""
-                        : fallbackChipFromDayTides(
-                            planTides.snap,
-                            selectedDay,
-                            timeZoneFromLongitude(
-                              pinForPlannedSpot(note, tideJournal, stationPin)?.longitude,
-                            ),
-                          ));
+                      fallbackChipFromDayTides(
+                        planTides.snap,
+                        selectedDay,
+                        timeZoneFromLongitude(rowPin?.longitude ?? stationPin?.longitude),
+                        rowPin?.tide,
+                      );
                     const row = (
                       <>
                         {photo ? (
