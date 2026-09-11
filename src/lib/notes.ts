@@ -97,6 +97,23 @@ export function isPlanSpotNote(note: { kind?: string | null }): boolean {
   return note.kind === PLAN_SPOT_NOTE_KIND;
 }
 
+/**
+ * Plan “Remove from plan” targets the calendar note only.
+ * Never a catch or bait journal id — those stay in Calendar Log.
+ */
+export function planSpotRemoveTarget(note: {
+  id?: string | null;
+  kind?: string | null;
+  sourceCatchId?: string | null;
+  sourceBaitId?: string | null;
+}): { calendarNoteId: string | null; localOnly: boolean } | null {
+  if (!isPlanSpotNote(note)) return null;
+  const id = note.id?.trim() ?? "";
+  if (!id) return null;
+  if (id.startsWith("local:")) return { calendarNoteId: null, localOnly: true };
+  return { calendarNoteId: id, localOnly: false };
+}
+
 /** Calendar Log Planned trips — never includes Plan-only suggested spots. */
 export function journalNotesForCalendarLog(notes: CalendarNote[]): CalendarNote[] {
   return notes.filter((note) => !isPlanSpotNote(note));

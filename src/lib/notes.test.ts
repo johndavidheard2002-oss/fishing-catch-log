@@ -37,6 +37,7 @@ import {
   mergePlannedPlacePhotos,
   photosForPlannedPlaces,
   planSpotDetailHref,
+  planSpotRemoveTarget,
   planDayAfterSelect,
   planSpotSourceKind,
   restorePlanDay,
@@ -269,6 +270,42 @@ describe("dayHasPlanSpot", () => {
     expect(
       planSpotDetailHref({ placeName: "Haulover Canal" }, { href: "/catch/c1" }),
     ).toBe("/catch/c1");
+  });
+
+  it("removes a planned spot by calendar note id, never the source catch", () => {
+    expect(
+      planSpotRemoveTarget(
+        note({
+          id: "plan-note-1",
+          kind: "plan-spot",
+          placeName: "Beach marker 42",
+          sourceCatchId: "c-wipe",
+        }),
+      ),
+    ).toEqual({ calendarNoteId: "plan-note-1", localOnly: false });
+    expect(
+      planSpotRemoveTarget(
+        note({
+          id: "local:2026-10-10:catch:beach marker 42",
+          kind: "plan-spot",
+          sourceCatchId: "c-wipe",
+        }),
+      ),
+    ).toEqual({ calendarNoteId: null, localOnly: true });
+    expect(planSpotRemoveTarget(note({ id: "c-wipe", kind: "journal" }))).toBeNull();
+    const plan = readFileSync(resolve(__dirname, "../components/PlanClient.tsx"), "utf8");
+    const catchDetail = readFileSync(resolve(__dirname, "../components/CatchDetail.tsx"), "utf8");
+    expect(plan).toContain('data-testid="plan-day-spot-remove"');
+    expect(plan).toContain("Remove from plan");
+    expect(plan).toContain("planSpotRemoveTarget");
+    const removeStart = plan.indexOf("async function onRemovePlanSpot");
+    const removeFn = plan.slice(removeStart, plan.indexOf("async function onDeletePlan", removeStart));
+    expect(removeFn).toContain("/api/calendar-notes/");
+    expect(removeFn).not.toContain("/api/catches/");
+    expect(removeFn).not.toContain("/api/bait-spots/");
+    expect(removeFn).toContain("The catch stays in Calendar Log.");
+    expect(catchDetail).toContain('data-testid="catch-delete"');
+    expect(catchDetail).toContain('fetch(`/api/catches/${id}`, { method: "DELETE" })');
   });
 
   it("labels Planned rows with fish and bait from the note or source journal", () => {
