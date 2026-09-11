@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { catchOf, baitOf } from "./testing";
 import {
   applyCatchTideSnapshot,
+  catchNeedsPlanTideFetch,
   catchTideLookupKey,
   fallbackChipFromDayTides,
   pinForPlannedSpot,
@@ -340,7 +341,8 @@ describe("planned day and photo tide labels", () => {
       stationName: "Port Aransas (H. Caldwell Pier)",
     };
     expect(fallbackChipFromDayTides(headerOnly, "2026-10-09", "America/Chicago")).toBeTruthy();
-    expect(plannedSpotSameTide(headerOnly, "2026-10-09", null)).toBe("");
+    expect(plannedSpotSameTide(headerOnly, "2026-10-09", null)).toMatch(/incoming|outgoing|High|Low/);
+    expect(plannedSpotSameTide(headerOnly, "2026-10-09", null)).not.toContain("2:42");
 
     const oct9 = uniqueNotesByPlace([
       ...[1, 2, 3, 4, 5].map((n) => ({
@@ -524,11 +526,7 @@ describe("planned day and photo tide labels", () => {
     ];
     const journal = { catches: [first, second, third] };
     const firstPin = pinForPlannedSpot(spots[0], journal);
-    const leftoverLow = fallbackChipFromDayTides(
-      { ...oct9, heightFt: null },
-      "2026-10-09",
-      "America/Chicago",
-    );
+    const leftoverLow = "Low 2:42 PM";
     const staleSnaps = {
       [catchTideLookupKey(firstPin)!]: {
         applies: true,
@@ -543,7 +541,6 @@ describe("planned day and photo tide labels", () => {
       },
     };
     const chips = sameTideChipsForSpots(spots, oct9, "2026-10-09", journal, staleSnaps);
-    expect(leftoverLow).toMatch(/^Low\b/);
     expect(chips.n1).toBeTruthy();
     expect(chips.n2).toBeTruthy();
     expect(chips.n3).toBeTruthy();
@@ -641,11 +638,7 @@ describe("planned day and photo tide labels", () => {
       { id: "n-shark", placeName: shark.placeName, sourceCatchId: shark.id },
       { id: "n-trout", placeName: trout.placeName, sourceCatchId: trout.id },
     ];
-    const leftoverLow = fallbackChipFromDayTides(
-      { ...ingleside, heightFt: null },
-      "2026-09-23",
-      "America/Chicago",
-    );
+    const leftoverLow = "Low 2:42 PM";
     const shipPin = pinForPlannedSpot(firstTwo[0], { catches: [ship, lighthouse, shark, trout] });
     const staleSnaps = {
       [catchTideLookupKey(shipPin)!]: {
@@ -667,7 +660,6 @@ describe("planned day and photo tide labels", () => {
       { catches: [ship, lighthouse, shark, trout] },
       staleSnaps,
     );
-    expect(leftoverLow).toMatch(/^Low\b/);
     expect(chips["n-ship"]).toBe("8:33 AM incoming");
     expect(chips["n-light"]).toBe("9:17 AM incoming");
     expect(chips["n-shark"]).toBeTruthy();
@@ -711,6 +703,9 @@ describe("planned day and photo tide labels", () => {
       "2026-10-11",
       "America/Chicago",
     );
+    expect(leftoverLow).toBeTruthy();
+    expect(leftoverLow).not.toContain("2:42");
+    expect(leftoverLow).not.toBe("Low 2:42 PM");
     const ship = catchOf({
       id: "c-ship-drum",
       placeName: "Ship channel",
@@ -806,6 +801,127 @@ describe("planned day and photo tide labels", () => {
     expect(withCatchSnap["n-demag"]).not.toMatch(/^Low\b/);
     expect(withCatchSnap["n-demag"]).toMatch(/incoming/i);
   });
+
+  it("never leaves a Planned row blank when that day has tides (regression after #90)", () => {
+    const oct9: TideSnapshot = {
+      applies: true,
+      tide: "incoming",
+      heightFt: 1.4,
+      nextHighAt: "2026-10-09T20:35:00.000Z",
+      nextHighFt: 2.2,
+      nextLowAt: "2026-10-09T13:32:00.000Z",
+      nextLowFt: 1.0,
+      source: "noaa",
+      note: "",
+      extremes: [
+        { at: "2026-10-09T13:32:00.000Z", type: "low", heightFt: 1.0 },
+        { at: "2026-10-09T20:35:00.000Z", type: "high", heightFt: 2.2 },
+        { at: "2026-10-10T02:10:00.000Z", type: "low", heightFt: 0.9 },
+      ],
+    };
+    const catches = [1, 2, 3, 4, 5, 6].map((n) =>
+      catchOf({
+        id: `blank-c-${n}`,
+        placeName: n % 2 === 0 ? "Port Aransas, Texas" : "Beach marker 42",
+        habitat: "saltwater-inshore",
+        latitude: n === 1 ? 27.84 : null,
+        longitude: n === 1 ? -97.05 : null,
+        caughtAt: n === 3 ? "" : `2026-08-0${Math.min(n, 9)}T00:00:00.000Z`,
+        tide: n === 5 ? "outgoing" : null,
+        tideHeightFt: n === 1 ? 4.5 : n === 5 ? 1.8 : null,
+      }),
+    );
+    const spots = uniqueNotesByPlace(
+      catches.map((row) => ({
+        id: `blank-${row.id}`,
+        placeName: row.placeName,
+        sourceCatchId: row.id,
+        kind: "plan-spot" as const,
+      })),
+    );
+    expect(spots.length).toBeGreaterThanOrEqual(5);
+    const noSnaps = sameTideChipsForSpots(spots, oct9, "2026-10-09", { catches });
+    expect(Object.keys(noSnaps)).toHaveLength(spots.length);
+    for (const spot of spots) {
+      expect(noSnaps[spot.id]).toBeTruthy();
+      expect(noSnaps[spot.id]).toMatch(/incoming|outgoing|High|Low/);
+      expect(noSnaps[spot.id]).not.toContain("2:42");
+    }
+    expect(plannedSpotSameTide(oct9, "2026-10-09", null, "America/Chicago")).toBeTruthy();
+    expect(catchNeedsPlanTideFetch(undefined)).toBe(true);
+    expect(catchNeedsPlanTideFetch(catches[2])).toBe(true);
+    expect(catchNeedsPlanTideFetch(catches[0])).toBe(false);
+    const withoutJournal = sameTideChipsForSpots(spots, oct9, "2026-10-09", {});
+    expect(Object.keys(withoutJournal)).toHaveLength(spots.length);
+    for (const spot of spots) {
+      expect(withoutJournal[spot.id]).toBeTruthy();
+    }
+  });
+
+  it("does not chip Oct 10 Low 2:42 PM onto an Oct 11 Enbridge plan, even before catchSnaps load", () => {
+    const inglesideOct11: TideSnapshot = {
+      applies: true,
+      tide: "outgoing",
+      heightFt: 0.7,
+      nextHighAt: "2026-10-11T06:22:00.000Z",
+      nextHighFt: 1.0,
+      nextLowAt: "2026-10-11T18:22:00.000Z",
+      nextLowFt: 0.3,
+      source: "noaa",
+      note: "",
+      stationName: "Enbridge, Ingleside",
+      extremes: [
+        { at: "2026-10-10T19:42:00.000Z", type: "low", heightFt: 0.15 },
+        { at: "2026-10-11T06:22:00.000Z", type: "high", heightFt: 1.0 },
+        { at: "2026-10-11T18:22:00.000Z", type: "low", heightFt: 0.3 },
+        { at: "2026-10-12T00:22:00.000Z", type: "high", heightFt: 0.9 },
+      ],
+    };
+    const ship = catchOf({
+      id: "c-ship-blank",
+      placeName: "Ship channel",
+      species: "Black Drum",
+      habitat: "saltwater-inshore",
+      latitude: 27.877,
+      longitude: -97.211,
+      caughtAt: "2026-07-04T19:19:00.000Z",
+      tide: "incoming",
+      tideHeightFt: 0.395,
+    });
+    const flounder = catchOf({
+      id: "c-demag-blank",
+      placeName: "Demagnetizer",
+      species: "Flounder",
+      habitat: "saltwater-inshore",
+      latitude: 27.87,
+      longitude: -97.2,
+      caughtAt: "2026-08-09T16:40:00.000Z",
+      tide: "incoming",
+      tideHeightFt: 0.15,
+    });
+    const spots = [
+      { id: "n-demag", placeName: flounder.placeName, sourceCatchId: flounder.id },
+      { id: "n-ship", placeName: ship.placeName, sourceCatchId: ship.id },
+    ];
+    const chips = sameTideChipsForSpots(spots, inglesideOct11, "2026-10-11", {
+      catches: [ship, flounder],
+    });
+    const beforeJournal = sameTideChipsForSpots(spots, inglesideOct11, "2026-10-11", {});
+    expect(chips["n-ship"]).toBeTruthy();
+    expect(chips["n-demag"]).toBeTruthy();
+    expect(chips["n-demag"]).not.toBe(chips["n-ship"]);
+    expect(chips["n-demag"]).not.toContain("2:42");
+    expect(chips["n-ship"]).not.toContain("2:42");
+    expect(chips["n-demag"]).not.toMatch(/^Low\b/);
+    expect(beforeJournal["n-demag"]).toBeTruthy();
+    expect(beforeJournal["n-demag"]).not.toContain("2:42");
+    expect(
+      fallbackChipFromDayTides({ ...inglesideOct11, heightFt: null }, "2026-10-11", "America/Chicago"),
+    ).not.toContain("2:42");
+    expect(plannedSpotSameTide(inglesideOct11, "2026-10-11", null, "America/Chicago")).not.toContain(
+      "2:42",
+    );
+  });
 });
 
 
@@ -821,6 +937,8 @@ describe("Plan Planned panel wires day tides", () => {
     expect(plan).toContain("plannedSpotTideRefreshKey");
     expect(plan).toContain("catchTideLookupsForSpots");
     expect(plan).toContain("plannedCatchIds");
+    expect(plan).toContain("catchNeedsPlanTideFetch");
+    expect(plan).not.toContain("note.sourceCatchId || note.sourceBaitId");
     expect(plan).toContain("/api/catches/${id}");
     expect(plan).toContain("scrollPlanResultsBelowStatusBar");
     expect(plan).toContain("plan-day-results");
@@ -842,7 +960,10 @@ describe("Plan Planned panel wires day tides", () => {
     expect(tides).toContain("tideHeightRangeForDay");
     expect(tides).toContain("remapHeightToRange");
     expect(tides).toContain("mappedClockChip");
+    expect(tides).toContain("catchNeedsPlanTideFetch");
+    expect(tides).toContain("dayHighLowChip");
     expect(tides).not.toContain("sameTideCrossings(extremes, clamped)");
+    expect(tides).not.toContain("sameTideCrossings(extremes, height)");
     expect(plan).toContain("selectPlanDay");
     expect(plan).toContain("data-no-tab-swipe");
     expect(plan).toContain('type="button"');
