@@ -47,6 +47,8 @@ html {
   overflow-x: hidden;
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
+  /* Keep scrollIntoView / Plan results below the iPhone status bar. */
+  scroll-padding-top: calc(var(--safe-area-top) + 0.75rem);
 }
 
 body {
@@ -238,6 +240,10 @@ textarea {
 
 .app-shell-tabs {
   padding-bottom: calc(9rem + var(--safe-area-bottom));
+}
+
+.plan-day-results {
+  scroll-margin-top: calc(var(--safe-area-top) + 0.75rem);
 }
 
 .tab-swipe-pane,

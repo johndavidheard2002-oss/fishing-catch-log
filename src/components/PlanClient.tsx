@@ -105,6 +105,20 @@ import type {
 const TAP_RESET =
   "outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal";
 
+/** Keep Planned Share/Delete below the iPhone status bar after scrolling the card into view. */
+function scrollPlanResultsBelowStatusBar(el: HTMLElement) {
+  el.style.scrollMarginTop = "calc(var(--safe-area-top) + 0.75rem)";
+  const probe = document.createElement("div");
+  probe.setAttribute("aria-hidden", "true");
+  probe.style.cssText =
+    "position:absolute;left:0;top:0;width:0;height:var(--safe-area-top);pointer-events:none;visibility:hidden";
+  document.body.appendChild(probe);
+  const safeTop = probe.getBoundingClientRect().height;
+  probe.remove();
+  const top = window.scrollY + el.getBoundingClientRect().top - safeTop - 12;
+  window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+}
+
 function mergeRecordById<T extends { id: string }>(current: T[], row: T): T[] {
   const index = current.findIndex((item) => item.id === row.id);
   if (index === -1) return [...current, row];
@@ -458,6 +472,12 @@ export function PlanClient({
       .then((data: PlanResult) => {
         setPlan(data);
         setError(null);
+        const extra = (data.suggestions ?? []).flatMap((row) =>
+          (row.matches ?? []).map((match) => match.catch).filter(Boolean),
+        );
+        if (extra.length) {
+          setJournalCatches((current) => extra.reduce(mergeRecordById, current));
+        }
       })
       .catch(() => {
         setError("Could not build a plan.");
@@ -467,7 +487,7 @@ export function PlanClient({
 
   useEffect(() => {
     if (!selectedDay || !plan || !resultsRef.current) return;
-    resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    scrollPlanResultsBelowStatusBar(resultsRef.current);
   }, [selectedDay, plan]);
 
   const suggestions = dedupeCatchSuggestionsByPlace(
@@ -510,7 +530,10 @@ export function PlanClient({
     .filter((id): id is string => Boolean(id));
 
   useEffect(() => {
-    const missing = plannedCatchIds.filter((id) => !journalCatches.some((row) => row.id === id));
+    const missing = plannedCatchIds.filter((id) => {
+      const row = journalCatches.find((item) => item.id === id);
+      return !row || !row.caughtAt;
+    });
     if (!missing.length) return;
     let cancelled = false;
     void Promise.all(
@@ -685,6 +708,28 @@ export function PlanClient({
     const dayNotes = notesByDay.get(day) ?? [];
     const input = addPlanSpotToDay(dayNotes, day, spot);
     if (!input?.placeName) return;
+    const catchId = spot.sourceCatchId?.trim();
+    const baitId = spot.sourceBaitId?.trim();
+    if (catchId) {
+      void fetch(`/api/catches/${catchId}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.catch?.id) {
+            setJournalCatches((current) => mergeRecordById(current, data.catch as CatchRecord));
+          }
+        })
+        .catch(() => {});
+    }
+    if (baitId) {
+      void fetch(`/api/bait-spots/${baitId}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.spot?.id) {
+            setJournalBait((current) => mergeRecordById(current, data.spot as BaitSpot));
+          }
+        })
+        .catch(() => {});
+    }
     setAddingSpotId(input.placeName);
     setAddError(null);
     try {
@@ -798,15 +843,15 @@ export function PlanClient({
       ) : (
           <section
             ref={resultsRef}
-            className="min-w-0 overflow-visible space-y-3"
+            className="plan-day-results min-w-0 overflow-visible space-y-3"
             data-testid="plan-day-results"
           >
           <section
             className="journal-card min-w-0 overflow-visible space-y-3 rounded-2xl border-2 border-teal/45 p-3"
             data-testid="plan-planned"
           >
-            <div className="flex items-start justify-between gap-2">
-              <div>
+            <div className="plan-planned-header flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
                 <div className="flex items-start gap-2">
                   <h3 className="font-display text-xl text-teal">Planned</h3>
                   {isPlanOwner ? (
@@ -830,7 +875,7 @@ export function PlanClient({
                 ) : null}
               </div>
               {selectedNotes.length && !viewingFriendPlan ? (
-                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
                   {isPlanOwner ? (
                     <button
                       type="button"

@@ -1,5 +1,6 @@
 import { DAY_KEY_RE, normalizeNotePlace } from "./notes";
 import {
+  civilDateKey,
   clampHeightToExtremes,
   directionFromTide,
   formatSameTideLabel,
@@ -7,9 +8,11 @@ import {
   formatTideDetail,
   heightAndDirectionAt,
   pickSameTideMatch,
+  parseTideExtremes,
   sameTideCrossings,
   sameTideMatches,
   timeZoneFromLongitude,
+  type SameTideMatch,
   type TideSnapshot,
 } from "./tides/snapshot";
 import type { BaitSpot, CatchRecord, Habitat } from "./types";
@@ -236,16 +239,86 @@ export function plannedDayTideDetail(
   return formatTideDetail({ ...snap, longitude });
 }
 
+const HEIGHT_EPS = 0.001;
+
+export type TideHeightRange = { min: number; max: number };
+
+/** High/Low range on one civil day — not the leftover min/max of a multi-day NOAA window. */
+export function tideHeightRangeForDay(
+  snap: TideSnapshot | null | undefined,
+  day?: string,
+  timeZone?: string,
+): TideHeightRange | null {
+  const extremes = parseTideExtremes(extremesForChip(snap));
+  const heights: number[] = [];
+  if (day && DAY_KEY_RE.test(day)) {
+    for (const row of extremes) {
+      if (civilDateKey(row.at, timeZone) === day) heights.push(row.heightFt);
+    }
+  }
+  if (snap?.nextLowFt != null && Number.isFinite(snap.nextLowFt)) heights.push(snap.nextLowFt);
+  if (snap?.nextHighFt != null && Number.isFinite(snap.nextHighFt)) heights.push(snap.nextHighFt);
+  if (!heights.length) {
+    for (const row of extremes) heights.push(row.heightFt);
+  }
+  if (!heights.length) return null;
+  return { min: Math.min(...heights), max: Math.max(...heights) };
+}
+
+export function remapHeightToRange(
+  heightFt: number,
+  from: TideHeightRange,
+  to: TideHeightRange,
+): number {
+  const fromSpan = from.max - from.min;
+  const toSpan = to.max - to.min;
+  if (toSpan < HEIGHT_EPS) return to.min;
+  if (fromSpan < HEIGHT_EPS) {
+    return Math.min(to.max, Math.max(to.min, heightFt));
+  }
+  const t = (heightFt - from.min) / fromSpan;
+  return to.min + Math.min(1, Math.max(0, t)) * toSpan;
+}
+
+function heightInRange(heightFt: number, range: TideHeightRange): boolean {
+  return heightFt >= range.min - HEIGHT_EPS && heightFt <= range.max + HEIGHT_EPS;
+}
+
+function catchTideRange(
+  catchSnap: TideSnapshot | null | undefined,
+  pin: PlannedTidePin,
+  timeZone?: string,
+): TideHeightRange | null {
+  if (!catchSnap?.applies) return null;
+  const at = pin.caughtAt ? new Date(pin.caughtAt) : null;
+  const day =
+    at && !Number.isNaN(at.getTime()) ? civilDateKey(at, timeZone) : "";
+  return tideHeightRangeForDay(catchSnap, day, timeZone);
+}
+
 /** Prefer height/stage from a catch-time lookup at this pin’s station. */
 export function applyCatchTideSnapshot(
   pin: PlannedTidePin,
   catchSnap?: TideSnapshot | null,
 ): PlannedTidePin {
   if (!catchSnap?.applies) return pin;
+  let height = catchSnap.heightFt ?? pin.tideHeightFt;
+  let tide = catchSnap.tide ?? pin.tide;
+  if (pin.caughtAt && (catchSnap.extremes?.length ?? 0) >= 2) {
+    const sampled = heightAndDirectionAt(catchSnap.extremes, new Date(pin.caughtAt));
+    if (sampled) {
+      if (catchSnap.heightFt == null || !Number.isFinite(catchSnap.heightFt)) {
+        height = sampled.heightFt;
+      }
+      if (!tide) {
+        tide = sampled.direction === "rising" ? "incoming" : "outgoing";
+      }
+    }
+  }
   return {
     ...pin,
-    tideHeightFt: catchSnap.heightFt ?? pin.tideHeightFt,
-    tide: catchSnap.tide ?? pin.tide,
+    tideHeightFt: height ?? pin.tideHeightFt,
+    tide: tide ?? pin.tide,
   };
 }
 
@@ -287,15 +360,49 @@ export function catchTideLookupsForSpots(
   return lookups;
 }
 
+function chipFromMatches(
+  matches: SameTideMatch[],
+  preferDir: ReturnType<typeof directionFromTide>,
+  clock: Date | null,
+  timeZone?: string,
+  allowExtreme = true,
+): string {
+  const match =
+    pickSameTideMatch(matches, preferDir, clock, timeZone) ??
+    pickSameTideMatch(matches, null, clock, timeZone);
+  if (!match) return "";
+  if (!allowExtreme && match.onExtreme) return "";
+  return formatSameTideLabel(match, timeZone);
+}
+
+function mappedClockChip(
+  sampled: { heightFt: number; direction: "rising" | "falling" } | null,
+  mapped: Date | null,
+  timeZone?: string,
+): string {
+  if (!sampled || !mapped) return "";
+  return formatSameTideLabel(
+    {
+      at: mapped,
+      direction: sampled.direction,
+      heightFt: sampled.heightFt,
+      onExtreme: null,
+    },
+    timeZone,
+  );
+}
+
 /**
  * Plan-day clock when tide height equals the catch’s height (interpolated)
- * and incoming/outgoing matches the catch. Not nearest High/Low.
+ * and incoming/outgoing matches the catch. Not nearest High/Low, and never a
+ * leftover High/Low from another day in the NOAA window.
  */
 export function plannedSpotSameTide(
   snap: TideSnapshot | null | undefined,
   day: string,
   pin: PlannedTidePin | null,
   timeZone?: string,
+  catchSnap?: TideSnapshot | null,
 ): string {
   if (!snap?.applies) return "";
   const zone = timeZone ?? timeZoneFromLongitude(pin?.longitude);
@@ -304,32 +411,41 @@ export function plannedSpotSameTide(
     const preferAt = pin.caughtAt ? new Date(pin.caughtAt) : null;
     const mapped = planDayReferenceAt(day, pin.caughtAt);
     const sampled = mapped ? heightAndDirectionAt(extremes, mapped) : null;
-    let height = pin.tideHeightFt;
+    const dayRange = tideHeightRangeForDay(snap, day, zone);
+    const sourceRange = catchTideRange(catchSnap, pin, zone);
+    const storedHeight =
+      pin.tideHeightFt != null && Number.isFinite(pin.tideHeightFt) ? pin.tideHeightFt : null;
+    const inDayRange = storedHeight != null && dayRange ? heightInRange(storedHeight, dayRange) : false;
+    let height = storedHeight;
+    let remappedFromOutside = false;
+    if (height != null && dayRange && !inDayRange) {
+      if (sourceRange) {
+        height = remapHeightToRange(height, sourceRange, dayRange);
+        remappedFromOutside = true;
+      } else {
+        height = null;
+      }
+    }
     if (height == null || !Number.isFinite(height)) {
       height = sampled?.heightFt ?? null;
     }
+    const prefer =
+      directionFromTide(pin.tide) ??
+      (sampled ? (sampled.direction === "rising" ? "incoming" : "outgoing") : null);
+    const preferDir = directionFromTide(prefer);
+    const clock = preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : mapped;
     if (height != null && Number.isFinite(height)) {
-      const prefer =
-        directionFromTide(pin.tide) ??
-        (sampled ? (sampled.direction === "rising" ? "incoming" : "outgoing") : null);
-      const preferDir = directionFromTide(prefer);
-      const clock = preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : mapped;
       let matches = sameTideMatches(extremes, height, day, zone);
-      if (!matches.length) {
-        const clamped = clampHeightToExtremes(extremes, height);
-        if (clamped != null) {
-          matches = sameTideMatches(extremes, clamped, day, zone);
-          if (!matches.length) {
-            matches = sameTideCrossings(extremes, clamped);
-          }
-        }
+      if (!matches.length && dayRange) {
+        const clamped = Math.min(dayRange.max, Math.max(dayRange.min, height));
+        matches = sameTideMatches(extremes, clamped, day, zone);
+        remappedFromOutside = remappedFromOutside || !inDayRange;
       }
-      const match =
-        pickSameTideMatch(matches, preferDir, clock, zone) ??
-        pickSameTideMatch(matches, null, clock, zone);
-      const label = formatSameTideLabel(match, zone);
+      const label = chipFromMatches(matches, preferDir, clock, zone, !remappedFromOutside);
       if (label) return label;
     }
+    const fallback = mappedClockChip(sampled, mapped, zone);
+    if (fallback) return fallback;
   }
   return "";
 }
@@ -350,8 +466,9 @@ export function sameTideChipsForSpots(
   spots.forEach((spot, index) => {
     const pin = ownPins[index] ?? pinForPlannedSpot(spot, journal, stationPin);
     const lookup = catchTideLookupKey(pin);
-    const resolved = pin && lookup ? applyCatchTideSnapshot(pin, catchSnaps[lookup]) : pin;
-    const label = plannedSpotSameTide(snap, day, resolved, zone);
+    const catchSnap = lookup ? catchSnaps[lookup] : undefined;
+    const resolved = pin ? applyCatchTideSnapshot(pin, catchSnap) : pin;
+    const label = plannedSpotSameTide(snap, day, resolved, zone, catchSnap);
     if (label) chips[spot.id] = label;
   });
   return chips;
