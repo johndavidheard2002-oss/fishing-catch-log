@@ -63,9 +63,9 @@ import {
   pinForPlannedSpot,
   planDayReferenceAt,
   plannedDayTideDetail,
-  applyCatchTideSnapshot,
   catchTideLookupKey,
-  plannedSpotSameTide,
+  sameTideChipsForSpots,
+  type PlannedTidePin,
 } from "@/lib/plan-tides";
 import { tidesApplyToHabitat, type TideSnapshot } from "@/lib/tides/snapshot";
 import {
@@ -166,8 +166,9 @@ export function PlanClient({
   const [journalBait, setJournalBait] = useState<BaitSpot[]>([]);
   const [planTides, setPlanTides] = useState<{
     detail: string;
-    sameTideById: Record<string, string>;
-  }>({ detail: "", sameTideById: {} });
+    snap: TideSnapshot | null;
+    catchSnaps: Record<string, TideSnapshot | null>;
+  }>({ detail: "", snap: null, catchSnaps: {} });
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
@@ -436,80 +437,125 @@ export function PlanClient({
   const dayLabels = labelsByPlanDay(visibleNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
   const spotsTideKey = spotsOnDay.map((note) => note.id).join(",");
+  const plannedCatchIds = spotsOnDay
+    .map((note) => note.sourceCatchId?.trim())
+    .filter((id): id is string => Boolean(id));
+
+  useEffect(() => {
+    const missing = plannedCatchIds.filter((id) => !journalCatches.some((row) => row.id === id));
+    if (!missing.length) return;
+    let cancelled = false;
+    void Promise.all(
+      missing.map(async (id) => {
+        try {
+          const res = await fetch(`/api/catches/${id}`, { cache: "no-store" });
+          const data = res.ok ? await res.json() : null;
+          return data?.catch ?? null;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((rows) => {
+      if (cancelled) return;
+      const extra = rows.filter((row): row is CatchRecord => Boolean(row?.id));
+      if (!extra.length) return;
+      setJournalCatches((current) => {
+        const seen = new Set(current.map((row) => row.id));
+        const next = [...current];
+        for (const row of extra) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id);
+            next.push(row);
+          }
+        }
+        return next.length === current.length ? current : next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [plannedCatchIds.join(","), journalCatches]);
 
   useEffect(() => {
     if (!selectedDay || !spotsOnDay.length) {
-      setPlanTides({ detail: "", sameTideById: {} });
+      setPlanTides({ detail: "", snap: null, catchSnaps: {} });
       return;
     }
     let cancelled = false;
     const day = selectedDay;
     const spots = spotsOnDay;
+    const journal = { catches: journalCatches, baitSpots: journalBait };
     void (async () => {
-      const snaps = new Map<string, TideSnapshot>();
-      const catchSnaps = new Map<string, TideSnapshot | null>();
-      const sameTideById: Record<string, string> = {};
-      let detail = "";
-      for (const note of spots) {
-        const pin = pinForPlannedSpot(note, { catches: journalCatches, baitSpots: journalBait });
-        if (!pin || !tidesApplyToHabitat(pin.habitat)) continue;
-        const key = `${pin.latitude.toFixed(4)},${pin.longitude.toFixed(4)}`;
-        let snap = snaps.get(key);
-        if (!snap) {
-          const at = planDayReferenceAt(day, null);
-          if (!at) continue;
+      const pins = spots
+        .map((note) => pinForPlannedSpot(note, journal))
+        .filter((pin): pin is NonNullable<typeof pin> => Boolean(pin));
+      const pin = pins.find((row) => tidesApplyToHabitat(row.habitat)) ?? pins[0];
+      if (!pin) return;
+      const at = planDayReferenceAt(day, null);
+      if (!at) return;
+      let snap: TideSnapshot | null = null;
+      try {
+        const res = await fetch("/api/assist/weather", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            latitude: pin.latitude,
+            longitude: pin.longitude,
+            at: at.toISOString(),
+            habitat: tidesApplyToHabitat(pin.habitat) ? pin.habitat : "saltwater-inshore",
+          }),
+        });
+        const data = res.ok ? await res.json() : null;
+        snap = (data?.tide as TideSnapshot | undefined) ?? null;
+      } catch {
+        snap = null;
+      }
+      if (cancelled || !snap) return;
+      const detail = plannedDayTideDetail(snap, pin.longitude);
+      if (!cancelled) setPlanTides({ detail, snap, catchSnaps: {} });
+
+      const lookups = new Map<string, PlannedTidePin>();
+      for (const row of pins) {
+        const key = catchTideLookupKey(row);
+        if (key) lookups.set(key, row);
+      }
+      const catchSnaps: Record<string, TideSnapshot | null> = {};
+      await Promise.all(
+        [...lookups.entries()].map(async ([key, row]) => {
           try {
             const res = await fetch("/api/assist/weather", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                latitude: pin.latitude,
-                longitude: pin.longitude,
-                at: at.toISOString(),
-                habitat: pin.habitat,
+                latitude: row.latitude,
+                longitude: row.longitude,
+                at: row.caughtAt,
+                habitat: tidesApplyToHabitat(row.habitat) ? row.habitat : "saltwater-inshore",
               }),
             });
             const data = res.ok ? await res.json() : null;
-            snap = (data?.tide as TideSnapshot | undefined) ?? undefined;
+            catchSnaps[key] = (data?.tide as TideSnapshot | undefined) ?? null;
           } catch {
-            snap = undefined;
+            catchSnaps[key] = null;
           }
-          if (snap) snaps.set(key, snap);
-        }
-        if (!snap) continue;
-        if (!detail) detail = plannedDayTideDetail(snap, pin.longitude);
-        let resolved = pin;
-        const lookup = catchTideLookupKey(pin);
-        if (lookup) {
-          if (!catchSnaps.has(lookup)) {
-            try {
-              const res = await fetch("/api/assist/weather", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  latitude: pin.latitude,
-                  longitude: pin.longitude,
-                  at: pin.caughtAt,
-                  habitat: pin.habitat,
-                }),
-              });
-              const data = res.ok ? await res.json() : null;
-              catchSnaps.set(lookup, (data?.tide as TideSnapshot | undefined) ?? null);
-            } catch {
-              catchSnaps.set(lookup, null);
-            }
-          }
-          resolved = applyCatchTideSnapshot(pin, catchSnaps.get(lookup));
-        }
-        const label = plannedSpotSameTide(snap, day, resolved);
-        if (label) sameTideById[note.id] = label;
-      }
-      if (!cancelled) setPlanTides({ detail, sameTideById });
+        }),
+      );
+      if (!cancelled) setPlanTides({ detail, snap, catchSnaps });
     })();
     return () => {
       cancelled = true;
     };
   }, [selectedDay, spotsTideKey, journalCatches, journalBait]);
+  const sameTideById =
+    selectedDay && planTides.snap
+      ? sameTideChipsForSpots(
+          spotsOnDay,
+          planTides.snap,
+          selectedDay,
+          { catches: journalCatches, baitSpots: journalBait },
+          planTides.catchSnaps,
+        )
+      : {};
   const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions, {
     catches: journalCatches,
     baitSpots: journalBait,
@@ -685,7 +731,7 @@ export function PlanClient({
                       catches: journalCatches,
                       baitSpots: journalBait,
                     });
-                    const closestTide = planTides.sameTideById[note.id];
+                    const closestTide = sameTideById[note.id];
                     const row = (
                       <>
                         {photo ? (

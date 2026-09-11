@@ -184,6 +184,59 @@ describe("planned day and photo tide labels", () => {
     }
     expect(chips["note-c-red-5"]).toMatch(/outgoing/i);
     expect(chips["note-c-red-1"]).toMatch(/incoming/i);
+
+    const liveLike = uniqueNotesByPlace(
+      [1, 2, 3, 4, 5].map((n) => ({
+        id: `live-${n}`,
+        placeName: "Beach marker 42",
+        sourceCatchId: `live-c-${n}`,
+        kind: "plan-spot" as const,
+      })),
+    );
+    const liveCatches = [1, 2, 3, 4, 5].map((n) =>
+      catchOf({
+        id: `live-c-${n}`,
+        placeName: "Beach marker 42",
+        habitat: "saltwater-inshore",
+        latitude: 27.84,
+        longitude: -97.05,
+        caughtAt: `2026-08-0${n}T15:00:00.000Z`,
+        tide: n === 2 ? "incoming" : null,
+        tideHeightFt: n === 2 ? 1.45 : n % 2 === 0 ? 4.5 : null,
+      }),
+    );
+    const liveChips = sameTideChipsForSpots(liveLike, aransas, "2026-10-09", { catches: liveCatches });
+    expect(liveLike).toHaveLength(5);
+    expect(Object.keys(liveChips)).toHaveLength(5);
+    expect(liveChips["live-2"]).toMatch(/incoming/i);
+
+    const noHabitat = uniqueNotesByPlace(
+      [1, 2, 3, 4, 5].map((n) => ({
+        id: `hab-${n}`,
+        placeName: "Beach marker 42",
+        sourceCatchId: `hab-c-${n}`,
+        kind: "plan-spot" as const,
+      })),
+    );
+    const noHabitatCatches = [1, 2, 3, 4, 5].map((n) => ({
+      ...catchOf({
+        id: `hab-c-${n}`,
+        placeName: "Beach marker 42",
+        latitude: 27.84,
+        longitude: -97.05,
+        caughtAt: `2026-08-0${n}T14:3${n}:00.000Z`,
+        tide: null,
+        tideHeightFt: n === 3 ? 4.5 : null,
+      }),
+      habitat: null,
+    }));
+    const noHabitatChips = sameTideChipsForSpots(noHabitat, aransas, "2026-10-09", {
+      catches: noHabitatCatches,
+    });
+    expect(Object.keys(noHabitatChips)).toHaveLength(5);
+    for (const spot of noHabitat) {
+      expect(noHabitatChips[spot.id]).toBeTruthy();
+    }
   });
 
   it("uses a catch-time station snapshot so a stored 4.5 ft height still chips on a 2.2 ft day", () => {
@@ -221,6 +274,14 @@ describe("planned day and photo tide labels", () => {
     expect(resolved.tideHeightFt).toBe(1.4);
     expect(resolved.tide).toBe("incoming");
     expect(plannedSpotSameTide(daySnap, "2026-10-09", resolved)).toMatch(/incoming/i);
+    expect(
+      plannedSpotSameTide(daySnap, "2026-10-09", {
+        ...pin,
+        habitat: null,
+        tide: null,
+        tideHeightFt: null,
+      }),
+    ).toMatch(/incoming|outgoing|High|Low/);
   });
 });
 
@@ -228,10 +289,12 @@ describe("Plan Planned panel wires day tides", () => {
   it("shows the planned day's tides and a closest tide on each photo row", () => {
     const plan = readFileSync(resolve(__dirname, "../components/PlanClient.tsx"), "utf8");
     expect(plan).toContain("plannedDayTideDetail");
-    expect(plan).toContain("plannedSpotSameTide");
+    expect(plan).toContain("sameTideChipsForSpots");
     expect(plan).toContain("sameTideById");
-    expect(plan).toContain("applyCatchTideSnapshot");
+    expect(plan).toContain("sameTideChipsForSpots");
     expect(plan).toContain("catchTideLookupKey");
+    expect(plan).toContain("plannedCatchIds");
+    expect(plan).toContain("/api/catches/${id}");
     expect(plan).not.toContain("tideHeightFt == null &&");
     expect(plan).not.toContain("plannedSpotClosestTide");
     expect(plan).not.toContain("closestCivilDayTide");

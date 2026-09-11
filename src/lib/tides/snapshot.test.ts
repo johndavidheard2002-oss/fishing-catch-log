@@ -6,6 +6,7 @@ import {
   formatTideClock,
   formatTideDetail,
   pickSameTideMatch,
+  sameTideCrossings,
   sameTideMatches,
   snapshotFromExtremes,
   timeZoneFromLongitude,
@@ -222,13 +223,20 @@ describe("sameTideMatches", () => {
     expect(pickSameTideMatch(matches, "rising")?.direction).toBe("rising");
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "rising"), "falling")).toBeNull();
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "falling"), "rising")).toBeNull();
-    expect(pickSameTideMatch(matches, null)).toBeNull();
+    expect(pickSameTideMatch(matches, null)?.direction).toBe("rising");
   });
 
   it("clamps a stored height onto the day's High/Low range", () => {
     expect(clampHeightToExtremes(extremes, 4.5)).toBe(4.5);
     expect(clampHeightToExtremes(extremes, 9)).toBe(4.7);
     expect(clampHeightToExtremes(extremes, -1)).toBe(0.5);
+  });
+
+  it("still finds equal-height crossings when the civil day filter misses", () => {
+    const crossings = sameTideCrossings(extremes, 4.5);
+    expect(crossings.length).toBeGreaterThanOrEqual(2);
+    expect(sameTideMatches(extremes, 4.5, "2026-10-11", "America/New_York")).toEqual([]);
+    expect(pickSameTideMatch(crossings, null)?.at).toBeTruthy();
   });
 
   it("labels High only when the equal-height instant is the High", () => {

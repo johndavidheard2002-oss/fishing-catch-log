@@ -238,13 +238,12 @@ export function clampHeightToExtremes(
   return Math.min(max, Math.max(min, heightFt));
 }
 
-export function sameTideMatches(
+/** Equal-height crossings on the High/Low series, any civil day. */
+export function sameTideCrossings(
   extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
   targetHeightFt: number,
-  day: string,
-  timeZone?: string,
 ): SameTideMatch[] {
-  if (!Number.isFinite(targetHeightFt) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+  if (!Number.isFinite(targetHeightFt)) return [];
   const sorted = parseTideExtremes(extremes);
   if (sorted.length < 2) return [];
   const matches: SameTideMatch[] = [];
@@ -253,7 +252,6 @@ export function sameTideMatches(
     const b = sorted[i + 1];
     const at = interpolateHeightCrossing(a, b, targetHeightFt);
     if (!at) continue;
-    if (civilDateKey(at, timeZone) !== day) continue;
     const direction: TideDirection = b.heightFt > a.heightFt ? "rising" : "falling";
     const onA = Math.abs(at.getTime() - a.at.getTime()) <= ON_EXTREME_MS;
     const onB = Math.abs(at.getTime() - b.at.getTime()) <= ON_EXTREME_MS;
@@ -267,6 +265,47 @@ export function sameTideMatches(
   return matches;
 }
 
+export function sameTideMatches(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  targetHeightFt: number,
+  day: string,
+  timeZone?: string,
+): SameTideMatch[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+  return sameTideCrossings(extremes, targetHeightFt).filter(
+    (match) => civilDateKey(match.at, timeZone) === day,
+  );
+}
+
+export function heightAndDirectionAt(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  at: Date,
+): { heightFt: number; direction: TideDirection } | null {
+  if (Number.isNaN(at.getTime())) return null;
+  const sorted = parseTideExtremes(extremes);
+  if (sorted.length < 2) return null;
+  const t = at.getTime();
+  let a = sorted[0];
+  let b = sorted[1];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].at.getTime() <= t && sorted[i + 1].at.getTime() >= t) {
+      a = sorted[i];
+      b = sorted[i + 1];
+      break;
+    }
+    if (sorted[i + 1].at.getTime() < t) {
+      a = sorted[i + 1];
+      b = sorted[Math.min(i + 2, sorted.length - 1)];
+    }
+  }
+  const span = b.at.getTime() - a.at.getTime();
+  const frac = span > 0 ? Math.min(1, Math.max(0, (t - a.at.getTime()) / span)) : 0;
+  return {
+    heightFt: Number((a.heightFt + (b.heightFt - a.heightFt) * frac).toFixed(3)),
+    direction: b.heightFt > a.heightFt ? "rising" : "falling",
+  };
+}
+
 export function pickSameTideMatch(
   matches: SameTideMatch[],
   prefer?: TideDirection | null,
@@ -277,7 +316,6 @@ export function pickSameTideMatch(
   // Known incoming/outgoing: never return the opposite flood/ebb.
   const pool = prefer ? matches.filter((m) => m.direction === prefer) : matches;
   if (!pool.length) return null;
-  if (!prefer && pool.length !== 1) return null;
   if (pool.length === 1 || !preferAt || Number.isNaN(preferAt.getTime())) {
     return pool[0] ?? null;
   }
