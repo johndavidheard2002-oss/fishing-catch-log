@@ -64,10 +64,11 @@ import {
   planDayReferenceAt,
   plannedDayTideDetail,
   catchTideLookupKey,
+  fallbackChipFromDayTides,
   sameTideChipsForSpots,
   type PlannedTidePin,
 } from "@/lib/plan-tides";
-import { tidesApplyToHabitat, type TideSnapshot } from "@/lib/tides/snapshot";
+import { tidesApplyToHabitat, timeZoneFromLongitude, type TideSnapshot } from "@/lib/tides/snapshot";
 import {
   parsePlanDate,
   planLookupFailureNote,
@@ -731,7 +732,18 @@ export function PlanClient({
                       catches: journalCatches,
                       baitSpots: journalBait,
                     });
-                    const closestTide = sameTideById[note.id];
+                    const closestTide =
+                      sameTideById[note.id] ||
+                      fallbackChipFromDayTides(
+                        planTides.snap,
+                        selectedDay,
+                        timeZoneFromLongitude(
+                          pinForPlannedSpot(note, {
+                            catches: journalCatches,
+                            baitSpots: journalBait,
+                          })?.longitude,
+                        ),
+                      );
                     const row = (
                       <>
                         {photo ? (
