@@ -207,11 +207,21 @@ describe("sameTideMatches", () => {
     const falling = pickSameTideMatch(matches, "falling");
     expect(falling?.direction).toBe("falling");
     expect(falling?.onExtreme).toBeNull();
-    expect(formatSameTideLabel(falling, "America/New_York")).toBe("8:28 AM falling");
+    expect(formatSameTideLabel(falling, "America/New_York")).toBe("8:28 AM outgoing");
     expect(formatSameTideLabel(falling, "America/New_York")).not.toMatch(/^Low\b/);
     const rising = pickSameTideMatch(matches, "rising");
     expect(rising?.direction).toBe("rising");
-    expect(formatSameTideLabel(rising, "America/New_York")).toMatch(/rising/);
+    expect(formatSameTideLabel(rising, "America/New_York")).toBe("7:50 AM incoming");
+  });
+
+  it("never returns the opposite incoming/outgoing when both heights exist", () => {
+    const matches = sameTideMatches(extremes, 4.5, "2026-10-10", "America/New_York");
+    expect(matches.map((m) => m.direction).sort()).toEqual(["falling", "rising"]);
+    expect(pickSameTideMatch(matches, "falling")?.direction).toBe("falling");
+    expect(pickSameTideMatch(matches, "rising")?.direction).toBe("rising");
+    expect(pickSameTideMatch(matches.filter((m) => m.direction === "rising"), "falling")).toBeNull();
+    expect(pickSameTideMatch(matches.filter((m) => m.direction === "falling"), "rising")).toBeNull();
+    expect(pickSameTideMatch(matches, null)).toBeNull();
   });
 
   it("labels High only when the equal-height instant is the High", () => {

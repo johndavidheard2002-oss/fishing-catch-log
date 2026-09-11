@@ -85,19 +85,20 @@ describe("planned day and photo tide labels", () => {
       tide: "outgoing",
     };
     const label = plannedSpotSameTide(snap, "2026-10-10", pin);
-    expect(label).toMatch(/falling/i);
+    expect(label).toMatch(/outgoing/i);
+    expect(label).not.toMatch(/incoming/i);
     expect(label).not.toMatch(/^Low\b/);
     expect(label).not.toContain("1:46 AM");
     expect(label).not.toContain("2:46 PM");
     // High 8:09 AM EDT (12:09Z) 4.7ft → Low 2:46 PM (18:46Z) 0.6ft at 4.5ft
-    expect(label).toBe("8:28 AM falling");
+    expect(label).toBe("8:28 AM outgoing");
     expect(
       plannedSpotSameTide({ ...snap, applies: false }, "2026-10-10", pin),
     ).toBe("");
   });
 
-  it("prefers the falling equal-height time when flood and ebb both match", () => {
-    const risingOnly = plannedSpotSameTide(snap, "2026-10-10", {
+  it("picks matching incoming/outgoing and never the opposite equal-height time", () => {
+    const incoming = plannedSpotSameTide(snap, "2026-10-10", {
       latitude: 28.41,
       longitude: -80.63,
       habitat: "saltwater-inshore",
@@ -105,15 +106,33 @@ describe("planned day and photo tide labels", () => {
       tideHeightFt: 4.5,
       tide: "incoming",
     });
-    expect(risingOnly).toMatch(/rising/i);
-    expect(risingOnly).not.toEqual(plannedSpotSameTide(snap, "2026-10-10", {
+    const outgoing = plannedSpotSameTide(snap, "2026-10-10", {
       latitude: 28.41,
       longitude: -80.63,
       habitat: "saltwater-inshore",
       caughtAt: "2026-09-01T12:14:00.000Z",
       tideHeightFt: 4.5,
       tide: "outgoing",
-    }));
+    });
+    expect(incoming).toBe("7:50 AM incoming");
+    expect(outgoing).toBe("8:28 AM outgoing");
+    expect(incoming).not.toEqual(outgoing);
+    expect(incoming).not.toMatch(/outgoing/i);
+    expect(outgoing).not.toMatch(/incoming/i);
+    expect(
+      plannedSpotSameTide(
+        { ...snap, tide: "outgoing", heightFt: 2.7 },
+        "2026-10-10",
+        {
+          latitude: 28.41,
+          longitude: -80.63,
+          habitat: "saltwater-inshore",
+          caughtAt: "2026-09-01T11:50:00.000Z",
+          tideHeightFt: 4.5,
+          tide: "incoming",
+        },
+      ),
+    ).toBe("7:50 AM incoming");
   });
 });
 

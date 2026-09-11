@@ -176,13 +176,18 @@ export function parseTideExtremes(
     .sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
-/** Catch/bait `tide` stage → rising or falling water. */
+/** Catch/bait `tide` stage → rising (incoming/flood) or falling (outgoing/ebb). */
 export function directionFromTide(tide?: string | null): TideDirection | null {
-  if (tide === "incoming") return "rising";
-  if (tide === "outgoing") return "falling";
-  if (tide === "high") return "falling";
-  if (tide === "low") return "rising";
+  const value = tide?.trim().toLowerCase() ?? "";
+  if (value === "incoming" || value === "rising" || value === "flood") return "rising";
+  if (value === "outgoing" || value === "falling" || value === "ebb") return "falling";
+  if (value === "high") return "falling";
+  if (value === "low") return "rising";
   return null;
+}
+
+export function incomingOutgoingLabel(direction: TideDirection): "incoming" | "outgoing" {
+  return direction === "rising" ? "incoming" : "outgoing";
 }
 
 function civilClockMinutes(at: Date, timeZone?: string): number {
@@ -252,15 +257,15 @@ export function pickSameTideMatch(
   timeZone?: string,
 ): SameTideMatch | null {
   if (!matches.length) return null;
-  const preferred =
-    prefer && matches.some((m) => m.direction === prefer)
-      ? matches.filter((m) => m.direction === prefer)
-      : matches;
-  if (preferred.length === 1 || !preferAt || Number.isNaN(preferAt.getTime())) {
-    return preferred[0] ?? null;
+  // Known incoming/outgoing: never return the opposite flood/ebb.
+  const pool = prefer ? matches.filter((m) => m.direction === prefer) : matches;
+  if (!pool.length) return null;
+  if (!prefer && pool.length !== 1) return null;
+  if (pool.length === 1 || !preferAt || Number.isNaN(preferAt.getTime())) {
+    return pool[0] ?? null;
   }
   const targetMin = civilClockMinutes(preferAt, timeZone);
-  return preferred.reduce((best, cur) => {
+  return pool.reduce((best, cur) => {
     const bestDt = Math.abs(civilClockMinutes(best.at, timeZone) - targetMin);
     const curDt = Math.abs(civilClockMinutes(cur.at, timeZone) - targetMin);
     return curDt < bestDt ? cur : best;
@@ -276,7 +281,7 @@ export function formatSameTideLabel(
   if (!clock) return "";
   if (match.onExtreme === "high") return `High ${clock}`;
   if (match.onExtreme === "low") return `Low ${clock}`;
-  return `${clock} ${match.direction}`;
+  return `${clock} ${incomingOutgoingLabel(match.direction)}`;
 }
 
 export function formatTideClock(

@@ -103,8 +103,8 @@ export function plannedDayTideDetail(
 }
 
 /**
- * Plan-day clock when tide height equals the catch’s height (interpolated).
- * Prefers the same rising/falling direction. Not nearest High/Low.
+ * Plan-day clock when tide height equals the catch’s height (interpolated)
+ * and incoming/outgoing matches the catch. Not nearest High/Low.
  */
 export function plannedSpotSameTide(
   snap: TideSnapshot | null | undefined,
@@ -118,7 +118,7 @@ export function plannedSpotSameTide(
   const preferAt = pin.caughtAt ? new Date(pin.caughtAt) : null;
   const match = pickSameTideMatch(
     sameTideMatches(snap.extremes, height, day, zone),
-    directionFromTide(pin.tide) ?? directionFromTide(snap.tide),
+    directionFromTide(pin.tide),
     preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : null,
     zone,
   );
