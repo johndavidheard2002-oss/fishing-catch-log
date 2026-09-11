@@ -1,7 +1,15 @@
 "use client";
 
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
-import { calendarNoteHasContent, noteHeadline, planNoteInput } from "@/lib/notes";
+import {
+  calendarNoteHasContent,
+  noteHeadline,
+  PLAN_DAY_LABEL_MAX,
+  planDayLabel,
+  planDayLabelInput,
+  planDayLabelNote,
+  planNoteInput,
+} from "@/lib/notes";
 import type { CalendarNote, CalendarNoteInput } from "@/lib/types";
 import { useState } from "react";
 
@@ -126,6 +134,89 @@ export function DayNotes({
         />
       ) : null}
     </div>
+  );
+}
+
+export function PlanDayLabel({
+  day,
+  notes,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: {
+  day: string;
+  notes: CalendarNote[];
+  onCreate: (input: CalendarNoteInput) => void | Promise<void>;
+  onUpdate: (id: string, input: CalendarNoteInput) => void | Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
+}) {
+  const existing = planDayLabelNote(notes);
+  const [text, setText] = useState(planDayLabel(notes) ?? "");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  return (
+    <form
+      className="space-y-2"
+      data-testid="plan-day-label-field"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const input = planDayLabelInput(day, text, existing);
+        setBusy(true);
+        setError(null);
+        try {
+          if (!text.trim() && existing) {
+            if (input) await onUpdate(existing.id, input);
+            else await onDelete(existing.id);
+          } else if (input && existing) {
+            await onUpdate(existing.id, input);
+          } else if (input) {
+            await onCreate(input);
+          } else {
+            setError("Add a short label to save.");
+            return;
+          }
+          setSaved(true);
+        } catch {
+          setError("Could not save that label.");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor="plan-day-label-input" className="font-display text-lg text-teal">
+          Day label
+        </label>
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold text-teal disabled:opacity-60"
+          data-testid="plan-day-label-save"
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </div>
+      <input
+        id="plan-day-label-input"
+        value={text}
+        maxLength={PLAN_DAY_LABEL_MAX}
+        onChange={(e) => {
+          setText(e.target.value);
+          setSaved(false);
+        }}
+        placeholder="Sharkathon, trip name…"
+        className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-sm"
+        data-testid="plan-day-label-input"
+      />
+      {saved ? (
+        <p data-testid="changes-saved" className="text-sm font-semibold text-teal">
+          {CHANGES_SAVED_LABEL}
+        </p>
+      ) : null}
+      {error ? <p className="text-xs text-copper">{error}</p> : null}
+    </form>
   );
 }
 

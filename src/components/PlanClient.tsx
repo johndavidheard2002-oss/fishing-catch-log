@@ -6,15 +6,19 @@ import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyP
 import { personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
-import { PlanDayNotes } from "@/components/CalendarNotes";
+import { PlanDayLabel, PlanDayNotes } from "@/components/CalendarNotes";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
 import {
   addPlanSpotToDay,
   dayHasPlanSpot,
   groupNotesByDay,
+  formatPlanCalendarLabel,
   journalNotesForCalendarLog,
+  journalNotesForPlanWriteups,
+  labelsByPlanDay,
   labelsForPlannedSpot,
+  planDayLabel,
   listedPlanNotes,
   mergeCommittedPlanSpots,
   mergeListedPlanNotes,
@@ -388,6 +392,8 @@ export function PlanClient({
   const notedDays = new Set(notesByDay.keys());
   const selectedNotes = selectedDay ? (notesByDay.get(selectedDay) ?? []) : [];
   const journalNotes = journalNotesForCalendarLog(selectedNotes);
+  const writeupNotes = journalNotesForPlanWriteups(selectedNotes);
+  const dayLabels = labelsByPlanDay(visibleNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
   const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions, {
     catches: journalCatches,
@@ -470,6 +476,7 @@ export function PlanClient({
         month={month}
         selectedDay={selectedDay}
         notedDays={notedDays}
+        dayLabels={dayLabels}
         onMonthChange={(next) => {
           setYear(next.year);
           setMonth(next.month);
@@ -625,15 +632,23 @@ export function PlanClient({
                 </ul>
               </div>
             ) : null}
-            {!spotsOnDay.length && !journalNotes.length && !plannedPhotos.length ? (
+            {!spotsOnDay.length && !writeupNotes.length && !plannedPhotos.length && !planDayLabel(selectedNotes) ? (
               <p className="text-sm text-ink-muted">
-                Nothing planned yet. Add a place below or write a note.
+                Nothing planned yet. Add a place below, a day label, or write a note.
               </p>
             ) : null}
+            <PlanDayLabel
+              key={`${selectedDay}-label`}
+              day={selectedDay}
+              notes={journalNotes}
+              onCreate={onCreateNote}
+              onUpdate={onUpdateNote}
+              onDelete={onDeleteNote}
+            />
             <PlanDayNotes
               key={selectedDay}
               day={selectedDay}
-              notes={journalNotes}
+              notes={writeupNotes}
               embedded
               onCreate={onCreateNote}
               onUpdate={onUpdateNote}
@@ -733,6 +748,7 @@ function PlanDayCalendar({
   month,
   selectedDay,
   notedDays,
+  dayLabels,
   onMonthChange,
   onSelectDay,
 }: {
@@ -740,6 +756,7 @@ function PlanDayCalendar({
   month: number;
   selectedDay: string | null;
   notedDays: Set<string>;
+  dayLabels: Map<string, string>;
   onMonthChange: (next: { year: number; month: number }) => void;
   onSelectDay: (date: string) => void;
 }) {
@@ -780,15 +797,22 @@ function PlanDayCalendar({
           const isSelected = selectedDay === cell.date;
           const isToday = cell.date === today;
           const hasNote = notedDays.has(cell.date);
+          const label = formatPlanCalendarLabel(dayLabels.get(cell.date));
           return (
             <button
               key={cell.date}
               type="button"
               onClick={() => onSelectDay(cell.date)}
-              aria-label={hasNote ? `${cell.date}, has notes` : cell.date}
+              aria-label={
+                label
+                  ? `${cell.date}, ${dayLabels.get(cell.date)}`
+                  : hasNote
+                    ? `${cell.date}, has notes`
+                    : cell.date
+              }
               aria-current={isSelected ? "date" : undefined}
               data-testid={`plan-day-${cell.date}`}
-              className={`box-border flex min-h-12 w-full flex-col items-center justify-center overflow-visible rounded-xl border-2 py-2 text-sm ${TAP_RESET} ${
+              className={`box-border flex min-h-14 w-full flex-col items-center justify-center overflow-visible rounded-xl border-2 py-1.5 text-sm ${TAP_RESET} ${
                 isSelected
                   ? "border-teal bg-card font-semibold"
                   : isToday
@@ -797,6 +821,16 @@ function PlanDayCalendar({
               } ${cell.inMonth ? "" : "opacity-35"}`}
             >
               {cell.day}
+              {label ? (
+                <span
+                  className={`mt-0.5 max-w-full truncate px-0.5 text-[8px] leading-tight ${
+                    isSelected ? "text-teal" : "text-copper"
+                  }`}
+                  data-testid="plan-day-label"
+                >
+                  {label}
+                </span>
+              ) : null}
               {hasNote ? (
                 <span
                   className={`mt-0.5 h-1.5 w-1.5 rounded-full ${isSelected ? "bg-teal" : "bg-copper"}`}
