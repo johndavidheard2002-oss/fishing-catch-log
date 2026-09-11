@@ -86,6 +86,7 @@ import {
   shouldApplyHeldLogPhoto,
   shouldClearHeldLogPhotoAfterSave,
   shouldRestoreHeldLogPhoto,
+  shouldShowPhotoAtCatchPrompt,
 } from "@/lib/log-photo-draft";
 import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
@@ -944,9 +945,13 @@ export function CatchForm({
         }
       />
 
-      {!busy &&
-      photoAtCatch === null &&
-      Boolean(photoFile || (mode === "create" && importedPhotoPath)) ? (
+      {shouldShowPhotoAtCatchPrompt({
+        busy,
+        photoAtCatch,
+        hasPhotoFile: Boolean(photoFile),
+        importedPhotoPath,
+        mode,
+      }) ? (
         <div
           data-testid="photo-at-catch-prompt"
           className="rounded-2xl border border-line bg-card px-3 py-3"

@@ -40,3 +40,33 @@ export function shouldClearHeldLogPhotoAfterSave(args: {
 }): boolean {
   return args.mode === "create";
 }
+
+/**
+ * John's Log screenshot: Camera roll (and a restored hold treated as a file)
+ * shows Yes / No. Live Camera does not — photoAtCatch is already true.
+ */
+export function shouldShowPhotoAtCatchPrompt(args: {
+  busy: boolean;
+  photoAtCatch: boolean | null;
+  hasPhotoFile: boolean;
+  importedPhotoPath?: string | null;
+  mode: "create" | "edit";
+}): boolean {
+  return (
+    !args.busy &&
+    args.photoAtCatch === null &&
+    Boolean(args.hasPhotoFile || (args.mode === "create" && args.importedPhotoPath))
+  );
+}
+
+/**
+ * iPhone can restore the last Log form from bfcache (cooler photo + Yes/No).
+ * Remount only when there is no unsaved hold, so a saved catch does not come
+ * back and an in-progress draft is left alone.
+ */
+export function shouldRemountLogFormAfterPageShow(args: {
+  persisted: boolean;
+  hasHeldPhoto: boolean;
+}): boolean {
+  return args.persisted && !args.hasHeldPhoto;
+}
