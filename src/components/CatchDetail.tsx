@@ -10,7 +10,12 @@ import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/co
 import { SimilarList } from "@/components/SimilarList";
 import { AddToPlanButton } from "@/components/AddToPlanButton";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
-import { pendingPlanSpotFromCatch } from "@/lib/pending-plan-spot";
+import { dropCommittedPlanSpot, pendingPlanSpotFromCatch } from "@/lib/pending-plan-spot";
+import {
+  plannedPhotoUnplanRequest,
+  planSpotsToUnplan,
+  UNPLAN_SPOT_CONFIRM,
+} from "@/lib/notes";
 import { habitatLabel } from "@/lib/habitat";
 import { catchFishLabel, catchSpeciesTitle } from "@/lib/count";
 import { speciesLabel } from "@/lib/species";
@@ -43,8 +48,19 @@ const SpotMap = dynamic(() => import("@/components/SpotMap").then((m) => m.SpotM
   ),
 });
 
-export function CatchDetail({ id }: { id: string }) {
+export function CatchDetail({
+  id,
+  fromPlan = false,
+  planNote = null,
+  planDay = null,
+}: {
+  id: string;
+  fromPlan?: boolean;
+  planNote?: string | null;
+  planDay?: string | null;
+}) {
   const router = useRouter();
+  const unplan = plannedPhotoUnplanRequest({ fromPlan, planNote, planDay });
   const [record, setRecord] = useState<CatchRecord | null>(null);
   const [matches, setMatches] = useState<SimilarMatch[]>([]);
   const [editing, setEditing] = useState(false);
@@ -133,6 +149,35 @@ export function CatchDetail({ id }: { id: string }) {
   }, [id]);
 
   async function onDelete() {
+    if (unplan.mode === "unplan") {
+      if (!confirm(UNPLAN_SPOT_CONFIRM)) return;
+      try {
+        const noteIds = new Set<string>();
+        if (unplan.calendarNoteId) noteIds.add(unplan.calendarNoteId);
+        if (unplan.lookupPlanNotes) {
+          const res = await fetch("/api/calendar-notes?for=plan", { cache: "no-store" });
+          const data = await res.json().catch(() => ({}));
+          for (const noteId of planSpotsToUnplan(data.notes ?? [], {
+            sourceCatchId: id,
+            day: unplan.day,
+          })) {
+            noteIds.add(noteId);
+          }
+        }
+        for (const noteId of noteIds) {
+          const res = await fetch(`/api/calendar-notes/${noteId}`, { method: "DELETE" });
+          if (!res.ok) throw new Error("unplan failed");
+        }
+        dropCommittedPlanSpot(
+          typeof sessionStorage === "undefined" ? null : sessionStorage,
+          { day: unplan.day ?? "", sourceCatchId: id },
+        );
+        router.push(unplan.returnTo);
+      } catch {
+        setError("Could not remove this spot from the plan.");
+      }
+      return;
+    }
     if (!confirm("Delete this catch?")) return;
     if (isPendingCatchId(id)) {
       await removeQueuedLog(id);
@@ -439,14 +484,25 @@ export function CatchDetail({ id }: { id: string }) {
             >
               Plan
             </AddToPlanButton>
-            <button
-              type="button"
-              onClick={onDelete}
-              data-testid="catch-delete"
-              className="whitespace-nowrap rounded-full border border-line bg-card px-3 py-2 text-sm font-semibold"
-            >
-              Delete
-            </button>
+            {unplan.mode === "unplan" ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                data-testid="catch-unplan"
+                className="whitespace-nowrap rounded-full border border-line bg-card px-3 py-2 text-sm font-semibold"
+              >
+                Remove from plan
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onDelete}
+                data-testid="catch-delete"
+                className="whitespace-nowrap rounded-full border border-line bg-card px-3 py-2 text-sm font-semibold"
+              >
+                Delete
+              </button>
+            )}
           </div>
           <div data-testid="catch-share-block">
             <p className="text-xs text-ink-muted">

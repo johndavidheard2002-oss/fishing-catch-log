@@ -29,6 +29,7 @@ import {
   planDayAfterSelect,
   planSpotIdentityKey,
   planSpotRemoveTarget,
+  UNPLAN_SPOT_CONFIRM,
   selectPlanDay,
   planSpotDetailHref,
   planSpotSourceKind,
@@ -330,7 +331,7 @@ export function PlanClient({
   async function onRemovePlanSpot(note: CalendarNote) {
     const target = planSpotRemoveTarget(note);
     if (!target) return;
-    if (!confirm("Remove this spot from the plan? The catch stays in Calendar Log.")) return;
+    if (!confirm(UNPLAN_SPOT_CONFIRM)) return;
     try {
       if (target.calendarNoteId) {
         const res = await fetch(`/api/calendar-notes/${target.calendarNoteId}`, { method: "DELETE" });

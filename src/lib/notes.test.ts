@@ -38,6 +38,11 @@ import {
   photosForPlannedPlaces,
   planSpotDetailHref,
   planSpotRemoveTarget,
+  parsePlannedPhotoContext,
+  plannedPhotoUnplanRequest,
+  planHrefAfterUnplan,
+  planSpotsToUnplan,
+  withPlannedPhotoContext,
   planDayAfterSelect,
   planSpotSourceKind,
   restorePlanDay,
@@ -270,6 +275,25 @@ describe("dayHasPlanSpot", () => {
     expect(
       planSpotDetailHref({ placeName: "Haulover Canal" }, { href: "/catch/c1" }),
     ).toBe("/catch/c1");
+    expect(
+      planSpotDetailHref({
+        id: "plan-note-1",
+        day: "2026-10-10",
+        kind: "plan-spot",
+        sourceCatchId: "c1",
+      }),
+    ).toBe("/catch/c1?from=plan&planNote=plan-note-1&planDay=2026-10-10");
+    expect(
+      planSpotDetailHref({
+        id: "plan-note-2",
+        day: "2026-10-11",
+        kind: "plan-spot",
+        sourceBaitId: "b1",
+      }),
+    ).toBe("/bait/b1?from=plan&planNote=plan-note-2&planDay=2026-10-11");
+    expect(
+      withPlannedPhotoContext("/catch/c1", { id: "local:x", day: "2026-10-10" }),
+    ).toBe("/catch/c1?from=plan&planDay=2026-10-10");
   });
 
   it("removes a planned spot by calendar note id, never the source catch", () => {
@@ -303,9 +327,94 @@ describe("dayHasPlanSpot", () => {
     expect(removeFn).toContain("/api/calendar-notes/");
     expect(removeFn).not.toContain("/api/catches/");
     expect(removeFn).not.toContain("/api/bait-spots/");
-    expect(removeFn).toContain("The catch stays in Calendar Log.");
+    expect(removeFn).toContain("UNPLAN_SPOT_CONFIRM");
+    expect(readFileSync(resolve(__dirname, "./notes.ts"), "utf8")).toContain(
+      "The catch stays in Calendar Log.",
+    );
     expect(catchDetail).toContain('data-testid="catch-delete"');
     expect(catchDetail).toContain('fetch(`/api/catches/${id}`, { method: "DELETE" })');
+    expect(parsePlannedPhotoContext({ from: "plan", planNote: "plan-note-1", planDay: "2026-10-10" })).toEqual({
+      fromPlan: true,
+      calendarNoteId: "plan-note-1",
+      day: "2026-10-10",
+    });
+    expect(parsePlannedPhotoContext({ from: "calendar", planNote: "plan-note-1" })).toEqual({
+      fromPlan: false,
+      calendarNoteId: null,
+      day: null,
+    });
+    expect(plannedPhotoUnplanRequest({ fromPlan: false, planNote: "plan-note-1" })).toEqual({
+      mode: "journal-delete",
+    });
+    expect(
+      plannedPhotoUnplanRequest({
+        fromPlan: true,
+        planNote: "plan-note-1",
+        planDay: "2026-10-10",
+      }),
+    ).toEqual({
+      mode: "unplan",
+      calendarNoteId: "plan-note-1",
+      lookupPlanNotes: false,
+      returnTo: "/plan?date=2026-10-10",
+      day: "2026-10-10",
+    });
+    expect(plannedPhotoUnplanRequest({ fromPlan: true })).toEqual({
+      mode: "unplan",
+      calendarNoteId: null,
+      lookupPlanNotes: true,
+      returnTo: "/plan",
+      day: null,
+    });
+    expect(planHrefAfterUnplan("2026-10-10")).toBe("/plan?date=2026-10-10");
+    expect(
+      planSpotsToUnplan(
+        [
+          note({
+            id: "keep-other-day",
+            day: "2026-10-11",
+            kind: "plan-spot",
+            sourceCatchId: "c-wipe",
+          }),
+          note({
+            id: "unplan-me",
+            day: "2026-10-10",
+            kind: "plan-spot",
+            sourceCatchId: "c-wipe",
+          }),
+          note({
+            id: "c-wipe",
+            day: "2026-10-10",
+            kind: "journal",
+            sourceCatchId: "c-wipe",
+          }),
+        ],
+        { sourceCatchId: "c-wipe", day: "2026-10-10" },
+      ),
+    ).toEqual(["unplan-me"]);
+    expect(catchDetail).toContain("plannedPhotoUnplanRequest");
+    expect(catchDetail).toContain('data-testid="catch-unplan"');
+    expect(catchDetail).toContain("Remove from plan");
+    expect(catchDetail).toContain("/api/calendar-notes/");
+    const unplanStart = catchDetail.indexOf('if (unplan.mode === "unplan")');
+    const journalDelete = catchDetail.indexOf('if (!confirm("Delete this catch?"))');
+    const unplanFn = catchDetail.slice(unplanStart, journalDelete);
+    expect(unplanFn).toContain("/api/calendar-notes/");
+    expect(unplanFn).not.toContain("/api/catches/");
+    expect(unplanFn).not.toContain("/api/bait-spots/");
+    const catchPage = readFileSync(resolve(__dirname, "../app/catch/[id]/page.tsx"), "utf8");
+    const baitPage = readFileSync(resolve(__dirname, "../app/bait/[id]/page.tsx"), "utf8");
+    const baitDetail = readFileSync(resolve(__dirname, "../components/BaitSpotDetail.tsx"), "utf8");
+    expect(catchPage).toContain("parsePlannedPhotoContext");
+    expect(catchPage).toContain("fromPlan={planned.fromPlan}");
+    expect(baitPage).toContain("parsePlannedPhotoContext");
+    expect(baitDetail).toContain('data-testid="bait-unplan"');
+    const baitUnplanStart = baitDetail.indexOf('if (unplan.mode === "unplan")');
+    const baitJournal = baitDetail.indexOf('if (!confirm("Delete this bait spot?"))');
+    const baitUnplanFn = baitDetail.slice(baitUnplanStart, baitJournal);
+    expect(baitUnplanFn).toContain("/api/calendar-notes/");
+    expect(baitUnplanFn).not.toContain("/api/bait-spots/");
+    expect(baitUnplanFn).not.toContain("/api/catches/");
   });
 
   it("labels Planned rows with fish and bait from the note or source journal", () => {
