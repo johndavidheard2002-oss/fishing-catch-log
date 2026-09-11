@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getTideSnapshot } from "./index";
 import {
+  clampHeightToExtremes,
   formatSameTideLabel,
   formatTideClock,
   formatTideDetail,
@@ -222,6 +223,12 @@ describe("sameTideMatches", () => {
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "rising"), "falling")).toBeNull();
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "falling"), "rising")).toBeNull();
     expect(pickSameTideMatch(matches, null)).toBeNull();
+  });
+
+  it("clamps a stored height onto the day's High/Low range", () => {
+    expect(clampHeightToExtremes(extremes, 4.5)).toBe(4.5);
+    expect(clampHeightToExtremes(extremes, 9)).toBe(4.7);
+    expect(clampHeightToExtremes(extremes, -1)).toBe(0.5);
   });
 
   it("labels High only when the equal-height instant is the High", () => {

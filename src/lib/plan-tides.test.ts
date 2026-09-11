@@ -3,11 +3,14 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { catchOf, baitOf } from "./testing";
 import {
+  applyCatchTideSnapshot,
   pinForPlannedSpot,
   planDayReferenceAt,
   plannedDayTideDetail,
   plannedSpotSameTide,
+  sameTideChipsForSpots,
 } from "./plan-tides";
+import { uniqueNotesByPlace } from "./plan";
 import type { TideSnapshot } from "./tides/snapshot";
 
 const extremes = [
@@ -134,6 +137,91 @@ describe("planned day and photo tide labels", () => {
       ),
     ).toBe("7:50 AM incoming");
   });
+
+  it("chips every planned Redfish row at the same hole, including stored heights off that day's range", () => {
+    const aransas: TideSnapshot = {
+      applies: true,
+      tide: "incoming",
+      heightFt: 1.4,
+      nextHighAt: "2026-10-09T20:35:00.000Z",
+      nextHighFt: 2.2,
+      nextLowAt: "2026-10-09T13:32:00.000Z",
+      nextLowFt: 1.0,
+      source: "noaa",
+      note: "",
+      extremes: [
+        { at: "2026-10-09T13:32:00.000Z", type: "low", heightFt: 1.0 },
+        { at: "2026-10-09T20:35:00.000Z", type: "high", heightFt: 2.2 },
+        { at: "2026-10-10T02:10:00.000Z", type: "low", heightFt: 0.9 },
+      ],
+    };
+    const catches = [1, 2, 3, 4, 5].map((n) =>
+      catchOf({
+        id: `c-red-${n}`,
+        placeName: "Beach marker 42",
+        habitat: "saltwater-inshore",
+        latitude: 27.84,
+        longitude: -97.05,
+        caughtAt: `2026-09-0${n}T14:00:00.000Z`,
+        tide: n === 5 ? "outgoing" : "incoming",
+        tideHeightFt: n === 1 ? 1.5 : n === 5 ? 1.8 : 4.5,
+      }),
+    );
+    const spots = uniqueNotesByPlace(
+      catches.map((row) => ({
+        id: `note-${row.id}`,
+        placeName: row.placeName,
+        sourceCatchId: row.id,
+        kind: "plan-spot" as const,
+      })),
+    );
+    expect(spots).toHaveLength(5);
+    const chips = sameTideChipsForSpots(spots, aransas, "2026-10-09", { catches });
+    expect(Object.keys(chips)).toHaveLength(5);
+    for (const spot of spots) {
+      expect(chips[spot.id]).toBeTruthy();
+      expect(chips[spot.id]).not.toMatch(/^Low\b/);
+    }
+    expect(chips["note-c-red-5"]).toMatch(/outgoing/i);
+    expect(chips["note-c-red-1"]).toMatch(/incoming/i);
+  });
+
+  it("uses a catch-time station snapshot so a stored 4.5 ft height still chips on a 2.2 ft day", () => {
+    const pin = {
+      latitude: 27.84,
+      longitude: -97.05,
+      habitat: "saltwater-inshore" as const,
+      caughtAt: "2026-09-03T14:30:00.000Z",
+      tideHeightFt: 4.5,
+      tide: null,
+    };
+    const daySnap: TideSnapshot = {
+      ...snap,
+      nextHighAt: "2026-10-09T20:35:00.000Z",
+      nextHighFt: 2.2,
+      nextLowAt: "2026-10-09T13:32:00.000Z",
+      nextLowFt: 1.0,
+      extremes: [
+        { at: "2026-10-09T13:32:00.000Z", type: "low", heightFt: 1.0 },
+        { at: "2026-10-09T20:35:00.000Z", type: "high", heightFt: 2.2 },
+      ],
+    };
+    expect(plannedSpotSameTide(daySnap, "2026-10-09", pin)).toMatch(/incoming|High/);
+    const resolved = applyCatchTideSnapshot(pin, {
+      applies: true,
+      tide: "incoming",
+      heightFt: 1.4,
+      nextHighAt: null,
+      nextHighFt: null,
+      nextLowAt: null,
+      nextLowFt: null,
+      source: "noaa",
+      note: "",
+    });
+    expect(resolved.tideHeightFt).toBe(1.4);
+    expect(resolved.tide).toBe("incoming");
+    expect(plannedSpotSameTide(daySnap, "2026-10-09", resolved)).toMatch(/incoming/i);
+  });
 });
 
 describe("Plan Planned panel wires day tides", () => {
@@ -142,6 +230,9 @@ describe("Plan Planned panel wires day tides", () => {
     expect(plan).toContain("plannedDayTideDetail");
     expect(plan).toContain("plannedSpotSameTide");
     expect(plan).toContain("sameTideById");
+    expect(plan).toContain("applyCatchTideSnapshot");
+    expect(plan).toContain("catchTideLookupKey");
+    expect(plan).not.toContain("tideHeightFt == null &&");
     expect(plan).not.toContain("plannedSpotClosestTide");
     expect(plan).not.toContain("closestCivilDayTide");
     expect(plan).toContain("pinForPlannedSpot");

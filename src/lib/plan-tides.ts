@@ -1,5 +1,6 @@
 import { DAY_KEY_RE, normalizeNotePlace } from "./notes";
 import {
+  clampHeightToExtremes,
   directionFromTide,
   formatSameTideLabel,
   formatTideDetail,
@@ -102,6 +103,24 @@ export function plannedDayTideDetail(
   return formatTideDetail({ ...snap, longitude });
 }
 
+/** Prefer height/stage from a catch-time lookup at this pin’s station. */
+export function applyCatchTideSnapshot(
+  pin: PlannedTidePin,
+  catchSnap?: TideSnapshot | null,
+): PlannedTidePin {
+  if (!catchSnap?.applies) return pin;
+  return {
+    ...pin,
+    tideHeightFt: catchSnap.heightFt ?? pin.tideHeightFt,
+    tide: catchSnap.tide ?? pin.tide,
+  };
+}
+
+export function catchTideLookupKey(pin: PlannedTidePin): string | null {
+  if (!pin.caughtAt) return null;
+  return `${pin.latitude.toFixed(4)},${pin.longitude.toFixed(4)},${pin.caughtAt}`;
+}
+
 /**
  * Plan-day clock when tide height equals the catch’s height (interpolated)
  * and incoming/outgoing matches the catch. Not nearest High/Low.
@@ -116,11 +135,39 @@ export function plannedSpotSameTide(
   if (height == null || !Number.isFinite(height)) return "";
   const zone = timeZoneFromLongitude(pin.longitude);
   const preferAt = pin.caughtAt ? new Date(pin.caughtAt) : null;
+  const prefer = directionFromTide(pin.tide);
+  let matches = sameTideMatches(snap.extremes, height, day, zone);
+  if (!matches.length) {
+    const clamped = clampHeightToExtremes(snap.extremes, height);
+    if (clamped != null && clamped !== height) {
+      matches = sameTideMatches(snap.extremes, clamped, day, zone);
+    }
+  }
   const match = pickSameTideMatch(
-    sameTideMatches(snap.extremes, height, day, zone),
-    directionFromTide(pin.tide),
+    matches,
+    prefer,
     preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : null,
     zone,
   );
   return formatSameTideLabel(match, zone);
+}
+
+/** One same-tide chip per planned row — never collapse multiple fish at a hole. */
+export function sameTideChipsForSpots(
+  spots: Array<{ id: string; placeName?: string | null; sourceCatchId?: string | null; sourceBaitId?: string | null }>,
+  snap: TideSnapshot | null | undefined,
+  day: string,
+  journal: { catches?: CatchRecord[]; baitSpots?: BaitSpot[] } = {},
+  catchSnaps: Record<string, TideSnapshot | null | undefined> = {},
+): Record<string, string> {
+  const chips: Record<string, string> = {};
+  for (const spot of spots) {
+    const pin = pinForPlannedSpot(spot, journal);
+    if (!pin) continue;
+    const lookup = catchTideLookupKey(pin);
+    const resolved = lookup ? applyCatchTideSnapshot(pin, catchSnaps[lookup]) : pin;
+    const label = plannedSpotSameTide(snap, day, resolved);
+    if (label) chips[spot.id] = label;
+  }
+  return chips;
 }
