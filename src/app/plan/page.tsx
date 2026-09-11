@@ -64,6 +64,11 @@ export default async function PlanPage({
 
   return (
     <PlanClient
+      key={
+        hasPendingAdd
+          ? `add:${initialAddCatch ?? ""}:${initialAddBait ?? ""}:${initialAddPlace ?? ""}`
+          : "plan"
+      }
       initialDate={initialDate}
       initialNotes={initialNotes}
       initialAddCatch={initialAddCatch}

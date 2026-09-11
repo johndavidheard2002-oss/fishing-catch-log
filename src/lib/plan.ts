@@ -1,6 +1,6 @@
 import { groupBaitSpots, baitTypesLabel } from "./bait";
 import { groupSpots, spotKey } from "./filters";
-import { normalizeNotePlace, planSpotSourceKind } from "./notes";
+import { normalizeNotePlace, planSpotIdentityKey, planSpotSourceKind } from "./notes";
 import { speciesLabel } from "./species";
 import { formatDateOnly, formatTimeOnly, TIME_OF_DAY_LABELS } from "./time";
 import { conditionLabel, scoreConditionOverlap, suggestionStrength } from "./similar";
@@ -240,7 +240,7 @@ export function collapseCatchMatchesByPlace(suggestion: PlanSuggestion): PlanSug
   return matches.length === suggestion.matches.length ? suggestion : { ...suggestion, matches };
 }
 
-/** Planned chips: one pill per catch or bait place — not one pill for both. */
+/** Planned chips: one pill per catch or bait source — same hole can hold both, and two fish. */
 export function uniqueNotesByPlace<
   T extends {
     placeName?: string | null;
@@ -255,7 +255,7 @@ export function uniqueNotesByPlace<
   for (const note of notes) {
     const place = normalizeNotePlace(note.placeName);
     if (!place) continue;
-    const key = `${planSpotSourceKind(note)}:${place}`;
+    const key = planSpotIdentityKey(note) ?? `${planSpotSourceKind(note)}:${place}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(note);

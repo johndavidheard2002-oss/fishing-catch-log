@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { getTideSnapshot } from "./index";
 import {
+  closestCivilDayTide,
+  formatClosestTideLabel,
   formatTideClock,
   formatTideDetail,
   snapshotFromExtremes,
@@ -189,6 +191,28 @@ describe("timeZoneFromLongitude", () => {
   it("uses Central time for Texas pins", () => {
     expect(timeZoneFromLongitude(-95.078)).toBe("America/Chicago");
     expect(timeZoneFromLongitude(-97.0611)).toBe("America/Chicago");
+  });
+});
+
+describe("closestCivilDayTide", () => {
+  it("picks the nearer high or low to the planned-day clock", () => {
+    const snap = {
+      nextHighAt: "2026-10-10T16:00:00.000Z",
+      nextHighFt: 2.8,
+      nextLowAt: "2026-10-10T22:00:00.000Z",
+      nextLowFt: 0.2,
+    };
+    expect(closestCivilDayTide(snap, new Date("2026-10-10T15:00:00.000Z"))).toMatchObject({
+      type: "high",
+      at: "2026-10-10T16:00:00.000Z",
+    });
+    expect(closestCivilDayTide(snap, new Date("2026-10-10T21:00:00.000Z"))).toMatchObject({
+      type: "low",
+      at: "2026-10-10T22:00:00.000Z",
+    });
+    expect(formatClosestTideLabel({ type: "high", at: "2026-10-10T16:00:00.000Z", heightFt: 2.8 }, "UTC")).toBe(
+      "High 4:00 PM",
+    );
   });
 });
 
