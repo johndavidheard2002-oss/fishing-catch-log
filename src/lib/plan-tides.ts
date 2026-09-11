@@ -23,6 +23,16 @@ export type PlannedTidePin = {
   tide: string | null;
 };
 
+/** Partial journal rows — habitat can be missing on older or client-built catches. */
+export type PlannedTideJournalCatch = Omit<CatchRecord, "habitat"> & {
+  habitat?: Habitat | string | null;
+};
+
+export type PlannedTideJournal = {
+  catches?: PlannedTideJournalCatch[];
+  baitSpots?: BaitSpot[];
+};
+
 /** Map a catch/bait clock onto the planned YYYY-MM-DD (UTC). Noon-ish if none. */
 export function planDayReferenceAt(day: string, caughtAt?: string | null): Date | null {
   if (!DAY_KEY_RE.test(day)) return null;
@@ -45,7 +55,7 @@ export function pinForPlannedSpot(
     sourceCatchId?: string | null;
     sourceBaitId?: string | null;
   },
-  journal: { catches?: CatchRecord[]; baitSpots?: BaitSpot[] } = {},
+  journal: PlannedTideJournal = {},
 ): PlannedTidePin | null {
   const catchId = spot.sourceCatchId?.trim();
   const baitId = spot.sourceBaitId?.trim();
@@ -235,7 +245,7 @@ export function sameTideChipsForSpots(
   spots: Array<{ id: string; placeName?: string | null; sourceCatchId?: string | null; sourceBaitId?: string | null }>,
   snap: TideSnapshot | null | undefined,
   day: string,
-  journal: { catches?: CatchRecord[]; baitSpots?: BaitSpot[] } = {},
+  journal: PlannedTideJournal = {},
   catchSnaps: Record<string, TideSnapshot | null | undefined> = {},
 ): Record<string, string> {
   const chips: Record<string, string> = {};
