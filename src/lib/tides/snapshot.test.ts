@@ -222,7 +222,7 @@ describe("sameTideMatches", () => {
     expect(pickSameTideMatch(matches, "rising")?.direction).toBe("rising");
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "rising"), "falling")).toBeNull();
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "falling"), "rising")).toBeNull();
-    expect(pickSameTideMatch(matches, null)).toBeNull();
+    expect(pickSameTideMatch(matches, null)?.direction).toBe("rising");
   });
 
   it("clamps a stored height onto the day's High/Low range", () => {

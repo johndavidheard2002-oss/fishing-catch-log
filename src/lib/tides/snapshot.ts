@@ -267,6 +267,35 @@ export function sameTideMatches(
   return matches;
 }
 
+export function heightAndDirectionAt(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  at: Date,
+): { heightFt: number; direction: TideDirection } | null {
+  if (Number.isNaN(at.getTime())) return null;
+  const sorted = parseTideExtremes(extremes);
+  if (sorted.length < 2) return null;
+  const t = at.getTime();
+  let a = sorted[0];
+  let b = sorted[1];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].at.getTime() <= t && sorted[i + 1].at.getTime() >= t) {
+      a = sorted[i];
+      b = sorted[i + 1];
+      break;
+    }
+    if (sorted[i + 1].at.getTime() < t) {
+      a = sorted[i + 1];
+      b = sorted[Math.min(i + 2, sorted.length - 1)];
+    }
+  }
+  const span = b.at.getTime() - a.at.getTime();
+  const frac = span > 0 ? Math.min(1, Math.max(0, (t - a.at.getTime()) / span)) : 0;
+  return {
+    heightFt: Number((a.heightFt + (b.heightFt - a.heightFt) * frac).toFixed(3)),
+    direction: b.heightFt > a.heightFt ? "rising" : "falling",
+  };
+}
+
 export function pickSameTideMatch(
   matches: SameTideMatch[],
   prefer?: TideDirection | null,
@@ -277,7 +306,6 @@ export function pickSameTideMatch(
   // Known incoming/outgoing: never return the opposite flood/ebb.
   const pool = prefer ? matches.filter((m) => m.direction === prefer) : matches;
   if (!pool.length) return null;
-  if (!prefer && pool.length !== 1) return null;
   if (pool.length === 1 || !preferAt || Number.isNaN(preferAt.getTime())) {
     return pool[0] ?? null;
   }
