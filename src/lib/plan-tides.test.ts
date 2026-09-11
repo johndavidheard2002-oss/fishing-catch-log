@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { catchOf, baitOf } from "./testing";
 import {
   applyCatchTideSnapshot,
+  fallbackChipFromDayTides,
   pinForPlannedSpot,
   planDayReferenceAt,
   plannedDayTideDetail,
@@ -68,6 +69,19 @@ describe("pinForPlannedSpot", () => {
         { baitSpots: [baitOf({ id: "b1", loggedAt: "2026-08-02T14:00:00.000Z" })] },
       )?.caughtAt,
     ).toBe("2026-08-02T14:00:00.000Z");
+    const photoOnly = catchOf({
+      id: "c-photo",
+      placeName: "Beach marker 42",
+      latitude: null,
+      longitude: null,
+      photoTakenLatitude: 27.838,
+      photoTakenLongitude: -97.072,
+      caughtAt: "2026-08-03T12:00:00.000Z",
+    });
+    expect(pinForPlannedSpot({ sourceCatchId: "c-photo" }, { catches: [photoOnly] })).toMatchObject({
+      latitude: 27.838,
+      longitude: -97.072,
+    });
   });
 });
 
@@ -283,6 +297,150 @@ describe("planned day and photo tide labels", () => {
       }),
     ).toMatch(/incoming|outgoing|High|Low/);
   });
+
+  it("chips every Oct 9 and Oct 10 planned photo when only the header High/Low loaded", () => {
+    const headerOnly: TideSnapshot = {
+      applies: true,
+      tide: null,
+      heightFt: null,
+      nextHighAt: "2026-10-09T20:35:00.000Z",
+      nextHighFt: 2.2,
+      nextLowAt: "2026-10-09T13:32:00.000Z",
+      nextLowFt: 1.0,
+      source: "noaa",
+      note: "",
+      stationName: "Port Aransas (H. Caldwell Pier)",
+    };
+    expect(fallbackChipFromDayTides(headerOnly, "2026-10-09", "America/Chicago")).toBeTruthy();
+    expect(plannedSpotSameTide(headerOnly, "2026-10-09", null)).toBeTruthy();
+
+    const oct9 = uniqueNotesByPlace([
+      ...[1, 2, 3, 4, 5].map((n) => ({
+        id: `oct9-red-${n}`,
+        placeName: "Beach marker 42",
+        sourceCatchId: `oct9-c-red-${n}`,
+        kind: "plan-spot" as const,
+      })),
+      {
+        id: "oct9-blacktip",
+        placeName: "Beach marker 42",
+        sourceCatchId: "oct9-c-blacktip",
+        kind: "plan-spot" as const,
+      },
+    ]);
+    const oct9Catches = [
+      ...[1, 2, 3, 4, 5].map((n) =>
+        catchOf({
+          id: `oct9-c-red-${n}`,
+          placeName: "Beach marker 42",
+          species: "Redfish",
+          latitude: n === 2 ? 27.838 : null,
+          longitude: n === 2 ? -97.072 : null,
+          caughtAt: n === 2 ? "2026-08-02T14:13:00.000Z" : `2026-08-0${n}T00:00:00.000Z`,
+          tide: n === 2 ? "incoming" : null,
+          tideHeightFt: n === 2 ? 1.45 : null,
+        }),
+      ),
+      catchOf({
+        id: "oct9-c-blacktip",
+        placeName: "Beach marker 42",
+        species: "Blacktip",
+        latitude: null,
+        longitude: null,
+        caughtAt: "2026-08-06T18:00:00.000Z",
+        tide: null,
+        tideHeightFt: null,
+      }),
+    ];
+    const oct9Chips = sameTideChipsForSpots(oct9, headerOnly, "2026-10-09", { catches: oct9Catches });
+    expect(oct9).toHaveLength(6);
+    expect(Object.keys(oct9Chips)).toHaveLength(6);
+    for (const spot of oct9) {
+      expect(oct9Chips[spot.id]).toBeTruthy();
+    }
+
+    const oct10Snap: TideSnapshot = {
+      applies: true,
+      tide: "outgoing",
+      heightFt: 1.2,
+      nextHighAt: "2026-10-10T21:46:00.000Z",
+      nextHighFt: 2.4,
+      nextLowAt: "2026-10-10T14:00:00.000Z",
+      nextLowFt: 0.8,
+      source: "noaa",
+      note: "",
+      stationName: "Port Aransas (H. Caldwell Pier)",
+      extremes: [
+        { at: "2026-10-10T14:00:00.000Z", type: "low", heightFt: 0.8 },
+        { at: "2026-10-10T21:46:00.000Z", type: "high", heightFt: 2.4 },
+      ],
+    };
+    const oct10 = uniqueNotesByPlace([
+      { id: "o10-1", placeName: "Port Aransas, Texas", sourceCatchId: "o10-c1", kind: "plan-spot" as const },
+      { id: "o10-2", placeName: "Beach marker 42", sourceCatchId: "o10-c2", kind: "plan-spot" as const },
+      { id: "o10-3", placeName: "Port Aransas, Texas", sourceCatchId: "o10-c3", kind: "plan-spot" as const },
+      { id: "o10-4", placeName: "Beach marker 42", sourceCatchId: "o10-c4", kind: "plan-spot" as const },
+      { id: "o10-5", placeName: "Beach marker 42", sourceCatchId: "o10-c5", kind: "plan-spot" as const },
+    ]);
+    const oct10Catches = [
+      catchOf({
+        id: "o10-c1",
+        placeName: "Port Aransas, Texas",
+        species: "Blacktip",
+        latitude: 27.84,
+        longitude: -97.05,
+        caughtAt: "2026-07-01T11:20:00.000Z",
+        tide: "outgoing",
+        tideHeightFt: 1.6,
+      }),
+      catchOf({
+        id: "o10-c2",
+        placeName: "Beach marker 42",
+        species: "Shark",
+        latitude: 27.84,
+        longitude: -97.05,
+        caughtAt: "2026-07-02T11:24:00.000Z",
+        tide: "outgoing",
+        tideHeightFt: 1.5,
+      }),
+      catchOf({
+        id: "o10-c3",
+        placeName: "Port Aransas, Texas",
+        species: "Blacktip",
+        latitude: 27.84,
+        longitude: -97.05,
+        caughtAt: "2026-07-03T10:29:00.000Z",
+        tide: "outgoing",
+        tideHeightFt: 1.4,
+      }),
+      catchOf({
+        id: "o10-c4",
+        placeName: "Beach marker 42",
+        species: "Blacktip shark",
+        latitude: 27.84,
+        longitude: -97.05,
+        caughtAt: "2026-07-04T22:47:00.000Z",
+        tide: "outgoing",
+        tideHeightFt: 1.7,
+      }),
+      catchOf({
+        id: "o10-c5",
+        placeName: "Beach marker 42",
+        species: "Blacktip",
+        latitude: null,
+        longitude: null,
+        photoTakenLatitude: null,
+        photoTakenLongitude: null,
+        caughtAt: "",
+        tide: null,
+        tideHeightFt: null,
+      }),
+    ];
+    const oct10Chips = sameTideChipsForSpots(oct10, oct10Snap, "2026-10-10", { catches: oct10Catches });
+    expect(oct10).toHaveLength(5);
+    expect(Object.keys(oct10Chips)).toHaveLength(5);
+    expect(oct10Chips["o10-5"]).toBeTruthy();
+  });
 });
 
 describe("Plan Planned panel wires day tides", () => {
@@ -292,6 +450,7 @@ describe("Plan Planned panel wires day tides", () => {
     expect(plan).toContain("sameTideChipsForSpots");
     expect(plan).toContain("sameTideById");
     expect(plan).toContain("sameTideChipsForSpots");
+    expect(plan).toContain("fallbackChipFromDayTides");
     expect(plan).toContain("catchTideLookupKey");
     expect(plan).toContain("plannedCatchIds");
     expect(plan).toContain("/api/catches/${id}");
