@@ -65,6 +65,7 @@ import {
   plannedDayTideDetail,
   catchTideLookupKey,
   sameTideChipsForSpots,
+  type PlannedTidePin,
 } from "@/lib/plan-tides";
 import { tidesApplyToHabitat, type TideSnapshot } from "@/lib/tides/snapshot";
 import {
@@ -436,6 +437,44 @@ export function PlanClient({
   const dayLabels = labelsByPlanDay(visibleNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
   const spotsTideKey = spotsOnDay.map((note) => note.id).join(",");
+  const plannedCatchIds = spotsOnDay
+    .map((note) => note.sourceCatchId?.trim())
+    .filter((id): id is string => Boolean(id));
+
+  useEffect(() => {
+    const missing = plannedCatchIds.filter((id) => !journalCatches.some((row) => row.id === id));
+    if (!missing.length) return;
+    let cancelled = false;
+    void Promise.all(
+      missing.map(async (id) => {
+        try {
+          const res = await fetch(`/api/catches/${id}`, { cache: "no-store" });
+          const data = res.ok ? await res.json() : null;
+          return data?.catch ?? null;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((rows) => {
+      if (cancelled) return;
+      const extra = rows.filter((row): row is CatchRecord => Boolean(row?.id));
+      if (!extra.length) return;
+      setJournalCatches((current) => {
+        const seen = new Set(current.map((row) => row.id));
+        const next = [...current];
+        for (const row of extra) {
+          if (!seen.has(row.id)) {
+            seen.add(row.id);
+            next.push(row);
+          }
+        }
+        return next.length === current.length ? current : next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [plannedCatchIds.join(","), journalCatches]);
 
   useEffect(() => {
     if (!selectedDay || !spotsOnDay.length) {
@@ -449,8 +488,8 @@ export function PlanClient({
     void (async () => {
       const pins = spots
         .map((note) => pinForPlannedSpot(note, journal))
-        .filter((pin): pin is NonNullable<typeof pin> => Boolean(pin && tidesApplyToHabitat(pin.habitat)));
-      const pin = pins[0];
+        .filter((pin): pin is NonNullable<typeof pin> => Boolean(pin));
+      const pin = pins.find((row) => tidesApplyToHabitat(row.habitat)) ?? pins[0];
       if (!pin) return;
       const at = planDayReferenceAt(day, null);
       if (!at) return;
@@ -463,7 +502,7 @@ export function PlanClient({
             latitude: pin.latitude,
             longitude: pin.longitude,
             at: at.toISOString(),
-            habitat: pin.habitat,
+            habitat: tidesApplyToHabitat(pin.habitat) ? pin.habitat : "saltwater-inshore",
           }),
         });
         const data = res.ok ? await res.json() : null;
@@ -491,7 +530,7 @@ export function PlanClient({
                 latitude: row.latitude,
                 longitude: row.longitude,
                 at: row.caughtAt,
-                habitat: row.habitat,
+                habitat: tidesApplyToHabitat(row.habitat) ? row.habitat : "saltwater-inshore",
               }),
             });
             const data = res.ok ? await res.json() : null;

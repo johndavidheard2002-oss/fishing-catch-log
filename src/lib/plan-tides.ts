@@ -6,9 +6,9 @@ import {
   formatTideDetail,
   heightAndDirectionAt,
   pickSameTideMatch,
+  sameTideCrossings,
   sameTideMatches,
   timeZoneFromLongitude,
-  tidesApplyToHabitat,
   type TideSnapshot,
 } from "./tides/snapshot";
 import type { BaitSpot, CatchRecord, Habitat } from "./types";
@@ -131,7 +131,7 @@ export function plannedSpotSameTide(
   day: string,
   pin: PlannedTidePin | null,
 ): string {
-  if (!snap?.applies || !pin || !tidesApplyToHabitat(pin.habitat)) return "";
+  if (!snap?.applies || !pin) return "";
   const zone = timeZoneFromLongitude(pin.longitude);
   const preferAt = pin.caughtAt ? new Date(pin.caughtAt) : null;
   const mapped = planDayReferenceAt(day, pin.caughtAt);
@@ -145,19 +145,21 @@ export function plannedSpotSameTide(
   const prefer =
     directionFromTide(pin.tide) ??
     (sampled ? (sampled.direction === "rising" ? "incoming" : "outgoing") : null);
+  const preferDir = directionFromTide(prefer);
+  const clock = preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : mapped;
   let matches = sameTideMatches(snap.extremes, height, day, zone);
   if (!matches.length) {
     const clamped = clampHeightToExtremes(snap.extremes, height);
     if (clamped != null) {
       matches = sameTideMatches(snap.extremes, clamped, day, zone);
+      if (!matches.length) {
+        matches = sameTideCrossings(snap.extremes, clamped);
+      }
     }
   }
-  const match = pickSameTideMatch(
-    matches,
-    directionFromTide(prefer),
-    preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : mapped,
-    zone,
-  );
+  const match =
+    pickSameTideMatch(matches, preferDir, clock, zone) ??
+    pickSameTideMatch(matches, null, clock, zone);
   return formatSameTideLabel(match, zone);
 }
 

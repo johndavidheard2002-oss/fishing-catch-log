@@ -238,13 +238,12 @@ export function clampHeightToExtremes(
   return Math.min(max, Math.max(min, heightFt));
 }
 
-export function sameTideMatches(
+/** Equal-height crossings on the High/Low series, any civil day. */
+export function sameTideCrossings(
   extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
   targetHeightFt: number,
-  day: string,
-  timeZone?: string,
 ): SameTideMatch[] {
-  if (!Number.isFinite(targetHeightFt) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+  if (!Number.isFinite(targetHeightFt)) return [];
   const sorted = parseTideExtremes(extremes);
   if (sorted.length < 2) return [];
   const matches: SameTideMatch[] = [];
@@ -253,7 +252,6 @@ export function sameTideMatches(
     const b = sorted[i + 1];
     const at = interpolateHeightCrossing(a, b, targetHeightFt);
     if (!at) continue;
-    if (civilDateKey(at, timeZone) !== day) continue;
     const direction: TideDirection = b.heightFt > a.heightFt ? "rising" : "falling";
     const onA = Math.abs(at.getTime() - a.at.getTime()) <= ON_EXTREME_MS;
     const onB = Math.abs(at.getTime() - b.at.getTime()) <= ON_EXTREME_MS;
@@ -265,6 +263,18 @@ export function sameTideMatches(
     });
   }
   return matches;
+}
+
+export function sameTideMatches(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  targetHeightFt: number,
+  day: string,
+  timeZone?: string,
+): SameTideMatch[] {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+  return sameTideCrossings(extremes, targetHeightFt).filter(
+    (match) => civilDateKey(match.at, timeZone) === day,
+  );
 }
 
 export function heightAndDirectionAt(
