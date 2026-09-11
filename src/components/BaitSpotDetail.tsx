@@ -293,7 +293,7 @@ export function BaitSpotDetail({
                 data-testid="bait-unplan"
                 className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
               >
-                Remove from plan
+                Remove
               </button>
             ) : (
               <button

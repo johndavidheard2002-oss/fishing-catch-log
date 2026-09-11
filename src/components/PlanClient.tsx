@@ -768,7 +768,7 @@ export function PlanClient({
                           className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-copper"
                           data-testid="plan-day-spot-remove"
                         >
-                          Remove from plan
+                          Remove
                         </button>
                       </li>
                     );
