@@ -57,6 +57,13 @@ import {
   type PendingPlanSpot,
 } from "@/lib/pending-plan-spot";
 import {
+  pinForPlannedSpot,
+  planDayReferenceAt,
+  plannedDayTideDetail,
+  plannedSpotClosestTide,
+} from "@/lib/plan-tides";
+import { tidesApplyToHabitat, type TideSnapshot } from "@/lib/tides/snapshot";
+import {
   parsePlanDate,
   planLookupFailureNote,
   planPlaceToAdd,
@@ -152,6 +159,10 @@ export function PlanClient({
   const [deletingPlan, setDeletingPlan] = useState(false);
   const [journalCatches, setJournalCatches] = useState<CatchRecord[]>([]);
   const [journalBait, setJournalBait] = useState<BaitSpot[]>([]);
+  const [planTides, setPlanTides] = useState<{
+    detail: string;
+    closestById: Record<string, string>;
+  }>({ detail: "", closestById: {} });
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
@@ -397,6 +408,57 @@ export function PlanClient({
   const writeupNotes = journalNotesForPlanWriteups(selectedNotes);
   const dayLabels = labelsByPlanDay(visibleNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
+  const spotsTideKey = spotsOnDay.map((note) => note.id).join(",");
+
+  useEffect(() => {
+    if (!selectedDay || !spotsOnDay.length) {
+      setPlanTides({ detail: "", closestById: {} });
+      return;
+    }
+    let cancelled = false;
+    const day = selectedDay;
+    const spots = spotsOnDay;
+    void (async () => {
+      const snaps = new Map<string, TideSnapshot>();
+      const closestById: Record<string, string> = {};
+      let detail = "";
+      for (const note of spots) {
+        const pin = pinForPlannedSpot(note, { catches: journalCatches, baitSpots: journalBait });
+        if (!pin || !tidesApplyToHabitat(pin.habitat)) continue;
+        const key = `${pin.latitude.toFixed(4)},${pin.longitude.toFixed(4)}`;
+        let snap = snaps.get(key);
+        if (!snap) {
+          const at = planDayReferenceAt(day, null);
+          if (!at) continue;
+          try {
+            const res = await fetch("/api/assist/weather", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: pin.latitude,
+                longitude: pin.longitude,
+                at: at.toISOString(),
+                habitat: pin.habitat,
+              }),
+            });
+            const data = res.ok ? await res.json() : null;
+            snap = (data?.tide as TideSnapshot | undefined) ?? undefined;
+          } catch {
+            snap = undefined;
+          }
+          if (snap) snaps.set(key, snap);
+        }
+        if (!snap) continue;
+        if (!detail) detail = plannedDayTideDetail(snap, pin.longitude);
+        const closest = plannedSpotClosestTide(snap, day, pin);
+        if (closest) closestById[note.id] = closest;
+      }
+      if (!cancelled) setPlanTides({ detail, closestById });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDay, spotsTideKey, journalCatches, journalBait]);
   const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions, {
     catches: journalCatches,
     baitSpots: journalBait,
@@ -537,6 +599,11 @@ export function PlanClient({
               <div>
                 <h3 className="font-display text-xl text-teal">Planned</h3>
                 <p className="text-sm text-ink-muted">{formatWeekdayDate(selectedDay)}</p>
+                {planTides.detail ? (
+                  <p data-testid="plan-day-tides" className="pt-1 text-sm font-semibold text-teal">
+                    {planTides.detail}
+                  </p>
+                ) : null}
               </div>
               {selectedNotes.length ? (
                 <button
@@ -567,6 +634,7 @@ export function PlanClient({
                       catches: journalCatches,
                       baitSpots: journalBait,
                     });
+                    const closestTide = planTides.closestById[note.id];
                     const row = (
                       <>
                         {photo ? (
@@ -588,6 +656,14 @@ export function PlanClient({
                             {kind === "bait" ? (
                               <span className="rounded-full bg-copper/15 px-2 py-0.5 text-[10px] font-semibold text-copper">
                                 Bait
+                              </span>
+                            ) : null}
+                            {closestTide ? (
+                              <span
+                                className="rounded-full bg-paper-deep px-2 py-0.5 text-[10px] font-semibold text-ink"
+                                data-testid="plan-day-spot-tide"
+                              >
+                                {closestTide}
                               </span>
                             ) : null}
                           </span>

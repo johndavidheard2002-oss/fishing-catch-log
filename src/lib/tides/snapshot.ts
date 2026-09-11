@@ -132,6 +132,55 @@ export function timeZoneFromLongitude(lon: number | null | undefined): string | 
   return undefined;
 }
 
+export type ClosestTide = {
+  type: "high" | "low";
+  at: string;
+  heightFt: number | null;
+};
+
+/** Nearer civil-day high or low to `at` (Plan photo stamp, catch clock). */
+export function closestCivilDayTide(
+  snap: {
+    nextHighAt?: string | null;
+    nextHighFt?: number | null;
+    nextLowAt?: string | null;
+    nextLowFt?: number | null;
+  },
+  at: Date,
+): ClosestTide | null {
+  if (Number.isNaN(at.getTime())) return null;
+  const candidates: ClosestTide[] = [];
+  if (snap.nextHighAt && !Number.isNaN(Date.parse(snap.nextHighAt))) {
+    candidates.push({
+      type: "high",
+      at: snap.nextHighAt,
+      heightFt: snap.nextHighFt ?? null,
+    });
+  }
+  if (snap.nextLowAt && !Number.isNaN(Date.parse(snap.nextLowAt))) {
+    candidates.push({
+      type: "low",
+      at: snap.nextLowAt,
+      heightFt: snap.nextLowFt ?? null,
+    });
+  }
+  if (!candidates.length) return null;
+  const target = at.getTime();
+  return candidates.reduce((best, cur) =>
+    Math.abs(Date.parse(cur.at) - target) < Math.abs(Date.parse(best.at) - target) ? cur : best,
+  );
+}
+
+export function formatClosestTideLabel(
+  tide: ClosestTide | null | undefined,
+  timeZone?: string,
+): string {
+  if (!tide?.at) return "";
+  const clock = formatTideClock(tide.at, timeZone);
+  if (!clock) return "";
+  return `${tide.type === "low" ? "Low" : "High"} ${clock}`;
+}
+
 export function formatTideClock(
   iso: string | null | undefined,
   timeZone?: string,

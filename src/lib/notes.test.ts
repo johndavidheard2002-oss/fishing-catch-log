@@ -386,6 +386,10 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain('data-testid="plan-day-spot-open"');
     expect(plan).toContain('data-testid="plan-day-spot-fish"');
     expect(plan).toContain('data-testid="plan-day-spot-bait"');
+    expect(plan).toContain('data-testid="plan-day-tides"');
+    expect(plan).toContain('data-testid="plan-day-spot-tide"');
+    expect(plan).toContain("plannedDayTideDetail");
+    expect(plan).toContain("plannedSpotClosestTide");
     expect(plan).toContain("sourceCatchId");
     expect(plan).toContain("sourceBaitId");
     expect(plan).toContain("restorePlanDay");
