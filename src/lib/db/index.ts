@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS calendar_notes (
   source_catch_id TEXT,
   source_bait_id TEXT,
   photo_path TEXT,
+  shared_with_linked INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -544,6 +545,7 @@ function migrate(sqlite: Database.Database) {
     ["source_catch_id", "TEXT"],
     ["source_bait_id", "TEXT"],
     ["photo_path", "TEXT"],
+    ["shared_with_linked", "INTEGER NOT NULL DEFAULT 0"],
   ];
   for (const [name, type] of noteExtra) {
     if (!noteCols.includes(name)) {
@@ -669,6 +671,7 @@ export async function migrateLibsql(client: Client) {
     ["source_catch_id", "TEXT"],
     ["source_bait_id", "TEXT"],
     ["photo_path", "TEXT"],
+    ["shared_with_linked", "INTEGER NOT NULL DEFAULT 0"],
   ];
   for (const [name, type] of noteExtra) {
     if (!noteCols.includes(name)) {

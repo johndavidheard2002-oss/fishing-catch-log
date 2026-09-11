@@ -99,6 +99,9 @@ describe("HELP_SECTIONS", () => {
     expect(share.some((step) => step.includes("Share under Edit") && step.includes("Choose the friend"))).toBe(true);
     expect(share.some((step) => step.includes("Select spots to share"))).toBe(true);
     expect(share.some((step) => step.includes("Shared tab"))).toBe(true);
+    expect(
+      share.some((step) => step.includes("Plan") && step.includes("Share") && step.includes("view-only")),
+    ).toBe(true);
     const offlineHelp = HELP_SECTIONS.find((section) => section.title === "Offline")?.steps ?? [];
     expect(offlineHelp.some((step) => step.includes("Offline. This log is saved"))).toBe(true);
     expect(offlineHelp.some((step) => step.includes("Waiting for service"))).toBe(true);

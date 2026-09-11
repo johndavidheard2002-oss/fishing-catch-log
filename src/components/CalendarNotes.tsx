@@ -140,12 +140,14 @@ export function DayNotes({
 export function PlanDayLabel({
   day,
   notes,
+  readOnly = false,
   onCreate,
   onUpdate,
   onDelete,
 }: {
   day: string;
   notes: CalendarNote[];
+  readOnly?: boolean;
   onCreate: (input: CalendarNoteInput) => void | Promise<void>;
   onUpdate: (id: string, input: CalendarNoteInput) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
@@ -155,6 +157,19 @@ export function PlanDayLabel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const label = planDayLabel(notes);
+
+  if (readOnly) {
+    if (!label) return null;
+    return (
+      <div className="space-y-1" data-testid="plan-day-label-field">
+        <p className="font-display text-lg text-teal">Day label</p>
+        <p className="text-sm font-semibold" data-testid="plan-day-label-input">
+          {label}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -227,6 +242,7 @@ export function PlanDayNotes({
   onUpdate,
   onDelete,
   embedded = false,
+  readOnly = false,
 }: {
   day: string;
   notes: CalendarNote[];
@@ -234,6 +250,7 @@ export function PlanDayNotes({
   onUpdate: (id: string, input: CalendarNoteInput) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
   embedded?: boolean;
+  readOnly?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -251,7 +268,7 @@ export function PlanDayNotes({
       ) : null}
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-display text-lg text-teal">Notes</h3>
-        {adding ? null : (
+        {adding || readOnly ? null : (
           <button
             type="button"
             onClick={() => {
@@ -310,27 +327,29 @@ export function PlanDayNotes({
             ) : !note.placeName && !note.title && !note.speciesTargets.length ? (
               <p className="text-sm text-ink-muted">No write-up yet.</p>
             ) : null}
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setAdding(false);
-                  setEditingId(note.id);
-                }}
-                className="text-xs font-semibold text-teal"
-                data-testid="plan-note-edit"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(note.id)}
-                className="text-xs font-semibold text-copper"
-                data-testid="plan-note-delete"
-              >
-                Delete
-              </button>
-            </div>
+            {readOnly ? null : (
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdding(false);
+                    setEditingId(note.id);
+                  }}
+                  className="text-xs font-semibold text-teal"
+                  data-testid="plan-note-edit"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(note.id)}
+                  className="text-xs font-semibold text-copper"
+                  data-testid="plan-note-delete"
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </article>
         ),
       )}

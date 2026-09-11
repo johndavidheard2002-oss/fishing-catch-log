@@ -102,6 +102,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       "Open a catch photo and tap Share under Edit. Choose the friend. That person only sees that spot.",
       "On Calendar Log, open a day and use Select spots to share for several pins at once.",
       "On Calendar Log, your friend opens the Shared tab to see spots you shared with them.",
+      "On Plan, tap Share on a planned day and choose the friend. They open that day view-only — not your journal.",
     ],
   },
   {

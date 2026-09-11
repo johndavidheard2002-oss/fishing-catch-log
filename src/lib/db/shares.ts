@@ -3,7 +3,7 @@ import { ensureDb } from "./index";
 import { allRows, runChange } from "./query";
 import { spotShares } from "./schema";
 
-export type SpotShareKind = "catch" | "bait";
+export type SpotShareKind = "catch" | "bait" | "plan";
 
 export async function sharesByRecord(
   kind: SpotShareKind,

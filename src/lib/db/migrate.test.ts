@@ -413,4 +413,19 @@ describe("migrate older journals", () => {
     ]));
     expect(Number(getSqlite().pragma("user_version", { simple: true }))).toBe(SCHEMA_VERSION);
   });
+
+  it("adds calendar_notes.shared_with_linked so a plan day can use catch Share", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    getDb();
+    getSqlite().exec("ALTER TABLE calendar_notes DROP COLUMN shared_with_linked");
+    resetDbForTests();
+    getDb();
+    const cols = getSqlite()
+      .prepare(`PRAGMA table_info(calendar_notes)`)
+      .all() as { name: string }[];
+    expect(cols.map((col) => col.name)).toContain("shared_with_linked");
+  });
 });

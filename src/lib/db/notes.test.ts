@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ensureDefaultAngler } from "./anglers";
+import { createAngler, ensureDefaultAngler, linkAnglers } from "./anglers";
 import { getDb, resetDbForTests } from "./index";
 import { addPlanSpotToDay, listedPlanNotes, restorePlanDay } from "../notes";
 import { createCatch, listCatches } from "./catches";
@@ -13,6 +13,7 @@ import {
   getCalendarNote,
   listCalendarNotes,
   purgePastPlanNotes,
+  setSharedForPlanDay,
   updateCalendarNote,
 } from "./notes";
 
@@ -297,5 +298,78 @@ describe("calendar notes", () => {
     const marked = await listCalendarNotes(anglerId, { includePlanSpots: true, today: "2026-09-10" });
     expect(marked.map((note) => note.id)).toEqual([expired.id]);
     expect(await getCalendarNote(expired.id)).not.toBeNull();
+  });
+
+  it("shares a plan day with one linked friend and keeps the journal private", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cast-log-plan-share-"));
+    tmpDirs.push(dir);
+    process.env.DATABASE_PATH = path.join(dir, "journal.sqlite");
+    resetDbForTests();
+    getDb();
+
+    const owner = await createAngler("Owner");
+    const sam = await createAngler("Sam");
+    const pat = await createAngler("Pat");
+    await linkAnglers(owner.id, sam.id);
+    await linkAnglers(owner.id, pat.id);
+
+    const logged = await createCatch({
+      species: "Redfish",
+      speciesList: ["Redfish"],
+      caughtAt: "2026-09-02T12:00:00.000Z",
+      habitat: "saltwater-inshore",
+      placeName: "Innertube cut",
+      anglerId: owner.id,
+    });
+    const spot = await createCalendarNote(owner.id, {
+      day: "2026-09-20",
+      placeName: "Innertube cut",
+      speciesTargets: ["Redfish"],
+      kind: "plan-spot",
+      sourceCatchId: logged.id,
+      photoPath: "redfish.jpg",
+    });
+    await createCalendarNote(owner.id, {
+      day: "2026-09-20",
+      title: "Sharkathon",
+      notes: "Meet at dawn.",
+    });
+
+    expect(
+      (await setSharedForPlanDay({ anglerId: owner.id, day: "2026-09-20", shared: true, buddyIds: [sam.id] }))
+        .updated,
+    ).toBe(2);
+
+    const samPlan = await listCalendarNotes(sam.id, { forPlan: true, includeShared: true });
+    expect(samPlan.map((note) => note.placeName).filter(Boolean)).toEqual(["Innertube cut"]);
+    expect(samPlan.some((note) => note.title === "Sharkathon")).toBe(true);
+    expect(samPlan.every((note) => note.anglerId === owner.id)).toBe(true);
+
+    const patPlan = await listCalendarNotes(pat.id, { forPlan: true, includeShared: true });
+    expect(patPlan).toEqual([]);
+
+    const samJournal = await listCalendarNotes(sam.id);
+    expect(samJournal).toEqual([]);
+    expect(await listCatches({ viewerId: sam.id, includeShared: true })).toEqual([]);
+
+    expect(await updateCalendarNote(spot.id, sam.id, { day: "2026-09-20", placeName: "Nope" })).toBeNull();
+    expect(await deleteCalendarNote(spot.id, sam.id)).toBe(false);
+    expect(await deleteCalendarNotesForDay(sam.id, "2026-09-20")).toBe(0);
+    expect((await getCalendarNote(spot.id))?.placeName).toBe("Innertube cut");
+
+    const added = await createCalendarNote(owner.id, {
+      day: "2026-09-20",
+      placeName: "Haulover Canal",
+      kind: "plan-spot",
+    });
+    expect(added.sharedWithLinked).toBe(false);
+    const samAfter = await listCalendarNotes(sam.id, { forPlan: true, includeShared: true });
+    expect(samAfter.map((note) => note.placeName).filter(Boolean).sort()).toEqual([
+      "Haulover Canal",
+      "Innertube cut",
+    ]);
+
+    await setSharedForPlanDay({ anglerId: owner.id, day: "2026-09-20", shared: false });
+    expect(await listCalendarNotes(sam.id, { forPlan: true, includeShared: true })).toEqual([]);
   });
 });

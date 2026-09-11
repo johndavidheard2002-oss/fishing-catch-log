@@ -40,6 +40,7 @@ import {
   planSpotRemoveTarget,
   parsePlannedPhotoContext,
   plannedPhotoUnplanRequest,
+  preferOwnPlanNotes,
   planHrefAfterUnplan,
   planSpotsToUnplan,
   withPlannedPhotoContext,
@@ -66,6 +67,9 @@ function note(partial: Partial<CalendarNote>): CalendarNote {
     sourceCatchId: null,
     sourceBaitId: null,
     photoPath: null,
+    sharedWithLinked: false,
+    sharedWithBuddyIds: [],
+    ownerName: "You",
     createdAt: "2026-09-02T12:00:00.000Z",
     updatedAt: "2026-09-02T12:00:00.000Z",
     ...partial,
@@ -557,12 +561,23 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("onDeletePlan");
     const planPage = readFileSync(resolve(__dirname, "../app/plan/page.tsx"), "utf8");
     expect(planPage).toContain("restorePlanDay");
-    expect(planPage).toContain("listCalendarNotes(viewer.id, { forPlan: true })");
+    expect(planPage).toContain("listCalendarNotes(viewer.id, { forPlan: true, includeShared: true })");
+    expect(planPage).toContain("viewerId={viewerId}");
     expect(planPage).not.toContain("today:");
     expect(plan).toContain('confirm("Delete this plan?")');
     expect(plan).toContain("/api/calendar-notes?day=");
     expect(plan).toContain('data-testid="plan-delete-day"');
     expect(plan).toContain("Delete plan");
+    expect(plan).toContain('data-testid="plan-share"');
+    expect(plan).toContain('data-testid="plan-share-block"');
+    expect(plan).toContain("ShareFriendPicker");
+    expect(plan).toContain("onSharePlan");
+    expect(plan).toContain("planDay:");
+    expect(plan).toContain("viewingFriendPlan");
+    expect(plan).toContain("readOnly={viewingFriendPlan}");
+    expect(plan).toContain("includeShared=1");
+    expect(plan).toContain("preferOwnPlanNotes");
+    expect(plan).toContain("allowAdd={!viewingFriendPlan}");
     expect(plan).toContain("journalNotesForCalendarLog");
     expect(plan).toContain("journalNotesForPlanWriteups");
     expect(plan).toContain("PlanDayLabel");
@@ -580,6 +595,9 @@ describe("Plan add-to-day UI", () => {
     expect(planNotes).toContain('data-testid="plan-day-label-input"');
     expect(planNotes).toContain('data-testid="plan-day-label-save"');
     expect(planNotes).toContain("planDayLabelInput");
+    expect(planNotes).toContain("readOnly");
+    expect(planNotes).toContain("plan-note-edit");
+    expect(planNotes).toContain("plan-note-delete");
     expect(plan).toContain('data-testid="plan-add-spot"');
     expect(plan).toContain("data-place-name");
     const calendar = readFileSync(resolve(__dirname, "../components/HistoryClient.tsx"), "utf8");
@@ -620,6 +638,12 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("only that one place");
     const notesApi = readFileSync(resolve(__dirname, "../app/api/calendar-notes/route.ts"), "utf8");
     expect(notesApi).toContain('searchParams.get("include") === "plan-spots"');
+    expect(notesApi).toContain("includeSharedFrom");
+    expect(notesApi).toContain("planSourceJournalForNotes");
+    const shareApi = readFileSync(resolve(__dirname, "../app/api/share/route.ts"), "utf8");
+    expect(shareApi).toContain("planDay");
+    expect(shareApi).toContain("setSharedForPlanDay");
+    expect(shareApi).not.toContain("setSharedForDay({ anglerId: viewerId, day: planDay");
     expect(notesApi).toContain("parseDayKey(request.nextUrl.searchParams.get(\"today\"))");
     expect(notesApi).toContain("serverToday: utcTodayKey()");
     expect(notesApi).toContain("deleteCalendarNotesForDay");
@@ -1079,5 +1103,19 @@ describe("noteHeadline", () => {
     expect(noteHeadline(note({ placeName: "The lagoon" }))).toBe("The lagoon");
     expect(noteHeadline(note({ speciesTargets: ["Redfish", "Snook"] }))).toBe("Redfish, Snook");
     expect(noteHeadline(note({ notes: "Bring the popping cork." }))).toBe("Bring the popping cork.");
+  });
+});
+
+describe("preferOwnPlanNotes", () => {
+  it("keeps a friend’s shared day unless the viewer already planned that date", () => {
+    const mine = note({ id: "mine", anglerId: "you", day: "2026-09-20", placeName: "My hole" });
+    const theirs = note({ id: "theirs", anglerId: "sam", day: "2026-09-21", placeName: "Sam hole" });
+    const clash = note({ id: "clash", anglerId: "sam", day: "2026-09-20", placeName: "Sam same day" });
+    const local = note({ id: "local", anglerId: "", day: "2026-09-20", placeName: "Just added" });
+    expect(preferOwnPlanNotes([mine, theirs, clash, local], "you").map((row) => row.id)).toEqual([
+      "mine",
+      "theirs",
+      "local",
+    ]);
   });
 });

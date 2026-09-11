@@ -226,12 +226,16 @@ function SharedDaysList({ ownerId }: { ownerId?: string }) {
       fetch("/api/bait-spots", { cache: "no-store" })
         .then((r) => r.json())
         .catch(() => ({})),
+      fetch("/api/calendar-notes?for=plan", { cache: "no-store" })
+        .then((r) => r.json())
+        .catch(() => ({})),
     ])
-      .then(([catchData, baitData]) => {
+      .then(([catchData, baitData, noteData]) => {
         setDays(
           ownerSharedDays({
             catches: Array.isArray(catchData.catches) ? catchData.catches : [],
             baitSpots: Array.isArray(baitData.spots) ? baitData.spots : [],
+            notes: Array.isArray(noteData.notes) ? noteData.notes : [],
             ownerId,
           }),
         );
@@ -242,11 +246,18 @@ function SharedDaysList({ ownerId }: { ownerId?: string }) {
   async function unshare(day: string) {
     setBusyDay(day);
     try {
-      await fetch("/api/catches/share-day", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ day, shared: false }),
-      });
+      await Promise.all([
+        fetch("/api/catches/share-day", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ day, shared: false }),
+        }),
+        fetch("/api/share", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planDay: day, shared: false }),
+        }),
+      ]);
       setDays((current) => current.filter((row) => row.day !== day));
     } finally {
       setBusyDay(null);

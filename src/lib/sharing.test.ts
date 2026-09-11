@@ -8,6 +8,8 @@ import {
   ownerShareFriendNames,
   ownerShareStatusLine,
   ownerSharedDays,
+  planDayShareState,
+  planShareRecordId,
   recordedSharePlaceName,
   resolveShareTargets,
   sharePlaceName,
@@ -417,5 +419,54 @@ describe("ownerSharedDays", () => {
       ],
     });
     expect(rows).toEqual([]);
+  });
+
+  it("includes a shared plan day and its planned spot names", () => {
+    const rows = ownerSharedDays({
+      ownerId: "you",
+      catches: [],
+      baitSpots: [],
+      notes: [
+        {
+          day: "2026-09-20",
+          placeName: "Innertube cut",
+          sharedWithLinked: false,
+          sharedWithBuddyIds: ["sam"],
+          anglerId: "you",
+        },
+        {
+          day: "2026-09-20",
+          title: "Sharkathon",
+          placeName: null,
+          sharedWithLinked: false,
+          sharedWithBuddyIds: ["sam"],
+          anglerId: "you",
+        },
+        {
+          day: "2026-09-21",
+          placeName: "Private plan",
+          sharedWithLinked: false,
+          sharedWithBuddyIds: [],
+          anglerId: "you",
+        },
+      ],
+    });
+    expect(rows).toEqual([{ day: "2026-09-20", placeNames: ["Innertube cut", "Sharkathon"] }]);
+  });
+});
+
+describe("planDayShareState", () => {
+  it("rolls up one plan day’s share flags", () => {
+    expect(planShareRecordId("you", "2026-09-20")).toBe("you:2026-09-20");
+    expect(
+      planDayShareState([
+        { sharedWithLinked: false, sharedWithBuddyIds: ["sam"] },
+        { sharedWithLinked: false, sharedWithBuddyIds: ["sam", "pat"] },
+      ]),
+    ).toEqual({ sharedWithLinked: false, sharedWithBuddyIds: ["sam", "pat"] });
+    expect(planDayShareState([{ sharedWithLinked: true, sharedWithBuddyIds: [] }])).toEqual({
+      sharedWithLinked: true,
+      sharedWithBuddyIds: [],
+    });
   });
 });
