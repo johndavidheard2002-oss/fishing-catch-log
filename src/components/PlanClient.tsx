@@ -64,7 +64,9 @@ import {
   planDayReferenceAt,
   plannedDayTideDetail,
   catchTideLookupKey,
+  catchTideLookupsForSpots,
   fallbackChipFromDayTides,
+  plannedSpotTideRefreshKey,
   sameTideChipsForSpots,
   type PlannedTidePin,
 } from "@/lib/plan-tides";
@@ -98,6 +100,14 @@ import type {
 
 const TAP_RESET =
   "outline-none [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-teal";
+
+function mergeRecordById<T extends { id: string }>(current: T[], row: T): T[] {
+  const index = current.findIndex((item) => item.id === row.id);
+  if (index === -1) return [...current, row];
+  const next = [...current];
+  next[index] = row;
+  return next;
+}
 
 function readSessionPendingSpot(): PendingPlanSpot | null {
   if (typeof sessionStorage === "undefined") return null;
@@ -173,6 +183,8 @@ export function PlanClient({
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
+  const catchSnapsRef = useRef(planTides.catchSnaps);
+  catchSnapsRef.current = planTides.catchSnaps;
 
   useEffect(() => {
     function onPop() {
@@ -234,6 +246,12 @@ export function PlanClient({
         const fetched = catchId
           ? pendingPlanSpotFromCatch(data.catch ?? {})
           : pendingPlanSpotFromBait(data.spot ?? {});
+        if (catchId && data.catch?.id) {
+          setJournalCatches((current) => mergeRecordById(current, data.catch as CatchRecord));
+        }
+        if (baitId && data.spot?.id) {
+          setJournalBait((current) => mergeRecordById(current, data.spot as BaitSpot));
+        }
         if (!fetched) return;
         setPendingSpot((current) => {
           if (!current) return fetched;
@@ -437,7 +455,15 @@ export function PlanClient({
   const writeupNotes = journalNotesForPlanWriteups(selectedNotes);
   const dayLabels = labelsByPlanDay(visibleNotes);
   const spotsOnDay = uniqueNotesByPlace(plannedSpotsOnDay(selectedNotes));
-  const spotsTideKey = spotsOnDay.map((note) => note.id).join(",");
+  const tideJournal = { catches: journalCatches, baitSpots: journalBait };
+  const stationPin =
+    spotsOnDay
+      .map((note) => pinForPlannedSpot(note, tideJournal))
+      .find((pin): pin is PlannedTidePin => Boolean(pin)) ?? null;
+  const stationKey = stationPin
+    ? `${stationPin.latitude.toFixed(4)},${stationPin.longitude.toFixed(4)}`
+    : "";
+  const tideRefreshKey = plannedSpotTideRefreshKey(spotsOnDay, tideJournal, stationPin);
   const plannedCatchIds = spotsOnDay
     .map((note) => note.sourceCatchId?.trim())
     .filter((id): id is string => Boolean(id));
@@ -460,17 +486,7 @@ export function PlanClient({
       if (cancelled) return;
       const extra = rows.filter((row): row is CatchRecord => Boolean(row?.id));
       if (!extra.length) return;
-      setJournalCatches((current) => {
-        const seen = new Set(current.map((row) => row.id));
-        const next = [...current];
-        for (const row of extra) {
-          if (!seen.has(row.id)) {
-            seen.add(row.id);
-            next.push(row);
-          }
-        }
-        return next.length === current.length ? current : next;
-      });
+      setJournalCatches((current) => extra.reduce(mergeRecordById, current));
     });
     return () => {
       cancelled = true;
@@ -479,21 +495,20 @@ export function PlanClient({
 
   useEffect(() => {
     if (!selectedDay || !spotsOnDay.length) {
-      setPlanTides({ detail: "", snap: null, catchSnaps: {} });
+      setPlanTides((current) =>
+        current.snap || current.detail
+          ? { detail: "", snap: null, catchSnaps: current.catchSnaps }
+          : current,
+      );
       return;
     }
+    if (!stationPin) return;
     let cancelled = false;
     const day = selectedDay;
-    const spots = spotsOnDay;
-    const journal = { catches: journalCatches, baitSpots: journalBait };
+    const pin = stationPin;
+    const at = planDayReferenceAt(day, null);
+    if (!at) return;
     void (async () => {
-      const pins = spots
-        .map((note) => pinForPlannedSpot(note, journal))
-        .filter((pin): pin is NonNullable<typeof pin> => Boolean(pin));
-      const pin = pins.find((row) => tidesApplyToHabitat(row.habitat)) ?? pins[0];
-      if (!pin) return;
-      const at = planDayReferenceAt(day, null);
-      if (!at) return;
       let snap: TideSnapshot | null = null;
       try {
         const res = await fetch("/api/assist/weather", {
@@ -513,40 +528,58 @@ export function PlanClient({
       }
       if (cancelled || !snap) return;
       const detail = plannedDayTideDetail(snap, pin.longitude);
-      if (!cancelled) setPlanTides({ detail, snap, catchSnaps: {} });
-
-      const lookups = new Map<string, PlannedTidePin>();
-      for (const row of pins) {
-        const key = catchTideLookupKey(row);
-        if (key) lookups.set(key, row);
-      }
-      const catchSnaps: Record<string, TideSnapshot | null> = {};
-      await Promise.all(
-        [...lookups.entries()].map(async ([key, row]) => {
-          try {
-            const res = await fetch("/api/assist/weather", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                latitude: row.latitude,
-                longitude: row.longitude,
-                at: row.caughtAt,
-                habitat: tidesApplyToHabitat(row.habitat) ? row.habitat : "saltwater-inshore",
-              }),
-            });
-            const data = res.ok ? await res.json() : null;
-            catchSnaps[key] = (data?.tide as TideSnapshot | undefined) ?? null;
-          } catch {
-            catchSnaps[key] = null;
-          }
-        }),
-      );
-      if (!cancelled) setPlanTides({ detail, snap, catchSnaps });
+      setPlanTides((current) => ({ ...current, detail, snap }));
     })();
     return () => {
       cancelled = true;
     };
-  }, [selectedDay, spotsTideKey, journalCatches, journalBait]);
+  }, [selectedDay, stationKey]);
+
+  useEffect(() => {
+    if (!selectedDay || !spotsOnDay.length) return;
+    const lookups = catchTideLookupsForSpots(spotsOnDay, tideJournal, stationPin);
+    const missing = [...lookups.entries()].filter(
+      ([key, row]) => Boolean(catchTideLookupKey(row)) && !(key in catchSnapsRef.current),
+    );
+    if (!missing.length) return;
+    let cancelled = false;
+    void Promise.all(
+      missing.map(async ([key, row]) => {
+        try {
+          const res = await fetch("/api/assist/weather", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              latitude: row.latitude,
+              longitude: row.longitude,
+              at: row.caughtAt,
+              habitat: tidesApplyToHabitat(row.habitat) ? row.habitat : "saltwater-inshore",
+            }),
+          });
+          const data = res.ok ? await res.json() : null;
+          return [key, (data?.tide as TideSnapshot | undefined) ?? null] as const;
+        } catch {
+          return [key, null] as const;
+        }
+      }),
+    ).then((rows) => {
+      if (cancelled) return;
+      setPlanTides((current) => {
+        const catchSnaps = { ...current.catchSnaps };
+        let changed = false;
+        for (const [key, snap] of rows) {
+          if (catchSnaps[key] !== snap) {
+            catchSnaps[key] = snap;
+            changed = true;
+          }
+        }
+        return changed ? { ...current, catchSnaps } : current;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDay, tideRefreshKey]);
   const sameTideById =
     selectedDay && planTides.snap
       ? sameTideChipsForSpots(
@@ -734,16 +767,15 @@ export function PlanClient({
                     });
                     const closestTide =
                       sameTideById[note.id] ||
-                      fallbackChipFromDayTides(
-                        planTides.snap,
-                        selectedDay,
-                        timeZoneFromLongitude(
-                          pinForPlannedSpot(note, {
-                            catches: journalCatches,
-                            baitSpots: journalBait,
-                          })?.longitude,
-                        ),
-                      );
+                      (note.sourceCatchId || note.sourceBaitId
+                        ? ""
+                        : fallbackChipFromDayTides(
+                            planTides.snap,
+                            selectedDay,
+                            timeZoneFromLongitude(
+                              pinForPlannedSpot(note, tideJournal, stationPin)?.longitude,
+                            ),
+                          ));
                     const row = (
                       <>
                         {photo ? (

@@ -690,7 +690,9 @@ function committedPlanSpotNote(spot: CommittedPlanSpot): CalendarNote {
     typeof spot.savedAt === "number" ? new Date(spot.savedAt).toISOString() : new Date().toISOString();
   const source = planSpotSourceFields(spot);
   return {
-    id: `local:${spot.day}:${planSpotSourceKind(spot)}:${normalizeNotePlace(spot.placeName)}`,
+    id: `local:${spot.day}:${planSpotSourceKind(spot)}:${normalizeNotePlace(spot.placeName)}${
+      planSpotSourceId(spot) ? `:${planSpotSourceId(spot)}` : ""
+    }`,
     anglerId: "",
     day: spot.day,
     title: null,
