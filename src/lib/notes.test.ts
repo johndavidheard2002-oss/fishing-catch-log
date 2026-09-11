@@ -885,7 +885,7 @@ describe("expired Plan days", () => {
     ).toEqual([
       { id: "today-spot", sourceBaitId: null, photoPath: null },
       {
-        id: "local:2026-09-10:bait:haulover canal",
+        id: "local:2026-09-10:bait:haulover canal:b1",
         sourceBaitId: "b1",
         photoPath: "shrimp.jpg",
       },

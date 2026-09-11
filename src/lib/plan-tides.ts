@@ -23,6 +23,13 @@ export type PlannedTidePin = {
   tide: string | null;
 };
 
+export type PlannedTideSpot = {
+  id: string;
+  placeName?: string | null;
+  sourceCatchId?: string | null;
+  sourceBaitId?: string | null;
+};
+
 /** Partial journal rows — habitat can be missing on older or client-built catches. */
 export type PlannedTideJournalCatch = Omit<CatchRecord, "habitat"> & {
   habitat?: Habitat | string | null;
@@ -31,6 +38,19 @@ export type PlannedTideJournalCatch = Omit<CatchRecord, "habitat"> & {
 export type PlannedTideJournal = {
   catches?: PlannedTideJournalCatch[];
   baitSpots?: BaitSpot[];
+};
+
+type TideRecord = {
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  photoTakenLatitude?: number | string | null;
+  photoTakenLongitude?: number | string | null;
+  placeName?: string | null;
+  habitat?: Habitat | string | null;
+  tideHeightFt?: number | null;
+  tide?: string | null;
+  caughtAt?: string | null;
+  loggedAt?: string | null;
 };
 
 /** Map a catch/bait clock onto the planned YYYY-MM-DD (UTC). Noon-ish if none. */
@@ -56,18 +76,25 @@ export function pinForPlannedSpot(
     sourceBaitId?: string | null;
   },
   journal: PlannedTideJournal = {},
+  station?: Pick<PlannedTidePin, "latitude" | "longitude"> | null,
 ): PlannedTidePin | null {
   const catchId = spot.sourceCatchId?.trim();
   const baitId = spot.sourceBaitId?.trim();
   if (catchId) {
     const record = journal.catches?.find((row) => row.id === catchId);
-    const pin = pinFromRecord(record, record?.caughtAt ?? null);
-    if (pin) return pin;
+    if (!record) return null;
+    return pinFromRecord(
+      withBorrowedCoords(record, journal, spot.placeName, station),
+      record.caughtAt ?? null,
+    );
   }
   if (baitId) {
     const record = journal.baitSpots?.find((row) => row.id === baitId);
-    const pin = pinFromRecord(record, record?.loggedAt ?? null);
-    if (pin) return pin;
+    if (!record) return null;
+    return pinFromRecord(
+      withBorrowedCoords(record, journal, spot.placeName, station),
+      record.loggedAt ?? null,
+    );
   }
   const place = normalizeNotePlace(spot.placeName);
   if (!place) return null;
@@ -90,29 +117,62 @@ function finiteCoord(
   return Number.isFinite(n) ? n : null;
 }
 
-function pinFromRecord(
-  record:
-    | {
-        latitude?: number | string | null;
-        longitude?: number | string | null;
-        photoTakenLatitude?: number | string | null;
-        photoTakenLongitude?: number | string | null;
-        habitat?: Habitat | string | null;
-        tideHeightFt?: number | null;
-        tide?: string | null;
-        caughtAt?: string | null;
-      }
-    | null
-    | undefined,
-  caughtAt: string | null,
-): PlannedTidePin | null {
+function recordCoords(record: TideRecord | null | undefined): {
+  latitude: number;
+  longitude: number;
+} | null {
   const latitude = finiteCoord(record?.latitude) ?? finiteCoord(record?.photoTakenLatitude);
   const longitude = finiteCoord(record?.longitude) ?? finiteCoord(record?.photoTakenLongitude);
   if (latitude == null || longitude == null) return null;
+  return { latitude, longitude };
+}
+
+function locatedCoords(
+  journal: PlannedTideJournal,
+  place?: string | null,
+  station?: Pick<PlannedTidePin, "latitude" | "longitude"> | null,
+): { latitude: number; longitude: number } | null {
+  const placeKey = normalizeNotePlace(place);
+  const records: TideRecord[] = [...(journal.catches ?? []), ...(journal.baitSpots ?? [])];
+  if (placeKey) {
+    for (const row of records) {
+      if (normalizeNotePlace(row.placeName) !== placeKey) continue;
+      const coords = recordCoords(row);
+      if (coords) return coords;
+    }
+  }
+  if (station && Number.isFinite(station.latitude) && Number.isFinite(station.longitude)) {
+    return { latitude: station.latitude, longitude: station.longitude };
+  }
+  for (const row of records) {
+    const coords = recordCoords(row);
+    if (coords) return coords;
+  }
+  return null;
+}
+
+function withBorrowedCoords(
+  record: TideRecord,
+  journal: PlannedTideJournal,
+  place?: string | null,
+  station?: Pick<PlannedTidePin, "latitude" | "longitude"> | null,
+): TideRecord {
+  if (recordCoords(record)) return record;
+  const coords = locatedCoords(journal, record.placeName ?? place, station);
+  if (!coords) return record;
+  return { ...record, latitude: coords.latitude, longitude: coords.longitude };
+}
+
+function pinFromRecord(
+  record: TideRecord | null | undefined,
+  caughtAt: string | null,
+): PlannedTidePin | null {
+  const coords = recordCoords(record);
+  if (!coords) return null;
   const clock = caughtAt ?? record?.caughtAt ?? null;
   return {
-    latitude,
-    longitude,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
     habitat: record?.habitat ?? null,
     caughtAt: clock && !Number.isNaN(new Date(clock).getTime()) ? clock : null,
     tideHeightFt: record?.tideHeightFt ?? null,
@@ -189,9 +249,42 @@ export function applyCatchTideSnapshot(
   };
 }
 
-export function catchTideLookupKey(pin: PlannedTidePin): string | null {
-  if (!pin.caughtAt) return null;
+export function catchTideLookupKey(pin: PlannedTidePin | null | undefined): string | null {
+  if (!pin?.caughtAt) return null;
   return `${pin.latitude.toFixed(4)},${pin.longitude.toFixed(4)},${pin.caughtAt}`;
+}
+
+/** Recompute per-catch NOAA lookups when a row is added to an already-planned day. */
+export function plannedSpotTideRefreshKey(
+  spots: PlannedTideSpot[],
+  journal: PlannedTideJournal = {},
+  station?: Pick<PlannedTidePin, "latitude" | "longitude"> | null,
+): string {
+  return spots
+    .map((spot) => {
+      const pin = pinForPlannedSpot(spot, journal, station);
+      return [
+        spot.id,
+        spot.sourceCatchId?.trim() ?? "",
+        spot.sourceBaitId?.trim() ?? "",
+        catchTideLookupKey(pin) ?? "",
+      ].join(":");
+    })
+    .join("|");
+}
+
+export function catchTideLookupsForSpots(
+  spots: PlannedTideSpot[],
+  journal: PlannedTideJournal = {},
+  station?: Pick<PlannedTidePin, "latitude" | "longitude"> | null,
+): Map<string, PlannedTidePin> {
+  const lookups = new Map<string, PlannedTidePin>();
+  for (const spot of spots) {
+    const pin = pinForPlannedSpot(spot, journal, station);
+    const key = catchTideLookupKey(pin);
+    if (key && pin) lookups.set(key, pin);
+  }
+  return lookups;
 }
 
 /**
@@ -202,9 +295,10 @@ export function plannedSpotSameTide(
   snap: TideSnapshot | null | undefined,
   day: string,
   pin: PlannedTidePin | null,
+  timeZone?: string,
 ): string {
   if (!snap?.applies) return "";
-  const zone = timeZoneFromLongitude(pin?.longitude);
+  const zone = timeZone ?? timeZoneFromLongitude(pin?.longitude);
   const extremes = extremesForChip(snap);
   if (pin && extremes.length >= 2) {
     const preferAt = pin.caughtAt ? new Date(pin.caughtAt) : null;
@@ -212,7 +306,7 @@ export function plannedSpotSameTide(
     const sampled = mapped ? heightAndDirectionAt(extremes, mapped) : null;
     let height = pin.tideHeightFt;
     if (height == null || !Number.isFinite(height)) {
-      height = sampled?.heightFt ?? clampHeightToExtremes(extremes, 0);
+      height = sampled?.heightFt ?? null;
     }
     if (height != null && Number.isFinite(height)) {
       const prefer =
@@ -237,12 +331,12 @@ export function plannedSpotSameTide(
       if (label) return label;
     }
   }
-  return fallbackChipFromDayTides(snap, day, zone, pin?.tide);
+  return "";
 }
 
-/** One same-tide chip per planned row — never collapse multiple fish at a hole. */
+/** One same-tide chip per planned row — never copy another fish’s leftover High/Low. */
 export function sameTideChipsForSpots(
-  spots: Array<{ id: string; placeName?: string | null; sourceCatchId?: string | null; sourceBaitId?: string | null }>,
+  spots: PlannedTideSpot[],
   snap: TideSnapshot | null | undefined,
   day: string,
   journal: PlannedTideJournal = {},
@@ -250,21 +344,14 @@ export function sameTideChipsForSpots(
 ): Record<string, string> {
   const chips: Record<string, string> = {};
   if (!snap?.applies) return chips;
-  const pins = spots.map((spot) => pinForPlannedSpot(spot, journal));
-  const fallbackPin = pins.find((pin) => pin != null) ?? null;
-  const zone = timeZoneFromLongitude(fallbackPin?.longitude);
+  const ownPins = spots.map((spot) => pinForPlannedSpot(spot, journal));
+  const stationPin = ownPins.find((pin) => pin != null) ?? null;
+  const zone = timeZoneFromLongitude(stationPin?.longitude);
   spots.forEach((spot, index) => {
-    const own = pins[index];
-    const pin = own ?? fallbackPin;
-    const lookup = pin ? catchTideLookupKey(pin) : null;
+    const pin = ownPins[index] ?? pinForPlannedSpot(spot, journal, stationPin);
+    const lookup = catchTideLookupKey(pin);
     const resolved = pin && lookup ? applyCatchTideSnapshot(pin, catchSnaps[lookup]) : pin;
-    let label = plannedSpotSameTide(snap, day, resolved);
-    if (!label && fallbackPin && resolved !== fallbackPin) {
-      const fbKey = catchTideLookupKey(fallbackPin);
-      const fb = fbKey ? applyCatchTideSnapshot(fallbackPin, catchSnaps[fbKey]) : fallbackPin;
-      label = plannedSpotSameTide(snap, day, fb);
-    }
-    if (!label) label = fallbackChipFromDayTides(snap, day, zone, resolved?.tide);
+    const label = plannedSpotSameTide(snap, day, resolved, zone);
     if (label) chips[spot.id] = label;
   });
   return chips;
