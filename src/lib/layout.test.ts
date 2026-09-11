@@ -136,6 +136,14 @@ describe("Capacitor iOS safe areas", () => {
     expect(css).toMatch(/\.app-shell \{[\s\S]*?padding-left: max\(1rem, var\(--safe-area-left\)\)/);
     expect(css).toMatch(/\.bottom-nav \{[\s\S]*?padding-bottom: max\(0\.5rem, var\(--safe-area-bottom\)\)/);
     expect(css).toMatch(/\.app-fixed-overlay \{[\s\S]*?padding-top: max\(2rem, calc\(var\(--safe-area-top\) \+ 0\.75rem\)\)/);
+    expect(css).toMatch(/html \{[\s\S]*?scroll-padding-top: calc\(var\(--safe-area-top\) \+ 0\.75rem\)/);
+    expect(css).toMatch(
+      /\.plan-day-results \{[\s\S]*?scroll-margin-top: calc\(var\(--safe-area-top\) \+ 0\.75rem\)/,
+    );
+    const plan = readFileSync(resolve(__dirname, "../components/PlanClient.tsx"), "utf8");
+    expect(plan).toContain("scrollPlanResultsBelowStatusBar");
+    expect(plan).toContain("plan-planned-header");
+    expect(plan).not.toContain('scrollIntoView({ behavior: "smooth", block: "start" })');
     const shell = readFileSync(resolve(__dirname, "../components/AppShell.tsx"), "utf8");
     expect(shell).toContain("app-shell-tabs");
     expect(shell).toContain("app-shell-signin");

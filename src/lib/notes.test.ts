@@ -630,6 +630,10 @@ describe("Plan add-to-day UI", () => {
       plan.indexOf('data-testid="plan-suggested-spots"'),
     );
     expect(plan).toMatch(/<h3 className="font-display text-xl text-teal">Planned<\/h3>/);
+    expect(plan).toContain("plan-day-results");
+    expect(plan).toContain("plan-planned-header");
+    expect(plan).toContain("scrollPlanResultsBelowStatusBar");
+    expect(plan).toContain("flex flex-wrap items-start justify-between gap-2");
     expect(plan).not.toMatch(/<(h[1-6])[^>]*>[^<]*(On this day|everything planned|planned for)/i);
     expect(plan).not.toContain("On this day");
     expect(plan).not.toContain("everything planned");

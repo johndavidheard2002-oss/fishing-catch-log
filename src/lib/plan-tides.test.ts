@@ -684,6 +684,128 @@ describe("planned day and photo tide labels", () => {
     expect(chips["n-shark"]).not.toMatch(/^Low\b/);
     expect(chips["n-trout"]).not.toMatch(/^Low\b/);
   });
+
+  it("chips Oct 11 Enbridge catches with interpolated incoming, not a leftover Low 2:42 PM", () => {
+    // John: High 1:22 AM 1.0 ft · Low 1:22 PM 0.3 ft · Enbridge, Ingleside.
+    // NOAA window also has Oct 10 Low 2:42 PM — that must not become the second fish's chip.
+    const inglesideOct11: TideSnapshot = {
+      applies: true,
+      tide: "outgoing",
+      heightFt: 0.7,
+      nextHighAt: "2026-10-11T06:22:00.000Z",
+      nextHighFt: 1.0,
+      nextLowAt: "2026-10-11T18:22:00.000Z",
+      nextLowFt: 0.3,
+      source: "noaa",
+      note: "",
+      stationName: "Enbridge, Ingleside",
+      extremes: [
+        { at: "2026-10-10T19:42:00.000Z", type: "low", heightFt: 0.15 },
+        { at: "2026-10-11T06:22:00.000Z", type: "high", heightFt: 1.0 },
+        { at: "2026-10-11T18:22:00.000Z", type: "low", heightFt: 0.3 },
+        { at: "2026-10-12T00:22:00.000Z", type: "high", heightFt: 0.9 },
+      ],
+    };
+    const leftoverLow = fallbackChipFromDayTides(
+      { ...inglesideOct11, heightFt: null },
+      "2026-10-11",
+      "America/Chicago",
+    );
+    const ship = catchOf({
+      id: "c-ship-drum",
+      placeName: "Ship channel",
+      species: "Black Drum",
+      habitat: "saltwater-inshore",
+      latitude: 27.877,
+      longitude: -97.211,
+      caughtAt: "2026-07-04T19:19:00.000Z",
+      tide: "incoming",
+      tideHeightFt: 0.395,
+    });
+    const flounder = catchOf({
+      id: "c-demag-flounder",
+      placeName: "Demagnetizer",
+      species: "Flounder",
+      habitat: "saltwater-inshore",
+      latitude: 27.87,
+      longitude: -97.2,
+      caughtAt: "2026-08-09T16:40:00.000Z",
+      tide: "incoming",
+      tideHeightFt: 0.15,
+    });
+    const firstOnly = [{ id: "n-ship", placeName: ship.placeName, sourceCatchId: ship.id }];
+    const firstChips = sameTideChipsForSpots(firstOnly, inglesideOct11, "2026-10-11", {
+      catches: [ship],
+    });
+    expect(firstChips["n-ship"]).toBe("2:19 PM incoming");
+    expect(firstChips["n-ship"]).not.toMatch(/^Low\b/);
+
+    const afterSecond = [
+      { id: "n-demag", placeName: flounder.placeName, sourceCatchId: flounder.id },
+      ...firstOnly,
+    ];
+    const shipPin = pinForPlannedSpot(firstOnly[0], { catches: [ship, flounder] });
+    const staleSnaps = {
+      [catchTideLookupKey(shipPin)!]: {
+        applies: true,
+        tide: "incoming" as const,
+        heightFt: 0.395,
+        nextHighAt: null,
+        nextHighFt: null,
+        nextLowAt: null,
+        nextLowFt: null,
+        source: "noaa" as const,
+        note: "",
+      },
+    };
+    const chips = sameTideChipsForSpots(
+      afterSecond,
+      inglesideOct11,
+      "2026-10-11",
+      { catches: [ship, flounder] },
+      staleSnaps,
+    );
+    expect(plannedDayTideDetail(inglesideOct11, -97.21)).toContain("High 1:22 AM 1.0 ft");
+    expect(plannedDayTideDetail(inglesideOct11, -97.21)).toContain("Low 1:22 PM 0.3 ft");
+    expect(chips["n-ship"]).toBe("2:19 PM incoming");
+    expect(chips["n-demag"]).toBeTruthy();
+    expect(chips["n-demag"]).not.toBe(chips["n-ship"]);
+    expect(chips["n-demag"]).not.toBe(leftoverLow);
+    expect(chips["n-demag"]).not.toMatch(/^Low\b/);
+    expect(chips["n-demag"]).not.toContain("2:42 PM");
+    expect(chips["n-demag"]).toMatch(/incoming|outgoing/i);
+
+    const flounderPin = pinForPlannedSpot(afterSecond[0], { catches: [ship, flounder] });
+    const withCatchSnap = sameTideChipsForSpots(
+      afterSecond,
+      inglesideOct11,
+      "2026-10-11",
+      { catches: [ship, flounder] },
+      {
+        ...staleSnaps,
+        [catchTideLookupKey(flounderPin)!]: {
+          applies: true,
+          tide: "incoming" as const,
+          heightFt: 0.45,
+          nextHighAt: "2026-08-09T21:00:00.000Z",
+          nextHighFt: 1.1,
+          nextLowAt: "2026-08-09T14:00:00.000Z",
+          nextLowFt: 0.1,
+          source: "noaa" as const,
+          note: "",
+          extremes: [
+            { at: "2026-08-09T14:00:00.000Z", type: "low", heightFt: 0.1 },
+            { at: "2026-08-09T21:00:00.000Z", type: "high", heightFt: 1.1 },
+          ],
+        },
+      },
+    );
+    expect(withCatchSnap["n-ship"]).toBe("2:19 PM incoming");
+    expect(withCatchSnap["n-demag"]).toBeTruthy();
+    expect(withCatchSnap["n-demag"]).not.toBe(withCatchSnap["n-ship"]);
+    expect(withCatchSnap["n-demag"]).not.toMatch(/^Low\b/);
+    expect(withCatchSnap["n-demag"]).toMatch(/incoming/i);
+  });
 });
 
 
@@ -700,6 +822,11 @@ describe("Plan Planned panel wires day tides", () => {
     expect(plan).toContain("catchTideLookupsForSpots");
     expect(plan).toContain("plannedCatchIds");
     expect(plan).toContain("/api/catches/${id}");
+    expect(plan).toContain("scrollPlanResultsBelowStatusBar");
+    expect(plan).toContain("plan-day-results");
+    expect(plan).toContain("plan-planned-header");
+    expect(plan).toContain("/api/catches/${catchId}");
+    expect(plan).not.toContain('scrollIntoView({ behavior: "smooth", block: "start" })');
     expect(plan).not.toContain("setPlanTides({ detail, snap, catchSnaps: {} })");
     expect(plan).not.toContain("spotsTideKey");
     expect(plan).not.toContain("tideHeightFt == null &&");
@@ -711,6 +838,11 @@ describe("Plan Planned panel wires day tides", () => {
     expect(plan).toContain('data-testid="plan-day-spot-tide"');
     expect(plan).toContain('data-testid="plan-day-spot-tide-label"');
     expect(plan).toContain("matching tide");
+    const tides = readFileSync(resolve(__dirname, "./plan-tides.ts"), "utf8");
+    expect(tides).toContain("tideHeightRangeForDay");
+    expect(tides).toContain("remapHeightToRange");
+    expect(tides).toContain("mappedClockChip");
+    expect(tides).not.toContain("sameTideCrossings(extremes, clamped)");
     expect(plan).toContain("selectPlanDay");
     expect(plan).toContain("data-no-tab-swipe");
     expect(plan).toContain('type="button"');
