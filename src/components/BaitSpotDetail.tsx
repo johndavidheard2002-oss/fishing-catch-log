@@ -21,15 +21,31 @@ import { AddToPlanButton } from "@/components/AddToPlanButton";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { baitTypesLabel } from "@/lib/bait";
 import { habitatLabel } from "@/lib/habitat";
-import { canShowAddToPlan, pendingPlanSpotFromBait } from "@/lib/pending-plan-spot";
+import { canShowAddToPlan, dropCommittedPlanSpot, pendingPlanSpotFromBait } from "@/lib/pending-plan-spot";
+import {
+  plannedPhotoUnplanRequest,
+  planSpotsToUnplan,
+  UNPLAN_SPOT_CONFIRM,
+} from "@/lib/notes";
 import { CONDITION_LABELS } from "@/lib/labels";
 import { ownerShareStatusLine } from "@/lib/sharing";
 import { personalPhotoSrc } from "@/lib/photo";
 import { formatCaughtAt } from "@/lib/time";
 import type { BaitSpot } from "@/lib/types";
 
-export function BaitSpotDetail({ id }: { id: string }) {
+export function BaitSpotDetail({
+  id,
+  fromPlan = false,
+  planNote = null,
+  planDay = null,
+}: {
+  id: string;
+  fromPlan?: boolean;
+  planNote?: string | null;
+  planDay?: string | null;
+}) {
   const router = useRouter();
+  const unplan = plannedPhotoUnplanRequest({ fromPlan, planNote, planDay });
   const [record, setRecord] = useState<BaitSpot | null>(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +82,35 @@ export function BaitSpotDetail({ id }: { id: string }) {
   }, [id]);
 
   async function onDelete() {
+    if (unplan.mode === "unplan") {
+      if (!confirm(UNPLAN_SPOT_CONFIRM)) return;
+      try {
+        const noteIds = new Set<string>();
+        if (unplan.calendarNoteId) noteIds.add(unplan.calendarNoteId);
+        if (unplan.lookupPlanNotes) {
+          const res = await fetch("/api/calendar-notes?for=plan", { cache: "no-store" });
+          const data = await res.json().catch(() => ({}));
+          for (const noteId of planSpotsToUnplan(data.notes ?? [], {
+            sourceBaitId: id,
+            day: unplan.day,
+          })) {
+            noteIds.add(noteId);
+          }
+        }
+        for (const noteId of noteIds) {
+          const res = await fetch(`/api/calendar-notes/${noteId}`, { method: "DELETE" });
+          if (!res.ok) throw new Error("unplan failed");
+        }
+        dropCommittedPlanSpot(
+          typeof sessionStorage === "undefined" ? null : sessionStorage,
+          { day: unplan.day ?? "", sourceBaitId: id },
+        );
+        router.push(unplan.returnTo);
+      } catch {
+        setError("Could not remove this spot from the plan.");
+      }
+      return;
+    }
     if (!confirm("Delete this bait spot?")) return;
     await fetch(`/api/bait-spots/${id}`, { method: "DELETE" });
     router.push("/spots?kind=bait");
@@ -241,14 +286,25 @@ export function BaitSpotDetail({ id }: { id: string }) {
             >
               {record.sharedWithLinked ? "Shared" : "Share"}
             </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              data-testid="bait-delete"
-              className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
-            >
-              Delete
-            </button>
+            {unplan.mode === "unplan" ? (
+              <button
+                type="button"
+                onClick={onDelete}
+                data-testid="bait-unplan"
+                className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
+              >
+                Remove from plan
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onDelete}
+                data-testid="bait-delete"
+                className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold"
+              >
+                Delete
+              </button>
+            )}
           </div>
           <div data-testid="bait-share-block">
             <p className="text-xs text-ink-muted">

@@ -28,6 +28,8 @@ import {
   plannedSpotsOnDay,
   planDayAfterSelect,
   planSpotIdentityKey,
+  planSpotRemoveTarget,
+  UNPLAN_SPOT_CONFIRM,
   selectPlanDay,
   planSpotDetailHref,
   planSpotSourceKind,
@@ -41,6 +43,7 @@ import {
   PENDING_PLAN_PLACE_QUERY,
   PENDING_PLAN_SPECIES_QUERY,
   clearPendingPlanDay,
+  dropCommittedPlanSpot,
   dropCommittedPlanSpotsForDay,
   parsePendingPlanSpotSearch,
   pendingPlanDayToCommit,
@@ -60,7 +63,7 @@ import {
   pinForPlannedSpot,
   planDayReferenceAt,
   plannedDayTideDetail,
-  plannedSpotClosestTide,
+  plannedSpotSameTide,
 } from "@/lib/plan-tides";
 import { tidesApplyToHabitat, type TideSnapshot } from "@/lib/tides/snapshot";
 import {
@@ -161,8 +164,8 @@ export function PlanClient({
   const [journalBait, setJournalBait] = useState<BaitSpot[]>([]);
   const [planTides, setPlanTides] = useState<{
     detail: string;
-    closestById: Record<string, string>;
-  }>({ detail: "", closestById: {} });
+    sameTideById: Record<string, string>;
+  }>({ detail: "", sameTideById: {} });
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
@@ -325,6 +328,28 @@ export function PlanClient({
     setNotes((current) => current.filter((n) => n.id !== id));
   }
 
+  async function onRemovePlanSpot(note: CalendarNote) {
+    const target = planSpotRemoveTarget(note);
+    if (!target) return;
+    if (!confirm(UNPLAN_SPOT_CONFIRM)) return;
+    try {
+      if (target.calendarNoteId) {
+        const res = await fetch(`/api/calendar-notes/${target.calendarNoteId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("remove failed");
+      }
+      setNotes((current) => current.filter((row) => row.id !== note.id));
+      setCommittedSpots((current) =>
+        current.filter(
+          (item) =>
+            item.day !== note.day || planSpotIdentityKey(item) !== planSpotIdentityKey(note),
+        ),
+      );
+      dropCommittedPlanSpot(sessionStore(), note);
+    } catch {
+      setAddError("Could not remove that spot from the plan.");
+    }
+  }
+
   async function onDeletePlan() {
     if (!selectedDay) return;
     if (!confirm("Delete this plan?")) return;
@@ -412,7 +437,7 @@ export function PlanClient({
 
   useEffect(() => {
     if (!selectedDay || !spotsOnDay.length) {
-      setPlanTides({ detail: "", closestById: {} });
+      setPlanTides({ detail: "", sameTideById: {} });
       return;
     }
     let cancelled = false;
@@ -420,7 +445,7 @@ export function PlanClient({
     const spots = spotsOnDay;
     void (async () => {
       const snaps = new Map<string, TideSnapshot>();
-      const closestById: Record<string, string> = {};
+      const sameTideById: Record<string, string> = {};
       let detail = "";
       for (const note of spots) {
         const pin = pinForPlannedSpot(note, { catches: journalCatches, baitSpots: journalBait });
@@ -450,10 +475,36 @@ export function PlanClient({
         }
         if (!snap) continue;
         if (!detail) detail = plannedDayTideDetail(snap, pin.longitude);
-        const closest = plannedSpotClosestTide(snap, day, pin);
-        if (closest) closestById[note.id] = closest;
+        let resolved = pin;
+        if (resolved.tideHeightFt == null && resolved.caughtAt) {
+          try {
+            const res = await fetch("/api/assist/weather", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                latitude: pin.latitude,
+                longitude: pin.longitude,
+                at: resolved.caughtAt,
+                habitat: pin.habitat,
+              }),
+            });
+            const data = res.ok ? await res.json() : null;
+            const catchSnap = data?.tide as TideSnapshot | undefined;
+            if (catchSnap?.heightFt != null) {
+              resolved = {
+                ...resolved,
+                tideHeightFt: catchSnap.heightFt,
+                tide: resolved.tide ?? catchSnap.tide,
+              };
+            }
+          } catch {
+            /* keep pin without height */
+          }
+        }
+        const label = plannedSpotSameTide(snap, day, resolved);
+        if (label) sameTideById[note.id] = label;
       }
-      if (!cancelled) setPlanTides({ detail, closestById });
+      if (!cancelled) setPlanTides({ detail, sameTideById });
     })();
     return () => {
       cancelled = true;
@@ -634,7 +685,7 @@ export function PlanClient({
                       catches: journalCatches,
                       baitSpots: journalBait,
                     });
-                    const closestTide = planTides.closestById[note.id];
+                    const closestTide = planTides.sameTideById[note.id];
                     const row = (
                       <>
                         {photo ? (
@@ -695,22 +746,30 @@ export function PlanClient({
                     return (
                       <li
                         key={note.id}
-                        className="flex items-center gap-2"
+                        className="flex items-start gap-2"
                         data-testid="plan-day-spot"
                         data-plan-source={kind}
                       >
                         {href ? (
                           <Link
                             href={href}
-                            className={`flex min-w-0 items-center gap-2 ${TAP_RESET}`}
+                            className={`flex min-w-0 flex-1 items-center gap-2 ${TAP_RESET}`}
                             aria-label={plannedSpotOpenLabel(note.placeName, kind, labels)}
                             data-testid="plan-day-spot-open"
                           >
                             {row}
                           </Link>
                         ) : (
-                          row
+                          <div className="flex min-w-0 flex-1 items-center gap-2">{row}</div>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => void onRemovePlanSpot(note)}
+                          className="shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold text-copper"
+                          data-testid="plan-day-spot-remove"
+                        >
+                          Remove from plan
+                        </button>
                       </li>
                     );
                   })}

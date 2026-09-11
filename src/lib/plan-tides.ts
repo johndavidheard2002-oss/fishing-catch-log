@@ -1,8 +1,10 @@
 import { DAY_KEY_RE, normalizeNotePlace } from "./notes";
 import {
-  closestCivilDayTide,
-  formatClosestTideLabel,
+  directionFromTide,
+  formatSameTideLabel,
   formatTideDetail,
+  pickSameTideMatch,
+  sameTideMatches,
   timeZoneFromLongitude,
   tidesApplyToHabitat,
   type TideSnapshot,
@@ -14,6 +16,8 @@ export type PlannedTidePin = {
   longitude: number;
   habitat: Habitat | string | null;
   caughtAt: string | null;
+  tideHeightFt: number | null;
+  tide: string | null;
 };
 
 /** Map a catch/bait clock onto the planned YYYY-MM-DD (UTC). Noon-ish if none. */
@@ -71,6 +75,8 @@ function pinFromRecord(
         latitude?: number | null;
         longitude?: number | null;
         habitat?: Habitat | string | null;
+        tideHeightFt?: number | null;
+        tide?: string | null;
       }
     | null
     | undefined,
@@ -83,6 +89,8 @@ function pinFromRecord(
     longitude: record.longitude,
     habitat: record.habitat ?? null,
     caughtAt,
+    tideHeightFt: record.tideHeightFt ?? null,
+    tide: record.tide ?? null,
   };
 }
 
@@ -94,16 +102,25 @@ export function plannedDayTideDetail(
   return formatTideDetail({ ...snap, longitude });
 }
 
-export function plannedSpotClosestTide(
+/**
+ * Plan-day clock when tide height equals the catch’s height (interpolated)
+ * and incoming/outgoing matches the catch. Not nearest High/Low.
+ */
+export function plannedSpotSameTide(
   snap: TideSnapshot | null | undefined,
   day: string,
   pin: PlannedTidePin | null,
 ): string {
   if (!snap?.applies || !pin || !tidesApplyToHabitat(pin.habitat)) return "";
-  const at = planDayReferenceAt(day, pin.caughtAt);
-  if (!at) return "";
-  return formatClosestTideLabel(
-    closestCivilDayTide(snap, at),
-    timeZoneFromLongitude(pin.longitude),
+  const height = pin.tideHeightFt;
+  if (height == null || !Number.isFinite(height)) return "";
+  const zone = timeZoneFromLongitude(pin.longitude);
+  const preferAt = pin.caughtAt ? new Date(pin.caughtAt) : null;
+  const match = pickSameTideMatch(
+    sameTideMatches(snap.extremes, height, day, zone),
+    directionFromTide(pin.tide),
+    preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : null,
+    zone,
   );
+  return formatSameTideLabel(match, zone);
 }

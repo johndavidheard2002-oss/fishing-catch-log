@@ -97,6 +97,23 @@ export function isPlanSpotNote(note: { kind?: string | null }): boolean {
   return note.kind === PLAN_SPOT_NOTE_KIND;
 }
 
+/**
+ * Plan “Remove from plan” targets the calendar note only.
+ * Never a catch or bait journal id — those stay in Calendar Log.
+ */
+export function planSpotRemoveTarget(note: {
+  id?: string | null;
+  kind?: string | null;
+  sourceCatchId?: string | null;
+  sourceBaitId?: string | null;
+}): { calendarNoteId: string | null; localOnly: boolean } | null {
+  if (!isPlanSpotNote(note)) return null;
+  const id = note.id?.trim() ?? "";
+  if (!id) return null;
+  if (id.startsWith("local:")) return { calendarNoteId: null, localOnly: true };
+  return { calendarNoteId: id, localOnly: false };
+}
+
 /** Calendar Log Planned trips — never includes Plan-only suggested spots. */
 export function journalNotesForCalendarLog(notes: CalendarNote[]): CalendarNote[] {
   return notes.filter((note) => !isPlanSpotNote(note));
@@ -179,6 +196,9 @@ export function normalizeNotePlace(place?: string | null): string {
 }
 
 export type PlanSpotSource = {
+  id?: string | null;
+  day?: string | null;
+  kind?: string | null;
   placeName?: string | null;
   speciesTargets?: string[] | null;
   sourceCatchId?: string | null;
@@ -224,9 +244,129 @@ export function planSpotIdentityKey(spot: PlanSpotSource): string | null {
   return sourceId ? `${kind}:${place}:${sourceId}` : `${kind}:${place}`;
 }
 
+export const PLANNED_PHOTO_FROM = "plan";
+export const PLANNED_PHOTO_FROM_QUERY = "from";
+export const PLANNED_PHOTO_NOTE_QUERY = "planNote";
+export const PLANNED_PHOTO_DAY_QUERY = "planDay";
+export const UNPLAN_SPOT_CONFIRM =
+  "Remove this spot from the plan? The catch stays in Calendar Log.";
+
+export type PlannedPhotoContext = {
+  fromPlan: boolean;
+  calendarNoteId: string | null;
+  day: string | null;
+};
+
+function firstSearchValue(value?: string | string[] | null): string | null {
+  if (typeof value === "string") return value.trim() || null;
+  if (Array.isArray(value)) return value[0]?.trim() || null;
+  return null;
+}
+
+/** Mark a catch/bait href so Delete there unplans instead of wiping the journal. */
+export function withPlannedPhotoContext(
+  href: string,
+  spot: { id?: string | null; day?: string | null },
+): string {
+  const qIndex = href.indexOf("?");
+  const path = qIndex === -1 ? href : href.slice(0, qIndex);
+  const params = new URLSearchParams(qIndex === -1 ? "" : href.slice(qIndex + 1));
+  params.set(PLANNED_PHOTO_FROM_QUERY, PLANNED_PHOTO_FROM);
+  const noteId = spot.id?.trim() ?? "";
+  if (noteId && !noteId.startsWith("local:")) {
+    params.set(PLANNED_PHOTO_NOTE_QUERY, noteId.slice(0, MAX_SOURCE_ID));
+  }
+  const day = parseDayKey(spot.day);
+  if (day) params.set(PLANNED_PHOTO_DAY_QUERY, day);
+  return `${path}?${params.toString()}`;
+}
+
+export function parsePlannedPhotoContext(search: {
+  from?: string | string[] | null;
+  planNote?: string | string[] | null;
+  planDay?: string | string[] | null;
+}): PlannedPhotoContext {
+  const fromPlan = firstSearchValue(search.from) === PLANNED_PHOTO_FROM;
+  const rawNote = firstSearchValue(search.planNote) ?? "";
+  const calendarNoteId =
+    fromPlan && rawNote && !rawNote.startsWith("local:") ? rawNote.slice(0, MAX_SOURCE_ID) : null;
+  return {
+    fromPlan,
+    calendarNoteId,
+    day: fromPlan ? parseDayKey(firstSearchValue(search.planDay)) : null,
+  };
+}
+
+export function planHrefAfterUnplan(day?: string | null): string {
+  const key = parseDayKey(day);
+  return key ? `/plan?date=${key}` : "/plan";
+}
+
+export function planSpotsToUnplan(
+  notes: Array<{
+    id?: string | null;
+    day?: string | null;
+    kind?: string | null;
+    sourceCatchId?: string | null;
+    sourceBaitId?: string | null;
+  }>,
+  match: {
+    sourceCatchId?: string | null;
+    sourceBaitId?: string | null;
+    day?: string | null;
+  },
+): string[] {
+  const day = parseDayKey(match.day);
+  const catchId = match.sourceCatchId?.trim() ?? "";
+  const baitId = match.sourceBaitId?.trim() ?? "";
+  const ids: string[] = [];
+  for (const note of notes) {
+    if (!isPlanSpotNote(note)) continue;
+    if (day && note.day !== day) continue;
+    if (catchId && note.sourceCatchId !== catchId) continue;
+    if (!catchId && baitId && note.sourceBaitId !== baitId) continue;
+    if (!catchId && !baitId) continue;
+    const id = note.id?.trim() ?? "";
+    if (!id || id.startsWith("local:")) continue;
+    ids.push(id);
+  }
+  return ids;
+}
+
+export type PlannedPhotoUnplanRequest =
+  | { mode: "journal-delete" }
+  | {
+      mode: "unplan";
+      calendarNoteId: string | null;
+      lookupPlanNotes: boolean;
+      returnTo: string;
+      day: string | null;
+    };
+
+/** Planned photo / Plan Delete → calendar note only. Calendar Log Delete stays journal-delete. */
+export function plannedPhotoUnplanRequest(ctx: {
+  fromPlan?: boolean;
+  planNote?: string | null;
+  planDay?: string | null;
+}): PlannedPhotoUnplanRequest {
+  if (!ctx.fromPlan) return { mode: "journal-delete" };
+  const target = planSpotRemoveTarget({
+    id: ctx.planNote,
+    kind: PLAN_SPOT_NOTE_KIND,
+  });
+  return {
+    mode: "unplan",
+    calendarNoteId: target?.calendarNoteId ?? null,
+    lookupPlanNotes: !target?.calendarNoteId,
+    returnTo: planHrefAfterUnplan(ctx.planDay),
+    day: parseDayKey(ctx.planDay),
+  };
+}
+
 /**
  * Planned chip/row → that bait or catch, even when there is no thumbnail.
  * Photo href is only a fallback for older place-only spots.
+ * Plan-spot rows add `from=plan` so detail Delete unplans instead of wiping the journal.
  */
 export function planSpotDetailHref(
   spot: PlanSpotSource,
@@ -234,10 +374,15 @@ export function planSpotDetailHref(
 ): string | null {
   const sourceCatchId = trimToNull(spot.sourceCatchId ?? spot.catchId, MAX_SOURCE_ID);
   const sourceBaitId = trimToNull(spot.sourceBaitId ?? spot.baitId, MAX_SOURCE_ID);
-  if (sourceBaitId && !sourceCatchId) return `/bait/${sourceBaitId}`;
-  if (sourceCatchId) return `/catch/${sourceCatchId}`;
-  const href = typeof photo?.href === "string" ? photo.href.trim() : "";
-  return href || null;
+  let href: string | null = null;
+  if (sourceBaitId && !sourceCatchId) href = `/bait/${sourceBaitId}`;
+  else if (sourceCatchId) href = `/catch/${sourceCatchId}`;
+  else {
+    const fallback = typeof photo?.href === "string" ? photo.href.trim() : "";
+    href = fallback || null;
+  }
+  if (!href) return null;
+  return isPlanSpotNote(spot) ? withPlannedPhotoContext(href, spot) : href;
 }
 
 export type PlannedSpotJournal = {
