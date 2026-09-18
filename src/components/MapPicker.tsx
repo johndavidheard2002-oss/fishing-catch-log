@@ -129,6 +129,8 @@ export function MapPicker({
         focusRef.current,
         current.latitude != null && current.longitude != null,
       );
+      instance.invalidateSize();
+      requestAnimationFrame(() => instance.invalidateSize());
 
       instance.on("click", (e: { latlng: { lat: number; lng: number } }) => {
         const L = LRef.current;

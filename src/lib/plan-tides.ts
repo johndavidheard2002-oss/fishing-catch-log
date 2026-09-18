@@ -535,11 +535,23 @@ export function sameTideChipsForSpots(
   day: string,
   journal: PlannedTideJournal = {},
   catchSnaps: Record<string, TideSnapshot | null | undefined> = {},
+  station?: Pick<PlannedTidePin, "latitude" | "longitude"> | null,
 ): Record<string, string> {
   const chips: Record<string, string> = {};
   if (!snap?.applies) return chips;
-  const ownPins = spots.map((spot) => pinForPlannedSpot(spot, journal));
-  const stationPin = ownPins.find((pin) => pin != null) ?? null;
+  const ownPins = spots.map((spot) => pinForPlannedSpot(spot, journal, station));
+  const stationPin =
+    ownPins.find((pin) => pin != null) ??
+    (station
+      ? {
+          latitude: station.latitude,
+          longitude: station.longitude,
+          habitat: null,
+          caughtAt: null,
+          tideHeightFt: null,
+          tide: null,
+        }
+      : null);
   const zone = timeZoneFromLongitude(stationPin?.longitude);
   spots.forEach((spot, index) => {
     const pin = ownPins[index] ?? pinForPlannedSpot(spot, journal, stationPin);

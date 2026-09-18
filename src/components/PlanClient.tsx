@@ -91,6 +91,14 @@ import {
   uniqueNotesByPlace,
   writeLastPlanDay,
 } from "@/lib/plan";
+import {
+  planDayTideStation,
+  readPlanDayTidePins,
+  seedPlanDayTidePin,
+  writePlanDayTidePin,
+  type PlanDayTidePin,
+} from "@/lib/plan-tide-pin";
+import { PlanDayMapSheet } from "@/components/PlanDayMapSheet";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
 import type {
@@ -162,6 +170,10 @@ function sessionStore(): Storage | null {
   return typeof sessionStorage === "undefined" ? null : sessionStorage;
 }
 
+function localStore(): Storage | null {
+  return typeof localStorage === "undefined" ? null : localStorage;
+}
+
 export function PlanClient({
   viewerId = "",
   initialDate,
@@ -229,6 +241,10 @@ export function PlanClient({
     snap: TideSnapshot | null;
     catchSnaps: Record<string, TideSnapshot | null>;
   }>({ detail: "", snap: null, catchSnaps: {} });
+  const [mapDay, setMapDay] = useState<string | null>(null);
+  const [dayTidePins, setDayTidePins] = useState<Record<string, PlanDayTidePin>>(() =>
+    readPlanDayTidePins(localStore()),
+  );
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
@@ -543,10 +559,12 @@ export function PlanClient({
   const friendOwnerName =
     selectedNotes.find((note) => note.ownerName?.trim())?.ownerName?.trim() ?? "";
   const tideJournal = { catches: journalCatches, baitSpots: journalBait };
-  const stationPin =
+  const spotStationPin =
     spotsOnDay
       .map((note) => pinForPlannedSpot(note, tideJournal))
       .find((pin): pin is PlannedTidePin => Boolean(pin)) ?? null;
+  const storedDayPin = selectedDay ? (dayTidePins[selectedDay] ?? null) : null;
+  const stationPin = planDayTideStation(storedDayPin, spotStationPin);
   const stationKey = stationPin
     ? `${stationPin.latitude.toFixed(4)},${stationPin.longitude.toFixed(4)}`
     : "";
@@ -583,7 +601,7 @@ export function PlanClient({
   }, [plannedCatchIds.join(","), journalCatches]);
 
   useEffect(() => {
-    if (!selectedDay || !spotsOnDay.length) {
+    if (!selectedDay) {
       setPlanTides((current) =>
         current.snap || current.detail
           ? { detail: "", snap: null, catchSnaps: current.catchSnaps }
@@ -591,7 +609,14 @@ export function PlanClient({
       );
       return;
     }
-    if (!stationPin) return;
+    if (!stationPin) {
+      setPlanTides((current) =>
+        current.snap || current.detail
+          ? { detail: "", snap: null, catchSnaps: current.catchSnaps }
+          : current,
+      );
+      return;
+    }
     let cancelled = false;
     const day = selectedDay;
     const pin = stationPin;
@@ -625,7 +650,8 @@ export function PlanClient({
   }, [selectedDay, stationKey]);
 
   useEffect(() => {
-    if (!selectedDay || !spotsOnDay.length) return;
+    if (!selectedDay) return;
+    if (!spotsOnDay.length) return;
     const lookups = catchTideLookupsForSpots(spotsOnDay, tideJournal, stationPin);
     const missing = [...lookups.entries()].filter(
       ([key, row]) => Boolean(catchTideLookupKey(row)) && !(key in catchSnapsRef.current),
@@ -677,6 +703,7 @@ export function PlanClient({
           selectedDay,
           { catches: journalCatches, baitSpots: journalBait },
           planTides.catchSnaps,
+          stationPin,
         )
       : {};
   const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions, {
@@ -811,9 +838,10 @@ export function PlanClient({
           Plan a day
         </h1>
         <p className="text-sm text-ink-muted">
-          Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
-          produced — including very strong matches with matching tides. Tap Add on a place to put
-          only that one place on the day. Add a note if you want. Tap a match to open that trip.
+          Tap one day on the calendar — a map opens so you can pin the water. We load that day’s
+          High and Low for the pin, then match tide, time, and weather to spots that produced.
+          Tap Add on a place to put only that one place on the day. Add a note if you want. Tap a
+          match to open that trip.
         </p>
         {pendingPlanPrompt(pendingSpot) ? (
           <p data-testid="plan-pending-spot" className="pt-1 text-sm font-semibold text-teal">
@@ -847,6 +875,7 @@ export function PlanClient({
           setSpotSaved(false);
           setAddError(null);
           setDeletingPlan(false);
+          setMapDay(picked.day);
           const pending = pendingSpotRef.current;
           if (pending) {
             writePendingPlanDay(
@@ -897,6 +926,16 @@ export function PlanClient({
                   <p data-testid="plan-day-tides" className="pt-1 text-sm font-semibold text-teal">
                     {planTides.detail}
                   </p>
+                ) : null}
+                {!viewingFriendPlan ? (
+                  <button
+                    type="button"
+                    data-testid="plan-day-map-open"
+                    onClick={() => setMapDay(selectedDay)}
+                    className="mt-1 text-xs font-semibold text-teal"
+                  >
+                    {stationPin ? "Move pin" : "Pin for tides"}
+                  </button>
                 ) : null}
               </div>
               {selectedNotes.length && !viewingFriendPlan ? (
@@ -1194,6 +1233,21 @@ export function PlanClient({
           )}
         </section>
       )}
+      {mapDay ? (
+        <PlanDayMapSheet
+          key={mapDay}
+          day={mapDay}
+          pin={seedPlanDayTidePin(
+            dayTidePins[mapDay] ?? null,
+            mapDay === selectedDay ? spotStationPin : null,
+          )}
+          tideDetail={mapDay === selectedDay ? planTides.detail : ""}
+          onChangePin={(next) => {
+            setDayTidePins(writePlanDayTidePin(mapDay, next, localStore()));
+          }}
+          onClose={() => setMapDay(null)}
+        />
+      ) : null}
       <SharedToggle includeShared={includeShared} onChange={setIncludeShared} />
     </div>
   );
