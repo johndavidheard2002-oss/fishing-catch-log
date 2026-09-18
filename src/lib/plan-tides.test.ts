@@ -1080,8 +1080,9 @@ describe("Plan Planned panel wires day tides", () => {
     expect(plan).toContain("selectPlanDay");
     expect(plan).toContain("data-no-tab-swipe");
     expect(plan).toContain('type="button"');
-    expect(plan).toContain("PlanDayMapSheet");
-    expect(plan).toContain("setMapDay(picked.day)");
-    expect(plan).toContain("planDayTideStation");
+    expect(plan).toContain("PlanDaySpotMap");
+    expect(plan).toContain("formatPlanDayWeather");
+    expect(plan).not.toContain("PlanDayMapSheet");
+    expect(plan).not.toContain("setMapDay(picked.day)");
   });
 });

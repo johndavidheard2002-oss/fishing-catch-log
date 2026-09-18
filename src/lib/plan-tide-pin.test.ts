@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  formatPlanDayWeather,
   PLAN_DAY_TIDE_PIN_STORAGE_KEY,
   parsePlanDayTidePin,
   planDayTidePinKey,
@@ -50,6 +51,15 @@ describe("plan day tide pin", () => {
       placeName: null,
     });
     expect(planDayTidePinKey(stored)).toBe("27.8400,-97.0500");
+    expect(
+      formatPlanDayWeather({
+        temperatureF: 84.2,
+        weatherCondition: "partly-cloudy",
+        windSpeedMph: 8,
+        windDirection: "SE",
+      }),
+    ).toBe("84°F · Partly cloudy · SE 8 mph");
+    expect(formatPlanDayWeather(null)).toBe("");
   });
 
   it("remembers a pin per plan day so continuing that day keeps the tide station", () => {
@@ -75,24 +85,33 @@ describe("plan day tide pin", () => {
   });
 });
 
-describe("Plan calendar opens a map to pin tides", () => {
-  it("wires date tap to a map overlay that loads that day’s tides at the pin", () => {
+describe("Plan day map sits above Suggested spots", () => {
+  it("shows an inline map to pick a spot for that day’s tides and weather", () => {
     const plan = readFileSync(resolve(__dirname, "../components/PlanClient.tsx"), "utf8");
-    const sheet = readFileSync(resolve(__dirname, "../components/PlanDayMapSheet.tsx"), "utf8");
+    const map = readFileSync(resolve(__dirname, "../components/PlanDaySpotMap.tsx"), "utf8");
     expect(plan).toContain("onClick={() => onSelectDay(cell.date)}");
-    expect(plan).toContain("setMapDay(picked.day)");
-    expect(plan).toContain("PlanDayMapSheet");
+    expect(plan).toContain("PlanDaySpotMap");
     expect(plan).toContain("planDayTideStation");
     expect(plan).toContain("writePlanDayTidePin");
     expect(plan).toContain("readPlanDayTidePins");
-    expect(plan).toContain('data-testid="plan-day-map-open"');
-    expect(sheet).toContain('data-testid="plan-day-map"');
-    expect(sheet).toContain('data-testid="plan-day-map-tides"');
-    expect(sheet).toContain("MapPicker");
-    expect(sheet).toContain("AreaNamePicker");
-    expect(sheet).toContain("useTownMapFocus");
-    expect(sheet).toContain("/api/assist/place");
+    expect(plan).toContain("formatPlanDayWeather");
+    expect(plan).toContain('data-testid="plan-day-weather"');
+    expect(plan).not.toContain("setMapDay");
+    expect(plan).not.toContain("PlanDayMapSheet");
+    expect(plan).not.toContain("createPortal");
+    expect(map).toContain('data-testid="plan-day-map"');
+    expect(map).toContain("Pick a spot to view tides and weather.");
+    expect(map).toContain('data-testid="plan-day-map-tides"');
+    expect(map).toContain('data-testid="plan-day-map-weather"');
+    expect(map).toContain("MapPicker");
+    expect(map).toContain("AreaNamePicker");
+    expect(map).toContain("useTownMapFocus");
+    expect(map).toContain("/api/assist/place");
+    expect(map).not.toContain("createPortal");
+    expect(map).not.toContain("fixed inset-0");
     expect(plan).toContain("stationKey");
     expect(plan).not.toContain("if (!selectedDay || !spotsOnDay.length)");
+    expect(plan.indexOf("<PlanDaySpotMap")).toBeGreaterThan(plan.indexOf('data-testid="plan-planned"'));
+    expect(plan.indexOf("<PlanDaySpotMap")).toBeLessThan(plan.indexOf('data-testid="plan-suggested-spots"'));
   });
 });

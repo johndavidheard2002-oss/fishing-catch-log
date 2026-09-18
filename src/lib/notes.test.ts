@@ -626,6 +626,10 @@ describe("Plan add-to-day UI", () => {
     expect(plan).not.toContain("ring-inset");
     expect(plan).toContain("overflow-visible");
     expect(plan.indexOf("<PlanDayCalendar")).toBeLessThan(plan.indexOf('data-testid="plan-planned"'));
+    expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(plan.indexOf("<PlanDaySpotMap"));
+    expect(plan.indexOf("<PlanDaySpotMap")).toBeLessThan(
+      plan.indexOf('data-testid="plan-suggested-spots"'),
+    );
     expect(plan.indexOf('data-testid="plan-planned"')).toBeLessThan(
       plan.indexOf('data-testid="plan-suggested-spots"'),
     );

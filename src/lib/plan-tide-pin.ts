@@ -1,5 +1,7 @@
 import { parsePlanDate } from "./plan";
 import type { PlannedTidePin } from "./plan-tides";
+import { conditionLabel } from "./similar";
+import type { WeatherSnapshot } from "./types";
 
 /** Survives refresh so a Plan day keeps the tide station the angler pinned. */
 export const PLAN_DAY_TIDE_PIN_STORAGE_KEY = "tide-mark-plan-day-tide-pins";
@@ -110,4 +112,31 @@ export function writePlanDayTidePin(
     /* private browsing */
   }
   return current;
+}
+
+/** Plan-day weather line at the pinned spot — temp, sky, wind. */
+export function formatPlanDayWeather(
+  weather?: Pick<
+    WeatherSnapshot,
+    "temperatureF" | "weatherCondition" | "windSpeedMph" | "windDirection"
+  > | null,
+): string {
+  if (!weather) return "";
+  const bits: string[] = [];
+  if (weather.temperatureF != null && Number.isFinite(weather.temperatureF)) {
+    bits.push(`${Math.round(weather.temperatureF)}°F`);
+  }
+  if (weather.weatherCondition) {
+    bits.push(conditionLabel(weather.weatherCondition));
+  }
+  if (weather.windSpeedMph != null && Number.isFinite(weather.windSpeedMph)) {
+    bits.push(
+      weather.windDirection
+        ? `${weather.windDirection} ${Math.round(weather.windSpeedMph)} mph`
+        : `${Math.round(weather.windSpeedMph)} mph`,
+    );
+  } else if (weather.windDirection) {
+    bits.push(weather.windDirection);
+  }
+  return bits.join(" · ");
 }

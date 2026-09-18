@@ -44,8 +44,8 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: "Plan a day",
     steps: [
-      "Pick a day on the calendar — a map opens so you can pin the water.",
-      "That day’s High and Low load for the pin, then we suggest spots that match tides and weather from your log.",
+      "Pick a day on the calendar.",
+      "Pick a spot to view tides and weather.",
       "Tap Add on a place to put only that one place on that day.",
       "Added places and notes sit in Planned, under the calendar.",
       "Add a short day label if you want — it shows on the Plan calendar.",
