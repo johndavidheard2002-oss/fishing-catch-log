@@ -8,6 +8,7 @@ import {
   heightAndDirectionAt,
   pickSameTideMatch,
   parseTideExtremes,
+  sameDirectionMatches,
   sameTideMatches,
   timeZoneFromLongitude,
   type SameTideMatch,
@@ -210,11 +211,11 @@ function chipFromMatches(
   timeZone?: string,
   allowExtreme = true,
 ): string {
-  const match =
-    pickSameTideMatch(matches, preferDir, clock, timeZone) ??
-    pickSameTideMatch(matches, null, clock, timeZone);
+  // Known incoming/outgoing: never label the opposite flood/ebb as a matching tide.
+  const pool = preferDir ? matches.filter((m) => m.direction === preferDir) : matches;
+  const usable = allowExtreme ? pool : pool.filter((m) => !m.onExtreme);
+  const match = pickSameTideMatch(usable, preferDir, clock, timeZone);
   if (!match) return "";
-  if (!allowExtreme && match.onExtreme) return "";
   return formatSameTideLabel(match, timeZone);
 }
 
@@ -222,8 +223,10 @@ function mappedClockChip(
   sampled: { heightFt: number; direction: "rising" | "falling" } | null,
   mapped: Date | null,
   timeZone?: string,
+  preferDir: ReturnType<typeof directionFromTide> = null,
 ): string {
   if (!sampled || !mapped) return "";
+  if (preferDir && sampled.direction !== preferDir) return "";
   return formatSameTideLabel(
     {
       at: mapped,
@@ -266,8 +269,8 @@ function dayHighLowChip(
     isoOnCivilDay(snap.nextLowAt, day, timeZone);
   const high = formatTideClock(highIso, timeZone);
   const low = formatTideClock(lowIso, timeZone);
-  if (preferDir === "falling" && high) return `High ${high}`;
-  if (preferDir === "rising" && low) return `${low} incoming`;
+  if (preferDir === "falling") return high ? `High ${high}` : "";
+  if (preferDir === "rising") return low ? `${low} incoming` : "";
   if (low) return `${low} incoming`;
   if (high) return `High ${high}`;
   return "";
@@ -291,10 +294,18 @@ export function fallbackChipFromDayTides(
   if (day && extremes.length >= 2) {
     if (sampled && Number.isFinite(sampled.heightFt)) {
       const matches = sameTideMatches(extremes, sampled.heightFt, day, timeZone);
-      const label = chipFromMatches(matches, preferDir, mapped, timeZone);
+      let label = chipFromMatches(matches, preferDir, mapped, timeZone);
+      if (!label && preferDir) {
+        label = chipFromMatches(
+          sameDirectionMatches(extremes, sampled.heightFt, day, timeZone, preferDir),
+          preferDir,
+          mapped,
+          timeZone,
+        );
+      }
       if (label) return label;
     }
-    const mappedLabel = mappedClockChip(sampled, mapped, timeZone);
+    const mappedLabel = mappedClockChip(sampled, mapped, timeZone, preferDir);
     if (mappedLabel) return mappedLabel;
   }
   return dayHighLowChip(snap, day, timeZone, preferDir);
@@ -385,14 +396,14 @@ export function applyCatchTideSnapshot(
 ): PlannedTidePin {
   if (!catchSnap?.applies) return pin;
   let height = catchSnap.heightFt ?? pin.tideHeightFt;
-  let tide = catchSnap.tide ?? pin.tide;
+  let tide = directionFromTide(pin.tide) ? pin.tide : (catchSnap.tide ?? pin.tide);
   if (pin.caughtAt && (catchSnap.extremes?.length ?? 0) >= 2) {
     const sampled = heightAndDirectionAt(catchSnap.extremes, new Date(pin.caughtAt));
     if (sampled) {
       if (catchSnap.heightFt == null || !Number.isFinite(catchSnap.heightFt)) {
         height = sampled.heightFt;
       }
-      if (!tide) {
+      if (!directionFromTide(tide)) {
         tide = sampled.direction === "rising" ? "incoming" : "outgoing";
       }
     }
@@ -479,10 +490,15 @@ export function plannedSpotSameTide(
     if (height == null || !Number.isFinite(height)) {
       height = sampled?.heightFt ?? null;
     }
-    const prefer =
+    const catchSampled =
+      pin.caughtAt && catchSnap?.applies && (catchSnap.extremes?.length ?? 0) >= 2
+        ? heightAndDirectionAt(catchSnap.extremes, new Date(pin.caughtAt))
+        : null;
+    const preferDir =
       directionFromTide(pin.tide) ??
-      (sampled ? (sampled.direction === "rising" ? "incoming" : "outgoing") : null);
-    const preferDir = directionFromTide(prefer);
+      directionFromTide(catchSnap?.tide) ??
+      catchSampled?.direction ??
+      null;
     const clock = preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : mapped;
     if (height != null && Number.isFinite(height)) {
       let matches = sameTideMatches(extremes, height, day, zone);
@@ -491,14 +507,23 @@ export function plannedSpotSameTide(
         matches = sameTideMatches(extremes, clamped, day, zone);
         remappedFromOutside = remappedFromOutside || !inDayRange;
       }
-      const label = chipFromMatches(matches, preferDir, clock, zone, !remappedFromOutside);
+      let label = chipFromMatches(matches, preferDir, clock, zone, !remappedFromOutside);
+      if (!label && preferDir) {
+        // Same-direction High↔Low crossing only — never the opposite flood/ebb.
+        label = chipFromMatches(
+          sameDirectionMatches(extremes, height, day, zone, preferDir),
+          preferDir,
+          clock,
+          zone,
+        );
+      }
       if (label) return label;
     }
-    const fallback = mappedClockChip(sampled, mapped, zone);
+    const fallback = mappedClockChip(sampled, mapped, zone, preferDir);
     if (fallback) return fallback;
-    return fallbackChipFromDayTides(snap, day, zone, prefer);
+    return fallbackChipFromDayTides(snap, day, zone, preferDir);
   }
-  const mappedLabel = mappedClockChip(sampled, mapped, zone);
+  const mappedLabel = mappedClockChip(sampled, mapped, zone, directionFromTide(pin?.tide));
   if (mappedLabel) return mappedLabel;
   return fallbackChipFromDayTides(snap, day, zone, pin?.tide);
 }

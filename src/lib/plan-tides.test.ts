@@ -16,6 +16,7 @@ import {
 } from "./plan-tides";
 import { uniqueNotesByPlace } from "./plan";
 import type { TideSnapshot } from "./tides/snapshot";
+import { heightAndDirectionAt } from "./tides/snapshot";
 
 const extremes = [
   { at: "2026-10-10T05:46:00.000Z", type: "low" as const, heightFt: 0.5 },
@@ -179,6 +180,116 @@ describe("planned day and photo tide labels", () => {
         },
       ),
     ).toBe("7:50 AM incoming");
+  });
+
+  it("on a High AM / Low PM day prefers afternoon outgoing over 11:08 PM incoming", () => {
+    // Tim's trip Sat Sep 19 — Enbridge, Ingleside. Height that crosses at 11:08 PM incoming
+    // also crosses High→Low outgoing in the afternoon. Mud Island was outgoing.
+    const inglesideSep19: TideSnapshot = {
+      applies: true,
+      tide: "incoming",
+      heightFt: 0.35,
+      nextHighAt: "2026-09-19T12:39:00.000Z",
+      nextHighFt: 0.8,
+      nextLowAt: "2026-09-20T01:13:00.000Z",
+      nextLowFt: 0.2,
+      source: "noaa",
+      note: "",
+      stationName: "Enbridge, Ingleside",
+      extremes: [
+        { at: "2026-09-19T05:13:00.000Z", type: "low", heightFt: 0.2 },
+        { at: "2026-09-19T12:39:00.000Z", type: "high", heightFt: 0.8 },
+        { at: "2026-09-20T01:13:00.000Z", type: "low", heightFt: 0.2 },
+        { at: "2026-09-20T13:00:00.000Z", type: "high", heightFt: 0.8 },
+      ],
+    };
+    const zone = "America/Chicago";
+    const height = heightAndDirectionAt(inglesideSep19.extremes, new Date("2026-09-20T04:08:00.000Z"))
+      ?.heightFt;
+    expect(height).toBeTruthy();
+    const pin = {
+      latitude: 27.877,
+      longitude: -97.211,
+      habitat: "saltwater-inshore" as const,
+      caughtAt: "2026-08-02T04:08:00.000Z", // 11:08 PM CDT
+      tideHeightFt: height!,
+      tide: "outgoing",
+    };
+    const label = plannedSpotSameTide(inglesideSep19, "2026-09-19", pin, zone);
+    expect(label).toMatch(/PM outgoing/);
+    expect(label).not.toMatch(/incoming/i);
+    expect(label).not.toBe("11:08 PM incoming");
+    expect(label).not.toMatch(/^Low\b/);
+
+    const flippedByCatchSnap = plannedSpotSameTide(
+      inglesideSep19,
+      "2026-09-19",
+      pin,
+      zone,
+      {
+        applies: true,
+        tide: "incoming",
+        heightFt: height!,
+        nextHighAt: null,
+        nextHighFt: null,
+        nextLowAt: null,
+        nextLowFt: null,
+        source: "noaa",
+        note: "",
+      },
+    );
+    expect(flippedByCatchSnap).toBe(label);
+
+    const onlyOppositeHeight = plannedSpotSameTide(
+      {
+        ...inglesideSep19,
+        extremes: [
+          { at: "2026-09-19T12:39:00.000Z", type: "high", heightFt: 0.8 },
+          { at: "2026-09-20T01:13:00.000Z", type: "low", heightFt: 0.2 },
+          { at: "2026-09-20T13:00:00.000Z", type: "high", heightFt: 1.0 },
+        ],
+      },
+      "2026-09-19",
+      { ...pin, tideHeightFt: 0.9, tide: "outgoing" },
+      zone,
+    );
+    expect(onlyOppositeHeight).not.toMatch(/incoming/i);
+    expect(onlyOppositeHeight).toMatch(/outgoing|^High /);
+
+    const mud = catchOf({
+      id: "c-mud",
+      placeName: "Mud island",
+      habitat: "saltwater-inshore",
+      latitude: 27.877,
+      longitude: -97.211,
+      caughtAt: pin.caughtAt,
+      tide: "outgoing",
+      tideHeightFt: height!,
+    });
+    const spots = [{ id: "n-mud", placeName: mud.placeName, sourceCatchId: mud.id }];
+    const catchSnapIncoming: TideSnapshot = {
+      applies: true,
+      tide: "incoming",
+      heightFt: height!,
+      nextHighAt: null,
+      nextHighFt: null,
+      nextLowAt: null,
+      nextLowFt: null,
+      source: "noaa",
+      note: "",
+    };
+    expect(applyCatchTideSnapshot(pin, catchSnapIncoming).tide).toBe("outgoing");
+    const mudPin = pinForPlannedSpot(spots[0], { catches: [mud] });
+    const chips = sameTideChipsForSpots(
+      spots,
+      inglesideSep19,
+      "2026-09-19",
+      { catches: [mud] },
+      { [catchTideLookupKey(mudPin)!]: catchSnapIncoming },
+    );
+    expect(chips["n-mud"]).toMatch(/PM outgoing/);
+    expect(chips["n-mud"]).not.toMatch(/incoming/i);
+    expect(chips["n-mud"]).not.toBe("11:08 PM incoming");
   });
 
   it("chips every planned Redfish row at the same hole, including stored heights off that day's range", () => {
@@ -962,6 +1073,8 @@ describe("Plan Planned panel wires day tides", () => {
     expect(tides).toContain("mappedClockChip");
     expect(tides).toContain("catchNeedsPlanTideFetch");
     expect(tides).toContain("dayHighLowChip");
+    expect(tides).toContain("sameDirectionMatches");
+    expect(tides).not.toContain("pickSameTideMatch(matches, null, clock, timeZone)");
     expect(tides).not.toContain("sameTideCrossings(extremes, clamped)");
     expect(tides).not.toContain("sameTideCrossings(extremes, height)");
     expect(plan).toContain("selectPlanDay");
