@@ -5,7 +5,9 @@ import {
   formatSameTideLabel,
   formatTideClock,
   formatTideDetail,
+  heightAndDirectionAt,
   pickSameTideMatch,
+  sameDirectionMatches,
   sameTideCrossings,
   sameTideMatches,
   snapshotFromExtremes,
@@ -223,7 +225,45 @@ describe("sameTideMatches", () => {
     expect(pickSameTideMatch(matches, "rising")?.direction).toBe("rising");
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "rising"), "falling")).toBeNull();
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "falling"), "rising")).toBeNull();
+    expect(pickSameTideMatch(matches, "outgoing")?.direction).toBe("falling");
     expect(pickSameTideMatch(matches, null)?.direction).toBe("rising");
+  });
+
+  it("prefers High→Low outgoing over post-Low incoming on a High AM / Low PM day", () => {
+    // Enbridge, Ingleside Sat Sep 19: High 7:39 AM 0.8 ft · Low 8:13 PM 0.2 ft
+    const extremes = [
+      { at: "2026-09-19T12:39:00.000Z", type: "high" as const, heightFt: 0.8 },
+      { at: "2026-09-20T01:13:00.000Z", type: "low" as const, heightFt: 0.2 },
+      { at: "2026-09-20T13:00:00.000Z", type: "high" as const, heightFt: 0.8 },
+    ];
+    const zone = "America/Chicago";
+    const evening = new Date("2026-09-20T04:08:00.000Z"); // 11:08 PM CDT
+    const sampled = heightAndDirectionAt(extremes, evening);
+    expect(sampled?.direction).toBe("rising");
+    const height = sampled!.heightFt;
+    const matches = sameTideMatches(extremes, height, "2026-09-19", zone);
+    expect(matches.map((m) => m.direction).sort()).toEqual(["falling", "rising"]);
+    const falling = pickSameTideMatch(matches, "falling", evening, zone);
+    const rising = pickSameTideMatch(matches, "rising", evening, zone);
+    expect(falling?.direction).toBe("falling");
+    expect(rising?.direction).toBe("rising");
+    expect(formatSameTideLabel(falling, zone)).toMatch(/PM outgoing/);
+    expect(formatSameTideLabel(rising, zone)).toBe("11:08 PM incoming");
+    expect(formatSameTideLabel(falling, zone)).not.toMatch(/incoming/i);
+    expect(pickSameTideMatch(matches.filter((m) => m.direction === "rising"), "falling", evening, zone)).toBeNull();
+    expect(sameDirectionMatches(extremes, height, "2026-09-19", zone, "falling")).toHaveLength(1);
+    expect(sameDirectionMatches(extremes, height, "2026-09-19", zone, "falling")[0]?.direction).toBe(
+      "falling",
+    );
+    expect(
+      formatSameTideLabel(
+        pickSameTideMatch(
+          sameDirectionMatches(extremes, 0.9, "2026-09-19", zone, "falling"),
+          "falling",
+        ),
+        zone,
+      ),
+    ).toMatch(/^High /);
   });
 
   it("clamps a stored height onto the day's High/Low range", () => {

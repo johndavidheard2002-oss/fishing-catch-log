@@ -308,13 +308,14 @@ export function heightAndDirectionAt(
 
 export function pickSameTideMatch(
   matches: SameTideMatch[],
-  prefer?: TideDirection | null,
+  prefer?: TideDirection | string | null,
   preferAt?: Date | null,
   timeZone?: string,
 ): SameTideMatch | null {
   if (!matches.length) return null;
   // Known incoming/outgoing: never return the opposite flood/ebb.
-  const pool = prefer ? matches.filter((m) => m.direction === prefer) : matches;
+  const preferDir = directionFromTide(prefer);
+  const pool = preferDir ? matches.filter((m) => m.direction === preferDir) : matches;
   if (!pool.length) return null;
   if (pool.length === 1 || !preferAt || Number.isNaN(preferAt.getTime())) {
     return pool[0] ?? null;
@@ -325,6 +326,70 @@ export function pickSameTideMatch(
     const curDt = Math.abs(civilClockMinutes(cur.at, timeZone) - targetMin);
     return curDt < bestDt ? cur : best;
   });
+}
+
+function segmentOverlapsCivilDay(
+  a: TideExtreme,
+  b: TideExtreme,
+  day: string,
+  timeZone?: string,
+): boolean {
+  return civilDateKey(a.at, timeZone) === day || civilDateKey(b.at, timeZone) === day;
+}
+
+function matchFromCrossing(
+  a: TideExtreme,
+  b: TideExtreme,
+  at: Date,
+  heightFt: number,
+): SameTideMatch {
+  const direction: TideDirection = b.heightFt > a.heightFt ? "rising" : "falling";
+  const onA = Math.abs(at.getTime() - a.at.getTime()) <= ON_EXTREME_MS;
+  const onB = Math.abs(at.getTime() - b.at.getTime()) <= ON_EXTREME_MS;
+  return {
+    at,
+    direction,
+    heightFt,
+    onExtreme: onA ? a.type : onB ? b.type : null,
+  };
+}
+
+/**
+ * Same-height crossings on this civil day in `prefer` only.
+ * If the equal-height instant is only on the opposite flood/ebb, interpolate
+ * (clamped) onto a same-direction High↔Low segment that overlaps the day —
+ * never return the opposite incoming/outgoing as a matching tide.
+ */
+export function sameDirectionMatches(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  targetHeightFt: number,
+  day: string,
+  timeZone: string | undefined,
+  prefer: TideDirection,
+): SameTideMatch[] {
+  const preferredOnDay = sameTideMatches(extremes, targetHeightFt, day, timeZone).filter(
+    (match) => match.direction === prefer,
+  );
+  if (preferredOnDay.length) return preferredOnDay;
+  const sorted = parseTideExtremes(extremes);
+  if (sorted.length < 2 || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [];
+  const matches: SameTideMatch[] = [];
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = sorted[i];
+    const b = sorted[i + 1];
+    const direction: TideDirection = b.heightFt > a.heightFt ? "rising" : "falling";
+    if (direction !== prefer) continue;
+    if (!segmentOverlapsCivilDay(a, b, day, timeZone)) continue;
+    const min = Math.min(a.heightFt, b.heightFt);
+    const max = Math.max(a.heightFt, b.heightFt);
+    const height = Number.isFinite(targetHeightFt)
+      ? Math.min(max, Math.max(min, targetHeightFt))
+      : min;
+    const at = interpolateHeightCrossing(a, b, height);
+    if (!at || civilDateKey(at, timeZone) !== day) continue;
+    matches.push(matchFromCrossing(a, b, at, height));
+  }
+  return matches;
 }
 
 export function formatSameTideLabel(

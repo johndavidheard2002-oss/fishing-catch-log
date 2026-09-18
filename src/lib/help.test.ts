@@ -33,7 +33,7 @@ describe("HELP_SECTIONS", () => {
     ).toBe(true);
     expect(
       HELP_SECTIONS.find((section) => section.title === "Plan a day")?.steps.some((step) =>
-        step.includes("Tap a match") && step.includes("photo and map"),
+        step === "Pick a spot to view tides and weather.",
       ),
     ).toBe(true);
     expect(

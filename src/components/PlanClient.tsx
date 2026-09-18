@@ -91,6 +91,15 @@ import {
   uniqueNotesByPlace,
   writeLastPlanDay,
 } from "@/lib/plan";
+import {
+  formatPlanDayWeather,
+  planDayTideStation,
+  readPlanDayTidePins,
+  seedPlanDayTidePin,
+  writePlanDayTidePin,
+  type PlanDayTidePin,
+} from "@/lib/plan-tide-pin";
+import { PlanDaySpotMap } from "@/components/PlanDaySpotMap";
 import { formatDateOnly, formatWeekdayDate } from "@/lib/time";
 import { conditionLabel, veryStrongMatchChip, veryStrongMatchLabel } from "@/lib/similar";
 import type {
@@ -162,6 +171,10 @@ function sessionStore(): Storage | null {
   return typeof sessionStorage === "undefined" ? null : sessionStorage;
 }
 
+function localStore(): Storage | null {
+  return typeof localStorage === "undefined" ? null : localStorage;
+}
+
 export function PlanClient({
   viewerId = "",
   initialDate,
@@ -226,9 +239,13 @@ export function PlanClient({
   const [journalBait, setJournalBait] = useState<BaitSpot[]>([]);
   const [planTides, setPlanTides] = useState<{
     detail: string;
+    weatherDetail: string;
     snap: TideSnapshot | null;
     catchSnaps: Record<string, TideSnapshot | null>;
-  }>({ detail: "", snap: null, catchSnaps: {} });
+  }>({ detail: "", weatherDetail: "", snap: null, catchSnaps: {} });
+  const [dayTidePins, setDayTidePins] = useState<Record<string, PlanDayTidePin>>(() =>
+    readPlanDayTidePins(localStore()),
+  );
   const resultsRef = useRef<HTMLElement | null>(null);
   const pendingDayRef = useRef<string | null>(null);
   const plannedPhotoCacheRef = useRef<ReturnType<typeof photosForPlannedPlaces>>([]);
@@ -543,10 +560,12 @@ export function PlanClient({
   const friendOwnerName =
     selectedNotes.find((note) => note.ownerName?.trim())?.ownerName?.trim() ?? "";
   const tideJournal = { catches: journalCatches, baitSpots: journalBait };
-  const stationPin =
+  const spotStationPin =
     spotsOnDay
       .map((note) => pinForPlannedSpot(note, tideJournal))
       .find((pin): pin is PlannedTidePin => Boolean(pin)) ?? null;
+  const storedDayPin = selectedDay ? (dayTidePins[selectedDay] ?? null) : null;
+  const stationPin = planDayTideStation(storedDayPin, spotStationPin);
   const stationKey = stationPin
     ? `${stationPin.latitude.toFixed(4)},${stationPin.longitude.toFixed(4)}`
     : "";
@@ -583,15 +602,22 @@ export function PlanClient({
   }, [plannedCatchIds.join(","), journalCatches]);
 
   useEffect(() => {
-    if (!selectedDay || !spotsOnDay.length) {
+    if (!selectedDay) {
       setPlanTides((current) =>
-        current.snap || current.detail
-          ? { detail: "", snap: null, catchSnaps: current.catchSnaps }
+        current.snap || current.detail || current.weatherDetail
+          ? { detail: "", weatherDetail: "", snap: null, catchSnaps: current.catchSnaps }
           : current,
       );
       return;
     }
-    if (!stationPin) return;
+    if (!stationPin) {
+      setPlanTides((current) =>
+        current.snap || current.detail || current.weatherDetail
+          ? { detail: "", weatherDetail: "", snap: null, catchSnaps: current.catchSnaps }
+          : current,
+      );
+      return;
+    }
     let cancelled = false;
     const day = selectedDay;
     const pin = stationPin;
@@ -599,6 +625,7 @@ export function PlanClient({
     if (!at) return;
     void (async () => {
       let snap: TideSnapshot | null = null;
+      let weatherDetail = "";
       try {
         const res = await fetch("/api/assist/weather", {
           method: "POST",
@@ -612,12 +639,14 @@ export function PlanClient({
         });
         const data = res.ok ? await res.json() : null;
         snap = (data?.tide as TideSnapshot | undefined) ?? null;
+        weatherDetail = formatPlanDayWeather(data?.weather ?? null);
       } catch {
         snap = null;
+        weatherDetail = "";
       }
-      if (cancelled || !snap) return;
-      const detail = plannedDayTideDetail(snap, pin.longitude);
-      setPlanTides((current) => ({ ...current, detail, snap }));
+      if (cancelled) return;
+      const detail = snap ? plannedDayTideDetail(snap, pin.longitude) : "";
+      setPlanTides((current) => ({ ...current, detail, weatherDetail, snap }));
     })();
     return () => {
       cancelled = true;
@@ -625,7 +654,8 @@ export function PlanClient({
   }, [selectedDay, stationKey]);
 
   useEffect(() => {
-    if (!selectedDay || !spotsOnDay.length) return;
+    if (!selectedDay) return;
+    if (!spotsOnDay.length) return;
     const lookups = catchTideLookupsForSpots(spotsOnDay, tideJournal, stationPin);
     const missing = [...lookups.entries()].filter(
       ([key, row]) => Boolean(catchTideLookupKey(row)) && !(key in catchSnapsRef.current),
@@ -677,6 +707,7 @@ export function PlanClient({
           selectedDay,
           { catches: journalCatches, baitSpots: journalBait },
           planTides.catchSnaps,
+          stationPin,
         )
       : {};
   const freshPlannedPhotos = photosForPlannedPlaces(spotsOnDay, suggestions, baitSuggestions, {
@@ -811,9 +842,9 @@ export function PlanClient({
           Plan a day
         </h1>
         <p className="text-sm text-ink-muted">
-          Tap one day on the calendar. We match that date’s tide, time, and weather to spots that
-          produced — including very strong matches with matching tides. Tap Add on a place to put
-          only that one place on the day. Add a note if you want. Tap a match to open that trip.
+          Tap one day on the calendar. Pick a spot to view tides and weather. We match that date’s
+          tide, time, and weather to spots that produced. Tap Add on a place to put only that one place
+          on the day. Add a note if you want. Tap a match to open that trip.
         </p>
         {pendingPlanPrompt(pendingSpot) ? (
           <p data-testid="plan-pending-spot" className="pt-1 text-sm font-semibold text-teal">
@@ -896,6 +927,11 @@ export function PlanClient({
                 {planTides.detail ? (
                   <p data-testid="plan-day-tides" className="pt-1 text-sm font-semibold text-teal">
                     {planTides.detail}
+                  </p>
+                ) : null}
+                {planTides.weatherDetail ? (
+                  <p data-testid="plan-day-weather" className="pt-1 text-sm font-semibold text-teal">
+                    {planTides.weatherDetail}
                   </p>
                 ) : null}
               </div>
@@ -1114,6 +1150,15 @@ export function PlanClient({
               {lookupFailure}
             </p>
           ) : null}
+          <PlanDaySpotMap
+            key={selectedDay}
+            pin={seedPlanDayTidePin(storedDayPin, spotStationPin)}
+            tideDetail={planTides.detail}
+            weatherDetail={planTides.weatherDetail}
+            onChangePin={(next) => {
+              setDayTidePins(writePlanDayTidePin(selectedDay, next, localStore()));
+            }}
+          />
           {!plan && !error ? (
             <p className="on-wash-chip text-sm">Matching that day to your journal…</p>
           ) : error ? (
