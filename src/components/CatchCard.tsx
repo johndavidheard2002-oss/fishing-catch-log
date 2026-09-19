@@ -11,6 +11,7 @@ import { canShowAddToPlan, pendingPlanSpotFromCatch } from "@/lib/pending-plan-s
 import { catchPhotoFilename, isSampleCatchPhoto, photoSrc, weatherLine } from "@/lib/photo";
 import { catchDetailHref, isPendingCatchId } from "@/lib/offline";
 import { WaitingForServiceChip } from "@/components/OfflineBanners";
+import { CatchPhotoTideHeightBadge } from "@/components/PhotoTideHeightBadge";
 import type { CatchRecord } from "@/lib/types";
 
 function photoFilename(record: CatchRecord): string {
@@ -96,6 +97,7 @@ export function CatchCard({
             No photo
           </div>
         )}
+        <CatchPhotoTideHeightBadge record={record} />
         {theirs ? (
           <SharedOwnerBadge name={record.ownerName} compact={compact} />
         ) : null}
@@ -161,6 +163,7 @@ export function CatchGridCard({
               No photo
             </div>
           )}
+          <CatchPhotoTideHeightBadge record={record} />
           {theirs ? <SharedOwnerBadge name={record.ownerName} /> : null}
         </Link>
       </div>
