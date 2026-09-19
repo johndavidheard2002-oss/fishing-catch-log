@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { getTideSnapshot } from "./index";
 import {
   clampHeightToExtremes,
+  directionFromTide,
   formatSameTideLabel,
   formatTideClock,
   formatTideDetail,
   heightAndDirectionAt,
+  incomingOutgoingLabel,
   pickSameTideMatch,
   sameDirectionMatches,
   sameTideCrossings,
@@ -211,11 +213,20 @@ describe("sameTideMatches", () => {
     const falling = pickSameTideMatch(matches, "falling");
     expect(falling?.direction).toBe("falling");
     expect(falling?.onExtreme).toBeNull();
-    expect(formatSameTideLabel(falling, "America/New_York")).toBe("8:28 AM outgoing");
+    expect(formatSameTideLabel(falling, "America/New_York")).toBe("8:28 AM dropping");
     expect(formatSameTideLabel(falling, "America/New_York")).not.toMatch(/^Low\b/);
+    expect(formatSameTideLabel(falling, "America/New_York")).not.toMatch(/incoming|outgoing/i);
     const rising = pickSameTideMatch(matches, "rising");
     expect(rising?.direction).toBe("rising");
     expect(formatSameTideLabel(rising, "America/New_York")).toBe("7:50 AM incoming");
+  });
+
+  it("prints dropping for falling and incoming for rising", () => {
+    expect(incomingOutgoingLabel("falling")).toBe("dropping");
+    expect(incomingOutgoingLabel("rising")).toBe("incoming");
+    expect(directionFromTide("dropping")).toBe("falling");
+    expect(directionFromTide("outgoing")).toBe("falling");
+    expect(directionFromTide("incoming")).toBe("rising");
   });
 
   it("never returns the opposite incoming/outgoing when both heights exist", () => {
@@ -229,7 +240,7 @@ describe("sameTideMatches", () => {
     expect(pickSameTideMatch(matches, null)?.direction).toBe("rising");
   });
 
-  it("prefers High→Low outgoing over post-Low incoming on a High AM / Low PM day", () => {
+  it("prefers High→Low dropping over post-Low incoming on a High AM / Low PM day", () => {
     // Enbridge, Ingleside Sat Sep 19: High 7:39 AM 0.8 ft · Low 8:13 PM 0.2 ft
     const extremes = [
       { at: "2026-09-19T12:39:00.000Z", type: "high" as const, heightFt: 0.8 },
@@ -247,9 +258,9 @@ describe("sameTideMatches", () => {
     const rising = pickSameTideMatch(matches, "rising", evening, zone);
     expect(falling?.direction).toBe("falling");
     expect(rising?.direction).toBe("rising");
-    expect(formatSameTideLabel(falling, zone)).toMatch(/PM outgoing/);
+    expect(formatSameTideLabel(falling, zone)).toMatch(/PM dropping/);
     expect(formatSameTideLabel(rising, zone)).toBe("11:08 PM incoming");
-    expect(formatSameTideLabel(falling, zone)).not.toMatch(/incoming/i);
+    expect(formatSameTideLabel(falling, zone)).not.toMatch(/incoming|outgoing/i);
     expect(pickSameTideMatch(matches.filter((m) => m.direction === "rising"), "falling", evening, zone)).toBeNull();
     expect(sameDirectionMatches(extremes, height, "2026-09-19", zone, "falling")).toHaveLength(1);
     expect(sameDirectionMatches(extremes, height, "2026-09-19", zone, "falling")[0]?.direction).toBe(
