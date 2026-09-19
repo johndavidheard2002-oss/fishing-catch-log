@@ -511,7 +511,7 @@ describe("planned day and photo tide labels", () => {
       { catches: [mud, corpus] },
       {
         [catchTideLookupKey(pinForPlannedSpot(
-          { id: "n-mud", placeName: mud.placeName, sourceCatchId: mud.id },
+          { placeName: mud.placeName, sourceCatchId: mud.id },
           { catches: [mud] },
         ))!]: catchDayOutgoing,
       },
