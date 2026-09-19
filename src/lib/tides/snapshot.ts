@@ -188,9 +188,48 @@ export function directionFromTide(tide?: string | null): TideDirection | null {
   return null;
 }
 
-/** Plan matching-tide chips: rising → incoming, falling → dropping. Storage stays incoming/outgoing. */
-export function incomingOutgoingLabel(direction: TideDirection): "incoming" | "dropping" {
-  return direction === "rising" ? "incoming" : "dropping";
+/**
+ * Flood/ebb only for matching-tide chips. Named High/Low are not a limb —
+ * treating "low" as rising glued afternoon outgoing catches to post-Low incoming.
+ */
+export function explicitFloodEbbDirection(tide?: string | null): TideDirection | null {
+  const value = tide?.trim().toLowerCase() ?? "";
+  if (value === "incoming" || value === "rising" || value === "flood") return "rising";
+  if (value === "outgoing" || value === "falling" || value === "ebb" || value === "dropping") {
+    return "falling";
+  }
+  return null;
+}
+
+/** Plan matching-tide chips: rising → incoming, falling → outgoing. Storage stays incoming/outgoing. */
+export function incomingOutgoingLabel(direction: TideDirection): "incoming" | "outgoing" {
+  return direction === "rising" ? "incoming" : "outgoing";
+}
+
+/**
+ * Incoming/outgoing from named High/Low around `at` (civil-day phase).
+ * After High until Low → outgoing; after Low until next High → incoming;
+ * before morning High → incoming.
+ */
+export function directionFromDayPhase(
+  extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
+  at: Date,
+  _timeZone?: string,
+): TideDirection | null {
+  if (Number.isNaN(at.getTime())) return null;
+  const sorted = parseTideExtremes(extremes);
+  if (!sorted.length) return null;
+  const t = at.getTime();
+  let prev: TideExtreme | null = null;
+  let next: TideExtreme | null = null;
+  for (const row of sorted) {
+    if (row.at.getTime() <= t) prev = row;
+    else if (!next) next = row;
+  }
+  if (prev) return prev.type === "high" ? "falling" : "rising";
+  if (next?.type === "high") return "rising";
+  if (next?.type === "low") return "falling";
+  return null;
 }
 
 function civilClockMinutes(at: Date, timeZone?: string): number {
@@ -316,8 +355,8 @@ export function pickSameTideMatch(
   timeZone?: string,
 ): SameTideMatch | null {
   if (!matches.length) return null;
-  // Known incoming/dropping (stored incoming/outgoing): never return the opposite flood/ebb.
-  const preferDir = directionFromTide(prefer);
+  // Known incoming/outgoing only — High/Low are not a matching-tide limb.
+  const preferDir = explicitFloodEbbDirection(prefer);
   const pool = preferDir ? matches.filter((m) => m.direction === preferDir) : matches;
   if (!pool.length) return null;
   if (pool.length === 1 || !preferAt || Number.isNaN(preferAt.getTime())) {
@@ -361,7 +400,7 @@ function matchFromCrossing(
  * Same-height crossings on this civil day in `prefer` only.
  * If the equal-height instant is only on the opposite flood/ebb, interpolate
  * (clamped) onto a same-direction High↔Low segment that overlaps the day —
- * never return the opposite incoming/dropping as a matching tide.
+ * never return the opposite incoming/outgoing as a matching tide.
  */
 export function sameDirectionMatches(
   extremes: Array<TideExtreme | SerializedTideExtreme> | null | undefined,
