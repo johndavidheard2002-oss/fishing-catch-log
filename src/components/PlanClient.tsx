@@ -71,6 +71,7 @@ import {
   catchTideLookupsForSpots,
   catchNeedsPlanTideFetch,
   fallbackChipFromDayTides,
+  plannedSpotTideHeightLabel,
   plannedSpotTideRefreshKey,
   sameTideChipsForSpots,
   type PlannedTidePin,
@@ -1010,6 +1011,11 @@ export function PlanClient({
                       baitSpots: journalBait,
                     });
                     const rowPin = pinForPlannedSpot(note, tideJournal, stationPin);
+                    const catchLookup = catchTideLookupKey(rowPin);
+                    const heightLabel = plannedSpotTideHeightLabel(
+                      rowPin,
+                      catchLookup ? planTides.catchSnaps[catchLookup] : undefined,
+                    );
                     const closestTide =
                       sameTideById[note.id] ||
                       fallbackChipFromDayTides(
@@ -1021,14 +1027,22 @@ export function PlanClient({
                     const row = (
                       <>
                         {photo ? (
-                          <span className="block shrink-0 overflow-hidden rounded-xl">
+                          <span className="relative block h-16 w-16 shrink-0 overflow-hidden rounded-xl">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={photo.src}
                               alt=""
-                              className="h-16 w-16 object-cover"
+                              className="h-full w-full object-cover"
                               data-testid="plan-planned-photo"
                             />
+                            {heightLabel ? (
+                              <span
+                                className="pointer-events-none absolute right-0.5 bottom-0.5 z-[5] rounded bg-ink/80 px-1 py-px text-[10px] font-bold leading-none text-white shadow"
+                                data-testid="plan-planned-photo-tide-height"
+                              >
+                                {heightLabel}
+                              </span>
+                            ) : null}
                           </span>
                         ) : null}
                         <span className="flex min-w-0 items-start gap-2">
