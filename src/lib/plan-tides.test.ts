@@ -1298,6 +1298,22 @@ describe("plannedSpotTideHeightLabel", () => {
     expect(plannedSpotTideHeightLabel({ ...pin, tideHeightFt: -0.5 })).toBe("-.5");
   });
 
+  it("does not replace a logged height with a NOAA snapshot heightFt", () => {
+    const catchSnap: TideSnapshot = {
+      applies: true,
+      tide: "outgoing",
+      heightFt: 3.9,
+      nextHighAt: null,
+      nextHighFt: null,
+      nextLowAt: null,
+      nextLowFt: null,
+      source: "noaa",
+      note: "",
+    };
+    expect(plannedSpotTideHeightLabel(pin, catchSnap)).toBe("1.5");
+    expect(catchLoggedOrSampledHeight(pin, catchSnap)).toBe(1.5);
+  });
+
   it("falls back to the NOAA sample at the catch clock when logged height is missing", () => {
     const catchSnap: TideSnapshot = {
       applies: true,

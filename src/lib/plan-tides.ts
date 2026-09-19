@@ -458,8 +458,7 @@ export function plannedSpotTideHeightLabel(
   pin: PlannedTidePin | null | undefined,
   catchSnap?: TideSnapshot | null,
 ): string | null {
-  const resolved = pin ? applyCatchTideSnapshot(pin, catchSnap) : null;
-  return formatCatchTideHeightFt(catchLoggedOrSampledHeight(resolved, catchSnap));
+  return formatCatchTideHeightFt(catchLoggedOrSampledHeight(pin, catchSnap));
 }
 
 /** Flood/ebb from the past catch — never High/Low, never a wrong-limb plan-day clock. */
