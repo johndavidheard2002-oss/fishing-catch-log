@@ -6,6 +6,7 @@ import {
   formatTideClock,
   formatTideDetail,
   heightAndDirectionAt,
+  incomingOutgoingLabel,
   pickSameTideMatch,
   parseTideExtremes,
   sameDirectionMatches,
@@ -211,7 +212,7 @@ function chipFromMatches(
   timeZone?: string,
   allowExtreme = true,
 ): string {
-  // Known incoming/outgoing: never label the opposite flood/ebb as a matching tide.
+  // Known incoming/dropping: never label the opposite flood/ebb as a matching tide.
   const pool = preferDir ? matches.filter((m) => m.direction === preferDir) : matches;
   const usable = allowExtreme ? pool : pool.filter((m) => !m.onExtreme);
   const match = pickSameTideMatch(usable, preferDir, clock, timeZone);
@@ -270,9 +271,9 @@ function dayHighLowChip(
   const high = formatTideClock(highIso, timeZone);
   const low = formatTideClock(lowIso, timeZone);
   if (preferDir === "falling") return high ? `High ${high}` : "";
-  if (preferDir === "rising") return low ? `${low} incoming` : "";
-  if (low) return `${low} incoming`;
+  if (preferDir === "rising") return low ? `${low} ${incomingOutgoingLabel("rising")}` : "";
   if (high) return `High ${high}`;
+  if (low) return `${low} ${incomingOutgoingLabel("rising")}`;
   return "";
 }
 
@@ -455,7 +456,7 @@ export function catchTideLookupsForSpots(
 
 /**
  * Plan-day clock when tide height equals the catch’s height (interpolated)
- * and incoming/outgoing matches the catch. Not nearest High/Low, and never a
+ * and incoming/dropping matches the catch. Not nearest High/Low, and never a
  * leftover High/Low from another day in the NOAA window.
  */
 export function plannedSpotSameTide(

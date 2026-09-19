@@ -132,13 +132,14 @@ describe("planned day and photo tide labels", () => {
       tide: "outgoing",
     };
     const label = plannedSpotSameTide(snap, "2026-10-10", pin);
-    expect(label).toMatch(/outgoing/i);
+    expect(label).toMatch(/dropping/i);
     expect(label).not.toMatch(/incoming/i);
+    expect(label).not.toMatch(/outgoing/i);
     expect(label).not.toMatch(/^Low\b/);
     expect(label).not.toContain("1:46 AM");
     expect(label).not.toContain("2:46 PM");
     // High 8:09 AM EDT (12:09Z) 4.7ft → Low 2:46 PM (18:46Z) 0.6ft at 4.5ft
-    expect(label).toBe("8:28 AM outgoing");
+    expect(label).toBe("8:28 AM dropping");
     expect(
       plannedSpotSameTide({ ...snap, applies: false }, "2026-10-10", pin),
     ).toBe("");
@@ -162,10 +163,11 @@ describe("planned day and photo tide labels", () => {
       tide: "outgoing",
     });
     expect(incoming).toBe("7:50 AM incoming");
-    expect(outgoing).toBe("8:28 AM outgoing");
+    expect(outgoing).toBe("8:28 AM dropping");
     expect(incoming).not.toEqual(outgoing);
-    expect(incoming).not.toMatch(/outgoing/i);
+    expect(incoming).not.toMatch(/outgoing|dropping/i);
     expect(outgoing).not.toMatch(/incoming/i);
+    expect(outgoing).not.toMatch(/outgoing/i);
     expect(
       plannedSpotSameTide(
         { ...snap, tide: "outgoing", heightFt: 2.7 },
@@ -182,9 +184,9 @@ describe("planned day and photo tide labels", () => {
     ).toBe("7:50 AM incoming");
   });
 
-  it("on a High AM / Low PM day prefers afternoon outgoing over 11:08 PM incoming", () => {
+  it("on a High AM / Low PM day prefers afternoon dropping over 11:08 PM incoming", () => {
     // Tim's trip Sat Sep 19 — Enbridge, Ingleside. Height that crosses at 11:08 PM incoming
-    // also crosses High→Low outgoing in the afternoon. Mud Island was outgoing.
+    // also crosses High→Low dropping in the afternoon. Mud Island was outgoing.
     const inglesideSep19: TideSnapshot = {
       applies: true,
       tide: "incoming",
@@ -216,8 +218,9 @@ describe("planned day and photo tide labels", () => {
       tide: "outgoing",
     };
     const label = plannedSpotSameTide(inglesideSep19, "2026-09-19", pin, zone);
-    expect(label).toMatch(/PM outgoing/);
+    expect(label).toMatch(/PM dropping/);
     expect(label).not.toMatch(/incoming/i);
+    expect(label).not.toMatch(/outgoing/i);
     expect(label).not.toBe("11:08 PM incoming");
     expect(label).not.toMatch(/^Low\b/);
 
@@ -254,7 +257,7 @@ describe("planned day and photo tide labels", () => {
       zone,
     );
     expect(onlyOppositeHeight).not.toMatch(/incoming/i);
-    expect(onlyOppositeHeight).toMatch(/outgoing|^High /);
+    expect(onlyOppositeHeight).toMatch(/dropping|^High /);
 
     const mud = catchOf({
       id: "c-mud",
@@ -287,9 +290,66 @@ describe("planned day and photo tide labels", () => {
       { catches: [mud] },
       { [catchTideLookupKey(mudPin)!]: catchSnapIncoming },
     );
-    expect(chips["n-mud"]).toMatch(/PM outgoing/);
+    expect(chips["n-mud"]).toMatch(/PM dropping/);
     expect(chips["n-mud"]).not.toMatch(/incoming/i);
+    expect(chips["n-mud"]).not.toMatch(/outgoing/i);
     expect(chips["n-mud"]).not.toBe("11:08 PM incoming");
+  });
+
+  it("chips a falling afternoon on a High AM / Low PM day as dropping, never incoming", () => {
+    const inglesideSep19: TideSnapshot = {
+      applies: true,
+      tide: "outgoing",
+      heightFt: 0.5,
+      nextHighAt: "2026-09-19T12:39:00.000Z",
+      nextHighFt: 0.8,
+      nextLowAt: "2026-09-20T01:13:00.000Z",
+      nextLowFt: 0.2,
+      source: "noaa",
+      note: "",
+      stationName: "Enbridge, Ingleside",
+      extremes: [
+        { at: "2026-09-19T05:13:00.000Z", type: "low", heightFt: 0.2 },
+        { at: "2026-09-19T12:39:00.000Z", type: "high", heightFt: 0.8 },
+        { at: "2026-09-20T01:13:00.000Z", type: "low", heightFt: 0.2 },
+        { at: "2026-09-20T13:00:00.000Z", type: "high", heightFt: 0.8 },
+      ],
+    };
+    const zone = "America/Chicago";
+    const afternoon = new Date("2026-09-19T19:30:00.000Z"); // 2:30 PM CDT, High→Low
+    const sampled = heightAndDirectionAt(inglesideSep19.extremes, afternoon);
+    expect(sampled?.direction).toBe("falling");
+    const pin = {
+      latitude: 27.877,
+      longitude: -97.211,
+      habitat: "saltwater-inshore" as const,
+      caughtAt: "2026-08-15T19:30:00.000Z",
+      tideHeightFt: sampled!.heightFt,
+      tide: "outgoing" as const,
+    };
+    const label = plannedSpotSameTide(inglesideSep19, "2026-09-19", pin, zone);
+    expect(label).toMatch(/PM dropping/);
+    expect(label).not.toMatch(/incoming/i);
+    expect(label).not.toMatch(/outgoing/i);
+    expect(sameTideChipsForSpots(
+      [{ id: "n-aft", placeName: "Mud island", sourceCatchId: "c-aft" }],
+      inglesideSep19,
+      "2026-09-19",
+      {
+        catches: [
+          catchOf({
+            id: "c-aft",
+            placeName: "Mud island",
+            habitat: "saltwater-inshore",
+            latitude: 27.877,
+            longitude: -97.211,
+            caughtAt: pin.caughtAt,
+            tide: "outgoing",
+            tideHeightFt: sampled!.heightFt,
+          }),
+        ],
+      },
+    )["n-aft"]).toMatch(/PM dropping/);
   });
 
   it("chips every planned Redfish row at the same hole, including stored heights off that day's range", () => {
@@ -336,7 +396,7 @@ describe("planned day and photo tide labels", () => {
       expect(chips[spot.id]).toBeTruthy();
       expect(chips[spot.id]).not.toMatch(/^Low\b/);
     }
-    expect(chips["note-c-red-5"]).toMatch(/outgoing/i);
+    expect(chips["note-c-red-5"]).toMatch(/dropping/i);
     expect(chips["note-c-red-1"]).toMatch(/incoming/i);
 
     const liveLike = uniqueNotesByPlace(
@@ -435,7 +495,7 @@ describe("planned day and photo tide labels", () => {
         tide: null,
         tideHeightFt: null,
       }),
-    ).toMatch(/incoming|outgoing|High|Low/);
+    ).toMatch(/incoming|dropping|High|Low/);
   });
 
   it("chips every Oct 9 and Oct 10 planned photo when only the header High/Low loaded", () => {
@@ -452,7 +512,7 @@ describe("planned day and photo tide labels", () => {
       stationName: "Port Aransas (H. Caldwell Pier)",
     };
     expect(fallbackChipFromDayTides(headerOnly, "2026-10-09", "America/Chicago")).toBeTruthy();
-    expect(plannedSpotSameTide(headerOnly, "2026-10-09", null)).toMatch(/incoming|outgoing|High|Low/);
+    expect(plannedSpotSameTide(headerOnly, "2026-10-09", null)).toMatch(/incoming|dropping|High|Low/);
     expect(plannedSpotSameTide(headerOnly, "2026-10-09", null)).not.toContain("2:42");
 
     const oct9 = uniqueNotesByPlace([
@@ -879,7 +939,7 @@ describe("planned day and photo tide labels", () => {
     expect(chips["n-demag"]).not.toBe(leftoverLow);
     expect(chips["n-demag"]).not.toMatch(/^Low\b/);
     expect(chips["n-demag"]).not.toContain("2:42 PM");
-    expect(chips["n-demag"]).toMatch(/incoming|outgoing/i);
+    expect(chips["n-demag"]).toMatch(/incoming|dropping/i);
 
     const flounderPin = pinForPlannedSpot(afterSecond[0], { catches: [ship, flounder] });
     const withCatchSnap = sameTideChipsForSpots(
@@ -955,7 +1015,7 @@ describe("planned day and photo tide labels", () => {
     expect(Object.keys(noSnaps)).toHaveLength(spots.length);
     for (const spot of spots) {
       expect(noSnaps[spot.id]).toBeTruthy();
-      expect(noSnaps[spot.id]).toMatch(/incoming|outgoing|High|Low/);
+      expect(noSnaps[spot.id]).toMatch(/incoming|dropping|High|Low/);
       expect(noSnaps[spot.id]).not.toContain("2:42");
     }
     expect(plannedSpotSameTide(oct9, "2026-10-09", null, "America/Chicago")).toBeTruthy();

@@ -433,7 +433,9 @@ function normalizeTide(value: string | null | undefined): string | null {
   if (!value?.trim()) return null;
   const v = value.trim().toLowerCase();
   if (v.includes("flood") || v === "incoming" || v === "rising") return "incoming";
-  if (v.includes("ebb") || v === "outgoing" || v === "falling") return "outgoing";
+  if (v.includes("ebb") || v === "outgoing" || v === "falling" || v === "dropping") {
+    return "outgoing";
+  }
   if (v === "high" || v === "high tide") return "high";
   if (v === "low" || v === "low tide") return "low";
   if (v === "slack") return "slack";
