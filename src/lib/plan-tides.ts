@@ -1,7 +1,8 @@
 import { DAY_KEY_RE, normalizeNotePlace } from "./notes";
 import {
   civilDateKey,
-  directionFromTide,
+  directionFromDayPhase,
+  explicitFloodEbbDirection,
   formatSameTideLabel,
   formatTideClock,
   formatTideDetail,
@@ -13,6 +14,7 @@ import {
   sameTideMatches,
   timeZoneFromLongitude,
   type SameTideMatch,
+  type TideDirection,
   type TideSnapshot,
 } from "./tides/snapshot";
 import type { BaitSpot, CatchRecord, Habitat } from "./types";
@@ -183,12 +185,13 @@ function pinFromRecord(
   };
 }
 
-/** Fetch the full catch when Plan only has a partial suggestion row (no clock or pin). */
+/** Fetch the full catch when Plan only has a partial suggestion row (no clock, pin, or flood/ebb). */
 export function catchNeedsPlanTideFetch(row?: PlannedTideJournalCatch | null): boolean {
   if (!row) return true;
   const clock = row.caughtAt;
   if (!clock || Number.isNaN(new Date(clock).getTime())) return true;
-  return recordCoords(row) == null;
+  if (recordCoords(row) == null) return true;
+  return explicitFloodEbbDirection(row.tide) == null;
 }
 
 /** High/Low series for chips — synthesize from the Planned header when NOAA omitted extremes. */
@@ -205,33 +208,59 @@ export function extremesForChip(snap: TideSnapshot | null | undefined): NonNulla
   return built.length >= 2 ? built : raw.length ? raw : built;
 }
 
+function applyDayPhase(
+  match: SameTideMatch,
+  extremes: Parameters<typeof parseTideExtremes>[0],
+  timeZone?: string,
+): SameTideMatch {
+  const phase = directionFromDayPhase(extremes, match.at, timeZone);
+  if (!phase || phase === match.direction) return match;
+  return { ...match, direction: phase };
+}
+
+function matchFitsPrefer(
+  match: SameTideMatch,
+  preferDir: TideDirection | null,
+  extremes: Parameters<typeof parseTideExtremes>[0],
+  timeZone?: string,
+): boolean {
+  if (preferDir && match.direction !== preferDir) return false;
+  const phase = directionFromDayPhase(extremes, match.at, timeZone);
+  if (preferDir && phase && phase !== preferDir) return false;
+  return true;
+}
+
 function chipFromMatches(
   matches: SameTideMatch[],
-  preferDir: ReturnType<typeof directionFromTide>,
+  preferDir: TideDirection | null,
   clock: Date | null,
-  timeZone?: string,
+  timeZone: string | undefined,
+  extremes: Parameters<typeof parseTideExtremes>[0],
   allowExtreme = true,
 ): string {
-  // Known incoming/dropping: never label the opposite flood/ebb as a matching tide.
-  const pool = preferDir ? matches.filter((m) => m.direction === preferDir) : matches;
+  // Known incoming/outgoing: never label the opposite flood/ebb as a matching tide.
+  const pool = matches.filter((m) => matchFitsPrefer(m, preferDir, extremes, timeZone));
   const usable = allowExtreme ? pool : pool.filter((m) => !m.onExtreme);
   const match = pickSameTideMatch(usable, preferDir, clock, timeZone);
   if (!match) return "";
-  return formatSameTideLabel(match, timeZone);
+  return formatSameTideLabel(applyDayPhase(match, extremes, timeZone), timeZone);
 }
 
 function mappedClockChip(
-  sampled: { heightFt: number; direction: "rising" | "falling" } | null,
+  sampled: { heightFt: number; direction: TideDirection } | null,
   mapped: Date | null,
-  timeZone?: string,
-  preferDir: ReturnType<typeof directionFromTide> = null,
+  timeZone: string | undefined,
+  preferDir: TideDirection | null,
+  extremes?: Parameters<typeof parseTideExtremes>[0],
 ): string {
   if (!sampled || !mapped) return "";
   if (preferDir && sampled.direction !== preferDir) return "";
+  const phase = extremes ? directionFromDayPhase(extremes, mapped, timeZone) : null;
+  if (preferDir && phase && phase !== preferDir) return "";
   return formatSameTideLabel(
     {
       at: mapped,
-      direction: sampled.direction,
+      direction: phase ?? sampled.direction,
       heightFt: sampled.heightFt,
       onExtreme: null,
     },
@@ -256,7 +285,7 @@ function dayHighLowChip(
   snap: TideSnapshot,
   day: string | undefined,
   timeZone?: string,
-  preferDir: ReturnType<typeof directionFromTide> = null,
+  preferDir: TideDirection | null = null,
 ): string {
   const onDay = parseTideExtremes(extremesForChip(snap)).filter((row) => {
     if (!day || !DAY_KEY_RE.test(day)) return true;
@@ -289,24 +318,25 @@ export function fallbackChipFromDayTides(
 ): string {
   if (!snap?.applies) return "";
   const extremes = extremesForChip(snap);
-  const preferDir = directionFromTide(prefer);
+  const preferDir = explicitFloodEbbDirection(prefer);
   const mapped = day ? planDayReferenceAt(day, null) : null;
   const sampled = mapped && extremes.length >= 2 ? heightAndDirectionAt(extremes, mapped) : null;
   if (day && extremes.length >= 2) {
     if (sampled && Number.isFinite(sampled.heightFt)) {
       const matches = sameTideMatches(extremes, sampled.heightFt, day, timeZone);
-      let label = chipFromMatches(matches, preferDir, mapped, timeZone);
+      let label = chipFromMatches(matches, preferDir, mapped, timeZone, extremes);
       if (!label && preferDir) {
         label = chipFromMatches(
           sameDirectionMatches(extremes, sampled.heightFt, day, timeZone, preferDir),
           preferDir,
           mapped,
           timeZone,
+          extremes,
         );
       }
       if (label) return label;
     }
-    const mappedLabel = mappedClockChip(sampled, mapped, timeZone, preferDir);
+    const mappedLabel = mappedClockChip(sampled, mapped, timeZone, preferDir, extremes);
     if (mappedLabel) return mappedLabel;
   }
   return dayHighLowChip(snap, day, timeZone, preferDir);
@@ -390,6 +420,51 @@ function catchTideRange(
   return tideHeightRangeForDay(catchSnap, day, timeZone);
 }
 
+function catchSampledAt(
+  pin: PlannedTidePin | null | undefined,
+  catchSnap?: TideSnapshot | null,
+): { heightFt: number; direction: TideDirection } | null {
+  if (!pin?.caughtAt || !catchSnap?.applies || (catchSnap.extremes?.length ?? 0) < 2) return null;
+  const at = new Date(pin.caughtAt);
+  if (Number.isNaN(at.getTime())) return null;
+  return heightAndDirectionAt(catchSnap.extremes, at);
+}
+
+/** Logged catch height, then NOAA sample at that catch clock — not a plan-day remap. */
+export function catchLoggedOrSampledHeight(
+  pin: PlannedTidePin | null | undefined,
+  catchSnap?: TideSnapshot | null,
+): number | null {
+  if (pin?.tideHeightFt != null && Number.isFinite(pin.tideHeightFt)) return pin.tideHeightFt;
+  const sampled = catchSampledAt(pin, catchSnap);
+  if (sampled && Number.isFinite(sampled.heightFt)) return sampled.heightFt;
+  if (catchSnap?.heightFt != null && Number.isFinite(catchSnap.heightFt)) return catchSnap.heightFt;
+  return null;
+}
+
+/** Flood/ebb from the past catch — never High/Low, never a wrong-limb plan-day clock. */
+export function catchFloodEbbDirection(
+  pin: PlannedTidePin | null | undefined,
+  catchSnap?: TideSnapshot | null,
+  planExtremes?: Parameters<typeof parseTideExtremes>[0],
+  mapped?: Date | null,
+  timeZone?: string,
+): TideDirection | null {
+  const sampled = catchSampledAt(pin, catchSnap);
+  const catchAt = pin?.caughtAt ? new Date(pin.caughtAt) : null;
+  const catchPhase =
+    catchAt && !Number.isNaN(catchAt.getTime()) && catchSnap?.extremes?.length
+      ? directionFromDayPhase(catchSnap.extremes, catchAt, timeZone)
+      : null;
+  return (
+    explicitFloodEbbDirection(pin?.tide) ??
+    sampled?.direction ??
+    explicitFloodEbbDirection(catchSnap?.tide) ??
+    catchPhase ??
+    (mapped ? directionFromDayPhase(planExtremes, mapped, timeZone) : null)
+  );
+}
+
 /** Prefer height/stage from a catch-time lookup at this pin’s station. */
 export function applyCatchTideSnapshot(
   pin: PlannedTidePin,
@@ -397,17 +472,21 @@ export function applyCatchTideSnapshot(
 ): PlannedTidePin {
   if (!catchSnap?.applies) return pin;
   let height = catchSnap.heightFt ?? pin.tideHeightFt;
-  let tide = directionFromTide(pin.tide) ? pin.tide : (catchSnap.tide ?? pin.tide);
-  if (pin.caughtAt && (catchSnap.extremes?.length ?? 0) >= 2) {
-    const sampled = heightAndDirectionAt(catchSnap.extremes, new Date(pin.caughtAt));
-    if (sampled) {
-      if (catchSnap.heightFt == null || !Number.isFinite(catchSnap.heightFt)) {
-        height = sampled.heightFt;
-      }
-      if (!directionFromTide(tide)) {
-        tide = sampled.direction === "rising" ? "incoming" : "outgoing";
-      }
-    }
+  const sampled =
+    pin.caughtAt && (catchSnap.extremes?.length ?? 0) >= 2
+      ? heightAndDirectionAt(catchSnap.extremes, new Date(pin.caughtAt))
+      : null;
+  if (sampled && (catchSnap.heightFt == null || !Number.isFinite(catchSnap.heightFt))) {
+    height = sampled.heightFt;
+  }
+  // Explicit flood/ebb on the catch wins. High/Low + a near-extreme snapshot
+  // must not overwrite a falling-limb sample with incoming.
+  let tide = explicitFloodEbbDirection(pin.tide) ? pin.tide : null;
+  if (!tide && sampled) {
+    tide = sampled.direction === "rising" ? "incoming" : "outgoing";
+  }
+  if (!tide) {
+    tide = explicitFloodEbbDirection(catchSnap.tide) ? catchSnap.tide : pin.tide;
   }
   return {
     ...pin,
@@ -455,9 +534,10 @@ export function catchTideLookupsForSpots(
 }
 
 /**
- * Plan-day clock when tide height equals the catch’s height (interpolated)
- * and incoming/dropping matches the catch. Not nearest High/Low, and never a
- * leftover High/Low from another day in the NOAA window.
+ * Plan-day clock when tide height equals the catch’s logged/sampled height
+ * and incoming/outgoing matches the catch. Not nearest High/Low, never a
+ * leftover High/Low from another day, and never the opposite flood/ebb
+ * just because the same height also crosses there.
  */
 export function plannedSpotSameTide(
   snap: TideSnapshot | null | undefined,
@@ -475,10 +555,9 @@ export function plannedSpotSameTide(
     const preferAt = pin.caughtAt ? new Date(pin.caughtAt) : null;
     const dayRange = tideHeightRangeForDay(snap, day, zone);
     const sourceRange = catchTideRange(catchSnap, pin, zone);
-    const storedHeight =
-      pin.tideHeightFt != null && Number.isFinite(pin.tideHeightFt) ? pin.tideHeightFt : null;
-    const inDayRange = storedHeight != null && dayRange ? heightInRange(storedHeight, dayRange) : false;
-    let height = storedHeight;
+    const catchHeight = catchLoggedOrSampledHeight(pin, catchSnap);
+    const inDayRange = catchHeight != null && dayRange ? heightInRange(catchHeight, dayRange) : false;
+    let height = catchHeight;
     let remappedFromOutside = false;
     if (height != null && dayRange && !inDayRange) {
       if (sourceRange) {
@@ -491,15 +570,7 @@ export function plannedSpotSameTide(
     if (height == null || !Number.isFinite(height)) {
       height = sampled?.heightFt ?? null;
     }
-    const catchSampled =
-      pin.caughtAt && catchSnap?.applies && (catchSnap.extremes?.length ?? 0) >= 2
-        ? heightAndDirectionAt(catchSnap.extremes, new Date(pin.caughtAt))
-        : null;
-    const preferDir =
-      directionFromTide(pin.tide) ??
-      directionFromTide(catchSnap?.tide) ??
-      catchSampled?.direction ??
-      null;
+    const preferDir = catchFloodEbbDirection(pin, catchSnap, extremes, mapped, zone);
     const clock = preferAt && !Number.isNaN(preferAt.getTime()) ? preferAt : mapped;
     if (height != null && Number.isFinite(height)) {
       let matches = sameTideMatches(extremes, height, day, zone);
@@ -508,7 +579,8 @@ export function plannedSpotSameTide(
         matches = sameTideMatches(extremes, clamped, day, zone);
         remappedFromOutside = remappedFromOutside || !inDayRange;
       }
-      let label = chipFromMatches(matches, preferDir, clock, zone, !remappedFromOutside);
+      // Same height on the opposite flood/ebb is not a matching tide.
+      let label = chipFromMatches(matches, preferDir, clock, zone, extremes, !remappedFromOutside);
       if (!label && preferDir) {
         // Same-direction High↔Low crossing only — never the opposite flood/ebb.
         label = chipFromMatches(
@@ -516,15 +588,22 @@ export function plannedSpotSameTide(
           preferDir,
           clock,
           zone,
+          extremes,
         );
       }
       if (label) return label;
     }
-    const fallback = mappedClockChip(sampled, mapped, zone, preferDir);
+    const fallback = mappedClockChip(sampled, mapped, zone, preferDir, extremes);
     if (fallback) return fallback;
     return fallbackChipFromDayTides(snap, day, zone, preferDir);
   }
-  const mappedLabel = mappedClockChip(sampled, mapped, zone, directionFromTide(pin?.tide));
+  const mappedLabel = mappedClockChip(
+    sampled,
+    mapped,
+    zone,
+    catchFloodEbbDirection(pin, catchSnap, extremes, mapped, zone),
+    extremes,
+  );
   if (mappedLabel) return mappedLabel;
   return fallbackChipFromDayTides(snap, day, zone, pin?.tide);
 }
