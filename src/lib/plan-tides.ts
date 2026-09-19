@@ -442,6 +442,26 @@ export function catchLoggedOrSampledHeight(
   return null;
 }
 
+/**
+ * Compact feet for a catch-photo badge. One decimal (house style), minus
+ * without a leading zero so -0.5 ft reads `-.5`. Unknown → no badge.
+ */
+export function formatCatchTideHeightFt(heightFt: number | null | undefined): string | null {
+  if (heightFt == null || !Number.isFinite(heightFt)) return null;
+  const text = heightFt.toFixed(1);
+  if (text === "-0.0") return "0.0";
+  return text.replace(/^-0\./, "-.");
+}
+
+/** Same logged/sampled height the matching-tide chips use, formatted for the photo. */
+export function plannedSpotTideHeightLabel(
+  pin: PlannedTidePin | null | undefined,
+  catchSnap?: TideSnapshot | null,
+): string | null {
+  const resolved = pin ? applyCatchTideSnapshot(pin, catchSnap) : null;
+  return formatCatchTideHeightFt(catchLoggedOrSampledHeight(resolved, catchSnap));
+}
+
 /** Flood/ebb from the past catch — never High/Low, never a wrong-limb plan-day clock. */
 export function catchFloodEbbDirection(
   pin: PlannedTidePin | null | undefined,
