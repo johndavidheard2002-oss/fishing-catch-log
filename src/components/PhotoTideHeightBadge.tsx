@@ -16,21 +16,6 @@ export const PHOTO_TIDE_HEIGHT_BADGE_CLASS =
 const snapCache = new Map<string, TideSnapshot | null>();
 const inflight = new Map<string, Promise<TideSnapshot | null>>();
 
-export function PhotoTideHeightBadge({
-  label,
-  testId,
-}: {
-  label: string | null | undefined;
-  testId: string;
-}) {
-  if (!label) return null;
-  return (
-    <span className={PHOTO_TIDE_HEIGHT_BADGE_CLASS} data-testid={testId}>
-      {label}
-    </span>
-  );
-}
-
 async function loadCatchTideSnap(record: CatchRecord): Promise<TideSnapshot | null> {
   const pin = pinFromTideRecord(record);
   const key = catchTideLookupKey(pin);
@@ -88,10 +73,11 @@ export function CatchPhotoTideHeightBadge({ record }: { record: CatchRecord }) {
     record.tide,
   ]);
 
+  const label = logged ?? sampled;
+  if (!label) return null;
   return (
-    <PhotoTideHeightBadge
-      label={logged ?? sampled}
-      testId="calendar-catch-photo-tide-height"
-    />
+    <span className={PHOTO_TIDE_HEIGHT_BADGE_CLASS} data-testid="calendar-catch-photo-tide-height">
+      {label}
+    </span>
   );
 }

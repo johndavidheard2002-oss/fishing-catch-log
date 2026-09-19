@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { SharedToggle, sharedQuery, useIncludeShared } from "@/components/BuddyPanel";
 import { OwnerShareBadge } from "@/components/OwnerShareBadge";
-import { PhotoTideHeightBadge } from "@/components/PhotoTideHeightBadge";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
@@ -1036,10 +1035,14 @@ export function PlanClient({
                               className="h-full w-full object-cover"
                               data-testid="plan-planned-photo"
                             />
-                            <PhotoTideHeightBadge
-                              label={heightLabel}
-                              testId="plan-planned-photo-tide-height"
-                            />
+                            {heightLabel ? (
+                              <span
+                                className="pointer-events-none absolute right-0.5 bottom-0.5 z-[5] rounded bg-ink/80 px-1 py-px text-[10px] font-bold leading-none text-white shadow"
+                                data-testid="plan-planned-photo-tide-height"
+                              >
+                                {heightLabel}
+                              </span>
+                            ) : null}
                           </span>
                         ) : null}
                         <span className="flex min-w-0 items-start gap-2">

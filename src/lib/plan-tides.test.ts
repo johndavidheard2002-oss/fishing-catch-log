@@ -1460,7 +1460,6 @@ describe("Plan Planned panel wires day tides", () => {
     expect(tides).toContain("pinFromTideRecord");
     expect(tides).toContain("catchFloodEbbDirection");
     expect(plan).toContain("plannedSpotTideHeightLabel");
-    expect(plan).toContain("PhotoTideHeightBadge");
     expect(plan).toContain('data-testid="plan-planned-photo-tide-height"');
     expect(plan).toContain("plan-planned-photo-tide-height");
     expect(tides).not.toContain("pickSameTideMatch(matches, null, clock, timeZone)");
