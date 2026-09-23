@@ -10,6 +10,7 @@ import { LogOutButton } from "@/components/LogOutButton";
 import { Paywall, SubscribeActions } from "@/components/Paywall";
 import { TrialNotice, TrialNoticeModal } from "@/components/TrialNotice";
 import {
+  JOURNAL_FREE_FOR_RELEASE,
   TRIAL_OFFER_LINE,
   YEARLY_PRICE_LABEL,
   journalUnlocked,
@@ -92,7 +93,9 @@ export function HomeClient() {
     return () => window.removeEventListener(ENTITLEMENT_CHANGED_EVENT, onEntitlement);
   }, [router]);
 
-  const locked = Boolean(me.entitlement && !journalUnlocked(me.entitlement.subscriptionStatus));
+  const locked =
+    !JOURNAL_FREE_FOR_RELEASE &&
+    Boolean(me.entitlement && !journalUnlocked(me.entitlement.subscriptionStatus));
   const trialDays = me.entitlement?.daysRemaining;
 
   return (
@@ -117,17 +120,24 @@ export function HomeClient() {
             {me.email ? <span className="mt-0.5 block text-xs text-ink-muted">{me.email}</span> : null}
           </p>
           <p className="text-sm text-ink" data-testid="home-subscription">
-            {locked
-              ? `Free month ended. Subscribe for ${YEARLY_PRICE_LABEL} to unlock the journal. Your data is safe.`
-              : me.entitlement?.subscriptionStatus === "active"
-                ? `Journal unlocked with Tide Mark Premium. ${YEARLY_PRICE_LABEL} through the App Store.`
-                : `Free month: ${trialDays ?? "—"} day${trialDays === 1 ? "" : "s"} left. Then ${YEARLY_PRICE_LABEL}.`}
+            {JOURNAL_FREE_FOR_RELEASE
+              ? "Your journal is free. Catches, photos, and spots stay on this account."
+              : locked
+                ? `Free month ended. Subscribe for ${YEARLY_PRICE_LABEL} to unlock the journal. Your data is safe.`
+                : me.entitlement?.subscriptionStatus === "active"
+                  ? `Journal unlocked with Tide Mark Premium. ${YEARLY_PRICE_LABEL} through the App Store.`
+                  : `Free month: ${trialDays ?? "—"} day${trialDays === 1 ? "" : "s"} left. Then ${YEARLY_PRICE_LABEL}.`}
           </p>
           <LogOutButton />
         </section>
       ) : null}
 
-      {locked ? (
+      {JOURNAL_FREE_FOR_RELEASE ? (
+        <section className="journal-card space-y-2 rounded-2xl p-4" data-testid="home-subscribe">
+          <p className="font-display text-xl text-teal">Your journal</p>
+          <p className="text-sm text-ink">Log, Calendar, Plan, and Spots stay open.</p>
+        </section>
+      ) : locked ? (
         <div data-testid="home-subscribe">
           <Paywall
             entitlement={me.entitlement}

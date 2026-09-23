@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  JOURNAL_FREE_FOR_RELEASE,
   YEARLY_PRICE_LABEL,
   buildEntitlement,
   computeSubscriptionStatus,
   isJournalLockedPath,
+  journalBlocked,
   journalUnlocked,
   localDayKey,
   paywallCopy,
+  subscriptionGatesPath,
   trialDurationMs,
   trialNoticeBody,
   trialNoticeDismissKey,
@@ -58,7 +61,10 @@ describe("entitlement clock", () => {
     expect(snap.subscriptionStatus).toBe("expired");
     expect(snap.daysRemaining).toBe(0);
     expect(snap.noticeWindow).toBeNull();
-    expect(journalUnlocked(snap.subscriptionStatus)).toBe(false);
+    expect(JOURNAL_FREE_FOR_RELEASE).toBe(true);
+    expect(journalUnlocked(snap.subscriptionStatus)).toBe(true);
+    expect(journalBlocked(snap)).toBe(false);
+    expect(journalBlocked(null)).toBe(false);
   });
 
   it("honors a paid active entitlement and an explicit expired row", () => {
@@ -144,20 +150,40 @@ describe("trial notices", () => {
 });
 
 describe("locked journal paths", () => {
-  it("never locks Home or privacy, and locks every journal tab", () => {
-    expect(isJournalLockedPath("/")).toBe(false);
-    expect(isJournalLockedPath("/privacy")).toBe(false);
-    expect(isJournalLockedPath("/signin")).toBe(false);
-    expect(isJournalLockedPath("/log")).toBe(true);
-    expect(isJournalLockedPath("/log/scan")).toBe(true);
-    expect(isJournalLockedPath("/calendar")).toBe(true);
-    expect(isJournalLockedPath("/history")).toBe(true);
-    expect(isJournalLockedPath("/spots")).toBe(true);
-    expect(isJournalLockedPath("/plan")).toBe(true);
-    expect(isJournalLockedPath("/backfill")).toBe(true);
-    expect(isJournalLockedPath("/catch/abc")).toBe(true);
-    expect(isJournalLockedPath("/bait/new")).toBe(true);
-    expect(isJournalLockedPath("/bait/xyz")).toBe(true);
+  it("does not lock any path while 1.0 ships the journal free", () => {
+    for (const path of [
+      "/",
+      "/privacy",
+      "/signin",
+      "/log",
+      "/log/scan",
+      "/calendar",
+      "/history",
+      "/spots",
+      "/plan",
+      "/backfill",
+      "/catch/abc",
+      "/bait/new",
+      "/bait/xyz",
+    ]) {
+      expect(isJournalLockedPath(path)).toBe(false);
+    }
+  });
+
+  it("still knows which paths a later paid plan would gate", () => {
+    expect(subscriptionGatesPath("/")).toBe(false);
+    expect(subscriptionGatesPath("/privacy")).toBe(false);
+    expect(subscriptionGatesPath("/signin")).toBe(false);
+    expect(subscriptionGatesPath("/log")).toBe(true);
+    expect(subscriptionGatesPath("/log/scan")).toBe(true);
+    expect(subscriptionGatesPath("/calendar")).toBe(true);
+    expect(subscriptionGatesPath("/history")).toBe(true);
+    expect(subscriptionGatesPath("/spots")).toBe(true);
+    expect(subscriptionGatesPath("/plan")).toBe(true);
+    expect(subscriptionGatesPath("/backfill")).toBe(true);
+    expect(subscriptionGatesPath("/catch/abc")).toBe(true);
+    expect(subscriptionGatesPath("/bait/new")).toBe(true);
+    expect(subscriptionGatesPath("/bait/xyz")).toBe(true);
   });
 });
 

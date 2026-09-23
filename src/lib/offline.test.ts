@@ -54,7 +54,7 @@ describe("offline queue rules", () => {
     expect(isBrowserOnline(null)).toBe(true);
   });
 
-  it("does not unlock a cached expired journal", () => {
+  it("keeps a cached expired journal unlocked while 1.0 is free", () => {
     expect(
       cachedJournalUnlocked({
         subscriptionStatus: "expired",
@@ -67,7 +67,7 @@ describe("offline queue rules", () => {
         yearlyPrice: "$29.99/year",
         purchaseAvailable: false,
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       cachedJournalUnlocked({
         subscriptionStatus: "trial",

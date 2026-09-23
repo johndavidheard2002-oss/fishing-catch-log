@@ -5,7 +5,7 @@ import { Paywall } from "@/components/Paywall";
 import { PlanClient } from "@/components/PlanClient";
 import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { listCalendarNotes } from "@/lib/db/notes";
-import { journalUnlocked } from "@/lib/entitlement";
+import { journalBlocked } from "@/lib/entitlement";
 import { restorePlanDay } from "@/lib/notes";
 import { todayKey } from "@/lib/calendar";
 import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerFromCookies } from "@/lib/viewer";
@@ -49,7 +49,7 @@ export default async function PlanPage({
     if (!viewer.signedIn || !viewer.id) redirect("/signin");
     viewerId = viewer.id;
     const entitlement = await getEntitlementForAngler(viewer.id);
-    if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
+    if (journalBlocked(entitlement)) {
       return <Paywall entitlement={entitlement} />;
     }
     // List surviving plan notes without a server-TZ `today`. Purge still runs on

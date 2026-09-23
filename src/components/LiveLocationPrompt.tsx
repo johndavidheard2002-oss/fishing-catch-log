@@ -8,6 +8,7 @@ import {
   openAppSettings,
   skipLocationLabel,
   liveLocationPromptCopy,
+  locationPromptOffersSkip,
   type GeolocationPermissionState,
   type LiveLocationStatus,
 } from "@/lib/location";
@@ -27,6 +28,7 @@ export function LiveLocationPrompt({
 }) {
   const copy = liveLocationPromptCopy(status, { privateBrowsing, permission });
   const waiting = status === "asking";
+  const offerSkip = locationPromptOffersSkip(status);
 
   return (
     <div
@@ -45,15 +47,28 @@ export function LiveLocationPrompt({
           >
             {GETTING_LOCATION_LABEL}
           </button>
+          {offerSkip ? (
+            <button
+              type="button"
+              data-testid="skip-location"
+              onClick={onSkip}
+              className="w-full rounded-xl bg-copper py-3 text-base font-semibold text-white"
+            >
+              {skipLocationLabel()}
+            </button>
+          ) : null}
+          <p className="text-center text-sm text-ink-muted">{CONTINUE_WITHOUT_LOCATION_LABEL}</p>
+        </div>
+      ) : status === "prompt" ? (
+        <div className="mt-2.5">
           <button
             type="button"
-            data-testid="skip-location"
-            onClick={onSkip}
-            className="w-full rounded-xl bg-copper py-3 text-base font-semibold text-white"
+            data-testid="allow-location"
+            onClick={onAllow}
+            className="w-full rounded-xl bg-teal py-3 text-base font-semibold text-white"
           >
-            {skipLocationLabel()}
+            {ALLOW_LOCATION_LABEL}
           </button>
-          <p className="text-center text-sm text-ink-muted">{CONTINUE_WITHOUT_LOCATION_LABEL}</p>
         </div>
       ) : (
         <div className="mt-2.5 grid grid-cols-2 gap-2">
@@ -65,28 +80,17 @@ export function LiveLocationPrompt({
           >
             {ALLOW_LOCATION_LABEL}
           </button>
-          {status === "unavailable" || status === "denied" ? (
-            status === "denied" ? (
-              <button
-                type="button"
-                data-testid="open-settings"
-                onClick={() => openAppSettings()}
-                className="rounded-xl border border-line bg-paper py-3 text-base font-semibold text-ink"
-              >
-                {OPEN_SETTINGS_LABEL}
-              </button>
-            ) : (
-              <span className="self-center text-sm text-ink-muted">Or drop a pin by hand.</span>
-            )
-          ) : (
+          {status === "denied" ? (
             <button
               type="button"
-              data-testid="skip-location"
-              onClick={onSkip}
+              data-testid="open-settings"
+              onClick={() => openAppSettings()}
               className="rounded-xl border border-line bg-paper py-3 text-base font-semibold text-ink"
             >
-              {skipLocationLabel()}
+              {OPEN_SETTINGS_LABEL}
             </button>
+          ) : (
+            <span className="self-center text-sm text-ink-muted">Or drop a pin by hand.</span>
           )}
         </div>
       )}

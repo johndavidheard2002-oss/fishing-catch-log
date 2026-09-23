@@ -11,6 +11,7 @@ import { TrialNotice } from "@/components/TrialNotice";
 import { isPublicPagePath } from "@/lib/auth-gate";
 import { APP_DISPLAY_NAME, APP_LOGO_SRC } from "@/lib/brand";
 import {
+  JOURNAL_FREE_FOR_RELEASE,
   OPEN_PAYWALL_EVENT,
   isJournalLockedPath,
   journalUnlocked,
@@ -88,7 +89,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [anglerId, setAnglerId] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [entitlementReady, setEntitlementReady] = useState(false);
-  const lockedOut = Boolean(entitlement && !journalUnlocked(entitlement.subscriptionStatus));
+  const lockedOut =
+    !JOURNAL_FREE_FOR_RELEASE &&
+    Boolean(entitlement && !journalUnlocked(entitlement.subscriptionStatus));
   const hideJournal =
     !onSignIn &&
     isJournalLockedPath(pathname) &&
@@ -427,7 +430,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {onSignIn ? null : <HelpGuide />}
     {onSignIn ? null : <FirstRunSetup />}
     {onSignIn ? null : <OfflineSyncHost entitlement={entitlement} />}
-    {onSignIn || hideJournal || !paywallOpen ? null : (
+    {onSignIn || JOURNAL_FREE_FOR_RELEASE || hideJournal || !paywallOpen ? null : (
       <div
         className="app-fixed-overlay fixed inset-0 z-30 flex items-end justify-center bg-black/45 sm:items-center"
         data-no-tab-swipe

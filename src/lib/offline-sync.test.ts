@@ -149,7 +149,7 @@ describe("offline sync", () => {
     expect(await listQueuedLogs()).toHaveLength(1);
   });
 
-  it("does not sync an expired cached entitlement while offline-first", async () => {
+  it("syncs an expired cached entitlement while the journal is free", async () => {
     expect(
       canSyncNow({
         online: true,
@@ -165,7 +165,7 @@ describe("offline sync", () => {
           purchaseAvailable: false,
         },
       }),
-    ).toBe(false);
+    ).toBe(true);
     expect(canSyncNow({ online: false })).toBe(false);
     const skipped = await syncQueuedLogsIfOnline({ online: false });
     expect(skipped.synced).toBe(0);
