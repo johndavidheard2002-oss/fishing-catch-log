@@ -179,7 +179,7 @@ export function logLocationReason(
   if (osDenied || status === "denied") {
     return blockedLocationReason(extras);
   }
-  const allow = "Allow location so a live photo can drop the pin on the water.";
+  const allow = "Share your location so a live photo can drop the pin on the water.";
   const debug = safariLocationPermissionLine(extras?.permission);
   return debug ? `${allow} ${debug}` : allow;
 }
@@ -728,7 +728,7 @@ export function liveLocationPromptCopy(
     };
   }
   return {
-    title: "Allow location",
+    title: "Share your location",
     body: formatLocationServicesSetupHint(
       "Tap Continue once so a live photo can drop the pin. This phone remembers it. You can still move the pin.",
     ),

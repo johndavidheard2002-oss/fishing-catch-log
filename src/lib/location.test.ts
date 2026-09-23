@@ -116,7 +116,8 @@ describe("requestDeviceGps", () => {
 describe("liveLocationPromptCopy", () => {
   it("asks for location after sign-in, not from Camera, and never says buddy", () => {
     const prompt = liveLocationPromptCopy("prompt");
-    expect(prompt.title).toBe("Allow location");
+    expect(prompt.title).toBe("Share your location");
+    expect(prompt.title).not.toMatch(/allow/i);
     expect(prompt.body).toContain("live photo");
     expect(prompt.body).toContain("Tap Continue once");
     expect(prompt.body).not.toMatch(/Tap Allow/i);
@@ -323,7 +324,8 @@ describe("Turn location on from Log", () => {
     expect(readSavedLiveLocationStatus(storage)).toBe("unavailable");
     writeSavedLiveLocationAllowed(storage);
     expect(readSavedLiveLocationStatus(storage)).toBe("allowed");
-    expect(logLocationReason("unavailable")).toContain("Allow location");
+    expect(logLocationReason("unavailable")).toContain("Share your location");
+    expect(logLocationReason("unavailable")).not.toMatch(/allow/i);
     expect(logLocationReason("unavailable")).not.toMatch(/Location is off/i);
     expect(logLocationReason("prompt")).toContain("live photo");
     expect(logLocationReason("ready")).toBe("");
@@ -1043,7 +1045,8 @@ describe("logLocationSurface", () => {
       photoAtCatch: true,
     });
     expect(off.showTurnOn).toBe(true);
-    expect(off.reason).toContain("Allow location");
+    expect(off.reason).toContain("Share your location");
+    expect(off.reason).not.toMatch(/allow/i);
     expect(off.pinHint).toBeNull();
     expect(off.emptyMapBanner).toBeNull();
 
