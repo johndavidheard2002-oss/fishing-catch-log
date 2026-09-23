@@ -15,7 +15,7 @@ export function SignInClient({ nextPath = "/" }: { nextPath?: string }) {
         </h1>
         <p className="text-sm text-ink">
           {phase === "location"
-            ? "Allow location so a live photo can drop the pin on the water where you caught the fish. You can still move the pin."
+            ? "A live photo can drop the pin on the water where you caught the fish. Tap Continue to share this phone’s location. You can still move the pin."
             : `Sign in or create an account to open your journal. First month free, then ${YEARLY_PRICE_LABEL}.`}
         </p>
       </section>

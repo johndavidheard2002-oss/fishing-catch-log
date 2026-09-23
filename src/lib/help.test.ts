@@ -21,7 +21,7 @@ describe("HELP_SECTIONS", () => {
     expect(
       HELP_SECTIONS.find((section) => section.title === "Log a catch")?.steps.some((step) =>
         step.includes("After sign-in") &&
-        step.includes("Allow location") &&
+        step.includes("Continue") &&
         step.includes("Turn location on") &&
         step.includes("Camera"),
       ),
@@ -83,7 +83,7 @@ describe("HELP_SECTIONS", () => {
     expect(locationHelp[0]).not.toContain("Settings → Safari → Location");
     const journal = HELP_SECTIONS.find((section) => section.title === "Your journal")?.steps ?? [];
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
-    expect(journal.some((step) => step.includes("Allow location") && step.includes("Turn location on"))).toBe(true);
+    expect(journal.some((step) => step.includes("Continue") && step.includes("Turn location on"))).toBe(true);
     expect(journal.some((step) => step.includes("Log out"))).toBe(true);
     expect(journal.some((step) => step.includes("first month") && step.includes("$29.99/year"))).toBe(true);
     const billing = HELP_SECTIONS.find((section) => section.title === "Free month and yearly journal")?.steps ?? [];

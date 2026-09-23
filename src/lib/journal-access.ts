@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { JOURNAL_LOCKED, YEARLY_PRICE_LABEL, journalUnlocked, type EntitlementSnapshot } from "./entitlement";
+import { JOURNAL_LOCKED, YEARLY_PRICE_LABEL, journalBlocked, type EntitlementSnapshot } from "./entitlement";
 import { getEntitlementForAngler } from "./db/entitlement";
 import { jsonWithViewer, requireViewerId, signInRequired } from "./viewer";
 
@@ -20,7 +20,7 @@ export async function requireUnlockedViewer(
   const viewerId = await requireViewerId(request);
   if (!viewerId) return { ok: false, response: signInRequired() };
   const entitlement = await getEntitlementForAngler(viewerId);
-  if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
+  if (journalBlocked(entitlement)) {
     return {
       ok: false,
       response: journalLockedResponse(

@@ -43,8 +43,20 @@ export function openPaywall() {
 
 export const HOME_UNLOCKED_PATHS = ["/", "/privacy"] as const;
 
+/**
+ * 1.0 ships the journal free. StoreKit purchase code stays for a later plan.
+ * An expired trial must not soft-lock Log, Calendar, Plan, or any other surface.
+ */
+export const JOURNAL_FREE_FOR_RELEASE = true;
+
 /** Journal surfaces that must not render or navigate when the trial has expired. */
 export function isJournalLockedPath(pathname: string): boolean {
+  if (JOURNAL_FREE_FOR_RELEASE) return false;
+  return subscriptionGatesPath(pathname);
+}
+
+/** Path rule used when a paid plan returns. 1.0 does not consult this for navigation. */
+export function subscriptionGatesPath(pathname: string): boolean {
   if (pathname === "/" || pathname === "/privacy" || pathname.startsWith("/privacy/")) return false;
   if (pathname === "/signin" || pathname.startsWith("/signin/")) return false;
   if (pathname.startsWith("/api/")) return false;
@@ -56,7 +68,17 @@ export function isSubscriptionStatus(value: unknown): value is SubscriptionStatu
 }
 
 export function journalUnlocked(status: SubscriptionStatus): boolean {
+  if (JOURNAL_FREE_FOR_RELEASE) return true;
   return status === "trial" || status === "active";
+}
+
+/** True when this snapshot should hide journal surfaces behind the paywall. */
+export function journalBlocked(
+  entitlement: { subscriptionStatus: SubscriptionStatus } | null | undefined,
+): boolean {
+  if (JOURNAL_FREE_FOR_RELEASE) return false;
+  if (!entitlement) return true;
+  return !journalUnlocked(entitlement.subscriptionStatus);
 }
 
 export function trialDurationMs(env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env): number {

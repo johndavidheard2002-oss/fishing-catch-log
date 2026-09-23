@@ -43,7 +43,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     title: "Location pins",
     paragraphs: [
       "Tide Mark can pin where you caught the fish on the map. A live Camera photo may use this phone’s location if you allowed it. A camera-roll photo may use a GPS stamp from the picture, and only after you say yes — or you drop the pin yourself.",
-      "The pin (and any photo GPS we keep when it differs) is stored with that catch. Location is optional: skip Allow and the map stays empty until you tap a spot. Shared trips include the pin you chose; unshared days stay off a friend’s map.",
+      "The pin (and any photo GPS we keep when it differs) is stored with that catch. Location is optional: if you decline the system prompt, the map stays empty until you tap a spot. Shared trips include the pin you chose; unshared days stay off a friend’s map.",
     ],
   },
   {
@@ -58,8 +58,8 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: "subscriptions",
     title: "Free month and yearly journal",
     paragraphs: [
-      `New accounts get a free month of full Tide Mark access from the first time the trial starts (account creation, or the first successful sign-in that starts it). After that month, the journal is ${YEARLY_PRICE_LABEL}.`,
-      "If the free month ends without a paid year, Home stays open — account, subscribe, help, log out, and export. Other tabs lock. We do not delete your catches, photos, spots, or notes when the trial ends or the journal locks. App Store purchase will ship with the native build.",
+      `New accounts get a free month of full Tide Mark access from the first time the trial starts (account creation, or the first successful sign-in that starts it). A later paid year, if offered, is ${YEARLY_PRICE_LABEL} through the App Store. This version keeps the journal open.`,
+      "If the free month ends, Home, Log, Calendar, Plan, and Spots stay open. We do not delete your catches, photos, spots, or notes.",
     ],
   },
   {

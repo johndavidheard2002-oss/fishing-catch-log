@@ -14,7 +14,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Log a catch",
     steps: [
       "Tap Log, then take or pick one photo.",
-      "After sign-in, tap Allow location. On Log, Turn location on asks this phone — Camera waits until it answers. Camera-roll still asks Yes or No.",
+      "After sign-in, tap Continue. On Log, Turn location on asks this phone — Camera waits until it answers. Camera-roll still asks Yes or No.",
       "Pick a species now, or save and add it later. Tap a chip or type a name.",
       "Drop the pin on the water you fished.",
       "Name the area if you want — leave it blank if the map already named it.",
@@ -80,7 +80,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "Sign in or create an account with email and a password to open your journal.",
       `The first month is free. After that, ${YEARLY_PRICE_LABEL} keeps the journal unlocked.`,
-      "After you sign in, tap Allow location so this phone can pin a live photo. Skip and Log still has Turn location on.",
+      "After you sign in, tap Continue so this phone can pin a live photo. Log still has Turn location on.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
     ],
   },
@@ -89,9 +89,9 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "Your first month is full access — no purchase required.",
       "We remind you about 7 days, 3 days, and 1 day before it ends.",
-      `After that, Home stays open. Other tabs lock until ${YEARLY_PRICE_LABEL}.`,
-      "On the Tide Mark iPhone app, Subscribe and Restore use the App Store. Browser buy stays coming soon.",
-      "Your catches and photos stay saved. Nothing is deleted when locked.",
+      `After that, Home stays open and the journal stays usable. A later paid year would be ${YEARLY_PRICE_LABEL}.`,
+      "On the Tide Mark iPhone app, Subscribe and Restore use the App Store when a paid plan is offered later. Log, Calendar, Plan, and Spots stay open.",
+      "Your catches and photos stay saved. Nothing is deleted.",
     ],
   },
   {

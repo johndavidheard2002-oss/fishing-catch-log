@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import {
+  JOURNAL_FREE_FOR_RELEASE,
   YEARLY_PRICE_LABEL,
   journalUnlocked,
   paywallCopy,
@@ -57,6 +58,8 @@ export function SubscribeActions({
   }
 
   if (!native) {
+    // 1.0 must not show a disabled non-IAP subscribe button ("Coming with the App Store build").
+    if (JOURNAL_FREE_FOR_RELEASE) return null;
     return (
       <>
         <button
@@ -121,6 +124,7 @@ export function Paywall({
   variant?: "page" | "modal";
   showHomeLink?: boolean;
 }) {
+  if (JOURNAL_FREE_FOR_RELEASE) return null;
   const copy = paywallCopy();
   const price = entitlement?.yearlyPrice ?? YEARLY_PRICE_LABEL;
 

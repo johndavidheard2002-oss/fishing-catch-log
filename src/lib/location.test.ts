@@ -4,6 +4,7 @@ import {
   ALLOW_GPS_FALLBACK_OPTIONS,
   ALLOW_GPS_OPTIONS,
   ALLOW_LOCATION_LABEL,
+  locationPromptOffersSkip,
   OPEN_SETTINGS_LABEL,
   APP_SETTINGS_URL,
   CONTINUE_WITHOUT_LOCATION_LABEL,
@@ -117,10 +118,15 @@ describe("liveLocationPromptCopy", () => {
     const prompt = liveLocationPromptCopy("prompt");
     expect(prompt.title).toBe("Allow location");
     expect(prompt.body).toContain("live photo");
-    expect(prompt.body).toContain("Tap Allow once");
+    expect(prompt.body).toContain("Tap Continue once");
+    expect(prompt.body).not.toMatch(/Tap Allow/i);
     expect(prompt.body).toContain("You can still move the pin");
     expect(prompt.body.toLowerCase()).not.toContain("buddy");
-    expect(ALLOW_LOCATION_LABEL).toBe("Allow location");
+    expect(ALLOW_LOCATION_LABEL).toBe("Continue");
+    expect(locationPromptOffersSkip("prompt")).toBe(false);
+    expect(locationPromptOffersSkip("asking")).toBe(true);
+    expect(locationPromptOffersSkip("denied")).toBe(false);
+    expect(locationPromptOffersSkip("unavailable")).toBe(false);
     expect(SKIP_LOCATION_LABEL).toBe("Not now");
     expect(CONTINUE_WITHOUT_LOCATION_LABEL).toBe("Continue without location");
     expect(TURN_LOCATION_ON_LABEL).toBe("Turn location on");
@@ -145,12 +151,37 @@ describe("liveLocationPromptCopy", () => {
     expect(liveLocationPromptCopy("prompt").body).toContain("Private Relay");
     expect(liveLocationPromptCopy("prompt").body).toBe(
       formatLocationServicesSetupHint(
-        "Tap Allow once so a live photo can drop the pin. This phone remembers it. You can still move the pin.",
+        "Tap Continue once so a live photo can drop the pin. This phone remembers it. You can still move the pin.",
       ),
     );
     expect(liveLocationPromptCopy("prompt").body).toContain(formatNumberedLocationSteps());
     expect(liveLocationPromptCopy("prompt").body).toContain("1. Private Relay OFF");
     expect(liveLocationPromptCopy("prompt").body).not.toContain("Settings → Safari → Location");
+  });
+});
+
+describe("sign-in location screen", () => {
+  it("uses Continue on the first ask and always enters after allow, deny, or timeout", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const prompt = readFileSync(resolve(__dirname, "../components/LiveLocationPrompt.tsx"), "utf8");
+    const auth = readFileSync(resolve(__dirname, "../components/AuthForm.tsx"), "utf8");
+    const promptBranch = prompt.slice(prompt.indexOf('status === "prompt"'));
+    const promptOnly = promptBranch.slice(0, promptBranch.indexOf(") : ("));
+    expect(promptOnly).toContain("ALLOW_LOCATION_LABEL");
+    expect(promptOnly).toContain("onAllow");
+    expect(promptOnly).not.toContain("onSkip");
+    expect(promptOnly).not.toContain("skip-location");
+    expect(promptOnly).not.toContain("SKIP_LOCATION_LABEL");
+    const finish = auth.slice(auth.indexOf("function finishAllowWait"), auth.indexOf("function startAllowWait"));
+    expect(finish).toContain("persistAllowLocationOutcome");
+    expect(finish).toContain("enterJournal()");
+    expect(finish).not.toMatch(/denied"\)\s*return/);
+    expect(auth).toContain("ALLOW_GPS_BUDGET_MS");
+    expect(auth).toContain("waitForAllowLocationFix");
+    const allowFn = auth.slice(auth.indexOf("function allowLocation"));
+    expect(allowFn.indexOf("requestDeviceGpsAttempt")).toBeGreaterThan(-1);
+    expect(allowFn.indexOf("requestDeviceGpsAttempt")).toBeLessThan(allowFn.indexOf("startAllowWait"));
   });
 });
 

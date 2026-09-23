@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LiveLocationPrompt } from "@/components/LiveLocationPrompt";
 import {
+  ALLOW_GPS_BUDGET_MS,
   ALLOW_GPS_OPTIONS,
   detectPrivateBrowsing,
   persistAllowLocationOutcome,
@@ -47,6 +48,16 @@ export function AuthForm({
   const [privateBrowsing, setPrivateBrowsing] = useState(false);
   const [geoPermission, setGeoPermission] = useState<GeolocationPermissionState>("unknown");
   const allowAbortRef = useRef<AbortController | null>(null);
+  const allowGenerationRef = useRef(0);
+  const allowCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      allowGenerationRef.current += 1;
+      allowAbortRef.current?.abort();
+      allowCleanupRef.current?.();
+    };
+  }, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -96,7 +107,7 @@ export function AuthForm({
     router.refresh();
   }
 
-  function finishAllowWait(result: DeviceGpsAttempt) {
+  function finishAllowWait(result: DeviceGpsAttempt | { skip: true }) {
     const outcome = persistAllowLocationOutcome(result);
     const nextStatus: LiveLocationStatus =
       outcome.savedStatus === "ready"
@@ -107,27 +118,80 @@ export function AuthForm({
             ? "unavailable"
             : "prompt";
     setLocationStatus(nextStatus);
-    if (nextStatus === "denied") return;
+    // Grant, deny, timeout, and skip all leave this screen. persistAllowLocationOutcome
+    // always sets enterJournal. Staying on deny was the iPad location-screen hang.
     enterJournal();
   }
 
   function startAllowWait(firstAttempt?: Promise<DeviceGpsAttempt>) {
+    const generation = ++allowGenerationRef.current;
+    allowCleanupRef.current?.();
+    allowCleanupRef.current = null;
     allowAbortRef.current?.abort();
     const ac = new AbortController();
     allowAbortRef.current = ac;
     setLocationStatus("asking");
-    writeSavedLiveLocationAllowed();
+    try {
+      writeSavedLiveLocationAllowed();
+    } catch {
+      /* storage must not leave Getting location on screen */
+    }
+    let settled = false;
+    let sawHidden = false;
+    let budgetTimer: number | null = null;
+    let afterDialogTimer: number | null = null;
+    const clearTimers = () => {
+      if (budgetTimer != null) window.clearTimeout(budgetTimer);
+      if (afterDialogTimer != null) window.clearTimeout(afterDialogTimer);
+      budgetTimer = null;
+      afterDialogTimer = null;
+    };
+    const advance = (result: DeviceGpsAttempt) => {
+      if (settled || generation !== allowGenerationRef.current) return;
+      settled = true;
+      clearTimers();
+      document.removeEventListener("visibilitychange", onVisible);
+      if (allowCleanupRef.current === cleanup) allowCleanupRef.current = null;
+      ac.abort();
+      finishAllowWait(result);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "hidden") {
+        sawHidden = true;
+        return;
+      }
+      // iPad permission sheet can pause timers and then never call back after Allow.
+      if (!sawHidden || settled || afterDialogTimer != null) return;
+      afterDialogTimer = window.setTimeout(() => {
+        advance({ ok: false, reason: "timeout" });
+      }, 2_500);
+    };
+    const cleanup = () => {
+      clearTimers();
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    allowCleanupRef.current = cleanup;
+    document.addEventListener("visibilitychange", onVisible);
+    budgetTimer = window.setTimeout(() => {
+      advance({ ok: false, reason: "timeout" });
+    }, ALLOW_GPS_BUDGET_MS + 1_000);
     void waitForAllowLocationFix({
       firstAttempt,
       signal: ac.signal,
-    }).then((result) => {
-      if (ac.signal.aborted) return;
-      finishAllowWait(result);
-    });
+      budgetMs: ALLOW_GPS_BUDGET_MS,
+    })
+      .then((result) => {
+        advance(result);
+      })
+      .catch(() => {
+        advance({ ok: false, reason: "unavailable" });
+      });
   }
 
   function allowLocation() {
-    startAllowWait(requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS));
+    // getCurrentPosition must run in this tap, before setState, or iOS drops the dialog.
+    const firstAttempt = requestDeviceGpsAttempt(undefined, ALLOW_GPS_OPTIONS);
+    startAllowWait(firstAttempt);
   }
 
   function resumeAllowedLocationWait() {
@@ -135,10 +199,11 @@ export function AuthForm({
   }
 
   function skipLocation() {
+    allowGenerationRef.current += 1;
+    allowCleanupRef.current?.();
+    allowCleanupRef.current = null;
     allowAbortRef.current?.abort();
-    persistAllowLocationOutcome({ skip: true });
-    setLocationStatus("unavailable");
-    enterJournal();
+    finishAllowWait({ skip: true });
   }
 
   if (phase === "location") {

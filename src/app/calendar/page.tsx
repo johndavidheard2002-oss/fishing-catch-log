@@ -8,7 +8,7 @@ import { listCatches } from "@/lib/db/catches";
 import { listBaitSpots } from "@/lib/db/bait";
 import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { listCalendarNotes } from "@/lib/db/notes";
-import { journalUnlocked } from "@/lib/entitlement";
+import { journalBlocked } from "@/lib/entitlement";
 import { redirect } from "next/navigation";
 import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerFromCookies } from "@/lib/viewer";
 
@@ -30,7 +30,7 @@ export default async function CalendarLogPage() {
     if (!viewer.signedIn || !viewer.id) redirect("/signin");
     viewerId = viewer.id;
     const entitlement = await getEntitlementForAngler(viewerId);
-    if (!entitlement || !journalUnlocked(entitlement.subscriptionStatus)) {
+    if (journalBlocked(entitlement)) {
       return <Paywall entitlement={entitlement} />;
     }
     initialCatches = await listCatches({ viewerId, includeShared: true });

@@ -88,7 +88,7 @@ export const ALLOW_LOCATION_SERVICES_HINT =
   "If Allow doesn’t stick, turn Private Relay off, then Tide Mark → While Using.";
 export const LOCATION_SERVICES_SETUP_TITLE = "Location on iPhone";
 export const LOCATION_SERVICES_SETUP_BODY =
-  "Tap Allow once. Turn Private Relay off, then Location Services → Tide Mark → While Using (Precise if shown).";
+  "Tap Continue once. Turn Private Relay off, then Location Services → Tide Mark → While Using (Precise if shown).";
 export const OPEN_SETTINGS_LABEL = "Open Settings";
 export const APP_SETTINGS_URL = "app-settings:";
 
@@ -110,13 +110,22 @@ export function formatLocationServicesSetupHint(
 }
 export const ASKING_VISIBLE_MS = 400;
 
-export const ALLOW_LOCATION_LABEL = "Allow location";
+export const ALLOW_LOCATION_LABEL = "Continue";
 export const SKIP_LOCATION_LABEL = "Not now";
 export const CONTINUE_WITHOUT_LOCATION_LABEL = "Continue without location";
 export const TURN_LOCATION_ON_LABEL = "Turn location on";
 
 export function skipLocationLabel(): string {
   return SKIP_LOCATION_LABEL;
+}
+
+/**
+ * First custom message before the system location dialog.
+ * Not now there lets someone dismiss the message and never see the dialog
+ * (App Review 5.1.1(iv)). Skip stays only while a fix is already in flight.
+ */
+export function locationPromptOffersSkip(status: LiveLocationStatus): boolean {
+  return status === "asking";
 }
 
 export function shouldShowTurnLocationOn(status: LiveLocationStatus): boolean {
@@ -721,7 +730,7 @@ export function liveLocationPromptCopy(
   return {
     title: "Allow location",
     body: formatLocationServicesSetupHint(
-      "Tap Allow once so a live photo can drop the pin. This phone remembers it. You can still move the pin.",
+      "Tap Continue once so a live photo can drop the pin. This phone remembers it. You can still move the pin.",
     ),
   };
 }
