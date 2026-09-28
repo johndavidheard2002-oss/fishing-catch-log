@@ -21,14 +21,13 @@ function personalPhotoPaths(values: Array<string | null | undefined>): string[] 
  */
 export async function deleteAnglerAccount(anglerId: string): Promise<boolean> {
   const db = await ensureDb();
-  const catchPhotos = await allRows(
-    db.select({ photoPath: catches.photoPath }).from(catches).where(eq(catches.anglerId, anglerId)),
-  );
-  const baitPhotos = await allRows(
-    db.select({ photoPath: baitSpots.photoPath }).from(baitSpots).where(eq(baitSpots.anglerId, anglerId)),
-  );
+  // JournalDatabase is BetterSQLite3 | LibSQL. TypeScript only keeps the
+  // zero-argument select() overload on that union, so a column projection
+  // fails production `next build` ("Expected 0 arguments, but got 1").
+  const catchPhotos = await allRows(db.select().from(catches).where(eq(catches.anglerId, anglerId)));
+  const baitPhotos = await allRows(db.select().from(baitSpots).where(eq(baitSpots.anglerId, anglerId)));
   const notePhotos = await allRows(
-    db.select({ photoPath: calendarNotes.photoPath }).from(calendarNotes).where(eq(calendarNotes.anglerId, anglerId)),
+    db.select().from(calendarNotes).where(eq(calendarNotes.anglerId, anglerId)),
   );
   const photos = personalPhotoPaths([
     ...catchPhotos.map((row) => row.photoPath),
@@ -52,16 +51,13 @@ export async function deleteAnglerAccount(anglerId: string): Promise<boolean> {
   if (photos.length) {
     const still = new Set<string>();
     const leftoverCatches = await allRows(
-      db.select({ photoPath: catches.photoPath }).from(catches).where(inArray(catches.photoPath, photos)),
+      db.select().from(catches).where(inArray(catches.photoPath, photos)),
     );
     const leftoverBait = await allRows(
-      db.select({ photoPath: baitSpots.photoPath }).from(baitSpots).where(inArray(baitSpots.photoPath, photos)),
+      db.select().from(baitSpots).where(inArray(baitSpots.photoPath, photos)),
     );
     const leftoverNotes = await allRows(
-      db
-        .select({ photoPath: calendarNotes.photoPath })
-        .from(calendarNotes)
-        .where(inArray(calendarNotes.photoPath, photos)),
+      db.select().from(calendarNotes).where(inArray(calendarNotes.photoPath, photos)),
     );
     for (const row of [...leftoverCatches, ...leftoverBait, ...leftoverNotes]) {
       if (row.photoPath) still.add(row.photoPath);
