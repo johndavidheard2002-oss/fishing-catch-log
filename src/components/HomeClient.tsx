@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
 import { BuddyPanel } from "@/components/BuddyPanel";
+import { DeleteAccount } from "@/components/DeleteAccount";
 import { FirstHelpTip } from "@/components/HelpGuide";
 import { LogOutButton } from "@/components/LogOutButton";
 import { Paywall, SubscribeActions } from "@/components/Paywall";
@@ -129,6 +130,7 @@ export function HomeClient() {
                   : `Free month: ${trialDays ?? "—"} day${trialDays === 1 ? "" : "s"} left. Then ${YEARLY_PRICE_LABEL}.`}
           </p>
           <LogOutButton />
+          <DeleteAccount />
         </section>
       ) : null}
 
@@ -249,6 +251,7 @@ export function HomeClient() {
             Privacy policy
           </Link>
           <LogOutButton testId="log-out-more" />
+          <DeleteAccount idPrefix="delete-account-more" />
         </div>
         <BuddyPanel embedded />
       </details>

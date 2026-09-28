@@ -36,6 +36,22 @@ export function readUploadedPhoto(filename: string): Buffer | null {
   return fs.readFileSync(/*turbopackIgnore: true*/ filePath);
 }
 
+/** Remove one uploaded catch/bait/note photo. Basename only, inside the uploads dir. */
+export function deleteUploadedPhotoFile(photoPath: string): boolean {
+  const trimmed = photoPath.trim();
+  if (!trimmed || isHttpPhotoPath(trimmed) || trimmed.startsWith("/seed/") || trimmed.startsWith("blob:")) {
+    return false;
+  }
+  const safe = path.basename(trimmed);
+  if (!safe || safe === "." || safe === "..") return false;
+  const dir = path.resolve(/*turbopackIgnore: true*/ uploadsDir());
+  const filePath = path.resolve(dir, safe);
+  if (filePath !== path.join(dir, safe)) return false;
+  if (!fs.existsSync(/*turbopackIgnore: true*/ filePath)) return false;
+  fs.unlinkSync(/*turbopackIgnore: true*/ filePath);
+  return true;
+}
+
 /**
  * Pending Find fish uploads live on disk before they are attached to a catch.
  * Basename-only — missing files are null.

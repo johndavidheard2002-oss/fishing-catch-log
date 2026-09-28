@@ -7,6 +7,7 @@ describe("auth gate", () => {
     expect(isPublicPath("/privacy")).toBe(true);
     expect(isPublicPath("/api/auth/login")).toBe(true);
     expect(isPublicPath("/api/auth/register")).toBe(true);
+    expect(isPublicPath("/api/auth/delete")).toBe(false);
     expect(isPublicPath("/api/me")).toBe(true);
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/calendar")).toBe(false);
@@ -22,6 +23,9 @@ describe("auth gate", () => {
     expect(authGate({ pathname: "/api/catches", hasSession: false })).toEqual({
       action: "unauthorized",
     });
+    expect(authGate({ pathname: "/api/auth/delete", hasSession: false })).toEqual({
+      action: "unauthorized",
+    });
     expect(authGate({ pathname: "/signin", hasSession: false })).toEqual({ action: "next" });
     expect(authGate({ pathname: "/privacy", hasSession: false })).toEqual({ action: "next" });
     expect(authGate({ pathname: "/api/auth/login", hasSession: false })).toEqual({
@@ -35,6 +39,7 @@ describe("auth gate", () => {
     expect(authGate({ pathname: "/", hasSession: true })).toEqual({ action: "next" });
     expect(authGate({ pathname: "/privacy", hasSession: true })).toEqual({ action: "next" });
     expect(authGate({ pathname: "/calendar", hasSession: true })).toEqual({ action: "next" });
+    expect(authGate({ pathname: "/api/auth/delete", hasSession: true })).toEqual({ action: "next" });
     expect(authGate({ pathname: "/signin", hasSession: true })).toEqual({
       action: "redirect",
       to: "/",
