@@ -10,7 +10,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Privacy",
-  description: `How ${APP_DISPLAY_NAME} stores account email, catch photos, location pins, and friend sharing — and how to request deletion.`,
+  description: `How ${APP_DISPLAY_NAME} stores account email, catch photos, location pins, and friend sharing — and how to delete your account.`,
 };
 
 export default function PrivacyPage() {
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
         </section>
       ))}
       <p className="page-intro text-sm">
-        Questions or a deletion request:{" "}
+        Questions, or deletion if you cannot sign in:{" "}
         <a className="font-semibold text-teal underline" href={`mailto:${PRIVACY_CONTACT_EMAIL}`}>
           {PRIVACY_CONTACT_EMAIL}
         </a>

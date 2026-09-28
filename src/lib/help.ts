@@ -82,6 +82,9 @@ export const HELP_SECTIONS: HelpSection[] = [
       `The first month is free. After that, ${YEARLY_PRICE_LABEL} keeps the journal unlocked.`,
       "After you sign in, tap Continue so this phone can pin a live photo. Log still has Turn location on.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
+      "On Home, under your name, tap Delete account.",
+      "Enter your password, type DELETE, then tap Delete my account.",
+      "That erases the account and journal. Log out does not delete it.",
     ],
   },
   {

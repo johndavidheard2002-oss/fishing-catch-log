@@ -10,7 +10,7 @@ export const AUTH_PRIVACY_LINE =
 
 export const PRIVACY_PATH = "/privacy";
 export const PRIVACY_CONTACT_EMAIL = "johndavidheard2002@gmail.com";
-export const PRIVACY_UPDATED = "September 4, 2026";
+export const PRIVACY_UPDATED = "September 28, 2026";
 
 export type PrivacySection = {
   id: string;
@@ -19,7 +19,7 @@ export type PrivacySection = {
 };
 
 export const PRIVACY_INTRO =
-  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, how the free month and yearly journal work, and how to ask us to delete it.";
+  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, how the free month and yearly journal work, and how to delete your account.";
 
 export const PRIVACY_SECTIONS: PrivacySection[] = [
   {
@@ -27,7 +27,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     title: "Account email",
     paragraphs: [
       "You create a journal with your name, email address, and a password. Email is how you sign back in. We store the email on your angler record and keep the password as a one-way hash — we cannot read the password itself.",
-      "We use the email only to run your account (sign-in, and to match a deletion request). Tide Mark does not sell email lists or send marketing mail.",
+      "We use the email only to run your account (sign-in). Tide Mark does not sell email lists or send marketing mail. You can delete the account from Home.",
     ],
   },
   {
@@ -72,10 +72,10 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
   },
   {
     id: "deletion",
-    title: "How to request deletion",
+    title: "How to delete your account",
     paragraphs: [
-      "Email the Tide Mark operator from the same address you used to create the journal and ask us to delete your account. We will remove your angler record, catches, catch photos, bait spots, notes, and friend links from the hosted journal.",
-      `Write to ${PRIVACY_CONTACT_EMAIL}. Say you want your Tide Mark journal deleted. We will confirm when it is gone. Signing out only ends this session — it does not erase the log.`,
+      "On Home, the account card under your name has Delete account. The same control is under More, then Account. Enter the password for this journal and type DELETE, then tap Delete my account. That permanently removes the account: the angler record, catches, catch photos, bait spots, notes, named areas, and friend links. It is not a temporary deactivation. Signing out only ends this session and does not erase the log.",
+      `If you cannot sign in, email ${PRIVACY_CONTACT_EMAIL} from the address on the journal and ask us to delete it. We will confirm when it is gone.`,
     ],
   },
 ];

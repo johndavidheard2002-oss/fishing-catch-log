@@ -20,6 +20,7 @@ export type OfflineBackend = {
   listManualEntryIds(): Promise<string[]>;
   addManualEntryId(id: string): Promise<void>;
   removeManualEntryId(id: string): Promise<void>;
+  clearAccountCache(): Promise<void>;
 };
 
 const DB_NAME = "tide-mark-offline";
@@ -73,6 +74,13 @@ export function memoryOfflineBackend(): OfflineBackend {
     },
     async removeManualEntryId(id) {
       manual.delete(id);
+    },
+    async clearAccountCache() {
+      pending.clear();
+      photos.clear();
+      journal = null;
+      session = null;
+      manual.clear();
     },
   };
 }
@@ -166,6 +174,17 @@ function idbOfflineBackend(): OfflineBackend {
         ),
       );
     },
+    async clearAccountCache() {
+      const db = await openDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(["pending", "photos", "kv"], "readwrite");
+        tx.objectStore("pending").clear();
+        tx.objectStore("photos").clear();
+        tx.objectStore("kv").clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error ?? new Error("IndexedDB clear failed"));
+      });
+    },
   };
 }
 
@@ -237,4 +256,9 @@ export async function markManualEntryCatch(id: string) {
 
 export async function clearManualEntryCatch(id: string) {
   await backend.removeManualEntryId(id);
+}
+
+/** Drop this phone’s cached journal, queued logs, and signed-in session after account deletion. */
+export async function clearOfflineAccountCache() {
+  await backend.clearAccountCache();
 }

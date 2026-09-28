@@ -64,6 +64,8 @@ describe("PWA cache rules", () => {
     expect(isPwaApiPath("/api/media/photo.jpg")).toBe(true);
     expect(isPwaApiPath("/api/auth/login")).toBe(true);
     expect(isPwaAuthApiPath("/api/auth/login")).toBe(true);
+    expect(isPwaAuthApiPath("/api/auth/delete")).toBe(true);
+    expect(isPwaJournalGetPath("/api/auth/delete")).toBe(false);
     expect(isPwaAuthApiPath("/api/entitlement/storekit")).toBe(true);
     expect(isPwaJournalGetPath("/api/catches")).toBe(true);
     expect(isPwaJournalGetPath("/api/media/photo.jpg")).toBe(true);

@@ -96,12 +96,12 @@ Xcode opens `ios/App/App.xcworkspace`. Signing team, archive, and upload wait fo
 Do these only after Apple Developer is **Active**. Still no need to change the web app.
 
 1. **App Store Connect app** — New app, name Tide Mark, bundle ID `com.tidemark.logbook`, SKU of your choice (e.g. `tidemark`).
-2. **Privacy** — Policy URL `https://fishing-catch-log-ivl7.onrender.com/privacy`. Declare account email, photos, precise location, and friend sharing. Deletion: email from the account address (see the privacy page).
+2. **Privacy** — Policy URL `https://fishing-catch-log-ivl7.onrender.com/privacy`. Declare account email, photos, precise location, and friend sharing. Deletion is in the app: Home → Delete account (password, type DELETE, Delete my account). Email is only a backup if they cannot sign in.
 3. **Certificates / profiles** — In Xcode, enable Automatic Signing and pick the team. Or create an Apple Distribution cert and App Store provisioning profile in the developer portal. Not done in this repo.
 4. **Archive** — Destination: Any iOS Device. Product → Archive.
 5. **TestFlight** — Prefer the Codemagic `ios-testflight` workflow below. Manual path: archive in Xcode, upload to App Store Connect, add internal testers. `Info.plist` already sets `ITSAppUsesNonExemptEncryption` to `false` (HTTPS / OS encryption only), so App Store Connect should not ask the export-compliance questions on each upload.
 6. **Subscription** — Auto-renewable product **`tidemark_premium_yearly`** in subscription group **TideMarkPremium**, **$29.99/year**, with the **1-month free intro** already configured in App Store Connect. The web journal still runs its own 30-day trial clock; StoreKit purchase/restore is what marks `subscription_status` **active**. **John must set the $29.99 price tier in App Store Connect** — ASC is authoritative for real charges; in-app strings already say $29.99/year. Do not create a new product id.
-7. **Review notes** — Demo account if Review cannot create one; explain camera, location, and photo library prompts with the strings above.
+7. **Review notes** — Demo account if Review cannot create one; explain camera, location, and photo library prompts with the strings above. Account deletion is inside the app (guideline 5.1.1(v)), not by email alone. Recording path: create account or sign in → Home account card (name and email) → Delete account → password → type DELETE → Delete my account → Sign in / Create account.
 8. **In-App Purchase capability** — In Xcode, add the **In-App Purchase** capability on the App target. StoreKit 2 lives in `ios/App/App/TideMarkStorePlugin.swift` (Capacitor plugin `TideMarkStore`). Minimum iOS is **15.0**.
 
 ## StoreKit / paywall
