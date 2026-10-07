@@ -11,8 +11,10 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Bundle ID | `com.tidemark.logbook` |
 | Live WebView URL | https://fishing-catch-log-ivl7.onrender.com |
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
-| Pricing draft | **$29.99/year** after a **1-month free trial** |
-| In-App Purchase | `tidemark_premium_yearly` (auto-renewable, group **TideMarkPremium**) |
+| Marketing version | **2.0** (`MARKETING_VERSION` in the Xcode project). Codemagic sets the build number to the latest TestFlight or App Store build + 1. |
+| Pricing | Log, Calendar, and Spots stay **free**. **Tide Mark Plan** is **$19.99/month** after a **1-month free trial** |
+| In-App Purchase | `com.tidemark.logbook.plan.monthly` (auto-renewable, subscription group **Tide Mark Plan**) |
+| 2.0 shell marker | WebView user agent token `TideMarkPlanIAP/2` (`ios.appendUserAgent`). The 1.0 binary does not send it. |
 | Icon / seal | `public/brand/tide-mark-logo.png` (locked copper seal — TIDE MARK / SALTWATER LOGBOOK, fish-eye map pin; do not redraw). iOS AppIcon is the opaque 1024 near-black square. |
 | PWA icons | `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png` |
 | PWA splash | `public/splash/apple-splash-*.png` |
@@ -100,23 +102,31 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 3. **Certificates / profiles** — In Xcode, enable Automatic Signing and pick the team. Or create an Apple Distribution cert and App Store provisioning profile in the developer portal. Not done in this repo.
 4. **Archive** — Destination: Any iOS Device. Product → Archive.
 5. **TestFlight** — Prefer the Codemagic `ios-testflight` workflow below. Manual path: archive in Xcode, upload to App Store Connect, add internal testers. `Info.plist` already sets `ITSAppUsesNonExemptEncryption` to `false` (HTTPS / OS encryption only), so App Store Connect should not ask the export-compliance questions on each upload.
-6. **Subscription** — Auto-renewable product **`tidemark_premium_yearly`** in subscription group **TideMarkPremium**, **$29.99/year**, with the **1-month free intro** already configured in App Store Connect. The web journal still runs its own 30-day trial clock; StoreKit purchase/restore is what marks `subscription_status` **active**. **John must set the $29.99 price tier in App Store Connect** — ASC is authoritative for real charges; in-app strings already say $29.99/year. Do not create a new product id.
+6. **Subscription** — Auto-renewable product **`com.tidemark.logbook.plan.monthly`** in a subscription group named **Tide Mark Plan**, **$19.99/month** (USD), with a **1-month free trial** introductory offer. Do **not** reuse `tidemark_premium_yearly`. The rest of the app stays free. **John must create this product in App Store Connect** before review — the id and group name have to match the app exactly. ASC is authoritative for the charged price; the paywall uses StoreKit’s localized price when the product loads, and falls back to $19.99/month.
 7. **Review notes** — Demo account if Review cannot create one; explain camera, location, and photo library prompts with the strings above. Account deletion is inside the app (guideline 5.1.1(v)), not by email alone. Recording path: create account or sign in → Home account card (name and email) → Delete account → password → type DELETE → Delete my account → Sign in / Create account.
 8. **In-App Purchase capability** — In Xcode, add the **In-App Purchase** capability on the App target. StoreKit 2 lives in `ios/App/App/TideMarkStorePlugin.swift` (Capacitor plugin `TideMarkStore`). Minimum iOS is **15.0**.
 
-## StoreKit / paywall
+## StoreKit / Plan paywall (2.0)
 
-The live site still shows a disabled “Coming with the App Store build” Subscribe button in Safari and Add to Home Screen. Inside the Capacitor iOS WebView (`Capacitor.isNativePlatform()` + `ios`), Subscribe and Restore call StoreKit for **`tidemark_premium_yearly`** only, then `POST /api/entitlement/storekit` so the server marks the signed-in journal `active` (or `expired` if StoreKit’s expiration is already past). The web trial clock is not reset.
+The iOS app is a Capacitor WebView pointed at the live Render site (`server.url`). The same JavaScript runs for the website, the 1.0 app, and 2.0. Plan is paid only when **both** are true:
+
+1. `Capacitor.isNativePlatform()` and platform `ios`
+2. The WebView user agent contains `TideMarkPlanIAP/2`
+
+That token is baked into the 2.0 binary by `ios.appendUserAgent` in `capacitor.config.ts`. The live 1.0 binary does not append it, so a Render deploy does not show 1.0 users a purchase screen. Safari and Add to Home Screen never have the token either, so Plan stays included there. The 2.0 plugin method `planOffer` is what reads StoreKit; 1.0 does not implement it and the site does not call purchase unless the token is present.
+
+Inside 2.0, Plan calls StoreKit for **`com.tidemark.logbook.plan.monthly`**. Purchase and Restore read the verified transaction (including expiration and revocation). Relaunch calls `planOffer`, which uses `Transaction.latest`, so an expired or cancelled subscription locks Plan again. An active introductory trial stays unlocked until Apple’s expiration date. `POST /api/entitlement/storekit` records the term on the journal. That record does **not** lock Log, Calendar, or Spots — `JOURNAL_FREE_FOR_RELEASE` stays on.
 
 | | |
 | --- | --- |
-| Product ID | `tidemark_premium_yearly` |
-| Subscription group | TideMarkPremium |
-| Price | $29.99/year |
-| Intro | 1-month free (App Store Connect) |
-| Capacitor plugin | `TideMarkStore` (`getProduct`, `purchase`, `restore`) |
+| Product ID | `com.tidemark.logbook.plan.monthly` |
+| Subscription group | Tide Mark Plan |
+| Price | $19.99/month |
+| Intro | 1-month free trial (App Store Connect introductory offer) |
+| 2.0 marker | `TideMarkPlanIAP/2` |
+| Capacitor plugin | `TideMarkStore` (`planOffer`, `getProduct`, `purchase`, `restore`) |
 | Server | `POST /api/entitlement/storekit` (signed-in cookie) |
-| Web | Buy stays disabled / coming soon |
+| Web and 1.0 | Plan stays included. No subscribe button. |
 
 Linux CI can run the TypeScript tests (claim parsing, entitlement activate/restore, Capacitor detection). They do **not** talk to StoreKit. On a Mac, verify the real sheet:
 
@@ -125,7 +135,7 @@ npx cap sync ios
 npx cap open ios
 ```
 
-In Xcode: enable In-App Purchase, attach a StoreKit Configuration (product id exactly `tidemark_premium_yearly`, group TideMarkPremium, $29.99/year, 1-month free intro) or use a sandbox Apple ID against App Store Connect. Confirm purchase and Restore unlock the journal, and that Safari still shows the disabled Subscribe button.
+In Xcode: enable In-App Purchase, attach `ios/App/App/TideMarkPlan.storekit` (product id exactly `com.tidemark.logbook.plan.monthly`, group **Tide Mark Plan**, $19.99/month, 1-month free intro) or use a sandbox Apple ID against App Store Connect. Confirm purchase and Restore unlock Plan, that an expired date locks Plan again, and that Safari still opens Plan with no paywall.
 
 Full App Store Server API receipt verification is not in this pass — the native plugin only forwards a StoreKit 2 transaction the device already verified. Add Apple JWS / server-notification checks later if you need to reject spoofed POSTs.
 
@@ -158,7 +168,7 @@ The App Store wrap still loads the live site. Offline / local-first uses the exi
 4. On **Log**, take a camera photo. Device GPS can still drop a pin. Map tiles may be blank — pin dropping on the map can wait. Save the catch.
 5. Confirm the locked copy: **Offline. This log is saved…**, location/conditions fill-later notes, and a **Waiting for service** chip on the queued trip.
 6. Turn the network back on. The queued log should upload. Weather/tides/conditions fill on sync. If location or date-time are still empty, the manual-entry note appears.
-7. Soft-lock stays intact: an expired journal still shows the paywall and does not sync a queued log until the journal is unlocked.
+7. The journal stays usable when the network returns. Plan’s subscription check is the native StoreKit bridge in 2.0; the website does not soft-lock Log, Calendar, or Plan.
 
 Linux CI covers the queue/sync unit tests (`npm test`). It cannot exercise Airplane Mode on a phone.
 

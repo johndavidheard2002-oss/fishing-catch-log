@@ -5,11 +5,12 @@ import { APP_DISPLAY_NAME, APP_LOGO_SRC } from "./brand";
 import {
   APP_STORE_BUNDLE_ID,
   APP_STORE_LIVE_URL,
-  APP_STORE_PRICE_YEARLY,
+  APP_STORE_PLAN_PRICE,
+  APP_STORE_PLAN_PRODUCT_ID,
+  APP_STORE_PLAN_SUBSCRIPTION_GROUP,
+  APP_STORE_PLAN_TRIAL,
   APP_STORE_PRIVACY_URL,
-  APP_STORE_PRODUCT_YEARLY,
-  APP_STORE_SUBSCRIPTION_GROUP,
-  APP_STORE_TRIAL,
+  NATIVE_PLAN_IAP_UA_TOKEN,
   IOS_USAGE_DESCRIPTIONS,
   NATIVE_ICON_SOURCE,
 } from "./native-app";
@@ -21,10 +22,11 @@ describe("App Store / Capacitor wrap", () => {
     expect(APP_STORE_LIVE_URL).toBe("https://fishing-catch-log-ivl7.onrender.com");
     expect(APP_STORE_PRIVACY_URL).toBe("https://fishing-catch-log-ivl7.onrender.com/privacy");
     expect(NATIVE_ICON_SOURCE).toBe(APP_LOGO_SRC);
-    expect(APP_STORE_PRICE_YEARLY).toBe("$29.99/year");
-    expect(APP_STORE_TRIAL).toBe("1-month free trial");
-    expect(APP_STORE_PRODUCT_YEARLY).toBe("tidemark_premium_yearly");
-    expect(APP_STORE_SUBSCRIPTION_GROUP).toBe("TideMarkPremium");
+    expect(APP_STORE_PLAN_PRICE).toBe("$19.99/month");
+    expect(APP_STORE_PLAN_TRIAL).toBe("1-month free trial");
+    expect(APP_STORE_PLAN_PRODUCT_ID).toBe("com.tidemark.logbook.plan.monthly");
+    expect(APP_STORE_PLAN_SUBSCRIPTION_GROUP).toBe("Tide Mark Plan");
+    expect(NATIVE_PLAN_IAP_UA_TOKEN).toBe("TideMarkPlanIAP/2");
 
     const cap = readFileSync(resolve(process.cwd(), "capacitor.config.ts"), "utf8");
     expect(cap).toContain(`appId: "${APP_STORE_BUNDLE_ID}"`);
@@ -33,6 +35,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(cap).toContain(`url: "${APP_STORE_LIVE_URL}"`);
     expect(cap).toContain(NATIVE_ICON_SOURCE);
     expect(cap).toContain('contentInset: "never"');
+    expect(cap).toContain(`appendUserAgent: "${NATIVE_PLAN_IAP_UA_TOKEN}"`);
 
     const pbx = resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj");
     if (existsSync(pbx)) {
@@ -49,10 +52,11 @@ describe("App Store / Capacitor wrap", () => {
     expect(docs).toContain(IOS_USAGE_DESCRIPTIONS.NSCameraUsageDescription);
     expect(docs).toContain(IOS_USAGE_DESCRIPTIONS.NSLocationWhenInUseUsageDescription);
     expect(docs).toContain(IOS_USAGE_DESCRIPTIONS.NSPhotoLibraryUsageDescription);
-    expect(docs).toContain(APP_STORE_PRICE_YEARLY);
-    expect(docs).toContain(APP_STORE_TRIAL);
-    expect(docs).toContain(APP_STORE_PRODUCT_YEARLY);
-    expect(docs).toContain(APP_STORE_SUBSCRIPTION_GROUP);
+    expect(docs).toContain(APP_STORE_PLAN_PRICE);
+    expect(docs).toContain(APP_STORE_PLAN_TRIAL);
+    expect(docs).toContain(APP_STORE_PLAN_PRODUCT_ID);
+    expect(docs).toContain(APP_STORE_PLAN_SUBSCRIPTION_GROUP);
+    expect(docs).toContain(NATIVE_PLAN_IAP_UA_TOKEN);
     expect(docs).toContain("TideMarkStore");
     expect(docs).toContain("/api/entitlement/storekit");
     expect(docs).toContain("StoreKit");
@@ -64,7 +68,9 @@ describe("App Store / Capacitor wrap", () => {
     expect(docs).toContain("ITSAppUsesNonExemptEncryption");
 
     const plugin = readFileSync(resolve(process.cwd(), "ios/App/App/TideMarkStorePlugin.swift"), "utf8");
-    expect(plugin).toContain(APP_STORE_PRODUCT_YEARLY);
+    expect(plugin).toContain(APP_STORE_PLAN_PRODUCT_ID);
+    expect(plugin).toContain("func planOffer");
+    expect(plugin).toContain("Transaction.latest");
     expect(plugin).toContain("StoreKit");
     expect(plugin).toContain("jsName = \"TideMarkStore\"");
     expect(plugin).toContain("func purchase");
@@ -72,6 +78,8 @@ describe("App Store / Capacitor wrap", () => {
     const proj = readFileSync(resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj"), "utf8");
     expect(proj).toContain("TideMarkStorePlugin.swift");
     expect(proj).toContain("IPHONEOS_DEPLOYMENT_TARGET = 15.0;");
+    expect(proj).toContain("MARKETING_VERSION = 2.0;");
+    expect(proj).toContain("CURRENT_PROJECT_VERSION = 2;");
     const paywall = readFileSync(resolve(process.cwd(), "src/components/Paywall.tsx"), "utf8");
     expect(paywall).toContain("subscribe-disabled");
     expect(paywall).toContain("subscribe-yearly");
@@ -79,7 +87,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(paywall).toContain("storekitPurchaseAvailable");
     const route = readFileSync(resolve(process.cwd(), "src/app/api/entitlement/storekit/route.ts"), "utf8");
     expect(route).toContain("activateFromStorekit");
-    expect(route).toContain("tidemark_premium_yearly");
+    expect(route).toContain(APP_STORE_PLAN_PRODUCT_ID);
 
     const plist = resolve(process.cwd(), "ios/App/App/Info.plist");
     if (existsSync(plist)) {

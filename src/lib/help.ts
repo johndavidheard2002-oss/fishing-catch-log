@@ -1,4 +1,4 @@
-import { YEARLY_PRICE_LABEL } from "./entitlement";
+import { PLAN_PRICE_LABEL } from "./plan-iap";
 
 export const HELP_OPEN_EVENT = "cast-log-open-help";
 export const HELP_TIP_EVENT = "cast-log-help-tip-change";
@@ -79,7 +79,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Your journal",
     steps: [
       "Sign in or create an account with email and a password to open your journal.",
-      `The first month is free. After that, ${YEARLY_PRICE_LABEL} keeps the journal unlocked.`,
+      "Log, Calendar, and Spots stay free on this account.",
       "After you sign in, tap Continue so this phone can pin a live photo. Log still has Turn location on.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
       "On Home, under your name, tap Delete account.",
@@ -88,12 +88,12 @@ export const HELP_SECTIONS: HelpSection[] = [
     ],
   },
   {
-    title: "Free month and yearly journal",
+    title: "Tide Mark Plan",
     steps: [
-      "Your first month is full access — no purchase required.",
-      "We remind you about 7 days, 3 days, and 1 day before it ends.",
-      `After that, Home stays open and the journal stays usable. A later paid year would be ${YEARLY_PRICE_LABEL}.`,
-      "On the Tide Mark iPhone app, Subscribe and Restore use the App Store when a paid plan is offered later. Log, Calendar, Plan, and Spots stay open.",
+      "Log, Calendar, and Spots stay free. The website keeps Plan included.",
+      `On Tide Mark 2.0 for iPhone, Plan is an App Store subscription: a 1-month free trial, then ${PLAN_PRICE_LABEL}. Subscribe and Restore Purchases use the App Store.`,
+      "Plan shows the matching tide for each logged catch on that day (same height and incoming or outgoing), notes on the plan, and that day’s tides.",
+      "Cancel in Settings → Apple ID → Subscriptions.",
       "Your catches and photos stay saved. Nothing is deleted.",
     ],
   },

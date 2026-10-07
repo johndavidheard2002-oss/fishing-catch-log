@@ -107,7 +107,7 @@ export function HomeClient() {
 
       <FirstHelpTip />
 
-      {me.ready && me.entitlement?.noticeWindow && !locked ? (
+      {!JOURNAL_FREE_FOR_RELEASE && me.ready && me.entitlement?.noticeWindow && !locked ? (
         <>
           <TrialNotice anglerId={me.id} entitlement={me.entitlement} placement="home" />
           <TrialNoticeModal anglerId={me.id} entitlement={me.entitlement} />
@@ -137,7 +137,7 @@ export function HomeClient() {
       {JOURNAL_FREE_FOR_RELEASE ? (
         <section className="journal-card space-y-2 rounded-2xl p-4" data-testid="home-subscribe">
           <p className="font-display text-xl text-teal">Your journal</p>
-          <p className="text-sm text-ink">Log, Calendar, Plan, and Spots stay open.</p>
+          <p className="text-sm text-ink">Log, Calendar, and Spots stay open.</p>
         </section>
       ) : locked ? (
         <div data-testid="home-subscribe">

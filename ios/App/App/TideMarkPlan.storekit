@@ -1,0 +1,62 @@
+{
+  "identifier" : "TideMarkPlan",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "TIDE_MARK_PLAN",
+      "localizations" : [
+
+      ],
+      "name" : "Tide Mark Plan",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "PLAN_MONTHLY",
+          "introductoryOffer" : {
+            "internalID" : "PLAN_INTRO_TRIAL",
+            "numberOfPeriods" : 1,
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1M"
+          },
+          "localizations" : [
+            {
+              "description" : "Matching tide for each logged catch on the plan day, notes on the plan, and that day's tides.",
+              "displayName" : "Tide Mark Plan",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.tidemark.logbook.plan.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Tide Mark Plan Monthly",
+          "subscriptionGroupID" : "TIDE_MARK_PLAN",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

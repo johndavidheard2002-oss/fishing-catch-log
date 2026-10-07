@@ -85,7 +85,7 @@ describe("PWA cache rules", () => {
 
   it("keeps the service worker network-first with an offline journal fallback", () => {
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
-    expect(PWA_CACHE_NAME).toBe("tide-mark-static-v6");
+    expect(PWA_CACHE_NAME).toBe("tide-mark-static-v7");
     expect(sw).toContain(`"${PWA_CACHE_NAME}"`);
     expect(sw).not.toContain("catch-compass-static");
     expect(sw).toContain("skipWaiting");

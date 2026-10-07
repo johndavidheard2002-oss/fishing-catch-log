@@ -371,7 +371,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             )
           ) : (
             <>
-              {onSignIn || pathname === "/" || !entitlement?.noticeWindow ? null : (
+              {JOURNAL_FREE_FOR_RELEASE || onSignIn || pathname === "/" || !entitlement?.noticeWindow ? null : (
                 <TrialNotice anglerId={anglerId} entitlement={entitlement} placement="nag" />
               )}
               {children}
