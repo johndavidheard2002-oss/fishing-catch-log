@@ -85,6 +85,11 @@ workflows:
           if [ -z "${LATEST_BUILD_NUMBER}" ]; then
             LATEST_BUILD_NUMBER=0
           fi
+          MARKETING=$(agvtool what-marketing-version -terse1 | tr -d '\n')
+          if [ "$MARKETING" != "2.0" ]; then
+            echo "Expected marketing version 2.0, found ${MARKETING}"
+            exit 1
+          fi
           agvtool new-version -all $((LATEST_BUILD_NUMBER + 1))
       - name: Build ipa for distribution
         script: |

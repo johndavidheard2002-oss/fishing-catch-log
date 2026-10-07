@@ -101,7 +101,7 @@ export function parseQaStatus(value: unknown): SubscriptionStatus | null {
   return isSubscriptionStatus(value) ? value : null;
 }
 
-/** Mark Tide Mark Premium active (or expired if StoreKit says the term ended). Trial clock is left in place. */
+/** Record a Tide Mark Plan purchase (or expired if StoreKit says the term ended). Trial clock is left in place. The journal stays free. */
 export async function activateFromStorekit(
   anglerId: string,
   body: unknown,

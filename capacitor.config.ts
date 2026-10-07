@@ -22,6 +22,9 @@ const config: CapacitorConfig = {
     androidScheme: "https",
   },
   ios: {
+    // 2.0-only marker. The 1.0 App Store binary does not append this, so the
+    // live site can keep Plan free for that build and for the website.
+    appendUserAgent: "TideMarkPlanIAP/2",
     // `never` lets CSS env(safe-area-inset-*) own the notch / home indicator.
     // `automatic` fights viewport-fit=cover: WKWebView reports 0 insets while
     // the WebView still draws under the status bar and home indicator.

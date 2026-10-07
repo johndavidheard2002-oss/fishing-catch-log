@@ -1,7 +1,15 @@
 import { Capacitor, registerPlugin, WebPlugin } from "@capacitor/core";
 import type { EntitlementSnapshot } from "./entitlement";
 import {
-  STOREKIT_YEARLY_PRODUCT_ID,
+  PLAN_PRODUCT_ID,
+  fallbackPlanOffer,
+  planAccessFromProbe,
+  planIapBuildAvailable,
+  planOfferFromPlugin,
+  type PlanAccess,
+  type PlanOffer,
+} from "./plan-iap";
+import {
   parseStorekitClaim,
   type StorekitClaim,
   type StorekitSource,
@@ -21,23 +29,38 @@ export type StorekitProductInfo = {
 };
 
 export type StorekitPluginResult = {
+  nativePlanIap?: boolean;
   productId?: string;
   transactionId?: string;
   originalTransactionId?: string;
   expiresAt?: string | null;
   expiresDate?: string | number | null;
   restored?: boolean;
+  entitled?: boolean;
+  status?: string;
   jws?: string;
+  displayPrice?: string | null;
+  displayName?: string | null;
+  periodUnit?: string | null;
+  periodValue?: number | null;
+  introPaymentMode?: string | null;
+  introPeriodUnit?: string | null;
+  introPeriodValue?: number | null;
+  introDisplayPrice?: string | null;
 };
 
 export interface TideMarkStorePlugin {
   getProduct(options?: { productId?: string }): Promise<StorekitProductInfo>;
+  planOffer(options?: { productId?: string }): Promise<StorekitPluginResult>;
   purchase(options?: { productId?: string }): Promise<StorekitPluginResult>;
   restore(options?: { productId?: string }): Promise<StorekitPluginResult>;
 }
 
 class TideMarkStoreWeb extends WebPlugin implements TideMarkStorePlugin {
   async getProduct(): Promise<StorekitProductInfo> {
+    throw this.unavailable("StoreKit is only available in the Tide Mark iOS app.");
+  }
+  async planOffer(): Promise<StorekitPluginResult> {
     throw this.unavailable("StoreKit is only available in the Tide Mark iOS app.");
   }
   async purchase(): Promise<StorekitPluginResult> {
@@ -54,6 +77,7 @@ const TideMarkStore = registerPlugin<TideMarkStorePlugin>("TideMarkStore", {
 
 let runtimeOverride: NativeRuntime | null = null;
 let storeOverride: TideMarkStorePlugin | null = null;
+let userAgentOverride: string | null = null;
 
 export function setNativeRuntimeForTests(runtime: NativeRuntime | null) {
   runtimeOverride = runtime;
@@ -61,6 +85,10 @@ export function setNativeRuntimeForTests(runtime: NativeRuntime | null) {
 
 export function setTideMarkStoreForTests(store: TideMarkStorePlugin | null) {
   storeOverride = store;
+}
+
+export function setUserAgentForTests(userAgent: string | null) {
+  userAgentOverride = userAgent;
 }
 
 function runtime(): NativeRuntime {
@@ -71,6 +99,11 @@ function store(): TideMarkStorePlugin {
   return storeOverride ?? TideMarkStore;
 }
 
+function userAgent(): string {
+  if (userAgentOverride != null) return userAgentOverride;
+  return typeof navigator === "undefined" ? "" : navigator.userAgent;
+}
+
 export function isNativeIosApp(cap: NativeRuntime = runtime()): boolean {
   try {
     return cap.isNativePlatform() && cap.getPlatform() === "ios";
@@ -79,9 +112,17 @@ export function isNativeIosApp(cap: NativeRuntime = runtime()): boolean {
   }
 }
 
-/** StoreKit buy/restore is only offered inside the Capacitor iOS shell. */
+/** Native iOS shell, including the live 1.0 build. Not enough to sell Plan. */
 export function storekitPurchaseAvailable(cap: NativeRuntime = runtime()): boolean {
   return isNativeIosApp(cap);
+}
+
+/** True only for the 2.0 binary that advertises StoreKit Plan in its user agent. */
+export function planStorekitAvailable(
+  cap: NativeRuntime = runtime(),
+  ua: string = userAgent(),
+): boolean {
+  return planIapBuildAvailable({ nativeIos: isNativeIosApp(cap), userAgent: ua });
 }
 
 export function notifyEntitlementChanged(entitlement?: EntitlementSnapshot | null) {
@@ -94,12 +135,15 @@ export function pluginResultToClaim(
   source: StorekitSource,
   now = new Date(),
 ): { ok: true; claim: StorekitClaim } | { ok: false; error: string } {
-  if (result.restored === false && source === "restore") {
+  if (result.restored === false && source === "restore" && result.entitled !== true) {
+    if (result.status === "expired") {
+      return { ok: false, error: "That Plan subscription has ended." };
+    }
     return { ok: false, error: "No App Store subscription to restore for this Apple ID." };
   }
   return parseStorekitClaim(
     {
-      productId: result.productId ?? STOREKIT_YEARLY_PRODUCT_ID,
+      productId: result.productId ?? PLAN_PRODUCT_ID,
       transactionId: result.transactionId,
       originalTransactionId: result.originalTransactionId,
       expiresAt: result.expiresAt ?? result.expiresDate,
@@ -110,39 +154,87 @@ export function pluginResultToClaim(
   );
 }
 
-export async function fetchStorekitProduct(): Promise<StorekitProductInfo> {
-  if (!storekitPurchaseAvailable()) {
-    throw new Error("StoreKit is only available in the Tide Mark iOS app.");
-  }
-  const product = await store().getProduct({ productId: STOREKIT_YEARLY_PRODUCT_ID });
-  if (product.productId && product.productId !== STOREKIT_YEARLY_PRODUCT_ID) {
-    throw new Error(`StoreKit product must be ${STOREKIT_YEARLY_PRODUCT_ID}.`);
-  }
-  return {
-    productId: STOREKIT_YEARLY_PRODUCT_ID,
-    displayPrice: product.displayPrice ?? null,
-    displayName: product.displayName ?? null,
-  };
+function offerFromResult(result: StorekitPluginResult): PlanOffer {
+  return (
+    planOfferFromPlugin({
+      ...result,
+      nativePlanIap: true,
+      productId: result.productId ?? PLAN_PRODUCT_ID,
+    }) ?? fallbackPlanOffer()
+  );
 }
 
-export async function purchaseYearlySubscription(): Promise<StorekitClaim> {
-  if (!storekitPurchaseAvailable()) {
-    throw new Error("StoreKit is only available in the Tide Mark iOS app.");
+export async function fetchPlanOffer(): Promise<PlanOffer> {
+  if (!planStorekitAvailable()) {
+    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iPhone.");
   }
-  const result = await store().purchase({ productId: STOREKIT_YEARLY_PRODUCT_ID });
+  const result = await store().planOffer({ productId: PLAN_PRODUCT_ID });
+  const offer = planOfferFromPlugin(result);
+  if (!offer) throw new Error("StoreKit Plan is not available in this app build.");
+  return offer;
+}
+
+export async function resolvePlanAccess(): Promise<PlanAccess> {
+  if (!planStorekitAvailable()) return { mode: "free" };
+  try {
+    const offer = await fetchPlanOffer();
+    return planAccessFromProbe({ nativeBuild: true, offer });
+  } catch {
+    return planAccessFromProbe({ nativeBuild: true, offer: null });
+  }
+}
+
+async function persistPlanClaim(claim: StorekitClaim): Promise<EntitlementSnapshot | null> {
+  try {
+    return await activateStorekitOnServer(claim);
+  } catch {
+    return null;
+  }
+}
+
+export async function purchasePlan(): Promise<PlanOffer> {
+  if (!planStorekitAvailable()) {
+    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iPhone.");
+  }
+  const result = await store().purchase({ productId: PLAN_PRODUCT_ID });
   const parsed = pluginResultToClaim(result, "purchase");
   if (!parsed.ok) throw new Error(parsed.error);
-  return parsed.claim;
+  const offer = offerFromResult(result);
+  await persistPlanClaim(parsed.claim);
+  if (!offer.entitled || offer.status === "expired") {
+    throw new Error("The App Store subscription is not active.");
+  }
+  return offer;
 }
 
-export async function restoreYearlySubscription(): Promise<StorekitClaim> {
-  if (!storekitPurchaseAvailable()) {
-    throw new Error("StoreKit is only available in the Tide Mark iOS app.");
+export async function restorePlan(): Promise<PlanOffer> {
+  if (!planStorekitAvailable()) {
+    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iPhone.");
   }
-  const result = await store().restore({ productId: STOREKIT_YEARLY_PRODUCT_ID });
+  const result = await store().restore({ productId: PLAN_PRODUCT_ID });
+  const offer = offerFromResult(result);
   const parsed = pluginResultToClaim(result, "restore");
+  if (parsed.ok) {
+    await persistPlanClaim(parsed.claim);
+  } else if (offer.transactionId && offer.status === "expired") {
+    const expired = parseStorekitClaim({
+      productId: offer.productId,
+      transactionId: offer.transactionId,
+      originalTransactionId: offer.originalTransactionId,
+      expiresAt: offer.expiresAt,
+      source: "restore",
+    });
+    if (expired.ok) await persistPlanClaim(expired.claim);
+  }
   if (!parsed.ok) throw new Error(parsed.error);
-  return parsed.claim;
+  if (!offer.entitled || offer.status === "expired") {
+    throw new Error(
+      offer.status === "expired"
+        ? "That Plan subscription has ended."
+        : "No App Store subscription to restore for this Apple ID.",
+    );
+  }
+  return offer;
 }
 
 export async function activateStorekitOnServer(claim: StorekitClaim): Promise<EntitlementSnapshot> {
@@ -163,18 +255,38 @@ export async function activateStorekitOnServer(claim: StorekitClaim): Promise<En
     entitlement?: EntitlementSnapshot;
   };
   if (!response.ok || !data.entitlement) {
-    throw new Error(typeof data.error === "string" ? data.error : "Could not unlock the journal from the App Store.");
+    throw new Error(typeof data.error === "string" ? data.error : "Could not save the App Store subscription.");
   }
   notifyEntitlementChanged(data.entitlement);
   return data.entitlement;
 }
 
+/** Dormant journal paywall. 1.0 keeps this hidden. Purchases the Plan product if it is ever shown in 2.0. */
 export async function purchaseAndActivateYearly(): Promise<EntitlementSnapshot> {
-  const claim = await purchaseYearlySubscription();
-  return activateStorekitOnServer(claim);
+  const offer = await purchasePlan();
+  const parsed = parseStorekitClaim({
+    productId: offer.productId,
+    transactionId: offer.transactionId,
+    originalTransactionId: offer.originalTransactionId,
+    expiresAt: offer.expiresAt,
+    source: "purchase",
+  });
+  if (!parsed.ok || !parsed.claim.transactionId) {
+    throw new Error("Could not save the App Store subscription.");
+  }
+  const saved = await activateStorekitOnServer(parsed.claim);
+  return saved;
 }
 
 export async function restoreAndActivateYearly(): Promise<EntitlementSnapshot> {
-  const claim = await restoreYearlySubscription();
-  return activateStorekitOnServer(claim);
+  const offer = await restorePlan();
+  const parsed = parseStorekitClaim({
+    productId: offer.productId,
+    transactionId: offer.transactionId,
+    originalTransactionId: offer.originalTransactionId,
+    expiresAt: offer.expiresAt,
+    source: "restore",
+  });
+  if (!parsed.ok) throw new Error(parsed.error);
+  return activateStorekitOnServer(parsed.claim);
 }

@@ -33,6 +33,10 @@ export const PAYWALL_STORE_NOTE_NATIVE =
   "Billed through the App Store as Tide Mark Premium. Restore purchases if you already subscribed on this Apple ID.";
 export const PAYWALL_RESTORE_LABEL = "Restore purchases";
 export const TRIAL_OFFER_LINE = `First month free. Then ${YEARLY_PRICE_LABEL} to keep the journal unlocked.`;
+
+/** Shown while the journal itself stays free (1.0, the website, and 2.0 outside Plan). */
+export const JOURNAL_FREE_LINE =
+  "Your journal is free. Log, Calendar, and Spots stay on this account.";
 export const OPEN_PAYWALL_EVENT = "tidemark-open-paywall";
 export const TRIAL_NOTICE_EVENT = "tidemark-trial-notice";
 

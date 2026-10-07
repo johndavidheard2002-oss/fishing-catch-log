@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { JournalUnavailable } from "@/components/JournalUnavailable";
 import { Paywall } from "@/components/Paywall";
+import { PlanAccess } from "@/components/PlanAccess";
 import { PlanClient } from "@/components/PlanClient";
 import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { listCalendarNotes } from "@/lib/db/notes";
@@ -65,20 +66,22 @@ export default async function PlanPage({
     : restorePlanDay(initialNotes, todayKey(), requested);
 
   return (
-    <PlanClient
-      key={
-        hasPendingAdd
-          ? `add:${initialAddCatch ?? ""}:${initialAddBait ?? ""}:${initialAddPlace ?? ""}`
-          : "plan"
-      }
-      viewerId={viewerId}
-      initialDate={initialDate}
-      initialNotes={initialNotes}
-      initialAddCatch={initialAddCatch}
-      initialAddBait={initialAddBait}
-      initialAddPlace={initialAddPlace}
-      initialAddSpecies={initialAddSpecies}
-      initialAddPhoto={initialAddPhoto}
-    />
+    <PlanAccess>
+      <PlanClient
+        key={
+          hasPendingAdd
+            ? `add:${initialAddCatch ?? ""}:${initialAddBait ?? ""}:${initialAddPlace ?? ""}`
+            : "plan"
+        }
+        viewerId={viewerId}
+        initialDate={initialDate}
+        initialNotes={initialNotes}
+        initialAddCatch={initialAddCatch}
+        initialAddBait={initialAddBait}
+        initialAddPlace={initialAddPlace}
+        initialAddSpecies={initialAddSpecies}
+        initialAddPhoto={initialAddPhoto}
+      />
+    </PlanAccess>
   );
 }

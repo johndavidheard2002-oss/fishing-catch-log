@@ -1,4 +1,4 @@
-import { YEARLY_PRICE_LABEL } from "./entitlement";
+import { PLAN_PRICE_LABEL, PLAN_TITLE } from "./plan-iap";
 
 export const PRIVACY_LINE = "Only shared with people you’ve linked.";
 
@@ -10,7 +10,7 @@ export const AUTH_PRIVACY_LINE =
 
 export const PRIVACY_PATH = "/privacy";
 export const PRIVACY_CONTACT_EMAIL = "johndavidheard2002@gmail.com";
-export const PRIVACY_UPDATED = "September 28, 2026";
+export const PRIVACY_UPDATED = "October 7, 2026";
 
 export type PrivacySection = {
   id: string;
@@ -19,7 +19,7 @@ export type PrivacySection = {
 };
 
 export const PRIVACY_INTRO =
-  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, how the free month and yearly journal work, and how to delete your account.";
+  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, how the free journal and optional Plan subscription work, and how to delete your account.";
 
 export const PRIVACY_SECTIONS: PrivacySection[] = [
   {
@@ -56,10 +56,10 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
   },
   {
     id: "subscriptions",
-    title: "Free month and yearly journal",
+    title: "Free journal and Tide Mark Plan",
     paragraphs: [
-      `New accounts get a free month of full Tide Mark access from the first time the trial starts (account creation, or the first successful sign-in that starts it). A later paid year, if offered, is ${YEARLY_PRICE_LABEL} through the App Store. This version keeps the journal open.`,
-      "If the free month ends, Home, Log, Calendar, Plan, and Spots stay open. We do not delete your catches, photos, spots, or notes.",
+      "Log, Calendar, Spots, and your account stay free. The website and Tide Mark 1.0 keep Plan included. We do not delete your catches, photos, spots, or notes.",
+      `${PLAN_TITLE} is an optional auto-renewable subscription in the Tide Mark 2.0 iPhone app: a free month, then ${PLAN_PRICE_LABEL}, billed by Apple. It shows the matching tide for each logged catch on the plan day (same height and incoming or outgoing), notes on the plan, and that day’s tides. Manage or cancel in your App Store account settings.`,
     ],
   },
   {

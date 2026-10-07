@@ -12,7 +12,7 @@ describe("HELP_SECTIONS", () => {
       "Calendar Log",
       "Offline",
       "Your journal",
-      "Free month and yearly journal",
+      "Tide Mark Plan",
       "Share with a friend",
       "Spots",
       "Backfill",
@@ -85,13 +85,17 @@ describe("HELP_SECTIONS", () => {
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
     expect(journal.some((step) => step.includes("Continue") && step.includes("Turn location on"))).toBe(true);
     expect(journal.some((step) => step.includes("Log out"))).toBe(true);
-    expect(journal.some((step) => step.includes("first month") && step.includes("$29.99/year"))).toBe(true);
-    const billing = HELP_SECTIONS.find((section) => section.title === "Free month and yearly journal")?.steps ?? [];
-    expect(billing.some((step) => step.includes("Home stays open") && step.includes("$29.99/year"))).toBe(true);
+    expect(journal.some((step) => step.includes("Log, Calendar, and Spots stay free"))).toBe(true);
+    const billing = HELP_SECTIONS.find((section) => section.title === "Tide Mark Plan")?.steps ?? [];
+    expect(billing.some((step) => step.includes("stay free") && step.includes("website keeps Plan included"))).toBe(
+      true,
+    );
+    expect(billing.some((step) => step.includes("1-month free trial") && step.includes("$19.99/month"))).toBe(true);
     expect(billing.some((step) => step.includes("Nothing is deleted"))).toBe(true);
     expect(
       billing.some((step) => step.includes("iPhone") && step.includes("App Store") && step.includes("Restore")),
     ).toBe(true);
+    expect(billing.join(" ").toLowerCase()).not.toMatch(/don['’]t buy|unless you have|keep using the app free/);
     const share = HELP_SECTIONS.find((section) => section.title === "Share with a friend")?.steps ?? [];
     expect(share.some((step) => step.includes("More") && step.includes("Linked friends") && step.includes("Link"))).toBe(
       true,

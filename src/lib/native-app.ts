@@ -22,8 +22,24 @@ export const IOS_USAGE_DESCRIPTIONS = {
 } as const;
 
 export const APP_STORE_PRICE_YEARLY = "$29.99/year";
-export const APP_STORE_TRIAL = "1-month free trial";
 
-/** App Store Connect auto-renewable subscription. Do not rename. */
-export const APP_STORE_PRODUCT_YEARLY = "tidemark_premium_yearly";
-export const APP_STORE_SUBSCRIPTION_GROUP = "TideMarkPremium";
+/**
+ * Tide Mark Plan — auto-renewable monthly subscription for version 2.0.
+ * Create this exact product in App Store Connect. Do not rename.
+ */
+export const APP_STORE_PLAN_PRODUCT_ID = "com.tidemark.logbook.plan.monthly";
+export const APP_STORE_PLAN_SUBSCRIPTION_GROUP = "Tide Mark Plan";
+export const APP_STORE_PLAN_PRICE = "$19.99/month";
+export const APP_STORE_PLAN_TRIAL = "1-month free trial";
+
+/**
+ * Appended to the WKWebView user agent only by the 2.0 native shell
+ * (`capacitor.config.ts` → `ios.appendUserAgent`). The live 1.0 binary
+ * does not include this token, so the remote site must not show a Plan
+ * purchase screen unless both this token and the iOS Capacitor bridge exist.
+ */
+export const NATIVE_PLAN_IAP_UA_TOKEN = "TideMarkPlanIAP/2";
+
+/** Apple standard Licensed Application EULA. Fine for guideline 3.1.2. */
+export const APPLE_STANDARD_EULA_URL =
+  "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";

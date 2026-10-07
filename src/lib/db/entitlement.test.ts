@@ -62,8 +62,9 @@ describe("persisted entitlement", () => {
     const result = await activateFromStorekit(
       created.id,
       {
-        productId: "tidemark_premium_yearly",
+        productId: "com.tidemark.logbook.plan.monthly",
         transactionId: "txn-db",
+        expiresAt: "2026-10-10T12:00:00.000Z",
         source: "purchase",
       },
       new Date("2026-09-10T12:00:00.000Z"),
@@ -72,7 +73,7 @@ describe("persisted entitlement", () => {
     if (!("entitlement" in result)) return;
     expect(result.entitlement.subscriptionStatus).toBe("active");
     expect(result.entitlement.trialStartedAt).toBe(trialStart);
-    const again = await getEntitlementForAngler(created.id, new Date("2026-10-15T12:00:00.000Z"));
+    const again = await getEntitlementForAngler(created.id, new Date("2026-10-01T12:00:00.000Z"));
     expect(again?.subscriptionStatus).toBe("active");
     expect(again?.trialStartedAt).toBe(trialStart);
   });
@@ -84,7 +85,7 @@ describe("persisted entitlement", () => {
     const restored = await activateFromStorekit(
       created.id,
       {
-        productId: "tidemark_premium_yearly",
+        productId: "com.tidemark.logbook.plan.monthly",
         transactionId: "txn-old",
         expiresAt: "2026-01-01T00:00:00.000Z",
         source: "restore",
@@ -101,7 +102,7 @@ describe("persisted entitlement", () => {
       source: "purchase",
     });
     expect("error" in wrong).toBe(true);
-    if ("error" in wrong) expect(wrong.error).toContain("tidemark_premium_yearly");
+    if ("error" in wrong) expect(wrong.error).toContain("com.tidemark.logbook.plan.monthly");
   });
 
   it("registers a claimed journal already on trial", async () => {

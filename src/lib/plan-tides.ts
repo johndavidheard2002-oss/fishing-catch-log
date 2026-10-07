@@ -185,6 +185,14 @@ function pinFromRecord(
   };
 }
 
+/** Catch or bait row → the same pin Plan uses for height badges. */
+export function pinFromTideRecord(
+  record: TideRecord | null | undefined,
+  caughtAt?: string | null,
+): PlannedTidePin | null {
+  return pinFromRecord(record, caughtAt ?? record?.caughtAt ?? record?.loggedAt ?? null);
+}
+
 /** Fetch the full catch when Plan only has a partial suggestion row (no clock, pin, or flood/ebb). */
 export function catchNeedsPlanTideFetch(row?: PlannedTideJournalCatch | null): boolean {
   if (!row) return true;
@@ -459,6 +467,20 @@ export function plannedSpotTideHeightLabel(
   catchSnap?: TideSnapshot | null,
 ): string | null {
   return formatCatchTideHeightFt(catchLoggedOrSampledHeight(pin, catchSnap));
+}
+
+/**
+ * Calendar Log / catch-card height. Logged `tideHeightFt` first (even without a
+ * pin), then NOAA/sample at the catch clock. Unknown → no badge.
+ */
+export function catchRecordTideHeightLabel(
+  record: TideRecord | null | undefined,
+  catchSnap?: TideSnapshot | null,
+): string | null {
+  if (!record) return null;
+  const logged = formatCatchTideHeightFt(record.tideHeightFt);
+  if (logged) return logged;
+  return plannedSpotTideHeightLabel(pinFromTideRecord(record), catchSnap);
 }
 
 /** Flood/ebb from the past catch — never High/Low, never a wrong-limb plan-day clock. */

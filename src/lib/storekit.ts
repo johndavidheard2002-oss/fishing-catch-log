@@ -1,15 +1,16 @@
 import { addMs, DAY_MS, isSubscriptionStatus, type SubscriptionStatus } from "./entitlement";
-import { APP_STORE_PRODUCT_YEARLY, APP_STORE_SUBSCRIPTION_GROUP } from "./native-app";
+import { APP_STORE_PLAN_PRODUCT_ID, APP_STORE_PLAN_SUBSCRIPTION_GROUP } from "./native-app";
 
-export const STOREKIT_YEARLY_PRODUCT_ID = APP_STORE_PRODUCT_YEARLY;
-export const STOREKIT_SUBSCRIPTION_GROUP = APP_STORE_SUBSCRIPTION_GROUP;
-export const STOREKIT_YEAR_MS = 365 * DAY_MS;
+export const STOREKIT_PLAN_PRODUCT_ID = APP_STORE_PLAN_PRODUCT_ID;
+export const STOREKIT_SUBSCRIPTION_GROUP = APP_STORE_PLAN_SUBSCRIPTION_GROUP;
+/** Fallback term only when a verified transaction omits expirationDate. */
+export const STOREKIT_MONTH_MS = 30 * DAY_MS;
 
 export const STOREKIT_SOURCES = ["purchase", "restore"] as const;
 export type StorekitSource = (typeof STOREKIT_SOURCES)[number];
 
 export type StorekitClaim = {
-  productId: typeof STOREKIT_YEARLY_PRODUCT_ID;
+  productId: typeof STOREKIT_PLAN_PRODUCT_ID;
   transactionId: string;
   originalTransactionId: string | null;
   expiresAt: string | null;
@@ -20,8 +21,8 @@ export type StorekitActivateResult =
   | { ok: true; status: Extract<SubscriptionStatus, "active" | "expired">; expiresAt: string | null; claim: StorekitClaim }
   | { ok: false; error: string };
 
-export function isStorekitYearlyProductId(value: unknown): value is typeof STOREKIT_YEARLY_PRODUCT_ID {
-  return value === STOREKIT_YEARLY_PRODUCT_ID;
+export function isStorekitPlanProductId(value: unknown): value is typeof STOREKIT_PLAN_PRODUCT_ID {
+  return value === STOREKIT_PLAN_PRODUCT_ID;
 }
 
 export function isStorekitSource(value: unknown): value is StorekitSource {
@@ -83,8 +84,8 @@ export function parseStorekitClaim(
   const jws = asNonEmptyString(raw.jws) ?? asNonEmptyString(raw.signedTransaction);
   const fromJws = jws ? decodeStorekitJwsPayload(jws) : null;
   const productId = raw.productId ?? fromJws?.productId;
-  if (!isStorekitYearlyProductId(productId)) {
-    return { ok: false, error: `productId must be ${STOREKIT_YEARLY_PRODUCT_ID}.` };
+  if (!isStorekitPlanProductId(productId)) {
+    return { ok: false, error: `productId must be ${STOREKIT_PLAN_PRODUCT_ID}.` };
   }
 
   const source = raw.source ?? "purchase";
@@ -121,12 +122,12 @@ export function parseStorekitClaim(
 
 export function storekitSubscriptionExpiresAt(claim: StorekitClaim, now = new Date()): string {
   if (claim.expiresAt) return claim.expiresAt;
-  return addMs(now.toISOString(), STOREKIT_YEAR_MS);
+  return addMs(now.toISOString(), STOREKIT_MONTH_MS);
 }
 
 export function resolveStorekitActivation(claim: StorekitClaim, now = new Date()): StorekitActivateResult {
-  if (!isStorekitYearlyProductId(claim.productId)) {
-    return { ok: false, error: `productId must be ${STOREKIT_YEARLY_PRODUCT_ID}.` };
+  if (!isStorekitPlanProductId(claim.productId)) {
+    return { ok: false, error: `productId must be ${STOREKIT_PLAN_PRODUCT_ID}.` };
   }
   const expiresAt = storekitSubscriptionExpiresAt(claim, now);
   const expired = new Date(expiresAt).getTime() <= now.getTime();
