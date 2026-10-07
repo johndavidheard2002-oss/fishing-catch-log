@@ -8,6 +8,7 @@ import {
   catchLoggedOrSampledHeight,
   catchNeedsPlanTideFetch,
   formatCatchTideHeightFt,
+  catchRecordTideHeightLabel,
   plannedSpotTideHeightLabel,
   catchTideLookupKey,
   fallbackChipFromDayTides,
@@ -1340,6 +1341,78 @@ describe("plannedSpotTideHeightLabel", () => {
   });
 });
 
+describe("catchRecordTideHeightLabel", () => {
+  const record = catchOf({
+    id: "c-height",
+    species: "Redfish",
+    habitat: "saltwater-inshore",
+    latitude: 27.877,
+    longitude: -97.211,
+    caughtAt: "2026-08-15T21:02:00.000Z",
+    tideHeightFt: 1.5,
+    tide: "outgoing",
+  });
+
+  it("uses the logged catch height, including compact negative feet", () => {
+    expect(catchRecordTideHeightLabel(record)).toBe("1.5");
+    expect(catchRecordTideHeightLabel({ ...record, tideHeightFt: -0.5 })).toBe("-.5");
+    expect(catchRecordTideHeightLabel({ ...record, tideHeightFt: 0.8 })).toBe("0.8");
+  });
+
+  it("still shows a logged height when the catch has no pin", () => {
+    expect(
+      catchRecordTideHeightLabel({
+        ...record,
+        latitude: null,
+        longitude: null,
+        photoTakenLatitude: null,
+        photoTakenLongitude: null,
+        tideHeightFt: 1.5,
+      }),
+    ).toBe("1.5");
+  });
+
+  it("does not replace a logged height with a NOAA snapshot heightFt", () => {
+    const catchSnap: TideSnapshot = {
+      applies: true,
+      tide: "outgoing",
+      heightFt: 3.9,
+      nextHighAt: null,
+      nextHighFt: null,
+      nextLowAt: null,
+      nextLowFt: null,
+      source: "noaa",
+      note: "",
+    };
+    expect(catchRecordTideHeightLabel(record, catchSnap)).toBe("1.5");
+  });
+
+  it("falls back to the NOAA sample at the catch clock when logged height is missing", () => {
+    const catchSnap: TideSnapshot = {
+      applies: true,
+      tide: "outgoing",
+      heightFt: null,
+      nextHighAt: "2026-08-15T12:39:00.000Z",
+      nextHighFt: 0.8,
+      nextLowAt: "2026-08-16T01:13:00.000Z",
+      nextLowFt: 0.2,
+      source: "noaa",
+      note: "",
+      extremes: [
+        { at: "2026-08-15T12:39:00.000Z", type: "high", heightFt: 0.8 },
+        { at: "2026-08-16T01:13:00.000Z", type: "low", heightFt: 0.2 },
+      ],
+    };
+    const sampled = heightAndDirectionAt(catchSnap.extremes, new Date(record.caughtAt));
+    expect(sampled?.heightFt).toBeTruthy();
+    expect(catchRecordTideHeightLabel({ ...record, tideHeightFt: null }, catchSnap)).toBe(
+      formatCatchTideHeightFt(sampled!.heightFt),
+    );
+    expect(catchRecordTideHeightLabel({ ...record, tideHeightFt: null })).toBeNull();
+    expect(catchRecordTideHeightLabel(null)).toBeNull();
+  });
+});
+
 describe("Plan Planned panel wires day tides", () => {
   it("shows the planned day's tides and a closest tide on each photo row", () => {
     const plan = readFileSync(resolve(__dirname, "../components/PlanClient.tsx"), "utf8");
@@ -1383,6 +1456,8 @@ describe("Plan Planned panel wires day tides", () => {
     expect(tides).toContain("catchLoggedOrSampledHeight");
     expect(tides).toContain("formatCatchTideHeightFt");
     expect(tides).toContain("plannedSpotTideHeightLabel");
+    expect(tides).toContain("catchRecordTideHeightLabel");
+    expect(tides).toContain("pinFromTideRecord");
     expect(tides).toContain("catchFloodEbbDirection");
     expect(plan).toContain("plannedSpotTideHeightLabel");
     expect(plan).toContain('data-testid="plan-planned-photo-tide-height"');
