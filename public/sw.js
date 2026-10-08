@@ -1,7 +1,7 @@
-// Tide Mark SW — cache v7. Static assets, journal GETs, and HTML/RSC stay
+// Tide Mark SW — cache v8. Static assets, journal GETs, and HTML/RSC stay
 // network-first with a cache fallback so Calendar List/Grid/detail and Log
 // still open from what is already on this phone. Auth and billing stay live.
-const CACHE = "tide-mark-static-v7";
+const CACHE = "tide-mark-static-v8";
 
 function isApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/");

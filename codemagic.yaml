@@ -54,6 +54,18 @@ workflows:
         script: |
           # Live WebView URL is already in capacitor.config.ts.
           npx cap sync ios
+          # cap sync rebuilds packageClassList from npm plugins only. The
+          # StoreKit class lives in the app target, so add it or purchase
+          # never reaches JavaScript. The storyboard also registers it.
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync } from "node:fs";
+            const path = "ios/App/App/capacitor.config.json";
+            const config = JSON.parse(readFileSync(path, "utf8"));
+            const list = new Set(config.packageClassList ?? []);
+            list.add("TideMarkStorePlugin");
+            config.packageClassList = [...list];
+            writeFileSync(path, JSON.stringify(config, null, "\t") + "\n");
+          '
       - name: Set up keychain
         script: |
           keychain initialize

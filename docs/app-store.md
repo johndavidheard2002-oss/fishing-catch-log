@@ -115,7 +115,11 @@ The iOS app is a Capacitor WebView pointed at the live Render site (`server.url`
 
 That token is baked into the 2.0 binary by `ios.appendUserAgent` in `capacitor.config.ts`. The live 1.0 binary does not append it, so a Render deploy does not show 1.0 users a purchase screen. Safari and Add to Home Screen never have the token either, so Plan stays included there. The 2.0 plugin method `planOffer` is what reads StoreKit; 1.0 does not implement it and the site does not call purchase unless the token is present.
 
-Inside 2.0, Plan calls StoreKit for **`com.tidemark.logbook.plan.monthly`**. Purchase and Restore read the verified transaction (including expiration and revocation). Relaunch calls `planOffer`, which uses `Transaction.latest`, so an expired or cancelled subscription locks Plan again. An active introductory trial stays unlocked until Apple’s expiration date. `POST /api/entitlement/storekit` records the term on the journal. That record does **not** lock Log, Calendar, or Spots — `JOURNAL_FREE_FOR_RELEASE` stays on.
+Inside 2.0, Home’s account card has a **Tide Mark Plan** button (`/subscribe`), and the Plan tab shows the same purchase screen above Plan a day. The day planner stays usable, including for accounts created before 2.0. The purchase screen always shows the price (StoreKit’s price, or **$19.99/month** if the product has not loaded), **Start 1-month free trial**, **Restore Purchases**, and **Retry** when the App Store price did not load. An active subscription does not hide that screen.
+
+`cap sync` only puts npm plugins in `packageClassList`, so the local `TideMarkStorePlugin` was never registered and purchase could not present StoreKit. `TideMarkBridgeViewController` registers it in `capacitorDidLoad`. That registration is in the binary; a Render deploy cannot add it.
+
+Purchase and Restore read the verified transaction (including expiration and revocation). Relaunch calls `planOffer`, which uses `Transaction.latest`. `POST /api/entitlement/storekit` records the term on the journal. That record does **not** lock Log, Calendar, or Spots — `JOURNAL_FREE_FOR_RELEASE` stays on.
 
 | | |
 | --- | --- |

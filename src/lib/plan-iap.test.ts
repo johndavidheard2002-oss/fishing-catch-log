@@ -107,6 +107,17 @@ describe("Plan StoreKit gate", () => {
     expect(planPaywallDiscouragesPurchase(ui)).toBe(false);
     const page = readFileSync(resolve(process.cwd(), "src/app/plan/page.tsx"), "utf8");
     expect(page).toContain("<PlanAccess>");
+    const access = readFileSync(resolve(process.cwd(), "src/components/PlanAccess.tsx"), "utf8");
+    expect(access).toContain("<PlanSubscribeScreen />");
+    expect(access).toContain("{children}");
+    const home = readFileSync(resolve(process.cwd(), "src/components/HomeClient.tsx"), "utf8");
+    expect(home).toContain('href="/subscribe"');
+    expect(home).toContain('data-testid="home-tide-mark-plan"');
+    expect(home).toContain("planOfferVisible");
+    const subscribe = readFileSync(resolve(process.cwd(), "src/app/subscribe/page.tsx"), "utf8");
+    expect(subscribe).toContain("PlanSubscribeScreen");
+    expect(ui).toContain('data-testid="plan-price-retry"');
+    expect(ui).toContain('data-testid="plan-price-fallback"');
     const dev = readFileSync(resolve(process.cwd(), "src/app/dev/plan-paywall/page.tsx"), "utf8");
     expect(dev).toContain('process.env.NODE_ENV === "production"');
     expect(dev).toContain("notFound");

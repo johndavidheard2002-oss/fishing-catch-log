@@ -79,6 +79,14 @@ describe("App Store / Capacitor wrap", () => {
     expect(plugin).toContain("result.jwsRepresentation");
     expect(plugin).not.toContain("transaction.jwsRepresentation");
     expect(plugin).not.toContain("@unknown default: return \"unknown\"");
+    expect(plugin).toContain("registerPluginInstance(TideMarkStorePlugin())");
+    expect(plugin).toContain("class TideMarkBridgeViewController");
+    const storyboard = readFileSync(
+      resolve(process.cwd(), "ios/App/App/Base.lproj/Main.storyboard"),
+      "utf8",
+    );
+    expect(storyboard).toContain('customClass="TideMarkBridgeViewController"');
+    expect(storyboard).toContain('customModule="App"');
     const proj = readFileSync(resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj"), "utf8");
     expect(proj).toContain("TideMarkStorePlugin.swift");
     expect(proj).toContain("IPHONEOS_DEPLOYMENT_TARGET = 15.0;");
@@ -90,6 +98,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(cm).toContain("--all-versions");
     expect(cm).toContain('Expected marketing version 2.0');
     expect(cm).not.toContain("agvtool what-marketing-version");
+    expect(cm).toContain("TideMarkStorePlugin");
     const paywall = readFileSync(resolve(process.cwd(), "src/components/Paywall.tsx"), "utf8");
     expect(paywall).toContain("subscribe-disabled");
     expect(paywall).toContain("subscribe-yearly");

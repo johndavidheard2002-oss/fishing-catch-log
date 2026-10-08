@@ -25,14 +25,30 @@ function pluginErrorMessage(err: unknown): string {
 export function PlanPaywall({
   offer,
   onUnlocked,
+  onRetry,
+  priceFromStore = true,
 }: {
   offer: PlanOffer;
   onUnlocked?: (next: PlanOffer) => void;
+  onRetry?: () => void;
+  priceFromStore?: boolean;
 }) {
-  const [busy, setBusy] = useState<"purchase" | "restore" | null>(null);
+  const [busy, setBusy] = useState<"purchase" | "restore" | "retry" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const copy = planPaywallCopy(offer);
   const ended = offer.status === "expired";
+  const active = offer.entitled && offer.status === "active";
+
+  async function retry() {
+    if (!onRetry || busy) return;
+    setBusy("retry");
+    setError(null);
+    try {
+      await onRetry();
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function run(kind: "purchase" | "restore") {
     if (busy) return;
@@ -58,6 +74,16 @@ export function PlanPaywall({
       <p className="text-sm text-ink" data-testid="plan-paywall-price">
         {copy.trial}. Length: {copy.length}.
       </p>
+      {active ? (
+        <p className="text-sm text-ink" data-testid="plan-paywall-active">
+          Your Tide Mark Plan subscription is active. The offer below stays available.
+        </p>
+      ) : null}
+      {!priceFromStore ? (
+        <p className="text-sm text-ink" data-testid="plan-price-fallback">
+          The App Store price did not load. The price shown is {copy.price}.
+        </p>
+      ) : null}
       {ended ? (
         <p className="text-sm text-ink" data-testid="plan-paywall-ended">
           Your Plan subscription has ended.
@@ -71,6 +97,17 @@ export function PlanPaywall({
       <p className="text-xs text-ink-muted" data-testid="plan-paywall-autorenew">
         {copy.autoRenew}
       </p>
+      {onRetry ? (
+        <button
+          type="button"
+          disabled={busy != null}
+          className="w-full rounded-2xl border border-line bg-card px-4 py-3 font-semibold disabled:opacity-60"
+          data-testid="plan-price-retry"
+          onClick={() => void retry()}
+        >
+          {busy === "retry" ? "Retrying…" : "Retry"}
+        </button>
+      ) : null}
       <button
         type="button"
         disabled={busy != null}

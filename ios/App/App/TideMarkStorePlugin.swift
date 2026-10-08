@@ -213,6 +213,17 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
+/// Local plugins are not added to capacitor.config.json `packageClassList`
+/// by `cap sync` (that list is only npm plugins). Register here or StoreKit
+/// never reaches JavaScript.
+@objc(TideMarkBridgeViewController)
+class TideMarkBridgeViewController: CAPBridgeViewController {
+    override open func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        bridge?.registerPluginInstance(TideMarkStorePlugin())
+    }
+}
+
 private enum StorePluginError: LocalizedError {
     case missingProduct
 
