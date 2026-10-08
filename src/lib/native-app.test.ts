@@ -79,7 +79,13 @@ describe("App Store / Capacitor wrap", () => {
     expect(proj).toContain("TideMarkStorePlugin.swift");
     expect(proj).toContain("IPHONEOS_DEPLOYMENT_TARGET = 15.0;");
     expect(proj).toContain("MARKETING_VERSION = 2.0;");
+    expect(proj).not.toContain("MARKETING_VERSION = 1.0;");
     expect(proj).toContain("CURRENT_PROJECT_VERSION = 2;");
+    const cm = readFileSync(resolve(process.cwd(), "codemagic.yaml"), "utf8");
+    expect(cm).toContain("-showBuildSettings");
+    expect(cm).toContain("--all-versions");
+    expect(cm).toContain('Expected marketing version 2.0');
+    expect(cm).not.toContain("agvtool what-marketing-version");
     const paywall = readFileSync(resolve(process.cwd(), "src/components/Paywall.tsx"), "utf8");
     expect(paywall).toContain("subscribe-disabled");
     expect(paywall).toContain("subscribe-yearly");
