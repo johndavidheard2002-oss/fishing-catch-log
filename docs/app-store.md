@@ -11,7 +11,7 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Bundle ID | `com.tidemark.logbook` |
 | Live WebView URL | https://fishing-catch-log-ivl7.onrender.com |
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
-| Marketing version | **2.0** (`MARKETING_VERSION` in the Xcode project). Codemagic sets the build number to the latest TestFlight or App Store build + 1. |
+| Marketing version | **2.0** (`MARKETING_VERSION` in the Xcode project; Info.plist keeps the `$(MARKETING_VERSION)` placeholder). Codemagic reads that build setting and sets the build number to the highest TestFlight or App Store build across all versions + 1. |
 | Pricing | Log, Calendar, and Spots stay **free**. **Tide Mark Plan** is **$19.99/month** after a **1-month free trial** |
 | In-App Purchase | `com.tidemark.logbook.plan.monthly` (auto-renewable, subscription group **Tide Mark Plan**) |
 | 2.0 shell marker | WebView user agent token `TideMarkPlanIAP/2` (`ios.appendUserAgent`). The 1.0 binary does not send it. |
@@ -143,7 +143,7 @@ Full App Store Server API receipt verification is not in this pass — the nativ
 
 Stay on a **Codemagic personal (free) account**. Do **not** create a Codemagic Team — that asks for a credit card and removes free minutes. Personal accounts cannot use Team integrations → Developer Portal the way `integrations.app_store_connect: Tide Mark` expects.
 
-Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs via the App Store Connect API (`fetch-signing-files --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create`), bumps the build number from TestFlight (falling back to the App Store), and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
+Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs via the App Store Connect API (`fetch-signing-files --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create`), checks that the resolved `MARKETING_VERSION` is 2.0, sets the build number to the highest TestFlight or App Store build across all versions + 1, and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
 
 1. In App Store Connect → Users and Access → Integrations → App Store Connect API, create a key with **App Manager** access. Download the `.p8` once. Note the Issuer ID and Key ID.
 2. In Codemagic, add application → connect GitHub → `johndavidheard2002-oss/fishing-catch-log`. Scan `codemagic.yaml` on branch `cursor/fishing-catch-log-app-caca`.

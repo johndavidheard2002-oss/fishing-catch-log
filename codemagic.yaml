@@ -78,19 +78,102 @@ workflows:
           #!/usr/bin/env bash
           set -euo pipefail
           cd "$CM_BUILD_DIR/ios/App"
-          LATEST_BUILD_NUMBER=""
-          if ! LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID"); then
-            LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || true)
+
+          # Info.plist stores CFBundleShortVersionString as the literal
+          # placeholder $(MARKETING_VERSION). The version tool prints that
+          # placeholder and does not expand the Xcode setting.
+          # Read the setting the Release archive actually uses.
+          MARKETING=""
+          if settings=$(xcodebuild \
+            -workspace "$CM_BUILD_DIR/$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -showBuildSettings); then
+            MARKETING=$(printf '%s\n' "$settings" | awk '
+              /^Build settings for action .* target App:/ { in_app = 1; next }
+              /^Build settings for action / { in_app = 0 }
+              in_app && /^[[:space:]]*MARKETING_VERSION = / {
+                val = $0
+                sub(/^[[:space:]]*MARKETING_VERSION = /, "", val)
+                gsub(/[[:space:]]/, "", val)
+                print val
+                exit
+              }
+            ')
           fi
-          if [ -z "${LATEST_BUILD_NUMBER}" ]; then
-            LATEST_BUILD_NUMBER=0
+          if [ -z "${MARKETING}" ] || [ "${MARKETING}" = '$(MARKETING_VERSION)' ]; then
+            MARKETING=$(awk '
+              /^[[:space:]]*MARKETING_VERSION = / {
+                val = $0
+                sub(/^[[:space:]]*MARKETING_VERSION = /, "", val)
+                sub(/;[[:space:]]*$/, "", val)
+                if (val !~ /\$\(/) { print val; exit }
+              }
+            ' App.xcodeproj/project.pbxproj)
           fi
-          MARKETING=$(agvtool what-marketing-version -terse1 | tr -d '\n')
+          echo "Resolved marketing version: ${MARKETING}"
           if [ "$MARKETING" != "2.0" ]; then
             echo "Expected marketing version 2.0, found ${MARKETING}"
             exit 1
           fi
-          agvtool new-version -all $((LATEST_BUILD_NUMBER + 1))
+
+          # Highest CFBundleVersion already uploaded, across every marketing
+          # version. Build numbers are app-wide, so 2.0 must be above 1.0's 7.
+          normalize_build() {
+            local line
+            line=$(printf '%s\n' "$1" | awk 'NF { last = $0 } END { print last }' | tr -d '[:space:]')
+            if [[ "$line" =~ ^[0-9]+$ ]]; then
+              printf '%s' "$line"
+              return 0
+            fi
+            return 1
+          }
+          latest_build() {
+            local sub="$1"
+            local out="" num=""
+            # Prefer the highest build across every version. If this CLI
+            # does not support the flag, fall back to the unscoped query.
+            if out=$(app-store-connect "$sub" "$APP_STORE_APPLE_ID" --all-versions); then
+              if num=$(normalize_build "$out"); then
+                printf '%s' "$num"
+                return 0
+              fi
+            fi
+            if out=$(app-store-connect "$sub" "$APP_STORE_APPLE_ID"); then
+              if num=$(normalize_build "$out"); then
+                printf '%s' "$num"
+                return 0
+              fi
+            fi
+            return 1
+          }
+          TF_BUILD=""
+          AS_BUILD=""
+          if ! TF_BUILD=$(latest_build get-latest-testflight-build-number); then
+            echo "Could not read the latest TestFlight build number"
+            TF_BUILD=""
+          fi
+          if ! AS_BUILD=$(latest_build get-latest-app-store-build-number); then
+            echo "Could not read the latest App Store build number"
+            AS_BUILD=""
+          fi
+          if [ -z "$TF_BUILD" ] && [ -z "$AS_BUILD" ]; then
+            echo "Refusing to upload build 1; the latest store build number was not readable"
+            exit 1
+          fi
+          if [ -z "$TF_BUILD" ]; then
+            LATEST_BUILD_NUMBER=$AS_BUILD
+          elif [ -z "$AS_BUILD" ]; then
+            LATEST_BUILD_NUMBER=$TF_BUILD
+          elif [ "$TF_BUILD" -ge "$AS_BUILD" ]; then
+            LATEST_BUILD_NUMBER=$TF_BUILD
+          else
+            LATEST_BUILD_NUMBER=$AS_BUILD
+          fi
+          NEXT_BUILD=$((LATEST_BUILD_NUMBER + 1))
+          echo "Latest TestFlight build ${TF_BUILD:-unavailable}, App Store build ${AS_BUILD:-unavailable}; next build is ${NEXT_BUILD} for marketing version ${MARKETING}"
+          agvtool new-version -all "$NEXT_BUILD"
       - name: Build ipa for distribution
         script: |
           xcode-project build-ipa \
