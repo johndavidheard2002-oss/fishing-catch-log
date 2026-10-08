@@ -56,7 +56,7 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 case .success(let verification):
                     let transaction = try self.unwrap(verification)
                     await transaction.finish()
-                    let state = self.state(from: transaction)
+                    let state = self.state(from: transaction, jws: verification.jwsRepresentation)
                     call.resolve(self.offerPayload(product: product, state: state, restored: true))
                 case .userCancelled:
                     call.reject("Purchase cancelled.", "USER_CANCELLED")
@@ -122,10 +122,11 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
         guard let transaction = try? self.unwrap(result) else {
             return PlanState(entitled: false, status: "none", expiresAt: nil, transactionId: nil, originalTransactionId: nil, jws: nil)
         }
-        return self.state(from: transaction)
+        return self.state(from: transaction, jws: result.jwsRepresentation)
     }
 
-    private func state(from transaction: Transaction) -> PlanState {
+    /// JWS is on the verification result. Transaction has no jwsRepresentation.
+    private func state(from transaction: Transaction, jws: String) -> PlanState {
         let expires = transaction.expirationDate
         let revoked = transaction.revocationDate != nil
         let expired = expires.map { $0 <= Date() } ?? false
@@ -136,7 +137,7 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
             expiresAt: expires.map { self.iso.string(from: $0) },
             transactionId: String(transaction.id),
             originalTransactionId: String(transaction.originalID),
-            jws: transaction.jwsRepresentation
+            jws: jws
         )
     }
 
@@ -200,12 +201,14 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /// PaymentMode is a StoreKit struct, not an enum. `@unknown default` does not
+    /// exhaust the switch; a plain default covers any mode this SDK adds.
     private static func paymentName(_ mode: Product.SubscriptionOffer.PaymentMode) -> String {
         switch mode {
         case .freeTrial: return "freeTrial"
         case .payAsYouGo: return "payAsYouGo"
         case .payUpFront: return "payUpFront"
-        @unknown default: return "unknown"
+        default: return "unknown"
         }
     }
 }

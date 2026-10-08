@@ -75,6 +75,10 @@ describe("App Store / Capacitor wrap", () => {
     expect(plugin).toContain("jsName = \"TideMarkStore\"");
     expect(plugin).toContain("func purchase");
     expect(plugin).toContain("func restore");
+    expect(plugin).toContain("verification.jwsRepresentation");
+    expect(plugin).toContain("result.jwsRepresentation");
+    expect(plugin).not.toContain("transaction.jwsRepresentation");
+    expect(plugin).not.toContain("@unknown default: return \"unknown\"");
     const proj = readFileSync(resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj"), "utf8");
     expect(proj).toContain("TideMarkStorePlugin.swift");
     expect(proj).toContain("IPHONEOS_DEPLOYMENT_TARGET = 15.0;");
