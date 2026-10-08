@@ -18,7 +18,9 @@ import {
   openPaywall,
   type EntitlementSnapshot,
 } from "@/lib/entitlement";
+import { useNativePlanIap } from "@/components/useNativePlanIap";
 import { ENTITLEMENT_CHANGED_EVENT } from "@/lib/native-iap";
+import { PLAN_PRICE_LABEL, PLAN_TITLE } from "@/lib/plan-iap";
 
 type MeState = {
   signedIn: boolean;
@@ -28,6 +30,26 @@ type MeState = {
   ready: boolean;
   entitlement: EntitlementSnapshot | null;
 };
+
+function TideMarkPlanLink({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <Link href="/subscribe" className="block text-sm font-semibold text-teal underline" data-testid="home-tide-mark-plan-more">
+        {PLAN_TITLE}
+      </Link>
+    );
+  }
+  return (
+    <Link
+      href="/subscribe"
+      className="flex w-full flex-col items-center justify-center rounded-2xl bg-copper px-4 py-3 text-center font-semibold text-white"
+      data-testid="home-tide-mark-plan"
+    >
+      <span>{PLAN_TITLE}</span>
+      <span className="text-sm font-normal">{PLAN_PRICE_LABEL} · 1-month free trial</span>
+    </Link>
+  );
+}
 
 function LockedCta({
   children,
@@ -98,6 +120,7 @@ export function HomeClient() {
     !JOURNAL_FREE_FOR_RELEASE &&
     Boolean(me.entitlement && !journalUnlocked(me.entitlement.subscriptionStatus));
   const trialDays = me.entitlement?.daysRemaining;
+  const { native: planOfferVisible } = useNativePlanIap();
 
   return (
     <div className="space-y-6">
@@ -129,6 +152,7 @@ export function HomeClient() {
                   ? `Journal unlocked with Tide Mark Premium. ${YEARLY_PRICE_LABEL} through the App Store.`
                   : `Free month: ${trialDays ?? "—"} day${trialDays === 1 ? "" : "s"} left. Then ${YEARLY_PRICE_LABEL}.`}
           </p>
+          {planOfferVisible ? <TideMarkPlanLink /> : null}
           <LogOutButton />
           <DeleteAccount />
         </section>
@@ -240,6 +264,7 @@ export function HomeClient() {
         </summary>
         <div className="space-y-3 px-4 pb-2">
           <p className="text-sm font-semibold">Account</p>
+          {planOfferVisible ? <TideMarkPlanLink compact /> : null}
           <a
             href="/api/export"
             className="block text-sm font-semibold text-teal underline"

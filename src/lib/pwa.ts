@@ -38,7 +38,7 @@ export function appleStartupImageMetadata() {
 }
 
 /** Bump this (and public/sw.js) so leftover home-screen SW caches drop. */
-export const PWA_CACHE_NAME = "tide-mark-static-v7";
+export const PWA_CACHE_NAME = "tide-mark-static-v8";
 
 /** Paths the service worker must never intercept (auth, billing, mutations). */
 export function isPwaApiPath(pathname: string) {
