@@ -18,16 +18,10 @@ import {
 
 describe("Plan StoreKit gate", () => {
   it("sells Plan only in the 2.0 iOS shell", () => {
-    expect(planIapBuildAvailable({ nativeIos: false, userAgent: `Mozilla ${PLAN_UA_TOKEN}` })).toBe(false);
-    expect(
-      planIapBuildAvailable({
-        nativeIos: false,
-        userAgent: `Mozilla ${PLAN_UA_TOKEN}`,
-        pluginAvailable: true,
-        pluginHeader: true,
-      }),
-    ).toBe(false);
+    expect(planIapBuildAvailable({ nativeIos: false, userAgent: "Mozilla/5.0" })).toBe(false);
+    expect(planIapBuildAvailable({ nativeIos: false, userAgent: "Mozilla/5.0", pluginAvailable: true })).toBe(false);
     expect(planIapBuildAvailable({ nativeIos: true, userAgent: "TideMark/1.0" })).toBe(false);
+    expect(planIapBuildAvailable({ nativeIos: false, userAgent: `Mozilla ${PLAN_UA_TOKEN}` })).toBe(true);
     expect(planIapBuildAvailable({ nativeIos: true, userAgent: `Mozilla ${PLAN_UA_TOKEN}` })).toBe(true);
     expect(
       planIapBuildAvailable({
@@ -38,7 +32,7 @@ describe("Plan StoreKit gate", () => {
     ).toBe(true);
     expect(
       planIapBuildAvailable({
-        nativeIos: true,
+        nativeIos: false,
         userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
         pluginHeader: true,
       }),

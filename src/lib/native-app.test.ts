@@ -36,6 +36,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(cap).toContain(NATIVE_ICON_SOURCE);
     expect(cap).toContain('contentInset: "never"');
     expect(cap).toContain(`appendUserAgent: "${NATIVE_PLAN_IAP_UA_TOKEN}"`);
+    expect(cap).toContain("limitsNavigationsToAppBoundDomains: true");
 
     const pbx = resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj");
     if (existsSync(pbx)) {

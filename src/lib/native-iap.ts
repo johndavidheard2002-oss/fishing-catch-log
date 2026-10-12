@@ -32,6 +32,7 @@ export type PlanIapDiagnostics = {
   userAgentMatch: boolean;
   pluginAvailable: boolean;
   pluginHeader: boolean;
+  iosBridge: boolean;
 };
 
 export type StorekitProductInfo = {
@@ -143,11 +144,18 @@ function windowCapacitor(): NativeRuntime | null {
   return cap;
 }
 
+/** Capacitor's WKScriptMessageHandler. Absent on the website and in Safari. */
+export function iosWebkitBridgePresent(): boolean {
+  if (typeof window === "undefined") return false;
+  const webkit = (window as Window & { webkit?: { messageHandlers?: { bridge?: unknown } } }).webkit;
+  return webkit?.messageHandlers?.bridge != null;
+}
+
 /**
- * TideMarkStore on this Capacitor object. `isPluginAvailable` is only counted
- * on native iOS: the website registers a web stub, so the same call is true
- * in Safari and must not open the paywall. PluginHeaders are injected by the
- * native bridge and are never set by that stub.
+ * TideMarkStore on this Capacitor object. PluginHeaders count even when the
+ * page's Capacitor copy reports platform web, because that is build 9 when
+ * the bridge script did not replace the runtime. `isPluginAvailable` counts
+ * only on native iOS: the website registers a web stub.
  */
 export function tideMarkStoreProbe(cap: NativeRuntime | null = runtime()): {
   available: boolean;
@@ -157,9 +165,8 @@ export function tideMarkStoreProbe(cap: NativeRuntime | null = runtime()): {
   let available = false;
   let header = false;
   for (const source of sources) {
-    if (!isNativeIosApp(source)) continue;
     if (pluginHeaderHasTideMarkStore(source.PluginHeaders)) header = true;
-    if (typeof source.isPluginAvailable !== "function") continue;
+    if (!isNativeIosApp(source) || typeof source.isPluginAvailable !== "function") continue;
     try {
       if (source.isPluginAvailable(TIDE_MARK_STORE_PLUGIN) === true) available = true;
     } catch {
@@ -175,8 +182,9 @@ export function storekitPurchaseAvailable(cap: NativeRuntime = runtime()): boole
 }
 
 /**
- * 2.0 iOS shell, including iPad. Native iOS, plus the user-agent token or the
- * TideMarkStore plugin (method or PluginHeaders). Website and 1.0 stay false.
+ * 2.0 shell, including an iPhone or iPad WebView whose Capacitor runtime
+ * still says "web". The user-agent token or TideMarkStore header is enough.
+ * Tide Mark 1.0 and the website have neither, so they stay paywall-free.
  */
 export function planStorekitAvailable(
   cap: NativeRuntime = runtime(),
@@ -201,12 +209,13 @@ export function planIapDiagnostics(
     userAgentMatch: userAgentHasPlanIap(ua),
     pluginAvailable: probe.available,
     pluginHeader: probe.header,
+    iosBridge: iosWebkitBridgePresent(),
   };
 }
 
 export function formatPlanIapDiagnostics(flags: PlanIapDiagnostics): string {
   const plugin = flags.pluginAvailable || flags.pluginHeader ? "yes" : "no";
-  return `native=${flags.nativeIos ? "ios" : "no"} ua=${flags.userAgentMatch ? "yes" : "no"} plugin=${plugin}`;
+  return `native=${flags.nativeIos ? "ios" : "no"} ua=${flags.userAgentMatch ? "yes" : "no"} plugin=${plugin} bridge=${flags.iosBridge ? "yes" : "no"}`;
 }
 
 export function notifyEntitlementChanged(entitlement?: EntitlementSnapshot | null) {

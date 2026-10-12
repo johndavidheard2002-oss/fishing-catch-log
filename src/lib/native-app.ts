@@ -34,10 +34,10 @@ export const APP_STORE_PLAN_TRIAL = "1-month free trial";
 
 /**
  * Appended to the WKWebView user agent by the 2.0 native shell
- * (`capacitor.config.ts` → `ios.appendUserAgent`). iPad can omit that
- * token from a desktop user agent, so the site also treats a native iOS
- * TideMarkStore plugin as 2.0. The 1.0 binary has neither the token nor
- * the plugin. The website is not native iOS, so it stays paywall-free.
+ * (`capacitor.config.ts` → `ios.appendUserAgent`). This is enough for the
+ * Home button even when the Capacitor bridge script is not injected.
+ * iPad can omit it from a desktop user agent; the TideMarkStore header is
+ * the other 2.0 signal. The 1.0 binary has neither. The website has neither.
  */
 export const NATIVE_PLAN_IAP_UA_TOKEN = "TideMarkPlanIAP/2";
 

@@ -1,7 +1,7 @@
-// Tide Mark SW — cache v8. Static assets, journal GETs, and HTML/RSC stay
-// network-first with a cache fallback so Calendar List/Grid/detail and Log
-// still open from what is already on this phone. Auth and billing stay live.
-const CACHE = "tide-mark-static-v8";
+// Tide Mark SW — cache v9. HTML, RSC, and JS are network-first and bypass the
+// HTTP cache so a Render deploy replaces the WebView shell on the next launch.
+// Journal GETs stay network-first with a cache fallback. Auth and billing stay live.
+const CACHE = "tide-mark-static-v9";
 
 function isApiPath(pathname) {
   return pathname === "/api" || pathname.startsWith("/api/");
@@ -57,11 +57,19 @@ function shouldCache(request, pathname) {
   return isShellPath(pathname) && !isApiPath(pathname);
 }
 
+function needsFreshNetwork(request, pathname) {
+  if (request.mode === "navigate" || request.destination === "document") return true;
+  if (request.headers.get("rsc") === "1" || request.headers.get("Next-Router-Prefetch") === "1") return true;
+  if (pathname.startsWith("/_next/")) return true;
+  return /\.js$/i.test(pathname);
+}
+
 async function networkFirst(request) {
   const cache = await caches.open(CACHE);
   const url = new URL(request.url);
+  const fresh = needsFreshNetwork(request, url.pathname);
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, fresh ? { cache: "no-store" } : {});
     if (response.ok && shouldCache(request, url.pathname)) {
       cache.put(request, response.clone());
     }

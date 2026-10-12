@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatPlanIapDiagnostics, planIapDiagnostics, planStorekitAvailable } from "@/lib/native-iap";
 
-/** True only after the 2.0 iOS shell is confirmed. Website and 1.0 stay false. */
+/** True when this WebView is Tide Mark 2.0. The website and 1.0 stay false. */
 export function useNativePlanIap(): { ready: boolean; native: boolean; diagnostics: string } {
   const [state, setState] = useState({ ready: false, native: false, diagnostics: "" });
 

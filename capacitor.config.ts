@@ -24,7 +24,15 @@ const config: CapacitorConfig = {
   ios: {
     // 2.0-only marker. The 1.0 App Store binary does not append this, so the
     // live site can keep Plan free for that build and for the website.
+    // This is WKWebViewConfiguration, so it is present even when the bridge
+    // user script is not injected.
     appendUserAgent: "TideMarkPlanIAP/2",
+    // Info.plist sets WKAppBoundDomains. Capacitor leaves this false, and
+    // then WebKit does not inject the bridge or TideMarkStore. Build 9 has
+    // that bug. The next binary needs this true or the purchase sheet cannot
+    // present. localhost is listed next to the Render host for the local
+    // Capacitor origin.
+    limitsNavigationsToAppBoundDomains: true,
     // `never` lets CSS env(safe-area-inset-*) own the notch / home indicator.
     // `automatic` fights viewport-fit=cover: WKWebView reports 0 insets while
     // the WebView still draws under the status bar and home indicator.
