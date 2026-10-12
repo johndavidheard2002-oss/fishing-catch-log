@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   PLAN_LEGACY_MONTHLY_PRODUCT_ID,
+  PLAN_LEGACY_YEARLY_PRODUCT_ID,
   PLAN_OFFER_LINE,
   PLAN_PRODUCT_ID,
   PLAN_UA_TOKEN,
@@ -110,6 +111,15 @@ describe("Plan StoreKit gate", () => {
       expiresAt: "2027-01-01T00:00:00.000Z",
     });
     expect(restoredMonthly?.productId).toBe(PLAN_LEGACY_MONTHLY_PRODUCT_ID);
+    const restoredYearly = planOfferFromPlugin({
+      nativePlanIap: true,
+      productId: PLAN_LEGACY_YEARLY_PRODUCT_ID,
+      entitled: true,
+      status: "active",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+    });
+    expect(restoredYearly?.productId).toBe(PLAN_LEGACY_YEARLY_PRODUCT_ID);
+    expect(offerIsEntitled(restoredYearly!, new Date("2026-10-12T00:00:00.000Z"))).toBe(true);
     expect(offerIsEntitled(restoredMonthly!, new Date("2026-10-12T00:00:00.000Z"))).toBe(true);
     expect(
       planAccessFromProbe({

@@ -62,7 +62,7 @@ describe("persisted entitlement", () => {
     const result = await activateFromStorekit(
       created.id,
       {
-        productId: "com.tidemark.logbook.plan.yearly",
+        productId: "com.tidemark.logbook.plan.annual",
         transactionId: "txn-db",
         expiresAt: "2027-10-10T12:00:00.000Z",
         source: "purchase",
@@ -96,13 +96,27 @@ describe("persisted entitlement", () => {
     if ("entitlement" in restored) {
       expect(restored.entitlement.subscriptionStatus).toBe("expired");
     }
+    const yearly = await activateFromStorekit(
+      created.id,
+      {
+        productId: "com.tidemark.logbook.plan.yearly",
+        transactionId: "txn-yearly",
+        expiresAt: "2027-09-05T00:00:00.000Z",
+        source: "restore",
+      },
+      new Date("2026-09-05T00:00:00.000Z"),
+    );
+    expect("entitlement" in yearly).toBe(true);
+    if ("entitlement" in yearly) {
+      expect(yearly.entitlement.subscriptionStatus).toBe("active");
+    }
     const wrong = await activateFromStorekit(created.id, {
       productId: "com.other.premium",
       transactionId: "txn-x",
       source: "purchase",
     });
     expect("error" in wrong).toBe(true);
-    if ("error" in wrong) expect(wrong.error).toContain("com.tidemark.logbook.plan.yearly");
+    if ("error" in wrong) expect(wrong.error).toContain("com.tidemark.logbook.plan.annual");
   });
 
   it("registers a claimed journal already on trial", async () => {

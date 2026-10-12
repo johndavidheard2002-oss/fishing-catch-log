@@ -10,6 +10,7 @@ import {
   APP_STORE_PLAN_PRODUCT_ID,
   APP_STORE_PLAN_SUBSCRIPTION_GROUP,
   APP_STORE_PLAN_TRIAL,
+  APP_STORE_PLAN_YEARLY_PRODUCT_ID,
   APP_STORE_PRIVACY_URL,
   IOS_APP_BOUND_DOMAINS,
   IOS_EXTERNAL_LINK_HOSTS,
@@ -29,7 +30,8 @@ describe("App Store / Capacitor wrap", () => {
     expect(NATIVE_ICON_SOURCE).toBe(APP_LOGO_SRC);
     expect(APP_STORE_PLAN_PRICE).toBe("$19.99/year");
     expect(APP_STORE_PLAN_TRIAL).toBe("1-month free trial");
-    expect(APP_STORE_PLAN_PRODUCT_ID).toBe("com.tidemark.logbook.plan.yearly");
+    expect(APP_STORE_PLAN_PRODUCT_ID).toBe("com.tidemark.logbook.plan.annual");
+    expect(APP_STORE_PLAN_YEARLY_PRODUCT_ID).toBe("com.tidemark.logbook.plan.yearly");
     expect(APP_STORE_PLAN_MONTHLY_PRODUCT_ID).toBe("com.tidemark.logbook.plan.monthly");
     expect(APP_STORE_PLAN_SUBSCRIPTION_GROUP).toBe("Tide Mark Plan");
     expect(NATIVE_PLAN_IAP_UA_TOKEN).toBe("TideMarkPlanIAP/2");
@@ -77,12 +79,15 @@ describe("App Store / Capacitor wrap", () => {
 
     const plugin = readFileSync(resolve(process.cwd(), "ios/App/App/TideMarkStorePlugin.swift"), "utf8");
     expect(plugin).toContain(APP_STORE_PLAN_PRODUCT_ID);
+    expect(plugin).toContain(APP_STORE_PLAN_YEARLY_PRODUCT_ID);
     expect(plugin).toContain(APP_STORE_PLAN_MONTHLY_PRODUCT_ID);
+    expect(plugin).toContain("legacyYearlyProductId");
     expect(plugin).toContain("legacyMonthlyProductId");
     const storekit = readFileSync(resolve(process.cwd(), "ios/App/App/TideMarkPlan.storekit"), "utf8");
     expect(storekit).toContain(APP_STORE_PLAN_PRODUCT_ID);
     expect(storekit).toContain('"recurringSubscriptionPeriod" : "P1Y"');
     expect(storekit).toContain('"subscriptionPeriod" : "P1M"');
+    expect(storekit).not.toContain(APP_STORE_PLAN_YEARLY_PRODUCT_ID);
     expect(storekit).not.toContain(APP_STORE_PLAN_MONTHLY_PRODUCT_ID);
     expect(plugin).toContain("func planOffer");
     expect(plugin).toContain("Transaction.latest");

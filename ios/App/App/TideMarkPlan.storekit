@@ -32,7 +32,7 @@
           "displayPrice" : "19.99",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "PLAN_YEARLY",
+          "internalID" : "PLAN_ANNUAL",
           "introductoryOffer" : {
             "internalID" : "PLAN_INTRO_TRIAL",
             "numberOfPeriods" : 1,
@@ -46,9 +46,9 @@
               "locale" : "en_US"
             }
           ],
-          "productID" : "com.tidemark.logbook.plan.yearly",
+          "productID" : "com.tidemark.logbook.plan.annual",
           "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Tide Mark Plan Yearly",
+          "referenceName" : "Tide Mark Plan Annual",
           "subscriptionGroupID" : "TIDE_MARK_PLAN",
           "type" : "RecurringSubscription"
         }
