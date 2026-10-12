@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { JournalUnavailable } from "@/components/JournalUnavailable";
 import { Paywall } from "@/components/Paywall";
-import { PlanAccess } from "@/components/PlanAccess";
 import { PlanClient } from "@/components/PlanClient";
 import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { listCalendarNotes } from "@/lib/db/notes";
@@ -41,6 +40,7 @@ export default async function PlanPage({
   const initialAddPhoto = firstQuery(params.addPhoto);
   let initialNotes;
   let viewerId = "";
+  let blockedEntitlement: Awaited<ReturnType<typeof getEntitlementForAngler>> = null;
   try {
     const jar = await cookies();
     const viewer = await resolveViewerFromCookies(
@@ -51,12 +51,19 @@ export default async function PlanPage({
     viewerId = viewer.id;
     const entitlement = await getEntitlementForAngler(viewer.id);
     if (journalBlocked(entitlement)) {
-      return <Paywall entitlement={entitlement} />;
+      blockedEntitlement = entitlement;
+    } else {
+      // List surviving plan notes without a server-TZ `today`. Purge still runs on
+      // client refetch with the user's local today plus a same-day server guard.
+      initialNotes = await listCalendarNotes(viewer.id, { forPlan: true, includeShared: true });
     }
-    // List surviving plan notes without a server-TZ `today`. Purge still runs on
-    // client refetch with the user's local today plus a same-day server guard.
-    initialNotes = await listCalendarNotes(viewer.id, { forPlan: true, includeShared: true });
   } catch {
+    return <JournalUnavailable title="Plan a day" />;
+  }
+  if (blockedEntitlement) {
+    return <Paywall entitlement={blockedEntitlement} />;
+  }
+  if (!initialNotes) {
     return <JournalUnavailable title="Plan a day" />;
   }
   // Add-to-plan from Calendar Log starts with no day so the user can pick one.
@@ -66,22 +73,20 @@ export default async function PlanPage({
     : restorePlanDay(initialNotes, todayKey(), requested);
 
   return (
-    <PlanAccess>
-      <PlanClient
-        key={
-          hasPendingAdd
-            ? `add:${initialAddCatch ?? ""}:${initialAddBait ?? ""}:${initialAddPlace ?? ""}`
-            : "plan"
-        }
-        viewerId={viewerId}
-        initialDate={initialDate}
-        initialNotes={initialNotes}
-        initialAddCatch={initialAddCatch}
-        initialAddBait={initialAddBait}
-        initialAddPlace={initialAddPlace}
-        initialAddSpecies={initialAddSpecies}
-        initialAddPhoto={initialAddPhoto}
-      />
-    </PlanAccess>
+    <PlanClient
+      key={
+        hasPendingAdd
+          ? `add:${initialAddCatch ?? ""}:${initialAddBait ?? ""}:${initialAddPlace ?? ""}`
+          : "plan"
+      }
+      viewerId={viewerId}
+      initialDate={initialDate}
+      initialNotes={initialNotes}
+      initialAddCatch={initialAddCatch}
+      initialAddBait={initialAddBait}
+      initialAddPlace={initialAddPlace}
+      initialAddSpecies={initialAddSpecies}
+      initialAddPhoto={initialAddPhoto}
+    />
   );
 }
