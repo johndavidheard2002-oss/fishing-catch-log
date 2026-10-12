@@ -42,7 +42,7 @@ function TideMarkPlanLink({ compact = false }: { compact?: boolean }) {
   return (
     <Link
       href="/subscribe"
-      className="flex w-full flex-col items-center justify-center rounded-2xl bg-copper px-4 py-3 text-center font-semibold text-white"
+      className="flex w-full min-w-0 max-w-full flex-col items-center justify-center rounded-2xl bg-copper px-4 py-3 text-center font-semibold text-white"
       data-testid="home-tide-mark-plan"
     >
       <span>{PLAN_TITLE}</span>

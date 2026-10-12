@@ -6,6 +6,7 @@ import {
   planAccessFromProbe,
   planIapBuildAvailable,
   planOfferFromPlugin,
+  userAgentHasPlanIap,
   type PlanAccess,
   type PlanOffer,
 } from "./plan-iap";
@@ -17,9 +18,20 @@ import {
 
 export const ENTITLEMENT_CHANGED_EVENT = "tidemark-entitlement-changed";
 
+export type PluginHeaderEntry = { name?: string } | string;
+
 export type NativeRuntime = {
   isNativePlatform: () => boolean;
   getPlatform: () => string;
+  isPluginAvailable?: (name: string) => boolean;
+  PluginHeaders?: PluginHeaderEntry[] | null;
+};
+
+export type PlanIapDiagnostics = {
+  nativeIos: boolean;
+  userAgentMatch: boolean;
+  pluginAvailable: boolean;
+  pluginHeader: boolean;
 };
 
 export type StorekitProductInfo = {
@@ -71,7 +83,9 @@ class TideMarkStoreWeb extends WebPlugin implements TideMarkStorePlugin {
   }
 }
 
-const TideMarkStore = registerPlugin<TideMarkStorePlugin>("TideMarkStore", {
+const TIDE_MARK_STORE_PLUGIN = "TideMarkStore";
+
+const TideMarkStore = registerPlugin<TideMarkStorePlugin>(TIDE_MARK_STORE_PLUGIN, {
   web: () => new TideMarkStoreWeb(),
 });
 
@@ -112,17 +126,87 @@ export function isNativeIosApp(cap: NativeRuntime = runtime()): boolean {
   }
 }
 
+function pluginHeaderHasTideMarkStore(headers: NativeRuntime["PluginHeaders"]): boolean {
+  if (!Array.isArray(headers)) return false;
+  return headers.some((entry) => {
+    if (typeof entry === "string") return entry === TIDE_MARK_STORE_PLUGIN;
+    return entry?.name === TIDE_MARK_STORE_PLUGIN;
+  });
+}
+
+function windowCapacitor(): NativeRuntime | null {
+  if (typeof window === "undefined") return null;
+  const cap = (window as Window & { Capacitor?: NativeRuntime }).Capacitor;
+  if (!cap || typeof cap.isNativePlatform !== "function" || typeof cap.getPlatform !== "function") {
+    return null;
+  }
+  return cap;
+}
+
+/**
+ * TideMarkStore on this Capacitor object. `isPluginAvailable` is only counted
+ * on native iOS: the website registers a web stub, so the same call is true
+ * in Safari and must not open the paywall. PluginHeaders are injected by the
+ * native bridge and are never set by that stub.
+ */
+export function tideMarkStoreProbe(cap: NativeRuntime | null = runtime()): {
+  available: boolean;
+  header: boolean;
+} {
+  const sources = [cap, windowCapacitor()].filter((source): source is NativeRuntime => source != null);
+  let available = false;
+  let header = false;
+  for (const source of sources) {
+    if (!isNativeIosApp(source)) continue;
+    if (pluginHeaderHasTideMarkStore(source.PluginHeaders)) header = true;
+    if (typeof source.isPluginAvailable !== "function") continue;
+    try {
+      if (source.isPluginAvailable(TIDE_MARK_STORE_PLUGIN) === true) available = true;
+    } catch {
+      // A broken bridge is not a 2.0 plugin.
+    }
+  }
+  return { available, header };
+}
+
 /** Native iOS shell, including the live 1.0 build. Not enough to sell Plan. */
 export function storekitPurchaseAvailable(cap: NativeRuntime = runtime()): boolean {
   return isNativeIosApp(cap);
 }
 
-/** True only for the 2.0 binary that advertises StoreKit Plan in its user agent. */
+/**
+ * 2.0 iOS shell, including iPad. Native iOS, plus the user-agent token or the
+ * TideMarkStore plugin (method or PluginHeaders). Website and 1.0 stay false.
+ */
 export function planStorekitAvailable(
   cap: NativeRuntime = runtime(),
   ua: string = userAgent(),
 ): boolean {
-  return planIapBuildAvailable({ nativeIos: isNativeIosApp(cap), userAgent: ua });
+  const probe = tideMarkStoreProbe(cap);
+  return planIapBuildAvailable({
+    nativeIos: isNativeIosApp(cap),
+    userAgent: ua,
+    pluginAvailable: probe.available,
+    pluginHeader: probe.header,
+  });
+}
+
+export function planIapDiagnostics(
+  cap: NativeRuntime = runtime(),
+  ua: string = userAgent(),
+): PlanIapDiagnostics {
+  const probe = tideMarkStoreProbe(cap);
+  return {
+    nativeIos: isNativeIosApp(cap),
+    userAgentMatch: userAgentHasPlanIap(ua),
+    pluginAvailable: probe.available,
+    pluginHeader: probe.header,
+  };
+}
+
+export function formatPlanIapDiagnostics(flags: PlanIapDiagnostics): string {
+  const plugin = flags.pluginAvailable || flags.pluginHeader ? "yes" : "no";
+  return `native=${flags.nativeIos ? "ios" : "no"} ua=${flags.userAgentMatch ? "yes" : "no"} plugin=${plugin}`;
 }
 
 export function notifyEntitlementChanged(entitlement?: EntitlementSnapshot | null) {
@@ -166,7 +250,7 @@ function offerFromResult(result: StorekitPluginResult): PlanOffer {
 
 export async function fetchPlanOffer(): Promise<PlanOffer> {
   if (!planStorekitAvailable()) {
-    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iPhone.");
+    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iOS.");
   }
   const result = await store().planOffer({ productId: PLAN_PRODUCT_ID });
   const offer = planOfferFromPlugin(result);
@@ -194,7 +278,7 @@ async function persistPlanClaim(claim: StorekitClaim): Promise<EntitlementSnapsh
 
 export async function purchasePlan(): Promise<PlanOffer> {
   if (!planStorekitAvailable()) {
-    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iPhone.");
+    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iOS.");
   }
   const result = await store().purchase({ productId: PLAN_PRODUCT_ID });
   const parsed = pluginResultToClaim(result, "purchase");
@@ -209,7 +293,7 @@ export async function purchasePlan(): Promise<PlanOffer> {
 
 export async function restorePlan(): Promise<PlanOffer> {
   if (!planStorekitAvailable()) {
-    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iPhone.");
+    throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iOS.");
   }
   const result = await store().restore({ productId: PLAN_PRODUCT_ID });
   const offer = offerFromResult(result);

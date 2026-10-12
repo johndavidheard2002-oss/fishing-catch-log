@@ -65,14 +65,23 @@ export function userAgentHasPlanIap(userAgent: string): boolean {
 }
 
 /**
- * Plan is paid only in the 2.0 iOS shell. The website and the 1.0 binary
- * (no user-agent token) keep Plan included.
+ * Plan is paid only in the native iOS shell (iPhone and iPad both report
+ * platform `ios`). The website stays free even if a web plugin stub or the
+ * user-agent token is present. The 1.0 binary has neither the token nor
+ * TideMarkStore, so it stays free too.
  */
 export function planIapBuildAvailable(args: {
   nativeIos: boolean;
   userAgent: string;
+  pluginAvailable?: boolean;
+  pluginHeader?: boolean;
 }): boolean {
-  return args.nativeIos && userAgentHasPlanIap(args.userAgent);
+  if (!args.nativeIos) return false;
+  return (
+    userAgentHasPlanIap(args.userAgent) ||
+    args.pluginAvailable === true ||
+    args.pluginHeader === true
+  );
 }
 
 export function isPlanStatus(value: unknown): value is PlanStatus {

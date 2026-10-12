@@ -242,6 +242,21 @@ textarea {
   padding-bottom: calc(9rem + var(--safe-area-bottom));
 }
 
+/* iPad Air 11" is ~820px wide. The Plan offer stays in the phone column. */
+@media (min-width: 744px) {
+  [data-testid="home-account"] [data-testid="home-tide-mark-plan"] {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  [data-testid="plan-paywall"],
+  [data-testid="plan-included"] {
+    width: 100%;
+    max-width: none;
+  }
+}
+
 .plan-day-results {
   scroll-margin-top: calc(var(--safe-area-top) + 0.75rem);
 }

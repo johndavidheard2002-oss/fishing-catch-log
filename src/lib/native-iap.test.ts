@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { PLAN_PRODUCT_ID, PLAN_UA_TOKEN } from "./plan-iap";
 import {
+  formatPlanIapDiagnostics,
   isNativeIosApp,
+  planIapDiagnostics,
   planStorekitAvailable,
   pluginResultToClaim,
   purchasePlan,
@@ -14,6 +16,7 @@ import {
 } from "./native-iap";
 
 const ios = { isNativePlatform: () => true, getPlatform: () => "ios" };
+const ipadDesktopUa = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)";
 
 describe("Capacitor StoreKit gate", () => {
   afterEach(() => {
@@ -28,6 +31,63 @@ describe("Capacitor StoreKit gate", () => {
     expect(storekitPurchaseAvailable(ios)).toBe(true);
     expect(planStorekitAvailable(ios, "TideMark/1.0")).toBe(false);
     expect(planStorekitAvailable(ios, `Mozilla ${PLAN_UA_TOKEN}`)).toBe(true);
+    expect(planStorekitAvailable({ ...ios, isPluginAvailable: () => false, PluginHeaders: [] }, ipadDesktopUa)).toBe(
+      false,
+    );
+    expect(
+      planStorekitAvailable({ ...ios, isPluginAvailable: (name) => name === "TideMarkStore" }, ipadDesktopUa),
+    ).toBe(true);
+    expect(
+      planStorekitAvailable({ ...ios, PluginHeaders: [{ name: "TideMarkStore" }] }, ipadDesktopUa),
+    ).toBe(true);
+    const website = {
+      isNativePlatform: () => false,
+      getPlatform: () => "web",
+      isPluginAvailable: () => true,
+      PluginHeaders: [{ name: "TideMarkStore" }],
+    };
+    expect(planStorekitAvailable(website, `Mozilla ${PLAN_UA_TOKEN}`)).toBe(false);
+    expect(formatPlanIapDiagnostics(planIapDiagnostics(ios, ipadDesktopUa))).toBe("native=ios ua=no plugin=no");
+    expect(
+      formatPlanIapDiagnostics(
+        planIapDiagnostics({ ...ios, isPluginAvailable: () => true }, ipadDesktopUa),
+      ),
+    ).toBe("native=ios ua=no plugin=yes");
+    expect(
+      formatPlanIapDiagnostics(
+        planIapDiagnostics({ ...ios, PluginHeaders: [{ name: "TideMarkStore" }] }, ipadDesktopUa),
+      ),
+    ).toBe("native=ios ua=no plugin=yes");
+    expect(formatPlanIapDiagnostics(planIapDiagnostics(website, `Mozilla ${PLAN_UA_TOKEN}`))).toBe(
+      "native=no ua=yes plugin=no",
+    );
+  });
+
+  it("opens Plan on iPad when the user agent dropped the token but TideMarkStore is registered", async () => {
+    setNativeRuntimeForTests({
+      ...ios,
+      isPluginAvailable: (name) => name === "TideMarkStore",
+      PluginHeaders: [{ name: "TideMarkStore" }],
+    });
+    setUserAgentForTests(ipadDesktopUa);
+    setTideMarkStoreForTests({
+      getProduct: async () => ({ productId: PLAN_PRODUCT_ID, displayPrice: "$19.99", displayName: "Tide Mark Plan" }),
+      planOffer: async () => ({
+        nativePlanIap: true,
+        productId: PLAN_PRODUCT_ID,
+        displayPrice: "$19.99",
+        entitled: false,
+        status: "none",
+      }),
+      purchase: async () => {
+        throw new Error("purchase should not run");
+      },
+      restore: async () => {
+        throw new Error("restore should not run");
+      },
+    });
+    const access = await resolvePlanAccess();
+    expect(access.mode).toBe("paywall");
   });
 
   it("keeps Plan free when the 2.0 user agent is missing", async () => {
