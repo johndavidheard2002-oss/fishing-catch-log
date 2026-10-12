@@ -6,7 +6,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Persist an App Store purchase or restore for com.tidemark.logbook.plan.monthly.
+ * Persist an App Store purchase or restore for com.tidemark.logbook.plan.yearly.
+ * A restore of com.tidemark.logbook.plan.monthly is accepted too.
  * Web trial stays on the existing clock; this only writes subscription_status.
  */
 export async function POST(request: NextRequest) {

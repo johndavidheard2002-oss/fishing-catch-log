@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { PLAN_PRODUCT_ID, PLAN_UA_TOKEN } from "./plan-iap";
+import { PLAN_LEGACY_MONTHLY_PRODUCT_ID, PLAN_PRODUCT_ID, PLAN_UA_TOKEN } from "./plan-iap";
 import {
   formatPlanIapDiagnostics,
   isNativeIosApp,
@@ -132,6 +132,18 @@ describe("Capacitor StoreKit gate", () => {
       expect(purchase.claim.source).toBe("purchase");
       expect(purchase.claim.transactionId).toBe("100");
     }
+    const monthly = pluginResultToClaim(
+      {
+        productId: PLAN_LEGACY_MONTHLY_PRODUCT_ID,
+        transactionId: "txn-monthly",
+        expiresAt: "2027-01-01T00:00:00.000Z",
+        entitled: true,
+        restored: true,
+      },
+      "restore",
+    );
+    expect(monthly.ok).toBe(true);
+    if (monthly.ok) expect(monthly.claim.productId).toBe(PLAN_LEGACY_MONTHLY_PRODUCT_ID);
     const empty = pluginResultToClaim({ restored: false, productId: PLAN_PRODUCT_ID, status: "none" }, "restore");
     expect(empty.ok).toBe(false);
     if (!empty.ok) expect(empty.error).toMatch(/No App Store subscription/);

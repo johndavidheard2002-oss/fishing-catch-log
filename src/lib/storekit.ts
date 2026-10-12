@@ -1,16 +1,24 @@
 import { addMs, DAY_MS, isSubscriptionStatus, type SubscriptionStatus } from "./entitlement";
-import { APP_STORE_PLAN_PRODUCT_ID, APP_STORE_PLAN_SUBSCRIPTION_GROUP } from "./native-app";
+import {
+  APP_STORE_PLAN_MONTHLY_PRODUCT_ID,
+  APP_STORE_PLAN_PRODUCT_ID,
+  APP_STORE_PLAN_SUBSCRIPTION_GROUP,
+} from "./native-app";
 
 export const STOREKIT_PLAN_PRODUCT_ID = APP_STORE_PLAN_PRODUCT_ID;
+export const STOREKIT_LEGACY_MONTHLY_PRODUCT_ID = APP_STORE_PLAN_MONTHLY_PRODUCT_ID;
+export const STOREKIT_PLAN_PRODUCT_IDS = [STOREKIT_PLAN_PRODUCT_ID, STOREKIT_LEGACY_MONTHLY_PRODUCT_ID] as const;
+export type StorekitPlanProductId = (typeof STOREKIT_PLAN_PRODUCT_IDS)[number];
 export const STOREKIT_SUBSCRIPTION_GROUP = APP_STORE_PLAN_SUBSCRIPTION_GROUP;
-/** Fallback term only when a verified transaction omits expirationDate. */
+/** Fallback terms only when a verified transaction omits expirationDate. */
 export const STOREKIT_MONTH_MS = 30 * DAY_MS;
+export const STOREKIT_YEAR_MS = 365 * DAY_MS;
 
 export const STOREKIT_SOURCES = ["purchase", "restore"] as const;
 export type StorekitSource = (typeof STOREKIT_SOURCES)[number];
 
 export type StorekitClaim = {
-  productId: typeof STOREKIT_PLAN_PRODUCT_ID;
+  productId: StorekitPlanProductId;
   transactionId: string;
   originalTransactionId: string | null;
   expiresAt: string | null;
@@ -21,8 +29,8 @@ export type StorekitActivateResult =
   | { ok: true; status: Extract<SubscriptionStatus, "active" | "expired">; expiresAt: string | null; claim: StorekitClaim }
   | { ok: false; error: string };
 
-export function isStorekitPlanProductId(value: unknown): value is typeof STOREKIT_PLAN_PRODUCT_ID {
-  return value === STOREKIT_PLAN_PRODUCT_ID;
+export function isStorekitPlanProductId(value: unknown): value is StorekitPlanProductId {
+  return typeof value === "string" && (STOREKIT_PLAN_PRODUCT_IDS as readonly string[]).includes(value);
 }
 
 export function isStorekitSource(value: unknown): value is StorekitSource {
@@ -122,7 +130,8 @@ export function parseStorekitClaim(
 
 export function storekitSubscriptionExpiresAt(claim: StorekitClaim, now = new Date()): string {
   if (claim.expiresAt) return claim.expiresAt;
-  return addMs(now.toISOString(), STOREKIT_MONTH_MS);
+  const term = claim.productId === STOREKIT_LEGACY_MONTHLY_PRODUCT_ID ? STOREKIT_MONTH_MS : STOREKIT_YEAR_MS;
+  return addMs(now.toISOString(), term);
 }
 
 export function resolveStorekitActivation(claim: StorekitClaim, now = new Date()): StorekitActivateResult {

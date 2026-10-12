@@ -1,18 +1,28 @@
 import {
+  APP_STORE_PLAN_MONTHLY_PRODUCT_ID,
   APP_STORE_PLAN_PRICE,
   APP_STORE_PLAN_PRODUCT_ID,
   APP_STORE_PLAN_SUBSCRIPTION_GROUP,
+  APP_STORE_PLAN_TRIAL,
   APPLE_STANDARD_EULA_URL,
   NATIVE_PLAN_IAP_UA_TOKEN,
 } from "./native-app";
 
 export const PLAN_PRODUCT_ID = APP_STORE_PLAN_PRODUCT_ID;
+export const PLAN_LEGACY_MONTHLY_PRODUCT_ID = APP_STORE_PLAN_MONTHLY_PRODUCT_ID;
 export const PLAN_SUBSCRIPTION_GROUP = APP_STORE_PLAN_SUBSCRIPTION_GROUP;
 export const PLAN_PRICE_LABEL = APP_STORE_PLAN_PRICE;
+export const PLAN_OFFER_LINE = `${PLAN_PRICE_LABEL} · ${APP_STORE_PLAN_TRIAL}`;
 export const PLAN_TITLE = "Tide Mark Plan";
-export const PLAN_PERIOD_LABEL = "1 month";
+export const PLAN_PERIOD_LABEL = "1 year";
 export const PLAN_UA_TOKEN = NATIVE_PLAN_IAP_UA_TOKEN;
 export const PLAN_TERMS_URL = APPLE_STANDARD_EULA_URL;
+
+const ACCEPTED_PLAN_PRODUCT_IDS = [PLAN_PRODUCT_ID, PLAN_LEGACY_MONTHLY_PRODUCT_ID] as const;
+
+export function isAcceptedPlanProductId(value: string): boolean {
+  return (ACCEPTED_PLAN_PRODUCT_IDS as readonly string[]).includes(value);
+}
 
 export const PLAN_INCLUDES = [
   "Matching tide for each logged catch on the plan day — same height and incoming or outgoing.",
@@ -21,7 +31,7 @@ export const PLAN_INCLUDES = [
 ] as const;
 
 export const PLAN_AUTORENEW_TERMS =
-  "Payment is charged to your Apple ID when you confirm the purchase. Tide Mark Plan renews automatically unless you cancel at least 24 hours before the end of the current period. Your account is charged for renewal within 24 hours before the period ends. Manage or cancel anytime in Settings → Apple ID → Subscriptions. Any unused part of a free trial is forfeited if you buy a subscription before the trial ends.";
+  `Tide Mark Plan is a 1-year subscription at ${PLAN_PRICE_LABEL} after a 1-month free trial. Payment is charged to your Apple ID when you confirm the purchase. It renews automatically each year unless you cancel at least 24 hours before the end of the current period. Your account is charged ${PLAN_PRICE_LABEL} for renewal within 24 hours before the period ends. Manage or cancel anytime in Settings → Apple ID → Subscriptions. Any unused part of a free trial is forfeited if you buy a subscription before the trial ends.`;
 
 /** Copy that must never appear on the Plan paywall. */
 const DISCOURAGED_PAYWALL_NOTES = [
@@ -96,7 +106,7 @@ export function fallbackPlanOffer(): PlanOffer {
     productId: PLAN_PRODUCT_ID,
     displayPrice: null,
     displayName: PLAN_TITLE,
-    periodUnit: "month",
+    periodUnit: "year",
     periodValue: 1,
     introPaymentMode: "freeTrial",
     introPeriodUnit: "month",
@@ -130,7 +140,7 @@ export function planOfferFromPlugin(raw: unknown): PlanOffer | null {
   const body = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : null;
   if (!body || body.nativePlanIap !== true) return null;
   const productId = asText(body.productId) ?? PLAN_PRODUCT_ID;
-  if (productId !== PLAN_PRODUCT_ID) return null;
+  if (!isAcceptedPlanProductId(productId)) return null;
   const status = isPlanStatus(body.status) ? body.status : body.entitled === true ? "active" : "none";
   return {
     nativePlanIap: true,
@@ -153,7 +163,7 @@ export function planOfferFromPlugin(raw: unknown): PlanOffer | null {
 }
 
 export function offerIsEntitled(offer: PlanOffer, now = new Date()): boolean {
-  if (!offer.nativePlanIap || offer.productId !== PLAN_PRODUCT_ID) return false;
+  if (!offer.nativePlanIap || !isAcceptedPlanProductId(offer.productId)) return false;
   if (!offer.entitled || offer.status === "expired") return false;
   if (offer.expiresAt) {
     const ends = new Date(offer.expiresAt).getTime();
@@ -169,7 +179,7 @@ export function planAccessFromProbe(args: {
 }): PlanAccess {
   if (!args.nativeBuild) return { mode: "free" };
   const offer = args.offer ?? fallbackPlanOffer();
-  if (offer.productId !== PLAN_PRODUCT_ID || offer.nativePlanIap !== true) {
+  if (!isAcceptedPlanProductId(offer.productId) || offer.nativePlanIap !== true) {
     return { mode: "paywall", offer: fallbackPlanOffer() };
   }
   if (offerIsEntitled(offer, args.now)) return { mode: "unlocked", offer };
@@ -180,7 +190,7 @@ export function planPriceLabel(offer?: Partial<PlanOffer> | null): string {
   const raw = offer?.displayPrice?.trim();
   if (!raw) return PLAN_PRICE_LABEL;
   if (raw.includes("/")) return raw;
-  const unit = (offer?.periodUnit ?? "month").toLowerCase();
+  const unit = (offer?.periodUnit ?? "year").toLowerCase();
   const value = offer?.periodValue ?? 1;
   if (value === 1 && (unit === "month" || unit === "year" || unit === "week" || unit === "day")) {
     return `${raw}/${unit}`;

@@ -20,7 +20,7 @@ import {
 } from "@/lib/entitlement";
 import { useNativePlanIap } from "@/components/useNativePlanIap";
 import { ENTITLEMENT_CHANGED_EVENT } from "@/lib/native-iap";
-import { PLAN_PRICE_LABEL, PLAN_TITLE } from "@/lib/plan-iap";
+import { PLAN_OFFER_LINE, PLAN_TITLE } from "@/lib/plan-iap";
 
 type MeState = {
   signedIn: boolean;
@@ -46,7 +46,7 @@ function TideMarkPlanLink({ compact = false }: { compact?: boolean }) {
       data-testid="home-tide-mark-plan"
     >
       <span>{PLAN_TITLE}</span>
-      <span className="text-sm font-normal">{PLAN_PRICE_LABEL} · 1-month free trial</span>
+      <span className="text-sm font-normal">{PLAN_OFFER_LINE}</span>
     </Link>
   );
 }

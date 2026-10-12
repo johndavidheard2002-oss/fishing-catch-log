@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  PLAN_LEGACY_MONTHLY_PRODUCT_ID,
+  PLAN_OFFER_LINE,
   PLAN_PRODUCT_ID,
   PLAN_UA_TOKEN,
   fallbackPlanOffer,
@@ -81,9 +83,11 @@ describe("Plan StoreKit gate", () => {
 
   it("reads a localized StoreKit price and ignores a different product", () => {
     expect(planPriceLabel({ displayPrice: "€19,99", periodUnit: "month", periodValue: 1 })).toBe("€19,99/month");
-    expect(planPriceLabel(null)).toBe("$19.99/month");
+    expect(planPriceLabel(null)).toBe("$19.99/year");
+    expect(planPriceLabel({ displayPrice: "$19.99" })).toBe("$19.99/year");
+    expect(PLAN_OFFER_LINE).toBe("$19.99/year · 1-month free trial");
     expect(planTrialLine({ displayPrice: "$19.99", introPaymentMode: "freeTrial", introPeriodUnit: "month", introPeriodValue: 1 })).toBe(
-      "1-month free trial, then $19.99/month",
+      "1-month free trial, then $19.99/year",
     );
     expect(planOfferFromPlugin({ nativePlanIap: true, productId: "other", entitled: true })).toBeNull();
     const parsed = planOfferFromPlugin({
@@ -96,17 +100,36 @@ describe("Plan StoreKit gate", () => {
     });
     expect(parsed?.entitled).toBe(true);
     expect(parsed?.displayPrice).toBe("$19.99");
+    const restoredMonthly = planOfferFromPlugin({
+      nativePlanIap: true,
+      productId: PLAN_LEGACY_MONTHLY_PRODUCT_ID,
+      entitled: true,
+      status: "active",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+    });
+    expect(restoredMonthly?.productId).toBe(PLAN_LEGACY_MONTHLY_PRODUCT_ID);
+    expect(offerIsEntitled(restoredMonthly!, new Date("2026-10-12T00:00:00.000Z"))).toBe(true);
+    expect(
+      planAccessFromProbe({
+        nativeBuild: true,
+        offer: restoredMonthly,
+        now: new Date("2026-10-12T00:00:00.000Z"),
+      }).mode,
+    ).toBe("unlocked");
   });
 
   it("describes Plan without telling people not to subscribe", () => {
     const copy = planPaywallCopy(fallbackPlanOffer());
     expect(copy.title).toBe("Tide Mark Plan");
-    expect(copy.length).toBe("1 month");
-    expect(copy.trial).toContain("1-month free trial");
-    expect(copy.price).toBe("$19.99/month");
+    expect(copy.length).toBe("1 year");
+    expect(copy.trial).toBe("1-month free trial, then $19.99/year");
+    expect(copy.price).toBe("$19.99/year");
     expect(copy.restoreLabel).toBe("Restore Purchases");
     expect(copy.termsUrl).toContain("apple.com/legal");
     expect(copy.autoRenew.toLowerCase()).toContain("renew");
+    expect(copy.autoRenew).toContain("$19.99/year");
+    expect(copy.autoRenew).toMatch(/each year/);
+    expect(copy.autoRenew).toMatch(/24 hours/);
     expect(copy.includes.join(" ")).toMatch(/same height/i);
     expect(copy.includes.join(" ")).toMatch(/incoming or outgoing/i);
     expect(copy.includes.join(" ")).toMatch(/notes on the plan/i);
@@ -129,6 +152,7 @@ describe("Plan StoreKit gate", () => {
     const home = readFileSync(resolve(process.cwd(), "src/components/HomeClient.tsx"), "utf8");
     expect(home).toContain('href="/subscribe"');
     expect(home).toContain('data-testid="home-tide-mark-plan"');
+    expect(home).toContain("PLAN_OFFER_LINE");
     expect(home).toContain("planOfferVisible");
     expect(home).toContain("w-full min-w-0 max-w-full");
     expect(home).not.toContain("md:hidden");
