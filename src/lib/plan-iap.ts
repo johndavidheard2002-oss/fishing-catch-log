@@ -65,10 +65,15 @@ export function userAgentHasPlanIap(userAgent: string): boolean {
 }
 
 /**
- * Plan is paid only in the native iOS shell (iPhone and iPad both report
- * platform `ios`). The website stays free even if a web plugin stub or the
- * user-agent token is present. The 1.0 binary has neither the token nor
- * TideMarkStore, so it stays free too.
+ * Show Tide Mark Plan for the 2.0 shell only.
+ *
+ * The user-agent token and the TideMarkStore header are enough on their own.
+ * Build 9 sets WKAppBoundDomains without limitsNavigationsToAppBoundDomains,
+ * so WebKit does not inject the Capacitor bridge and isNativePlatform() is
+ * false even inside that app. The token is still appended on the web view.
+ *
+ * Generic native iOS is not enough: Tide Mark 1.0 is native and must stay
+ * paywall-free. The website stub of TideMarkStore is not enough either.
  */
 export function planIapBuildAvailable(args: {
   nativeIos: boolean;
@@ -76,12 +81,9 @@ export function planIapBuildAvailable(args: {
   pluginAvailable?: boolean;
   pluginHeader?: boolean;
 }): boolean {
-  if (!args.nativeIos) return false;
-  return (
-    userAgentHasPlanIap(args.userAgent) ||
-    args.pluginAvailable === true ||
-    args.pluginHeader === true
-  );
+  if (userAgentHasPlanIap(args.userAgent)) return true;
+  if (args.pluginHeader === true) return true;
+  return args.nativeIos && args.pluginAvailable === true;
 }
 
 export function isPlanStatus(value: unknown): value is PlanStatus {

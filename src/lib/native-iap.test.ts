@@ -44,22 +44,30 @@ describe("Capacitor StoreKit gate", () => {
       isNativePlatform: () => false,
       getPlatform: () => "web",
       isPluginAvailable: () => true,
-      PluginHeaders: [{ name: "TideMarkStore" }],
     };
-    expect(planStorekitAvailable(website, `Mozilla ${PLAN_UA_TOKEN}`)).toBe(false);
-    expect(formatPlanIapDiagnostics(planIapDiagnostics(ios, ipadDesktopUa))).toBe("native=ios ua=no plugin=no");
+    expect(planStorekitAvailable(website, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")).toBe(false);
+    expect(planStorekitAvailable(website, `Mozilla ${PLAN_UA_TOKEN}`)).toBe(true);
+    expect(
+      planStorekitAvailable(
+        { ...website, PluginHeaders: [{ name: "TideMarkStore" }] },
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      ),
+    ).toBe(true);
+    expect(formatPlanIapDiagnostics(planIapDiagnostics(ios, ipadDesktopUa))).toBe(
+      "native=ios ua=no plugin=no bridge=no",
+    );
     expect(
       formatPlanIapDiagnostics(
         planIapDiagnostics({ ...ios, isPluginAvailable: () => true }, ipadDesktopUa),
       ),
-    ).toBe("native=ios ua=no plugin=yes");
+    ).toBe("native=ios ua=no plugin=yes bridge=no");
     expect(
       formatPlanIapDiagnostics(
         planIapDiagnostics({ ...ios, PluginHeaders: [{ name: "TideMarkStore" }] }, ipadDesktopUa),
       ),
-    ).toBe("native=ios ua=no plugin=yes");
+    ).toBe("native=ios ua=no plugin=yes bridge=no");
     expect(formatPlanIapDiagnostics(planIapDiagnostics(website, `Mozilla ${PLAN_UA_TOKEN}`))).toBe(
-      "native=no ua=yes plugin=no",
+      "native=no ua=yes plugin=no bridge=no",
     );
   });
 
@@ -135,10 +143,14 @@ describe("Capacitor StoreKit gate", () => {
     if (!ended.ok) expect(ended.error).toMatch(/ended/);
   });
 
-  it("refuses StoreKit calls on web and purchases through the 2.0 bridge", async () => {
+  it("refuses StoreKit calls on the plain website and purchases through the 2.0 bridge", async () => {
     setNativeRuntimeForTests({ isNativePlatform: () => false, getPlatform: () => "web" });
-    setUserAgentForTests(`Mozilla ${PLAN_UA_TOKEN}`);
+    setUserAgentForTests("Mozilla/5.0");
     await expect(purchasePlan()).rejects.toThrow(/Tide Mark 2\.0/);
+    expect(planStorekitAvailable()).toBe(false);
+
+    setUserAgentForTests(`Mozilla ${PLAN_UA_TOKEN}`);
+    expect(planStorekitAvailable()).toBe(true);
 
     setNativeRuntimeForTests(ios);
     setUserAgentForTests(`Mozilla ${PLAN_UA_TOKEN}`);

@@ -33,6 +33,7 @@
 	<key>WKAppBoundDomains</key>
 	<array>
 		<string>fishing-catch-log-ivl7.onrender.com</string>
+		<string>localhost</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>

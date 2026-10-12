@@ -68,8 +68,11 @@ Confirm `ios/App/App/Info.plist` still has the three usage strings above (they a
 <key>WKAppBoundDomains</key>
 <array>
   <string>fishing-catch-log-ivl7.onrender.com</string>
+  <string>localhost</string>
 </array>
 ```
+
+`capacitor.config.ts` sets `ios.limitsNavigationsToAppBoundDomains` to true. Without that, WebKit skips the Capacitor bridge on this list. `localhost` is the local Capacitor origin Capacitor also expects on the list.
 
 ### Icons and splash (existing art only)
 
@@ -108,12 +111,15 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 
 ## StoreKit / Plan paywall (2.0)
 
-The iOS app is a Capacitor WebView pointed at the live Render site (`server.url`). The same JavaScript runs for the website, the 1.0 app, and 2.0. Plan is paid only when the shell is native iOS **and** that binary is 2.0:
+The iOS app is a Capacitor WebView pointed at the live Render site (`server.url`). The same JavaScript runs for the website, the 1.0 app, and 2.0. Home shows **Tide Mark Plan** when the shell is 2.0, which is any one of:
 
-1. `Capacitor.isNativePlatform()` and `getPlatform() === "ios"` (iPad uses `ios`, not a separate platform)
-2. Any one of: the user agent contains `TideMarkPlanIAP/2`, `Capacitor.isPluginAvailable("TideMarkStore")` on that iOS shell, or `window.Capacitor.PluginHeaders` includes `TideMarkStore`
+1. The user agent contains `TideMarkPlanIAP/2` (this does not also require `isNativePlatform()`)
+2. `window.Capacitor.PluginHeaders` includes `TideMarkStore`
+3. Native iOS **and** `Capacitor.isPluginAvailable("TideMarkStore")`
 
-`ios.appendUserAgent` bakes the token into the 2.0 binary. iPad WebKit can still omit `applicationNameForUserAgent` from a desktop user agent, so the plugin check is what keeps the Home button visible there. The live 1.0 binary has neither the token nor TideMarkStore, so a Render deploy does not show 1.0 users a purchase screen. Safari registers a web stub of the plugin and is not native iOS, so Plan stays included on the website. The 2.0 plugin method `planOffer` is what reads StoreKit.
+`ios.appendUserAgent` bakes the token into the 2.0 binary on the web view configuration, so it is present even when the Capacitor bridge script is not. The live 1.0 binary has neither the token nor TideMarkStore, so it stays paywall-free. Safari’s web stub of the plugin is not a plugin header and is not native iOS, so the website stays paywall-free. The 2.0 plugin method `planOffer` is what reads StoreKit.
+
+`Info.plist` lists `WKAppBoundDomains`. Capacitor’s `ios.limitsNavigationsToAppBoundDomains` defaults to false, and with the key present WebKit then does not inject the bridge or `TideMarkStore`. Build 9 was archived that way, so `Capacitor.isNativePlatform()` is false in that WebView and the purchase sheet cannot present. The config now sets the flag to true. That change is in the next binary, not in a Render deploy.
 
 Inside 2.0, Home’s account card has a **Tide Mark Plan** button (`/subscribe`), and the Plan tab shows the same purchase screen above Plan a day. The day planner stays usable, including for accounts created before 2.0. The purchase screen always shows the price (StoreKit’s price, or **$19.99/month** if the product has not loaded), **Start 1-month free trial**, **Restore Purchases**, and **Retry** when the App Store price did not load. An active subscription does not hide that screen.
 
