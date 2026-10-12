@@ -2,9 +2,10 @@ import Capacitor
 import Foundation
 import StoreKit
 
-/// StoreKit 2 bridge for Tide Mark Plan (`com.tidemark.logbook.plan.yearly`).
-/// Restore also reads `com.tidemark.logbook.plan.monthly` so an existing
-/// monthly subscriber stays entitled. New purchases use the yearly product.
+/// StoreKit 2 bridge for Tide Mark Plan (`com.tidemark.logbook.plan.annual`).
+/// Restore also reads `com.tidemark.logbook.plan.yearly` and
+/// `com.tidemark.logbook.plan.monthly` so an existing subscriber stays
+/// entitled. New purchases use the annual product.
 /// `planOffer` exists only in the 2.0 binary. The 1.0 app does not implement it,
 /// and its WebView user agent does not include TideMarkPlanIAP/2, so the remote
 /// site keeps Plan free for that build.
@@ -19,13 +20,14 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
     ]
 
-    static let planProductId = "com.tidemark.logbook.plan.yearly"
-    /// Kept so Restore can see a subscription bought before the yearly price.
+    static let planProductId = "com.tidemark.logbook.plan.annual"
+    /// Kept so Restore can see a subscription from the rejected group.
+    static let legacyYearlyProductId = "com.tidemark.logbook.plan.yearly"
     static let legacyMonthlyProductId = "com.tidemark.logbook.plan.monthly"
     static let subscriptionGroup = "Tide Mark Plan"
 
     private static func isPlanProduct(_ productId: String) -> Bool {
-        productId == planProductId || productId == legacyMonthlyProductId
+        productId == planProductId || productId == legacyYearlyProductId || productId == legacyMonthlyProductId
     }
 
     private let iso: ISO8601DateFormatter = {
@@ -124,12 +126,15 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     /// Latest transaction, including an expired or revoked one, so relaunch can lock Plan again.
-    /// An entitled yearly purchase wins. Otherwise an entitled monthly restore wins.
+    /// An entitled annual purchase wins, then a restored yearly or monthly term.
     private func readPlanState() async -> PlanState {
-        let yearly = await self.latestState(for: Self.planProductId)
+        let annual = await self.latestState(for: Self.planProductId)
+        if let annual, annual.entitled { return annual }
+        let yearly = await self.latestState(for: Self.legacyYearlyProductId)
         if let yearly, yearly.entitled { return yearly }
         let monthly = await self.latestState(for: Self.legacyMonthlyProductId)
         if let monthly, monthly.entitled { return monthly }
+        if let annual { return annual }
         if let yearly { return yearly }
         if let monthly { return monthly }
         return PlanState(
@@ -256,7 +261,7 @@ private enum StorePluginError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingProduct:
-            return "App Store product com.tidemark.logbook.plan.yearly is not available."
+            return "App Store product com.tidemark.logbook.plan.annual is not available."
         }
     }
 }
