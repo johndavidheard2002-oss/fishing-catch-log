@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { APP_DISPLAY_NAME, APP_LOGO_SRC } from "./brand";
 import {
@@ -10,9 +10,13 @@ import {
   APP_STORE_PLAN_SUBSCRIPTION_GROUP,
   APP_STORE_PLAN_TRIAL,
   APP_STORE_PRIVACY_URL,
+  IOS_APP_BOUND_DOMAINS,
+  IOS_EXTERNAL_LINK_HOSTS,
+  IOS_WEBVIEW_HOST,
   NATIVE_PLAN_IAP_UA_TOKEN,
   IOS_USAGE_DESCRIPTIONS,
   NATIVE_ICON_SOURCE,
+  iosWebViewKeepsHost,
 } from "./native-app";
 
 describe("App Store / Capacitor wrap", () => {
@@ -37,6 +41,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(cap).toContain('contentInset: "never"');
     expect(cap).toContain(`appendUserAgent: "${NATIVE_PLAN_IAP_UA_TOKEN}"`);
     expect(cap).toContain("limitsNavigationsToAppBoundDomains: true");
+    expect(cap).toContain(`allowNavigation: ["${IOS_WEBVIEW_HOST}"]`);
 
     const pbx = resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj");
     if (existsSync(pbx)) {
@@ -123,7 +128,60 @@ describe("App Store / Capacitor wrap", () => {
       expect(xml).toMatch(
         /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\s*\/>/,
       );
+      expect(xml).toMatch(
+        /<key>CFBundleVersion<\/key>\s*<string>\$\(CURRENT_PROJECT_VERSION\)<\/string>/,
+      );
+      const bound = xml.split("<key>WKAppBoundDomains</key>")[1]?.split("</array>")[0] ?? "";
+      const domains = [...bound.matchAll(/<string>([^<]+)<\/string>/g)].map((match) => match[1]);
+      expect(domains).toEqual([...IOS_APP_BOUND_DOMAINS]);
+      for (const host of IOS_EXTERNAL_LINK_HOSTS) {
+        expect(domains).not.toContain(host);
+        expect(iosWebViewKeepsHost(host)).toBe(false);
+      }
+      expect(iosWebViewKeepsHost(IOS_WEBVIEW_HOST)).toBe(true);
+      expect(iosWebViewKeepsHost("api.tidesandcurrents.noaa.gov")).toBe(false);
+      expect(iosWebViewKeepsHost("api.openweathermap.org")).toBe(false);
     }
+  });
+
+  it("keeps WebView navigations on the live host and sends external links outside", () => {
+    const roots = [
+      resolve(process.cwd(), "src/components"),
+      resolve(process.cwd(), "src/app"),
+      resolve(process.cwd(), "src/lib/map-tiles.ts"),
+      resolve(process.cwd(), "src/lib/native-app.ts"),
+    ];
+    const files: string[] = [];
+    function walk(path: string) {
+      const stat = statSync(path);
+      if (stat.isFile()) {
+        if (/\.(ts|tsx)$/.test(path)) files.push(path);
+        return;
+      }
+      for (const name of readdirSync(path)) {
+        if (name === "api" && path.endsWith(join("src", "app"))) continue;
+        walk(join(path, name));
+      }
+    }
+    for (const root of roots) walk(root);
+    const allowed = new Set<string>([
+      ...IOS_APP_BOUND_DOMAINS,
+      ...IOS_EXTERNAL_LINK_HOSTS,
+      "server.arcgisonline.com",
+      "{s}.tile.openstreetmap.org",
+    ]);
+    const found = new Set<string>();
+    for (const file of files) {
+      const text = readFileSync(file, "utf8");
+      for (const match of text.matchAll(/https?:\/\/([^/"'`\s]+)/g)) {
+        found.add(match[1].toLowerCase());
+      }
+    }
+    const unexpected = [...found].filter((host) => !allowed.has(host));
+    expect(unexpected).toEqual([]);
+    expect(found.has("www.apple.com")).toBe(true);
+    expect(found.has("api.tidesandcurrents.noaa.gov")).toBe(false);
+    expect(found.has("api.openweathermap.org")).toBe(false);
   });
 
   it("keeps the locked 1024 copper seal as the opaque iOS AppIcon", () => {

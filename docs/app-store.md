@@ -72,7 +72,7 @@ Confirm `ios/App/App/Info.plist` still has the three usage strings above (they a
 </array>
 ```
 
-`capacitor.config.ts` sets `ios.limitsNavigationsToAppBoundDomains` to true. Without that, WebKit skips the Capacitor bridge on this list. `localhost` is the local Capacitor origin Capacitor also expects on the list.
+`capacitor.config.ts` sets `ios.limitsNavigationsToAppBoundDomains` to true. Without that, WebKit skips the Capacitor bridge on this list, and StoreKit cannot present. `localhost` is the local Capacitor origin. Sign-in and `/api` routes for auth, tides, and weather are the Render host, so they need no extra domain. Apple Terms of Use and the OpenStreetMap credit are not app-bound; Capacitor opens those links outside the WebView. `CFBundleVersion` stays `$(CURRENT_PROJECT_VERSION)`. Codemagic sets the uploaded build to the highest TestFlight or App Store build plus one.
 
 ### Icons and splash (existing art only)
 
