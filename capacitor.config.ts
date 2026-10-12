@@ -20,6 +20,10 @@ const config: CapacitorConfig = {
   server: {
     url: "https://fishing-catch-log-ivl7.onrender.com",
     androidScheme: "https",
+    // In-webview navigations only. Sign-in and /api (auth, tides, weather)
+    // are this host. Apple's EULA and map credits are omitted so Capacitor
+    // opens them in Safari instead of failing the load.
+    allowNavigation: ["fishing-catch-log-ivl7.onrender.com"],
   },
   ios: {
     // 2.0-only marker. The 1.0 App Store binary does not append this, so the
@@ -27,11 +31,9 @@ const config: CapacitorConfig = {
     // This is WKWebViewConfiguration, so it is present even when the bridge
     // user script is not injected.
     appendUserAgent: "TideMarkPlanIAP/2",
-    // Info.plist sets WKAppBoundDomains. Capacitor leaves this false, and
-    // then WebKit does not inject the bridge or TideMarkStore. Build 9 has
-    // that bug. The next binary needs this true or the purchase sheet cannot
-    // present. localhost is listed next to the Render host for the local
-    // Capacitor origin.
+    // Required for the StoreKit bridge. Info.plist sets WKAppBoundDomains;
+    // leaving this false makes WebKit skip user scripts, so TideMarkStore
+    // never reaches JavaScript. Build 9 shipped with the default false.
     limitsNavigationsToAppBoundDomains: true,
     // `never` lets CSS env(safe-area-inset-*) own the notch / home indicator.
     // `automatic` fights viewport-fit=cover: WKWebView reports 0 insets while

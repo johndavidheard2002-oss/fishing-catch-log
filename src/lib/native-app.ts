@@ -5,6 +5,26 @@ export const APP_STORE_LIVE_URL = "https://fishing-catch-log-ivl7.onrender.com";
 export const APP_STORE_PRIVACY_PATH = "/privacy";
 export const APP_STORE_PRIVACY_URL = `${APP_STORE_LIVE_URL}${APP_STORE_PRIVACY_PATH}`;
 
+/**
+ * Hosts the iOS WebView may navigate to while `limitsNavigationsToAppBoundDomains`
+ * is on. Sign-in, cookies, and `/api` (auth, tides, weather) are the live host.
+ * `localhost` is Capacitor's local origin. NOAA, OpenWeather, and map tile hosts
+ * are server or image fetches, not WebView navigations, so they stay off this list.
+ */
+export const IOS_WEBVIEW_HOST = new URL(APP_STORE_LIVE_URL).host;
+export const IOS_APP_BOUND_DOMAINS = [IOS_WEBVIEW_HOST, "localhost"] as const;
+
+/**
+ * Linked from the UI and opened outside the WebView (Safari or Mail).
+ * They must not be app-bound domains, or the WebView would try to load them.
+ */
+export const IOS_EXTERNAL_LINK_HOSTS = ["www.apple.com", "www.openstreetmap.org"] as const;
+
+export function iosWebViewKeepsHost(host: string): boolean {
+  const normalized = host.toLowerCase().replace(/\.$/, "");
+  return (IOS_APP_BOUND_DOMAINS as readonly string[]).includes(normalized);
+}
+
 /** Locked PWA / store icon sources. Do not regenerate the copper seal. */
 export const NATIVE_ICON_SOURCE = "/brand/tide-mark-logo.png";
 export const NATIVE_ICON_512 = "/icon-512.png";
