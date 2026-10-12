@@ -44,12 +44,18 @@ export const IOS_USAGE_DESCRIPTIONS = {
 export const APP_STORE_PRICE_YEARLY = "$29.99/year";
 
 /**
- * Tide Mark Plan — auto-renewable monthly subscription for version 2.0.
- * Create this exact product in App Store Connect. Do not rename.
+ * Tide Mark Plan — auto-renewable yearly subscription for version 2.0.
+ * Create this exact product in App Store Connect. Do not rename, and do not
+ * reuse the old sku `tidemark_premium_yearly`.
  */
-export const APP_STORE_PLAN_PRODUCT_ID = "com.tidemark.logbook.plan.monthly";
+export const APP_STORE_PLAN_PRODUCT_ID = "com.tidemark.logbook.plan.yearly";
+/**
+ * Previous monthly product. New purchases use the yearly id. Restore still
+ * accepts this id so an existing monthly subscriber stays entitled.
+ */
+export const APP_STORE_PLAN_MONTHLY_PRODUCT_ID = "com.tidemark.logbook.plan.monthly";
 export const APP_STORE_PLAN_SUBSCRIPTION_GROUP = "Tide Mark Plan";
-export const APP_STORE_PLAN_PRICE = "$19.99/month";
+export const APP_STORE_PLAN_PRICE = "$19.99/year";
 export const APP_STORE_PLAN_TRIAL = "1-month free trial";
 
 /**

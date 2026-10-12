@@ -90,7 +90,7 @@ describe("HELP_SECTIONS", () => {
     expect(billing.some((step) => step.includes("stay free") && step.includes("website keeps Plan included"))).toBe(
       true,
     );
-    expect(billing.some((step) => step.includes("1-month free trial") && step.includes("$19.99/month"))).toBe(true);
+    expect(billing.some((step) => step.includes("1-month free trial") && step.includes("$19.99/year"))).toBe(true);
     expect(billing.some((step) => step.includes("Nothing is deleted"))).toBe(true);
     expect(
       billing.some((step) => step.includes("iPhone") && step.includes("App Store") && step.includes("Restore")),

@@ -12,8 +12,8 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Live WebView URL | https://fishing-catch-log-ivl7.onrender.com |
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
 | Marketing version | **2.0** (`MARKETING_VERSION` in the Xcode project; Info.plist keeps the `$(MARKETING_VERSION)` placeholder). Codemagic reads that build setting and sets the build number to the highest TestFlight or App Store build across all versions + 1. |
-| Pricing | Log, Calendar, and Spots stay **free**. **Tide Mark Plan** is **$19.99/month** after a **1-month free trial** |
-| In-App Purchase | `com.tidemark.logbook.plan.monthly` (auto-renewable, subscription group **Tide Mark Plan**) |
+| Pricing | Log, Calendar, and Spots stay **free**. **Tide Mark Plan** is **$19.99/year** after a **1-month free trial** |
+| In-App Purchase | `com.tidemark.logbook.plan.yearly` (auto-renewable, subscription group **Tide Mark Plan**). Restore also accepts `com.tidemark.logbook.plan.monthly`. |
 | 2.0 shell marker | WebView user agent token `TideMarkPlanIAP/2` (`ios.appendUserAgent`). The 1.0 binary does not send it. |
 | Icon / seal | `public/brand/tide-mark-logo.png` (locked copper seal — TIDE MARK / SALTWATER LOGBOOK, fish-eye map pin; do not redraw). iOS AppIcon is the opaque 1024 near-black square. |
 | PWA icons | `public/icon-192.png`, `public/icon-512.png`, `public/apple-icon.png` |
@@ -105,7 +105,7 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 3. **Certificates / profiles** — In Xcode, enable Automatic Signing and pick the team. Or create an Apple Distribution cert and App Store provisioning profile in the developer portal. Not done in this repo.
 4. **Archive** — Destination: Any iOS Device. Product → Archive.
 5. **TestFlight** — Prefer the Codemagic `ios-testflight` workflow below. Manual path: archive in Xcode, upload to App Store Connect, add internal testers. `Info.plist` already sets `ITSAppUsesNonExemptEncryption` to `false` (HTTPS / OS encryption only), so App Store Connect should not ask the export-compliance questions on each upload.
-6. **Subscription** — Auto-renewable product **`com.tidemark.logbook.plan.monthly`** in a subscription group named **Tide Mark Plan**, **$19.99/month** (USD), with a **1-month free trial** introductory offer. Do **not** reuse `tidemark_premium_yearly`. The rest of the app stays free. **John must create this product in App Store Connect** before review — the id and group name have to match the app exactly. ASC is authoritative for the charged price; the paywall uses StoreKit’s localized price when the product loads, and falls back to $19.99/month.
+6. **Subscription** — Auto-renewable product **`com.tidemark.logbook.plan.yearly`** in a subscription group named **Tide Mark Plan**, **$19.99/year** (USD), with a **1-month free trial** introductory offer. Do **not** reuse `tidemark_premium_yearly` — that old sku is a different id. The previous product `com.tidemark.logbook.plan.monthly` can stay in the same group; the app still restores it and does not sell it. The rest of the app stays free. **John must create the yearly product in App Store Connect** before review — the id and group name have to match the app exactly. ASC is authoritative for the charged price; the paywall uses StoreKit’s localized price when the product loads, and falls back to $19.99/year · 1-month free trial.
 7. **Review notes** — Demo account if Review cannot create one; explain camera, location, and photo library prompts with the strings above. Account deletion is inside the app (guideline 5.1.1(v)), not by email alone. Recording path: create account or sign in → Home account card (name and email) → Delete account → password → type DELETE → Delete my account → Sign in / Create account.
 8. **In-App Purchase capability** — In Xcode, add the **In-App Purchase** capability on the App target. StoreKit 2 lives in `ios/App/App/TideMarkStorePlugin.swift` (Capacitor plugin `TideMarkStore`). Minimum iOS is **15.0**.
 
@@ -121,7 +121,7 @@ The iOS app is a Capacitor WebView pointed at the live Render site (`server.url`
 
 `Info.plist` lists `WKAppBoundDomains`. Capacitor’s `ios.limitsNavigationsToAppBoundDomains` defaults to false, and with the key present WebKit then does not inject the bridge or `TideMarkStore`. Build 9 was archived that way, so `Capacitor.isNativePlatform()` is false in that WebView and the purchase sheet cannot present. The config now sets the flag to true. That change is in the next binary, not in a Render deploy.
 
-Inside 2.0, Home’s account card has a **Tide Mark Plan** button (`/subscribe`), and the Plan tab shows the same purchase screen above Plan a day. The day planner stays usable, including for accounts created before 2.0. The purchase screen always shows the price (StoreKit’s price, or **$19.99/month** if the product has not loaded), **Start 1-month free trial**, **Restore Purchases**, and **Retry** when the App Store price did not load. An active subscription does not hide that screen.
+Inside 2.0, Home’s account card has a **Tide Mark Plan** button (`/subscribe`), and the Plan tab shows the same purchase screen above Plan a day. The day planner stays usable, including for accounts created before 2.0. The purchase screen always shows the price (StoreKit’s price, or **$19.99/year · 1-month free trial** if the product has not loaded), **Start 1-month free trial**, **Restore Purchases**, and **Retry** when the App Store price did not load. The auto-renew disclosure says the plan renews yearly at $19.99/year. An active subscription does not hide that screen. The yearly product id is in the native plugin, so the next Codemagic IPA is what sells it. A Render deploy updates the fallback copy only.
 
 `cap sync` only puts npm plugins in `packageClassList`, so the local `TideMarkStorePlugin` was never registered and purchase could not present StoreKit. `TideMarkBridgeViewController` registers it in `capacitorDidLoad`. That registration is in the binary; a Render deploy cannot add it.
 
@@ -129,9 +129,10 @@ Purchase and Restore read the verified transaction (including expiration and rev
 
 | | |
 | --- | --- |
-| Product ID | `com.tidemark.logbook.plan.monthly` |
+| Product ID | `com.tidemark.logbook.plan.yearly` |
+| Restore-only product | `com.tidemark.logbook.plan.monthly` |
 | Subscription group | Tide Mark Plan |
-| Price | $19.99/month |
+| Price | $19.99/year |
 | Intro | 1-month free trial (App Store Connect introductory offer) |
 | 2.0 marker | `TideMarkPlanIAP/2` |
 | Capacitor plugin | `TideMarkStore` (`planOffer`, `getProduct`, `purchase`, `restore`) |
@@ -145,7 +146,7 @@ npx cap sync ios
 npx cap open ios
 ```
 
-In Xcode: enable In-App Purchase, attach `ios/App/App/TideMarkPlan.storekit` (product id exactly `com.tidemark.logbook.plan.monthly`, group **Tide Mark Plan**, $19.99/month, 1-month free intro) or use a sandbox Apple ID against App Store Connect. Confirm purchase and Restore unlock Plan, that an expired date locks Plan again, and that Safari still opens Plan with no paywall.
+In Xcode: enable In-App Purchase, attach `ios/App/App/TideMarkPlan.storekit` (product id exactly `com.tidemark.logbook.plan.yearly`, group **Tide Mark Plan**, $19.99/year, 1-month free intro) or use a sandbox Apple ID against App Store Connect. Confirm purchase and Restore unlock Plan, that an expired date locks Plan again, and that Safari still opens Plan with no paywall.
 
 Full App Store Server API receipt verification is not in this pass — the native plugin only forwards a StoreKit 2 transaction the device already verified. Add Apple JWS / server-notification checks later if you need to reject spoofed POSTs.
 

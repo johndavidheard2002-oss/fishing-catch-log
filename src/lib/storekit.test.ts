@@ -18,18 +18,18 @@ function jwsWithPayload(payload: Record<string, unknown>): string {
 
 describe("StoreKit Plan product", () => {
   it("locks the App Store Connect product id and group", () => {
-    expect(STOREKIT_PLAN_PRODUCT_ID).toBe("com.tidemark.logbook.plan.monthly");
+    expect(STOREKIT_PLAN_PRODUCT_ID).toBe("com.tidemark.logbook.plan.yearly");
     expect(PLAN_PRODUCT_ID).toBe(STOREKIT_PLAN_PRODUCT_ID);
     expect(STOREKIT_SUBSCRIPTION_GROUP).toBe("Tide Mark Plan");
     expect(PLAN_SUBSCRIPTION_GROUP).toBe("Tide Mark Plan");
-    expect(PLAN_PRICE_LABEL).toBe("$19.99/month");
+    expect(PLAN_PRICE_LABEL).toBe("$19.99/year");
   });
 
-  it("accepts a purchase claim and defaults a missing term to one month", () => {
+  it("accepts a yearly purchase and defaults a missing term to one year", () => {
     const now = new Date("2026-09-05T12:00:00.000Z");
     const parsed = parseStorekitClaim(
       {
-        productId: "com.tidemark.logbook.plan.monthly",
+        productId: "com.tidemark.logbook.plan.yearly",
         transactionId: "txn-1",
         originalTransactionId: "orig-1",
         source: "purchase",
@@ -38,13 +38,33 @@ describe("StoreKit Plan product", () => {
     );
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    expect(parsed.claim.productId).toBe("com.tidemark.logbook.plan.monthly");
+    expect(parsed.claim.productId).toBe("com.tidemark.logbook.plan.yearly");
     const resolved = resolveStorekitActivation(parsed.claim, now);
     expect(resolved.ok).toBe(true);
     if (!resolved.ok) return;
     expect(resolved.status).toBe("active");
-    expect(resolved.expiresAt).toBe("2026-10-05T12:00:00.000Z");
+    expect(resolved.expiresAt).toBe("2027-09-05T12:00:00.000Z");
+    expect(storekitSubscriptionExpiresAt(parsed.claim, now)).toBe("2027-09-05T12:00:00.000Z");
+  });
+
+  it("accepts a restored monthly subscription and defaults a missing term to 30 days", () => {
+    const now = new Date("2026-09-05T12:00:00.000Z");
+    const parsed = parseStorekitClaim(
+      {
+        productId: "com.tidemark.logbook.plan.monthly",
+        transactionId: "txn-monthly",
+        source: "restore",
+      },
+      now,
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.claim.productId).toBe("com.tidemark.logbook.plan.monthly");
     expect(storekitSubscriptionExpiresAt(parsed.claim, now)).toBe("2026-10-05T12:00:00.000Z");
+    const resolved = resolveStorekitActivation(parsed.claim, now);
+    expect(resolved.ok).toBe(true);
+    if (!resolved.ok) return;
+    expect(resolved.status).toBe("active");
   });
 
   it("honors StoreKit expiration and treats a lapsed term as expired", () => {
@@ -77,12 +97,12 @@ describe("StoreKit Plan product", () => {
   it("reads product id and expiry from a StoreKit 2 JWS payload", () => {
     const now = new Date("2026-09-05T12:00:00.000Z");
     const jws = jwsWithPayload({
-      productId: "com.tidemark.logbook.plan.monthly",
+      productId: "com.tidemark.logbook.plan.yearly",
       transactionId: 9001,
       originalTransactionId: 8001,
       expiresDate: Date.parse("2026-10-05T00:00:00.000Z"),
     });
-    expect(decodeStorekitJwsPayload(jws)?.productId).toBe("com.tidemark.logbook.plan.monthly");
+    expect(decodeStorekitJwsPayload(jws)?.productId).toBe("com.tidemark.logbook.plan.yearly");
     const parsed = parseStorekitClaim({ jws, source: "purchase" }, now);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;

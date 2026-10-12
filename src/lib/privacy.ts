@@ -59,7 +59,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     title: "Free journal and Tide Mark Plan",
     paragraphs: [
       "Log, Calendar, Spots, and your account stay free. The website and Tide Mark 1.0 keep Plan included. We do not delete your catches, photos, spots, or notes.",
-      `${PLAN_TITLE} is an optional auto-renewable subscription in the Tide Mark 2.0 iPhone app: a free month, then ${PLAN_PRICE_LABEL}, billed by Apple. It shows the matching tide for each logged catch on the plan day (same height and incoming or outgoing), notes on the plan, and that day’s tides. Manage or cancel in your App Store account settings.`,
+      `${PLAN_TITLE} is an optional auto-renewable subscription in the Tide Mark 2.0 iPhone app: a 1-month free trial, then ${PLAN_PRICE_LABEL}, billed by Apple. It shows the matching tide for each logged catch on the plan day (same height and incoming or outgoing), notes on the plan, and that day’s tides. Manage or cancel in your App Store account settings.`,
     ],
   },
   {

@@ -2,7 +2,9 @@ import Capacitor
 import Foundation
 import StoreKit
 
-/// StoreKit 2 bridge for Tide Mark Plan (`com.tidemark.logbook.plan.monthly`).
+/// StoreKit 2 bridge for Tide Mark Plan (`com.tidemark.logbook.plan.yearly`).
+/// Restore also reads `com.tidemark.logbook.plan.monthly` so an existing
+/// monthly subscriber stays entitled. New purchases use the yearly product.
 /// `planOffer` exists only in the 2.0 binary. The 1.0 app does not implement it,
 /// and its WebView user agent does not include TideMarkPlanIAP/2, so the remote
 /// site keeps Plan free for that build.
@@ -17,8 +19,14 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
     ]
 
-    static let planProductId = "com.tidemark.logbook.plan.monthly"
+    static let planProductId = "com.tidemark.logbook.plan.yearly"
+    /// Kept so Restore can see a subscription bought before the yearly price.
+    static let legacyMonthlyProductId = "com.tidemark.logbook.plan.monthly"
     static let subscriptionGroup = "Tide Mark Plan"
+
+    private static func isPlanProduct(_ productId: String) -> Bool {
+        productId == planProductId || productId == legacyMonthlyProductId
+    }
 
     private let iso: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -99,7 +107,7 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func finishUnfinished() async {
         for await result in Transaction.unfinished {
-            if let transaction = try? self.unwrap(result), transaction.productID == Self.planProductId {
+            if let transaction = try? self.unwrap(result), Self.isPlanProduct(transaction.productID) {
                 await transaction.finish()
             }
         }
@@ -112,16 +120,32 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
         var transactionId: String?
         var originalTransactionId: String?
         var jws: String?
+        var productId: String?
     }
 
     /// Latest transaction, including an expired or revoked one, so relaunch can lock Plan again.
+    /// An entitled yearly purchase wins. Otherwise an entitled monthly restore wins.
     private func readPlanState() async -> PlanState {
-        guard let result = await Transaction.latest(for: Self.planProductId) else {
-            return PlanState(entitled: false, status: "none", expiresAt: nil, transactionId: nil, originalTransactionId: nil, jws: nil)
-        }
-        guard let transaction = try? self.unwrap(result) else {
-            return PlanState(entitled: false, status: "none", expiresAt: nil, transactionId: nil, originalTransactionId: nil, jws: nil)
-        }
+        let yearly = await self.latestState(for: Self.planProductId)
+        if let yearly, yearly.entitled { return yearly }
+        let monthly = await self.latestState(for: Self.legacyMonthlyProductId)
+        if let monthly, monthly.entitled { return monthly }
+        if let yearly { return yearly }
+        if let monthly { return monthly }
+        return PlanState(
+            entitled: false,
+            status: "none",
+            expiresAt: nil,
+            transactionId: nil,
+            originalTransactionId: nil,
+            jws: nil,
+            productId: nil
+        )
+    }
+
+    private func latestState(for productId: String) async -> PlanState? {
+        guard let result = await Transaction.latest(for: productId) else { return nil }
+        guard let transaction = try? self.unwrap(result) else { return nil }
         return self.state(from: transaction, jws: result.jwsRepresentation)
     }
 
@@ -130,14 +154,15 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
         let expires = transaction.expirationDate
         let revoked = transaction.revocationDate != nil
         let expired = expires.map { $0 <= Date() } ?? false
-        let entitled = transaction.productID == Self.planProductId && !revoked && !expired
+        let entitled = Self.isPlanProduct(transaction.productID) && !revoked && !expired
         return PlanState(
             entitled: entitled,
             status: entitled ? "active" : "expired",
             expiresAt: expires.map { self.iso.string(from: $0) },
             transactionId: String(transaction.id),
             originalTransactionId: String(transaction.originalID),
-            jws: jws
+            jws: jws,
+            productId: transaction.productID
         )
     }
 
@@ -183,6 +208,7 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 body[key] = value
             }
         }
+        if let purchasedId = state.productId { body["productId"] = purchasedId }
         if let expires = state.expiresAt { body["expiresAt"] = expires }
         if let transactionId = state.transactionId { body["transactionId"] = transactionId }
         if let original = state.originalTransactionId { body["originalTransactionId"] = original }
@@ -230,7 +256,7 @@ private enum StorePluginError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingProduct:
-            return "App Store product com.tidemark.logbook.plan.monthly is not available."
+            return "App Store product com.tidemark.logbook.plan.yearly is not available."
         }
     }
 }
