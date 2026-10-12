@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PlanPaywall } from "@/components/PlanPaywall";
 import { useNativePlanIap } from "@/components/useNativePlanIap";
 import { fetchPlanOffer } from "@/lib/native-iap";
-import { PLAN_TITLE, fallbackPlanOffer, type PlanOffer } from "@/lib/plan-iap";
+import { PLAN_TITLE, fallbackPlanOffer, planDiagnosticsRequested, type PlanOffer } from "@/lib/plan-iap";
 
 /**
  * Purchase screen for Tide Mark 2.0. The website and the 1.0 app never see
@@ -34,7 +34,9 @@ export function PlanSubscribeScreen() {
     return () => window.clearTimeout(timer);
   }, [native, load]);
 
-  const diagnosticsLine = ready ? (
+  const showDiagnostics =
+    ready && planDiagnosticsRequested(typeof window === "undefined" ? "" : window.location.search);
+  const diagnosticsLine = showDiagnostics ? (
     <p className="text-[11px] leading-snug text-ink-muted" data-testid="plan-iap-diagnostics">
       {diagnostics}
     </p>

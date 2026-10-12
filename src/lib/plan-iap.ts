@@ -231,6 +231,23 @@ export function planPaywallDiscouragesPurchase(text: string): boolean {
   return DISCOURAGED_PAYWALL_NOTES.some((pattern) => pattern.test(text));
 }
 
+/** Visible only when the subscribe URL includes `?debug=1`. */
+export function planDiagnosticsRequested(search: string): boolean {
+  const query = search.trim().replace(/^\?/, "");
+  return new URLSearchParams(query).get("debug") === "1";
+}
+
+const STOREKIT_IOS_APP_ONLY = /storekit is only available in the tide mark ios app/i;
+
+/**
+ * That sentence is the web stub. Inside the iOS app it is noise on the paywall.
+ * The plain website can still show it.
+ */
+export function planStorekitErrorForViewer(message: string, insideIosApp: boolean): string | null {
+  if (insideIosApp && STOREKIT_IOS_APP_ONLY.test(message)) return null;
+  return message;
+}
+
 export function planPaywallText(): string {
   const copy = planPaywallCopy(fallbackPlanOffer());
   return [copy.title, copy.length, copy.trial, copy.price, ...copy.includes, copy.autoRenew, copy.subscribeLabel].join(

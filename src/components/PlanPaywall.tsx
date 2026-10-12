@@ -3,10 +3,17 @@
 import Link from "next/link";
 import { useState } from "react";
 import { BrandWordmark } from "@/components/BrandWordmark";
-import { purchasePlan, restorePlan } from "@/lib/native-iap";
+import {
+  iosWebkitBridgePresent,
+  isNativeIosApp,
+  planStorekitAvailable,
+  purchasePlan,
+  restorePlan,
+} from "@/lib/native-iap";
 import {
   PLAN_TERMS_URL,
   planPaywallCopy,
+  planStorekitErrorForViewer,
   type PlanOffer,
 } from "@/lib/plan-iap";
 
@@ -20,6 +27,11 @@ function pluginErrorMessage(err: unknown): string {
     return "No App Store subscription to restore for this Apple ID.";
   }
   return raw;
+}
+
+/** 2.0 WebView, including a shell whose Capacitor runtime still reports web. */
+function insideTideMarkIosApp(): boolean {
+  return planStorekitAvailable() || isNativeIosApp() || iosWebkitBridgePresent();
 }
 
 export function PlanPaywall({
@@ -58,7 +70,7 @@ export function PlanPaywall({
       const next = kind === "purchase" ? await purchasePlan() : await restorePlan();
       onUnlocked?.(next);
     } catch (err) {
-      setError(pluginErrorMessage(err));
+      setError(planStorekitErrorForViewer(pluginErrorMessage(err), insideTideMarkIosApp()));
     } finally {
       setBusy(null);
     }

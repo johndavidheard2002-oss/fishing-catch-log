@@ -13,8 +13,10 @@ import {
   planOfferFromPlugin,
   planPaywallCopy,
   planPaywallDiscouragesPurchase,
+  planDiagnosticsRequested,
   planPaywallText,
   planPriceLabel,
+  planStorekitErrorForViewer,
   planTrialLine,
 } from "./plan-iap";
 
@@ -145,15 +147,16 @@ describe("Plan StoreKit gate", () => {
     expect(ui).toContain("PLAN_TERMS_URL");
     expect(planPaywallDiscouragesPurchase(ui)).toBe(false);
     const page = readFileSync(resolve(process.cwd(), "src/app/plan/page.tsx"), "utf8");
-    expect(page).toContain("<PlanAccess>");
-    const access = readFileSync(resolve(process.cwd(), "src/components/PlanAccess.tsx"), "utf8");
-    expect(access).toContain("<PlanSubscribeScreen />");
-    expect(access).toContain("{children}");
+    expect(page).toContain("<PlanClient");
+    expect(page).not.toContain("PlanSubscribeScreen");
+    expect(page).not.toContain("PlanAccess");
     const home = readFileSync(resolve(process.cwd(), "src/components/HomeClient.tsx"), "utf8");
     expect(home).toContain('href="/subscribe"');
     expect(home).toContain('data-testid="home-tide-mark-plan"');
     expect(home).toContain("PLAN_OFFER_LINE");
     expect(home).toContain("planOfferVisible");
+    expect(home).not.toContain("PlanSubscribeScreen");
+    expect(home).not.toContain("PlanPaywall");
     expect(home).toContain("w-full min-w-0 max-w-full");
     expect(home).not.toContain("md:hidden");
     expect(home).not.toContain("max-lg:hidden");
@@ -161,6 +164,19 @@ describe("Plan StoreKit gate", () => {
     expect(subscribe).toContain("PlanSubscribeScreen");
     const screen = readFileSync(resolve(process.cwd(), "src/components/PlanSubscribeScreen.tsx"), "utf8");
     expect(screen).toContain('data-testid="plan-iap-diagnostics"');
+    expect(screen).toContain("planDiagnosticsRequested");
+    expect(planDiagnosticsRequested("")).toBe(false);
+    expect(planDiagnosticsRequested("?debug=1")).toBe(true);
+    expect(planDiagnosticsRequested("debug=1")).toBe(true);
+    expect(planDiagnosticsRequested("?debug=0")).toBe(false);
+    expect(planDiagnosticsRequested("?foo=1&debug=1")).toBe(true);
+    const iosOnly = "StoreKit is only available in the Tide Mark iOS app.";
+    expect(planStorekitErrorForViewer(iosOnly, true)).toBeNull();
+    expect(planStorekitErrorForViewer(iosOnly, false)).toBe(iosOnly);
+    expect(planStorekitErrorForViewer("Purchase cancelled.", true)).toBe("Purchase cancelled.");
+    const paywall = readFileSync(resolve(process.cwd(), "src/components/PlanPaywall.tsx"), "utf8");
+    expect(paywall).toContain("planStorekitErrorForViewer");
+    expect(paywall).toContain("insideTideMarkIosApp");
     expect(screen).toContain('data-testid="plan-included"');
     expect(ui).toContain('data-testid="plan-price-retry"');
     expect(ui).toContain('data-testid="plan-price-fallback"');
