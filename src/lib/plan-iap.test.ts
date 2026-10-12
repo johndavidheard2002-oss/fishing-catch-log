@@ -19,8 +19,30 @@ import {
 describe("Plan StoreKit gate", () => {
   it("sells Plan only in the 2.0 iOS shell", () => {
     expect(planIapBuildAvailable({ nativeIos: false, userAgent: `Mozilla ${PLAN_UA_TOKEN}` })).toBe(false);
+    expect(
+      planIapBuildAvailable({
+        nativeIos: false,
+        userAgent: `Mozilla ${PLAN_UA_TOKEN}`,
+        pluginAvailable: true,
+        pluginHeader: true,
+      }),
+    ).toBe(false);
     expect(planIapBuildAvailable({ nativeIos: true, userAgent: "TideMark/1.0" })).toBe(false);
     expect(planIapBuildAvailable({ nativeIos: true, userAgent: `Mozilla ${PLAN_UA_TOKEN}` })).toBe(true);
+    expect(
+      planIapBuildAvailable({
+        nativeIos: true,
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        pluginAvailable: true,
+      }),
+    ).toBe(true);
+    expect(
+      planIapBuildAvailable({
+        nativeIos: true,
+        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+        pluginHeader: true,
+      }),
+    ).toBe(true);
   });
 
   it("keeps the website and 1.0 on the free Plan", () => {
@@ -114,8 +136,14 @@ describe("Plan StoreKit gate", () => {
     expect(home).toContain('href="/subscribe"');
     expect(home).toContain('data-testid="home-tide-mark-plan"');
     expect(home).toContain("planOfferVisible");
+    expect(home).toContain("w-full min-w-0 max-w-full");
+    expect(home).not.toContain("md:hidden");
+    expect(home).not.toContain("max-lg:hidden");
     const subscribe = readFileSync(resolve(process.cwd(), "src/app/subscribe/page.tsx"), "utf8");
     expect(subscribe).toContain("PlanSubscribeScreen");
+    const screen = readFileSync(resolve(process.cwd(), "src/components/PlanSubscribeScreen.tsx"), "utf8");
+    expect(screen).toContain('data-testid="plan-iap-diagnostics"');
+    expect(screen).toContain('data-testid="plan-included"');
     expect(ui).toContain('data-testid="plan-price-retry"');
     expect(ui).toContain('data-testid="plan-price-fallback"');
     const dev = readFileSync(resolve(process.cwd(), "src/app/dev/plan-paywall/page.tsx"), "utf8");

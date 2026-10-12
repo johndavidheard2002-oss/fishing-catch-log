@@ -11,7 +11,7 @@ import { PLAN_TITLE, fallbackPlanOffer, type PlanOffer } from "@/lib/plan-iap";
  * Subscribe or Restore. A missing StoreKit price still shows the US price.
  */
 export function PlanSubscribeScreen() {
-  const { ready, native } = useNativePlanIap();
+  const { ready, native, diagnostics } = useNativePlanIap();
   const [offer, setOffer] = useState<PlanOffer>(fallbackPlanOffer());
   const [priceFromStore, setPriceFromStore] = useState<boolean | null>(null);
 
@@ -34,35 +34,49 @@ export function PlanSubscribeScreen() {
     return () => window.clearTimeout(timer);
   }, [native, load]);
 
+  const diagnosticsLine = ready ? (
+    <p className="text-[11px] leading-snug text-ink-muted" data-testid="plan-iap-diagnostics">
+      {diagnostics}
+    </p>
+  ) : null;
+
   if (!ready) {
     return (
-      <p className="text-sm text-ink-muted" data-testid="plan-subscribe-opening">
-        Opening {PLAN_TITLE}…
-      </p>
+      <div className="w-full min-w-0 space-y-3">
+        <p className="text-sm text-ink-muted" data-testid="plan-subscribe-opening">
+          Opening {PLAN_TITLE}…
+        </p>
+      </div>
     );
   }
 
   if (!native) {
     return (
-      <section className="journal-card space-y-2 rounded-2xl p-4" data-testid="plan-included">
-        <h1 className="font-display text-3xl text-teal">{PLAN_TITLE}</h1>
-        <p className="text-sm text-ink">
-          Tide Mark Plan is included in this version. The website and Tide Mark 1.0 do not sell a separate
-          subscription.
-        </p>
-      </section>
+      <div className="w-full min-w-0 space-y-3">
+        {diagnosticsLine}
+        <section className="journal-card w-full space-y-2 rounded-2xl p-4" data-testid="plan-included">
+          <h1 className="font-display text-3xl text-teal">{PLAN_TITLE}</h1>
+          <p className="text-sm text-ink">
+            Tide Mark Plan is included in this version. The website and Tide Mark 1.0 do not sell a separate
+            subscription.
+          </p>
+        </section>
+      </div>
     );
   }
 
   return (
-    <PlanPaywall
-      offer={offer}
-      priceFromStore={priceFromStore !== false}
-      onRetry={priceFromStore === false ? () => void load() : undefined}
-      onUnlocked={(next) => {
-        setOffer(next);
-        setPriceFromStore(Boolean(next.displayPrice));
-      }}
-    />
+    <div className="w-full min-w-0 space-y-3">
+      {diagnosticsLine}
+      <PlanPaywall
+        offer={offer}
+        priceFromStore={priceFromStore !== false}
+        onRetry={priceFromStore === false ? () => void load() : undefined}
+        onUnlocked={(next) => {
+          setOffer(next);
+          setPriceFromStore(Boolean(next.displayPrice));
+        }}
+      />
+    </div>
   );
 }

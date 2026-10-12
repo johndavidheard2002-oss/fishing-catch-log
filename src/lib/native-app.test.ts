@@ -87,6 +87,8 @@ describe("App Store / Capacitor wrap", () => {
     );
     expect(storyboard).toContain('customClass="TideMarkBridgeViewController"');
     expect(storyboard).toContain('customModule="App"');
+    expect(storyboard).toContain('customModuleProvider="target"');
+    expect(plugin).toContain("override open func capacitorDidLoad()");
     const proj = readFileSync(resolve(process.cwd(), "ios/App/App.xcodeproj/project.pbxproj"), "utf8");
     expect(proj).toContain("TideMarkStorePlugin.swift");
     expect(proj).toContain("IPHONEOS_DEPLOYMENT_TARGET = 15.0;");

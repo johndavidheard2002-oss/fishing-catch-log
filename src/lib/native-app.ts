@@ -33,10 +33,11 @@ export const APP_STORE_PLAN_PRICE = "$19.99/month";
 export const APP_STORE_PLAN_TRIAL = "1-month free trial";
 
 /**
- * Appended to the WKWebView user agent only by the 2.0 native shell
- * (`capacitor.config.ts` → `ios.appendUserAgent`). The live 1.0 binary
- * does not include this token, so the remote site must not show a Plan
- * purchase screen unless both this token and the iOS Capacitor bridge exist.
+ * Appended to the WKWebView user agent by the 2.0 native shell
+ * (`capacitor.config.ts` → `ios.appendUserAgent`). iPad can omit that
+ * token from a desktop user agent, so the site also treats a native iOS
+ * TideMarkStore plugin as 2.0. The 1.0 binary has neither the token nor
+ * the plugin. The website is not native iOS, so it stays paywall-free.
  */
 export const NATIVE_PLAN_IAP_UA_TOKEN = "TideMarkPlanIAP/2";
 

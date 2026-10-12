@@ -108,12 +108,12 @@ Do these only after Apple Developer is **Active**. Still no need to change the w
 
 ## StoreKit / Plan paywall (2.0)
 
-The iOS app is a Capacitor WebView pointed at the live Render site (`server.url`). The same JavaScript runs for the website, the 1.0 app, and 2.0. Plan is paid only when **both** are true:
+The iOS app is a Capacitor WebView pointed at the live Render site (`server.url`). The same JavaScript runs for the website, the 1.0 app, and 2.0. Plan is paid only when the shell is native iOS **and** that binary is 2.0:
 
-1. `Capacitor.isNativePlatform()` and platform `ios`
-2. The WebView user agent contains `TideMarkPlanIAP/2`
+1. `Capacitor.isNativePlatform()` and `getPlatform() === "ios"` (iPad uses `ios`, not a separate platform)
+2. Any one of: the user agent contains `TideMarkPlanIAP/2`, `Capacitor.isPluginAvailable("TideMarkStore")` on that iOS shell, or `window.Capacitor.PluginHeaders` includes `TideMarkStore`
 
-That token is baked into the 2.0 binary by `ios.appendUserAgent` in `capacitor.config.ts`. The live 1.0 binary does not append it, so a Render deploy does not show 1.0 users a purchase screen. Safari and Add to Home Screen never have the token either, so Plan stays included there. The 2.0 plugin method `planOffer` is what reads StoreKit; 1.0 does not implement it and the site does not call purchase unless the token is present.
+`ios.appendUserAgent` bakes the token into the 2.0 binary. iPad WebKit can still omit `applicationNameForUserAgent` from a desktop user agent, so the plugin check is what keeps the Home button visible there. The live 1.0 binary has neither the token nor TideMarkStore, so a Render deploy does not show 1.0 users a purchase screen. Safari registers a web stub of the plugin and is not native iOS, so Plan stays included on the website. The 2.0 plugin method `planOffer` is what reads StoreKit.
 
 Inside 2.0, Home’s account card has a **Tide Mark Plan** button (`/subscribe`), and the Plan tab shows the same purchase screen above Plan a day. The day planner stays usable, including for accounts created before 2.0. The purchase screen always shows the price (StoreKit’s price, or **$19.99/month** if the product has not loaded), **Start 1-month free trial**, **Restore Purchases**, and **Retry** when the App Store price did not load. An active subscription does not hide that screen.
 
