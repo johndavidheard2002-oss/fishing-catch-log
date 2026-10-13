@@ -2,8 +2,8 @@
 export const PLAN_REQUIRED_NOTE =
   "A subscription is required to keep using Tide Mark after the trial.";
 
-/** Where a signed-in non-subscriber with logged catches starts. */
-export const PLAN_READONLY_HOME = "/calendar?view=list";
+/** Non-link note on disabled log and plan controls. Not a route to the paywall. */
+export const PLAN_LOGGING_NOTE = "Subscribe on the Home screen to log catches.";
 
 /** A stored StoreKit term. The journal's own "trial" clock is not a Plan subscription. */
 export function serverPlanSubscribed(
@@ -17,41 +17,30 @@ export function serverPlanSubscribed(
   return ends > now.getTime();
 }
 
-export type PlanAppAccess = "open" | "readonly" | "paywall";
+export type PlanAppAccess = "open" | "locked";
 
 /**
  * Tide Mark 2.0 only. The website, Android, and Tide Mark 1.0 pass native: false
  * and stay open. StoreKit's 1-month trial counts as entitled.
- * A native account with logged catches, and no current plan, can view those
- * catches and nothing else.
+ * A native account without a current plan can still open the app. Logging and
+ * plan edits stay locked for every account, including ones that already have catches.
  */
 export function planAppAccess(args: {
   native: boolean;
-  hasCatches: boolean;
   serverSubscribed: boolean;
   storekitEntitled: boolean;
 }): PlanAppAccess {
   if (!args.native) return "open";
   if (args.serverSubscribed || args.storekitEntitled) return "open";
-  if (args.hasCatches) return "readonly";
-  return "paywall";
+  return "locked";
 }
 
-/** Screens Apple requires without a subscription, plus the purchase screen itself. */
+/** Screens that must not wait on the logging check. The purchase screen is one of them. */
 export function planGateAllowsPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
   if (pathname === "/signin" || pathname.startsWith("/signin/")) return true;
   if (pathname === "/privacy" || pathname.startsWith("/privacy/")) return true;
   if (pathname === "/subscribe" || pathname.startsWith("/subscribe/")) return true;
   if (pathname === "/dev/plan-paywall") return true;
-  return false;
-}
-
-/** Calendar Log and an already-logged catch. Not Log, Plan, the map, or Home. */
-export function planCatchViewPath(pathname: string | null | undefined): boolean {
-  if (!pathname) return false;
-  if (pathname === "/calendar" || pathname.startsWith("/calendar/")) return true;
-  if (pathname === "/history" || pathname.startsWith("/history/")) return true;
-  if (pathname === "/catch" || pathname.startsWith("/catch/")) return true;
   return false;
 }

@@ -92,11 +92,20 @@ export function PlanPaywall({
           {copy.requiredNote}
         </p>
       </div>
-      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Auto-renewable subscription</p>
-      <BrandWordmark size="header" />
       <h1 className="font-display text-2xl text-teal" data-testid="plan-paywall-title">
         {copy.title}
       </h1>
+      <button
+        type="button"
+        disabled={busy != null}
+        className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
+        data-testid="plan-subscribe"
+        onClick={() => void run("purchase")}
+      >
+        {busy === "purchase" ? "Purchasing…" : copy.subscribeLabel}
+      </button>
+      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Auto-renewable subscription</p>
+      <BrandWordmark size="header" />
       {active ? (
         <p className="text-sm text-ink" data-testid="plan-paywall-active">
           Your Tide Mark Plan subscription is active. The offer below stays available.
@@ -131,15 +140,6 @@ export function PlanPaywall({
           {busy === "retry" ? "Retrying…" : "Retry"}
         </button>
       ) : null}
-      <button
-        type="button"
-        disabled={busy != null}
-        className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
-        data-testid="plan-subscribe"
-        onClick={() => void run("purchase")}
-      >
-        {busy === "purchase" ? "Purchasing…" : copy.subscribeLabel}
-      </button>
       <button
         type="button"
         disabled={busy != null}

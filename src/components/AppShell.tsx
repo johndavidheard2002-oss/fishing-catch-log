@@ -20,7 +20,6 @@ import {
 import { ENTITLEMENT_CHANGED_EVENT } from "@/lib/native-iap";
 import { OfflineSyncHost } from "@/components/OfflineSyncHost";
 import { PlanAppGate } from "@/components/PlanAppGate";
-import { planGateAllowsPath } from "@/lib/plan-gate";
 import { isBrowserOnline } from "@/lib/offline";
 import { readCachedSession, writeCachedSession } from "@/lib/offline-store";
 
@@ -93,7 +92,7 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const onSignIn = isPublicPagePath(pathname);
-  const [planGated, setPlanGated] = useState(nativeShell && !onSignIn && !planGateAllowsPath(pathname));
+  const [planGated, setPlanGated] = useState(false);
   const [entitlement, setEntitlement] = useState<EntitlementSnapshot | null>(null);
   const [anglerId, setAnglerId] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);

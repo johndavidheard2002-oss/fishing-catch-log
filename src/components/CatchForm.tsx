@@ -75,6 +75,7 @@ import {
   subscribeOfflineQueue,
 } from "@/lib/offline";
 import { readCachedSession } from "@/lib/offline-store";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import {
   clearHeldOfflinePhoto,
   enqueueOfflineLog,
@@ -267,6 +268,7 @@ export function CatchForm({
   onSaved?: (record: CatchRecord) => void;
 }) {
   const router = useRouter();
+  const loggingLocked = usePlanLoggingLocked();
   const [form, setForm] = useState<FormState>(() => {
     const base = initial ? fromRecord(initial) : emptyForm(pastMode, importedCaughtAt);
     if (importedPhotoLat == null || importedPhotoLon == null) return base;
@@ -851,6 +853,7 @@ export function CatchForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loggingLocked) return;
     if (savingRef.current) return;
     savingRef.current = true;
     setSaving(true);
@@ -961,6 +964,10 @@ export function CatchForm({
 
   return (
     <form onSubmit={onSubmit} className="flex w-full min-w-0 max-w-full flex-col gap-4">
+      <fieldset
+        disabled={loggingLocked}
+        className={`m-0 flex min-w-0 max-w-full flex-col gap-4 border-0 p-0 ${loggingLocked ? "pointer-events-none opacity-60" : ""}`}
+      >
       <PhotoCapture
         previewUrl={previewUrl}
         onFile={handleFile}
@@ -1574,6 +1581,7 @@ export function CatchForm({
           </label>
         </div>
       </details>
+      </fieldset>
     </form>
   );
 }

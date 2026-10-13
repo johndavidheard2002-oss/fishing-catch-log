@@ -274,7 +274,7 @@ describe("in-app account deletion", () => {
     expect(await readCachedSession()).toBeNull();
   });
 
-  it("keeps deletion on Home and on the Plan gate", () => {
+  it("keeps deletion on Home without a subscription", () => {
     expect(JOURNAL_FREE_FOR_RELEASE).toBe(true);
     expect(DELETE_ACCOUNT_PHRASE).toBe("DELETE");
     const home = fs.readFileSync(resolve(__dirname, "../components/HomeClient.tsx"), "utf8");
@@ -284,7 +284,8 @@ describe("in-app account deletion", () => {
     expect(home).toContain("<DeleteAccount />");
     expect(home).toContain('idPrefix="delete-account-more"');
     expect(home).toContain("JOURNAL_FREE_FOR_RELEASE");
-    expect(gate).toContain('idPrefix="plan-gate-delete"');
+    expect(gate).not.toContain("DeleteAccount");
+    expect(gate).not.toContain('href="/subscribe"');
     expect(ui).toContain("Delete account");
     expect(ui).toContain("Delete my account");
     expect(ui).toContain('router.replace("/signin")');

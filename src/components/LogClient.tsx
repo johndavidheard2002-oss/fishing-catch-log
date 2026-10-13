@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CatchForm } from "@/components/CatchForm";
+import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
 import {
   isLogPhotoSessionDraft,
   markStaleHoldMigrationDone,
@@ -16,6 +17,7 @@ import { clearHeldOfflinePhoto } from "@/lib/offline-sync";
 export function LogClient() {
   const params = useSearchParams();
   const router = useRouter();
+  const loggingLocked = usePlanLoggingLocked();
   const [formEpoch, setFormEpoch] = useState(0);
   const [holdReady, setHoldReady] = useState(false);
   const shouldBackfill = params.get("past") === "1" || Boolean(params.get("photo"));
@@ -76,10 +78,15 @@ export function LogClient() {
           Take a photo. Pick a species — tap a name or type one — or save and add it later. A live
           photo uses the location you allowed at sign-in. Pick or name the area, save.
         </p>
+        <PlanLoggingNote />
         <p className="mt-2 text-sm">
-          <Link href="/bait/new" className="font-semibold text-teal">
-            Logging bait instead?
-          </Link>
+          {loggingLocked ? (
+            <span className="font-semibold text-ink-muted">Logging bait instead?</span>
+          ) : (
+            <Link href="/bait/new" className="font-semibold text-teal">
+              Logging bait instead?
+            </Link>
+          )}
         </p>
       </div>
       <CatchForm key={formEpoch} mode="create" />

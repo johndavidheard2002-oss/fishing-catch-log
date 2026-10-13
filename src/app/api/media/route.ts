@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { requireUnlockedViewer } from "@/lib/journal-access";
+import { nativePlanWriteResponse } from "@/lib/plan-write-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 export async function POST(request: NextRequest) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
+  const blocked = await nativePlanWriteResponse(request, access.viewerId);
+  if (blocked) return blocked;
   const form = await request.formData();
   const file = form.get("photo");
   if (!(file instanceof File)) {

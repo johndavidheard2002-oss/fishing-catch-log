@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { listNamedAreas, upsertNamedArea } from "@/lib/db/areas";
 import { parseNamedAreaInput } from "@/lib/areas";
 import { requireUnlockedViewer } from "@/lib/journal-access";
+import { nativePlanWriteResponse } from "@/lib/plan-write-guard";
 import { jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -19,6 +20,8 @@ export async function POST(request: NextRequest) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const input = parseNamedAreaInput(body);
   if (!input) {

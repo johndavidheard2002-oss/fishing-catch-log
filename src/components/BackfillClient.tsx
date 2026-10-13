@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { CatchForm } from "@/components/CatchForm";
+import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
 import {
   getScanQueueCountServerSnapshot,
   scanQueueCount,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/scan-queue";
 
 export function BackfillClient() {
+  const loggingLocked = usePlanLoggingLocked();
   const params = useSearchParams();
   const importedPhotoPath = params.get("photo");
   const importedCaughtAt = params.get("at");
@@ -33,28 +35,51 @@ export function BackfillClient() {
           Pick a photo from your camera roll. Choose a species or save and add it later.
           No camera on Backfill.
         </p>
+        <PlanLoggingNote />
       </div>
       {leftover > 0 ? (
-        <Link
-          href="/log/scan"
-          data-testid="backfill-continue-scan"
-          className="box-border block w-full max-w-full rounded-2xl px-4 py-3 text-center text-lg font-semibold text-white"
-        >
-          {leftover} photo{leftover === 1 ? "" : "s"} left — continue
-        </Link>
+        loggingLocked ? (
+          <button
+            type="button"
+            disabled
+            data-testid="backfill-continue-scan"
+            className="box-border block w-full max-w-full rounded-2xl px-4 py-3 text-center text-lg font-semibold text-white opacity-60"
+          >
+            {leftover} photo{leftover === 1 ? "" : "s"} left — continue
+          </button>
+        ) : (
+          <Link
+            href="/log/scan"
+            data-testid="backfill-continue-scan"
+            className="box-border block w-full max-w-full rounded-2xl px-4 py-3 text-center text-lg font-semibold text-white"
+          >
+            {leftover} photo{leftover === 1 ? "" : "s"} left — continue
+          </Link>
+        )
       ) : null}
       {!importedPhotoPath ? (
-        <Link
-          href="/log/scan"
-          data-testid="backfill-find-fish"
-          className={`box-border block w-full max-w-full rounded-2xl px-4 py-3 text-center text-lg font-semibold ${
-            leftover > 0
-              ? "border border-line bg-card text-ink"
-              : "bg-copper text-white"
-          }`}
-        >
-          Find fish photos
-        </Link>
+        loggingLocked ? (
+          <button
+            type="button"
+            disabled
+            data-testid="backfill-find-fish"
+            className="box-border block w-full max-w-full rounded-2xl border border-line bg-card px-4 py-3 text-center text-lg font-semibold text-ink opacity-60"
+          >
+            Find fish photos
+          </button>
+        ) : (
+          <Link
+            href="/log/scan"
+            data-testid="backfill-find-fish"
+            className={`box-border block w-full max-w-full rounded-2xl px-4 py-3 text-center text-lg font-semibold ${
+              leftover > 0
+                ? "border border-line bg-card text-ink"
+                : "bg-copper text-white"
+            }`}
+          >
+            Find fish photos
+          </Link>
+        )
       ) : null}
       <CatchForm
         key={importedPhotoPath ?? "new-trip"}

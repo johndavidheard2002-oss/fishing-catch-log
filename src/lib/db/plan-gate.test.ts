@@ -5,6 +5,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createAngler } from "./anglers";
 import { activateFromStorekit } from "./entitlement";
 import { getDb, getSqlite, resetDbForTests } from "./index";
+import { NextRequest } from "next/server";
+import { PLAN_LOGGING_NOTE } from "../plan-gate";
+import { nativePlanWriteResponse } from "../plan-write-guard";
 import { readPlanGate } from "./plan-gate";
 
 describe("plan gate records", () => {
@@ -69,6 +72,34 @@ describe("plan gate records", () => {
     const open = await readPlanGate(angler.id, new Date("2026-10-13T00:00:00.000Z"));
     expect(open.subscribed).toBe(true);
     expect(open.hasCatches).toBe(true);
+  });
+
+  it("blocks Tide Mark 2.0 writes until the plan is current and leaves the web open", async () => {
+    freshJournal();
+    const angler = await createAngler("Sam");
+    const native = new NextRequest("http://localhost/api/catches", {
+      method: "POST",
+      headers: { "user-agent": "Mozilla/5.0 TideMarkPlanIAP/2" },
+    });
+    const blocked = await nativePlanWriteResponse(native, angler.id);
+    expect(blocked?.status).toBe(403);
+    expect(await blocked?.json()).toMatchObject({ error: PLAN_LOGGING_NOTE, locked: true });
+    const web = new NextRequest("http://localhost/api/catches", {
+      method: "POST",
+      headers: { "user-agent": "Mozilla/5.0" },
+    });
+    expect(await nativePlanWriteResponse(web, angler.id)).toBeNull();
+    await activateFromStorekit(
+      angler.id,
+      {
+        productId: "com.tidemark.logbook.plan.annual",
+        transactionId: "txn-open",
+        expiresAt: "2027-10-13T00:00:00.000Z",
+        source: "purchase",
+      },
+      new Date("2026-10-13T00:00:00.000Z"),
+    );
+    expect(await nativePlanWriteResponse(native, angler.id)).toBeNull();
   });
 });
 

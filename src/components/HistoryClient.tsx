@@ -1,7 +1,7 @@
 "use client";
 
 import { CatchCard, CatchGridCard } from "@/components/CatchCard";
-import { usePlanReadOnly } from "@/components/PlanAppGate";
+import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { BaitSpotCard, BaitSpotGridCard } from "@/components/BaitSpotCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
@@ -54,7 +54,7 @@ export function HistoryClient({
 } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const readOnly = usePlanReadOnly();
+  const loggingLocked = usePlanLoggingLocked();
   const [catches, setCatches] = useState<CatchRecord[]>(initialCatches ?? []);
   const [baitSpots, setBaitSpots] = useState<BaitSpot[]>(initialBaitSpots ?? []);
   const [notes, setNotes] = useState<CalendarNote[]>(initialNotes ?? []);
@@ -74,10 +74,10 @@ export function HistoryClient({
   const [selectedDay, setSelectedDay] = useState<string | null>(queryDay);
 
   useEffect(() => {
-    if (readOnly || !selectedDay) return;
+    if (loggingLocked || !selectedDay) return;
     if (!calendarDayHasPlan(notes.filter((note) => note.day === selectedDay))) return;
     router.replace(planHrefForDay(selectedDay));
-  }, [notes, readOnly, selectedDay, router]);
+  }, [notes, loggingLocked, selectedDay, router]);
 
   useEffect(() => {
     fetch("/api/me")
@@ -261,6 +261,8 @@ export function HistoryClient({
         </button>
       </div>
 
+      <PlanLoggingNote />
+
       <div
         className="journal-card grid grid-cols-4 overflow-hidden rounded-2xl p-1"
         data-testid="calendar-log-tabs"
@@ -280,7 +282,7 @@ export function HistoryClient({
         ))}
       </div>
 
-      {readOnly ? null : <LibraryScanBanner />}
+      {loggingLocked ? null : <LibraryScanBanner />}
 
       {showFilters ? (
         <FilterPanel
@@ -319,7 +321,7 @@ export function HistoryClient({
               setMonthOverride(parseYearMonth(day));
             }}
             onShareDay={
-              readOnly
+              loggingLocked
                 ? undefined
                 : async (day, shared, buddyIds) => {
                     await fetch("/api/share", {
@@ -331,7 +333,7 @@ export function HistoryClient({
                   }
             }
             onShareSpots={
-              readOnly
+              loggingLocked
                 ? undefined
                 : async ({ catchIds, baitSpotIds, shared, buddyIds }) => {
                     await fetch("/api/share", {
@@ -343,7 +345,7 @@ export function HistoryClient({
                   }
             }
             onCreateNote={
-              readOnly
+              loggingLocked
                 ? undefined
                 : async (input: CalendarNoteInput) => {
               const res = await fetch("/api/calendar-notes", {
@@ -356,7 +358,7 @@ export function HistoryClient({
               if (data.note) setNotes((current) => [...current, data.note]);
             }}
             onUpdateNote={
-              readOnly
+              loggingLocked
                 ? undefined
                 : async (id, input) => {
               const res = await fetch(`/api/calendar-notes/${id}`, {
@@ -371,7 +373,7 @@ export function HistoryClient({
               }
             }}
             onDeleteNote={
-              readOnly
+              loggingLocked
                 ? undefined
                 : async (id) => {
               const res = await fetch(`/api/calendar-notes/${id}`, { method: "DELETE" });
@@ -413,18 +415,16 @@ export function HistoryClient({
           viewerId={viewerId}
           layout={view === "grid" ? "grid" : "list"}
           testId="calendar-log-own-feed"
-          showAddToPlan={!readOnly}
+          showAddToPlan={!loggingLocked}
         />
       )}
 
-      {readOnly ? null : (
       <a
         href="/api/export"
         className="on-wash-chip mx-auto mt-2 block w-fit text-center text-sm font-semibold"
       >
         Export CSV
       </a>
-      )}
     </div>
   );
 }

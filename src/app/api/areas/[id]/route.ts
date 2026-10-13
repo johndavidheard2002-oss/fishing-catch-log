@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { deleteNamedArea, getNamedArea, updateNamedArea } from "@/lib/db/areas";
 import { parseNamedAreaInput } from "@/lib/areas";
 import { requireUnlockedViewer } from "@/lib/journal-access";
+import { nativePlanWriteResponse } from "@/lib/plan-write-guard";
 import { jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -13,6 +14,8 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const { id } = await ctx.params;
   const existing = await getNamedArea(id);
   if (!existing || existing.anglerId !== viewerId) {
@@ -34,6 +37,8 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const { id } = await ctx.params;
   const ok = await deleteNamedArea(id, viewerId);
   if (!ok) return jsonWithViewer({ error: "Not found" }, viewerId, { status: 404 });

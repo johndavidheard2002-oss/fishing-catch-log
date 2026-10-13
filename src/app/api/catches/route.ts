@@ -3,6 +3,7 @@ import { createCatch, listCatches } from "@/lib/db/catches";
 import { matchesFilters, parseFilters } from "@/lib/filters";
 import { catchInputFromUnknown } from "@/lib/parse";
 import { requireUnlockedViewer } from "@/lib/journal-access";
+import { nativePlanWriteResponse } from "@/lib/plan-write-guard";
 import { includeSharedFrom, jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -24,6 +25,8 @@ export async function POST(request: NextRequest) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const body = (await request.json()) as Record<string, unknown>;
   const input = catchInputFromUnknown(body);
   const record = await createCatch({ ...input, anglerId: viewerId });

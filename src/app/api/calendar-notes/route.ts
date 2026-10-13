@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/notes";
 import { parseCalendarNoteInput, parseDayKey, utcTodayKey } from "@/lib/notes";
 import { requireUnlockedViewer } from "@/lib/journal-access";
+import { nativePlanWriteResponse } from "@/lib/plan-write-guard";
 import { includeSharedFrom, jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const input = parseCalendarNoteInput(body);
   if (!input) {
@@ -53,6 +56,8 @@ export async function DELETE(request: NextRequest) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const day = parseDayKey(request.nextUrl.searchParams.get("day"));
   if (!day) {
     return jsonWithViewer({ error: "Pick a day to delete." }, viewerId, { status: 400 });

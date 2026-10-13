@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import exifr from "exifr";
 import { compressImage, photoSrc } from "@/lib/photo";
@@ -67,6 +68,7 @@ function fromQueued(item: QueuedScanCandidate): Candidate {
 
 export function ScanLibraryClient() {
   const router = useRouter();
+  const loggingLocked = usePlanLoggingLocked();
   const photosRef = useRef<HTMLInputElement>(null);
   const folderRef = useRef<HTMLInputElement>(null);
   const [blobThumbs, setBlobThumbs] = useState<Record<string, string>>({});
@@ -130,6 +132,7 @@ export function ScanLibraryClient() {
   }
 
   async function onFiles(list: FileList | null, origin: ScanBatchOrigin) {
+    if (loggingLocked) return;
     if (!list?.length) return;
     setError(null);
     setBusy(true);
@@ -234,13 +237,14 @@ export function ScanLibraryClient() {
           from the picture when it is there. We cannot scan the whole phone in the background.
           Nothing is added until you confirm.
         </p>
+        <PlanLoggingNote />
       </div>
 
       <button
         type="button"
         data-testid="find-fish-photos"
         onClick={() => photosRef.current?.click()}
-        disabled={busy}
+        disabled={busy || loggingLocked}
         className="w-full rounded-2xl bg-copper px-4 py-4 text-lg font-semibold text-white disabled:opacity-60"
       >
         {busy ? progress || "Opening your batch…" : "Pick a batch from this phone"}
@@ -249,7 +253,7 @@ export function ScanLibraryClient() {
         type="button"
         data-testid="find-fish-folder"
         onClick={() => folderRef.current?.click()}
-        disabled={busy}
+        disabled={busy || loggingLocked}
         className="w-full rounded-2xl border border-line bg-card px-4 py-3 font-semibold disabled:opacity-60"
       >
         Pick a folder on this device
