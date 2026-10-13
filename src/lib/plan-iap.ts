@@ -31,11 +31,7 @@ export function isAcceptedPlanProductId(value: string): boolean {
   return (ACCEPTED_PLAN_PRODUCT_IDS as readonly string[]).includes(value);
 }
 
-export const PLAN_INCLUDES = [
-  "Matching tide for each logged catch on the plan day — same height and incoming or outgoing.",
-  "Notes on the plan.",
-  "That day’s tides.",
-] as const;
+export const PLAN_KEEP_LINE = "Subscribe to keep the app.";
 
 export const PLAN_AUTORENEW_TERMS =
   `Tide Mark Plan is a 1-year subscription at ${PLAN_PRICE_LABEL} after a 1-month free trial. Payment is charged to your Apple ID when you confirm the purchase. It renews automatically each year unless you cancel at least 24 hours before the end of the current period. Your account is charged ${PLAN_PRICE_LABEL} for renewal within 24 hours before the period ends. Manage or cancel anytime in Settings → Apple ID → Subscriptions. Any unused part of a free trial is forfeited if you buy a subscription before the trial ends.`;
@@ -222,7 +218,7 @@ export function planPaywallCopy(offer?: Partial<PlanOffer> | null) {
     price: planPriceLabel(offer),
     trialNote: PLAN_TRIAL_NOTE,
     requiredNote: PLAN_REQUIRED_NOTE,
-    includes: PLAN_INCLUDES,
+    keepLine: PLAN_KEEP_LINE,
     autoRenew: PLAN_AUTORENEW_TERMS,
     termsUrl: PLAN_TERMS_URL,
     subscribeLabel: planSubscribeLabel({ ...fallbackPlanOffer(), ...offer, status: offer?.status ?? "none" }),
@@ -253,7 +249,7 @@ export function planStorekitErrorForViewer(message: string, insideIosApp: boolea
 
 export function planPaywallText(): string {
   const copy = planPaywallCopy(fallbackPlanOffer());
-  return [copy.title, copy.price, copy.trialNote, copy.requiredNote, copy.length, ...copy.includes, copy.autoRenew, copy.subscribeLabel].join(
+  return [copy.title, copy.price, copy.trialNote, copy.requiredNote, copy.length, copy.keepLine, copy.autoRenew, copy.subscribeLabel].join(
     "\n",
   );
 }

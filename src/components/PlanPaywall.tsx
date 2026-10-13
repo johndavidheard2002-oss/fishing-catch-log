@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BrandWordmark } from "@/components/BrandWordmark";
 import {
   iosWebkitBridgePresent,
   isNativeIosApp,
@@ -105,7 +104,6 @@ export function PlanPaywall({
         {busy === "purchase" ? "Purchasing…" : copy.subscribeLabel}
       </button>
       <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Auto-renewable subscription</p>
-      <BrandWordmark size="header" />
       {active ? (
         <p className="text-sm text-ink" data-testid="plan-paywall-active">
           Your Tide Mark Plan subscription is active. The offer below stays available.
@@ -121,11 +119,9 @@ export function PlanPaywall({
           Your Plan subscription has ended.
         </p>
       ) : null}
-      <ul className="space-y-1 text-sm text-ink" data-testid="plan-paywall-includes">
-        {copy.includes.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
+      <p className="text-sm text-ink" data-testid="plan-paywall-keep">
+        {copy.keepLine}
+      </p>
       <p className="text-xs text-ink-muted" data-testid="plan-paywall-autorenew">
         {copy.autoRenew}
       </p>

@@ -151,10 +151,7 @@ describe("Plan StoreKit gate", () => {
     expect(copy.autoRenew).toContain("$19.99/year");
     expect(copy.autoRenew).toMatch(/each year/);
     expect(copy.autoRenew).toMatch(/24 hours/);
-    expect(copy.includes.join(" ")).toMatch(/same height/i);
-    expect(copy.includes.join(" ")).toMatch(/incoming or outgoing/i);
-    expect(copy.includes.join(" ")).toMatch(/notes on the plan/i);
-    expect(copy.includes.join(" ")).toMatch(/day’s tides/i);
+    expect(copy.keepLine).toBe("Subscribe to keep the app.");
     const text = planPaywallText();
     expect(planPaywallDiscouragesPurchase(text)).toBe(false);
     expect(text).not.toMatch(/free trial, then/i);
@@ -172,6 +169,11 @@ describe("Plan StoreKit gate", () => {
     expect(ui).toContain("{copy.trialNote}");
     expect(ui).toContain("{copy.requiredNote}");
     expect(ui).toContain('data-testid="plan-paywall-required"');
+    expect(ui).toContain('data-testid="plan-paywall-keep"');
+    expect(ui).toContain("{copy.keepLine}");
+    expect(ui).not.toContain("BrandWordmark");
+    expect(ui).not.toContain("Matching tide");
+    expect(ui).not.toContain("Notes on the plan.");
     expect(ui).not.toContain("1-month free trial, then");
     expect(ui).not.toContain("Start 1-month free trial");
     expect(ui).toContain('data-testid="plan-subscribe"');
