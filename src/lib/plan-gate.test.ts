@@ -1,39 +1,21 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  PLAN_GRANDFATHER_BEFORE_DEFAULT,
+  PLAN_READONLY_HOME,
   PLAN_REQUIRED_NOTE,
-  accountIsGrandfathered,
-  catchGrandfathersAccount,
-  isPlanReviewAccount,
   planAppAccess,
+  planCatchViewPath,
   planGateAllowsPath,
-  planGrandfatherCutoff,
-  planGrandfatherEnabled,
   serverPlanSubscribed,
 } from "./plan-gate";
-
-const envKeys = ["TIDEMARK_PLAN_GRANDFATHER", "TIDEMARK_PLAN_GRANDFATHER_BEFORE", "TIDEMARK_PLAN_REVIEW_EMAILS"] as const;
-const previous: Record<string, string | undefined> = {};
-
-afterEach(() => {
-  for (const key of envKeys) {
-    if (previous[key] === undefined) delete process.env[key];
-    else process.env[key] = previous[key];
-  }
-});
-
-function rememberEnv() {
-  for (const key of envKeys) previous[key] = process.env[key];
-}
 
 describe("Tide Mark Plan app gate", () => {
   it("leaves the website and 1.0 open", () => {
     expect(
       planAppAccess({
         native: false,
-        grandfathered: false,
+        hasCatches: true,
         serverSubscribed: false,
         storekitEntitled: false,
       }),
@@ -44,7 +26,7 @@ describe("Tide Mark Plan app gate", () => {
     expect(
       planAppAccess({
         native: true,
-        grandfathered: false,
+        hasCatches: false,
         serverSubscribed: false,
         storekitEntitled: false,
       }),
@@ -52,7 +34,7 @@ describe("Tide Mark Plan app gate", () => {
     expect(
       planAppAccess({
         native: true,
-        grandfathered: false,
+        hasCatches: false,
         serverSubscribed: false,
         storekitEntitled: true,
       }),
@@ -60,11 +42,32 @@ describe("Tide Mark Plan app gate", () => {
     expect(
       planAppAccess({
         native: true,
-        grandfathered: false,
+        hasCatches: true,
         serverSubscribed: true,
         storekitEntitled: false,
       }),
     ).toBe("open");
+  });
+
+  it("lets a non-subscriber view logged catches and blocks every other feature", () => {
+    expect(
+      planAppAccess({
+        native: true,
+        hasCatches: true,
+        serverSubscribed: false,
+        storekitEntitled: false,
+      }),
+    ).toBe("readonly");
+    expect(planCatchViewPath("/calendar")).toBe(true);
+    expect(planCatchViewPath("/calendar?view=list")).toBe(false);
+    expect(planCatchViewPath("/history")).toBe(true);
+    expect(planCatchViewPath("/catch/abc")).toBe(true);
+    expect(planCatchViewPath("/")).toBe(false);
+    expect(planCatchViewPath("/log")).toBe(false);
+    expect(planCatchViewPath("/plan")).toBe(false);
+    expect(planCatchViewPath("/spots")).toBe(false);
+    expect(planCatchViewPath("/backfill")).toBe(false);
+    expect(PLAN_READONLY_HOME).toBe("/calendar?view=list");
   });
 
   it("does not treat the journal trial clock as a Plan subscription", () => {
@@ -84,56 +87,6 @@ describe("Tide Mark Plan app gate", () => {
     ).toBe(true);
   });
 
-  it("grandfathers an account that already had a catch before the cutoff", () => {
-    const cutoff = PLAN_GRANDFATHER_BEFORE_DEFAULT;
-    expect(catchGrandfathersAccount("2026-10-01T00:00:00.000Z", cutoff)).toBe(true);
-    expect(catchGrandfathersAccount(cutoff, cutoff)).toBe(false);
-    expect(catchGrandfathersAccount("2026-10-13T12:00:01.000Z", cutoff)).toBe(false);
-    expect(
-      accountIsGrandfathered({
-        catchCreatedAts: ["2026-10-13T18:00:00.000Z", "2026-09-01T00:00:00.000Z"],
-        cutoff,
-      }),
-    ).toBe(true);
-    expect(
-      accountIsGrandfathered({
-        catchCreatedAts: [],
-        cutoff,
-      }),
-    ).toBe(false);
-    expect(
-      accountIsGrandfathered({
-        catchCreatedAts: ["2026-09-01T00:00:00.000Z"],
-        reviewAccount: true,
-        cutoff,
-      }),
-    ).toBe(false);
-  });
-
-  it("toggles grandfathering and review accounts from the environment", () => {
-    rememberEnv();
-    delete process.env.TIDEMARK_PLAN_GRANDFATHER;
-    delete process.env.TIDEMARK_PLAN_GRANDFATHER_BEFORE;
-    delete process.env.TIDEMARK_PLAN_REVIEW_EMAILS;
-    expect(planGrandfatherEnabled()).toBe(true);
-    expect(planGrandfatherCutoff()).toBe(new Date(PLAN_GRANDFATHER_BEFORE_DEFAULT).toISOString());
-    process.env.TIDEMARK_PLAN_GRANDFATHER = "0";
-    expect(planGrandfatherEnabled()).toBe(false);
-    expect(planGrandfatherCutoff()).toBeNull();
-    expect(
-      accountIsGrandfathered({
-        catchCreatedAts: ["2020-01-01T00:00:00.000Z"],
-        cutoff: planGrandfatherCutoff(),
-      }),
-    ).toBe(false);
-    delete process.env.TIDEMARK_PLAN_GRANDFATHER;
-    process.env.TIDEMARK_PLAN_GRANDFATHER_BEFORE = "2026-01-01T00:00:00.000Z";
-    expect(planGrandfatherCutoff()).toBe("2026-01-01T00:00:00.000Z");
-    process.env.TIDEMARK_PLAN_REVIEW_EMAILS = " Review@Example.com , other@example.com ";
-    expect(isPlanReviewAccount("review@example.com")).toBe(true);
-    expect(isPlanReviewAccount("new@example.com")).toBe(false);
-  });
-
   it("keeps sign-in, privacy, the paywall, and account deletion reachable", () => {
     expect(planGateAllowsPath("/signin")).toBe(true);
     expect(planGateAllowsPath("/privacy")).toBe(true);
@@ -148,6 +101,13 @@ describe("Tide Mark Plan app gate", () => {
     expect(gate).toContain("PlanSubscribeScreen");
     expect(gate).toContain("DeleteAccount");
     expect(gate).toContain("plan-gate-delete");
+    expect(gate).toContain('data-testid="plan-readonly"');
+    expect(gate).toContain("plan-readonly-delete");
+    expect(gate).not.toContain("grandfather");
+    const history = readFileSync(resolve(process.cwd(), "src/components/HistoryClient.tsx"), "utf8");
+    expect(history).toContain("usePlanReadOnly");
+    const detail = readFileSync(resolve(process.cwd(), "src/components/CatchDetail.tsx"), "utf8");
+    expect(detail).toContain('data-testid="catch-readonly"');
     const shell = readFileSync(resolve(process.cwd(), "src/components/AppShell.tsx"), "utf8");
     expect(shell).toContain("PlanAppGate");
     expect(shell).toContain("HelpButton");

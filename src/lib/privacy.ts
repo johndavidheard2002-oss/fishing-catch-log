@@ -58,7 +58,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: "subscriptions",
     title: "Tide Mark Plan",
     paragraphs: [
-      `The Tide Mark website and Tide Mark 1.0 do not require ${PLAN_TITLE}. Tide Mark 2.0 on iPhone and iPad requires it after the trial, unless the account already had a catch from before that requirement shipped. We do not delete your catches, photos, spots, or notes when a subscription ends.`,
+      `The Tide Mark website and Tide Mark 1.0 do not require ${PLAN_TITLE}. Tide Mark 2.0 on iPhone and iPad requires it to log a new catch and to use the other tools. Catches already logged stay visible, read only, without a subscription. We do not delete your catches, photos, spots, or notes when a subscription ends.`,
       `${PLAN_TITLE} is an auto-renewable subscription in the Tide Mark 2.0 iPhone app: a 1-month free trial, then ${PLAN_PRICE_LABEL}, billed by Apple. A subscription is required to keep using Tide Mark after the trial. Manage or cancel in your App Store account settings.`,
     ],
   },
@@ -74,7 +74,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: "deletion",
     title: "How to delete your account",
     paragraphs: [
-      "On Home, the account card under your name has Delete account. The same control is on the Tide Mark Plan screen and under More, then Account, including when a subscription is required. Enter the password for this journal and type DELETE, then tap Delete my account. That permanently removes the account: the angler record, catches, catch photos, bait spots, notes, named areas, and friend links. It is not a temporary deactivation. Signing out only ends this session and does not erase the log.",
+      "On Home, the account card under your name has Delete account. The same control is on the Tide Mark Plan screen, on the read-only catch list, and under More, then Account, including when a subscription is required. Enter the password for this journal and type DELETE, then tap Delete my account. That permanently removes the account: the angler record, catches, catch photos, bait spots, notes, named areas, and friend links. It is not a temporary deactivation. Signing out only ends this session and does not erase the log.",
       `If you cannot sign in, email ${PRIVACY_CONTACT_EMAIL} from the address on the journal and ask us to delete it. We will confirm when it is gone.`,
     ],
   },

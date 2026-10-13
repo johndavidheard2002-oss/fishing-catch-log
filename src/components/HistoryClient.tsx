@@ -1,6 +1,7 @@
 "use client";
 
 import { CatchCard, CatchGridCard } from "@/components/CatchCard";
+import { usePlanReadOnly } from "@/components/PlanAppGate";
 import { BaitSpotCard, BaitSpotGridCard } from "@/components/BaitSpotCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
@@ -53,6 +54,7 @@ export function HistoryClient({
 } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const readOnly = usePlanReadOnly();
   const [catches, setCatches] = useState<CatchRecord[]>(initialCatches ?? []);
   const [baitSpots, setBaitSpots] = useState<BaitSpot[]>(initialBaitSpots ?? []);
   const [notes, setNotes] = useState<CalendarNote[]>(initialNotes ?? []);
@@ -72,10 +74,10 @@ export function HistoryClient({
   const [selectedDay, setSelectedDay] = useState<string | null>(queryDay);
 
   useEffect(() => {
-    if (!selectedDay) return;
+    if (readOnly || !selectedDay) return;
     if (!calendarDayHasPlan(notes.filter((note) => note.day === selectedDay))) return;
     router.replace(planHrefForDay(selectedDay));
-  }, [notes, selectedDay, router]);
+  }, [notes, readOnly, selectedDay, router]);
 
   useEffect(() => {
     fetch("/api/me")
@@ -278,7 +280,7 @@ export function HistoryClient({
         ))}
       </div>
 
-      <LibraryScanBanner />
+      {readOnly ? null : <LibraryScanBanner />}
 
       {showFilters ? (
         <FilterPanel
@@ -316,23 +318,34 @@ export function HistoryClient({
               setSelectedDay(day);
               setMonthOverride(parseYearMonth(day));
             }}
-            onShareDay={async (day, shared, buddyIds) => {
-              await fetch("/api/share", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ day, shared, buddyIds }),
-              });
-              setShareEpoch((n) => n + 1);
-            }}
-            onShareSpots={async ({ catchIds, baitSpotIds, shared, buddyIds }) => {
-              await fetch("/api/share", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ catchIds, baitSpotIds, shared, buddyIds }),
-              });
-              setShareEpoch((n) => n + 1);
-            }}
-            onCreateNote={async (input: CalendarNoteInput) => {
+            onShareDay={
+              readOnly
+                ? undefined
+                : async (day, shared, buddyIds) => {
+                    await fetch("/api/share", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ day, shared, buddyIds }),
+                    });
+                    setShareEpoch((n) => n + 1);
+                  }
+            }
+            onShareSpots={
+              readOnly
+                ? undefined
+                : async ({ catchIds, baitSpotIds, shared, buddyIds }) => {
+                    await fetch("/api/share", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ catchIds, baitSpotIds, shared, buddyIds }),
+                    });
+                    setShareEpoch((n) => n + 1);
+                  }
+            }
+            onCreateNote={
+              readOnly
+                ? undefined
+                : async (input: CalendarNoteInput) => {
               const res = await fetch("/api/calendar-notes", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -342,7 +355,10 @@ export function HistoryClient({
               const data = await res.json();
               if (data.note) setNotes((current) => [...current, data.note]);
             }}
-            onUpdateNote={async (id, input) => {
+            onUpdateNote={
+              readOnly
+                ? undefined
+                : async (id, input) => {
               const res = await fetch(`/api/calendar-notes/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -354,7 +370,10 @@ export function HistoryClient({
                 setNotes((current) => current.map((n) => (n.id === id ? data.note : n)));
               }
             }}
-            onDeleteNote={async (id) => {
+            onDeleteNote={
+              readOnly
+                ? undefined
+                : async (id) => {
               const res = await fetch(`/api/calendar-notes/${id}`, { method: "DELETE" });
               if (!res.ok) throw new Error("delete failed");
               setNotes((current) => current.filter((n) => n.id !== id));
@@ -394,16 +413,18 @@ export function HistoryClient({
           viewerId={viewerId}
           layout={view === "grid" ? "grid" : "list"}
           testId="calendar-log-own-feed"
-          showAddToPlan
+          showAddToPlan={!readOnly}
         />
       )}
 
+      {readOnly ? null : (
       <a
         href="/api/export"
         className="on-wash-chip mx-auto mt-2 block w-fit text-center text-sm font-semibold"
       >
         Export CSV
       </a>
+      )}
     </div>
   );
 }

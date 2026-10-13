@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
+import { usePlanReadOnly } from "@/components/PlanAppGate";
 import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { SimilarList } from "@/components/SimilarList";
@@ -60,6 +61,7 @@ export function CatchDetail({
   planDay?: string | null;
 }) {
   const router = useRouter();
+  const readOnly = usePlanReadOnly();
   const unplan = plannedPhotoUnplanRequest({ fromPlan, planNote, planDay });
   const [record, setRecord] = useState<CatchRecord | null>(null);
   const [matches, setMatches] = useState<SimilarMatch[]>([]);
@@ -227,7 +229,7 @@ export function CatchDetail({
   const src = photoSrc(record.photoPath);
 
   if (editing && isOwner) {
-    return (
+    if (!readOnly) return (
       <div className="space-y-4">
         <button type="button" className="on-wash-chip w-fit text-sm text-teal" onClick={() => setEditing(false)}>
           ← Cancel
@@ -441,7 +443,11 @@ export function CatchDetail({
         </div>
       </div>
 
-      {isOwner ? (
+      {readOnly ? (
+        <p className="text-sm text-ink-muted" data-testid="catch-readonly">
+          Read only. Tide Mark Plan is required to change this catch or log a new one.
+        </p>
+      ) : isOwner ? (
         <div className="space-y-3" data-testid="catch-owner-actions">
           <div className="owner-action-row" data-testid="catch-action-row">
             <button
