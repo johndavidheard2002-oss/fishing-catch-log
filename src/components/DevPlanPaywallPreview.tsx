@@ -4,21 +4,30 @@ import { useState } from "react";
 import { PlanPaywall } from "@/components/PlanPaywall";
 import { fallbackPlanOffer } from "@/lib/plan-iap";
 
-/** Dev-only paywall with the missing-price retry state. */
-export function DevPlanPaywallPreview() {
+/** Dev-only paywall. `priceFromStore` mocks a loaded StoreKit product. */
+export function DevPlanPaywallPreview({ priceFromStore = false }: { priceFromStore?: boolean }) {
   const [tries, setTries] = useState(0);
+  const offer = priceFromStore
+    ? { ...fallbackPlanOffer(), displayPrice: "$19.99", displayName: "Tide Mark Plan" }
+    : fallbackPlanOffer();
   return (
     <div className="space-y-3">
       <PlanPaywall
-        offer={fallbackPlanOffer()}
-        priceFromStore={false}
-        onRetry={async () => {
-          setTries((count) => count + 1);
-        }}
+        offer={offer}
+        priceFromStore={priceFromStore}
+        onRetry={
+          priceFromStore
+            ? undefined
+            : async () => {
+                setTries((count) => count + 1);
+              }
+        }
       />
-      <p className="text-sm text-ink-muted" data-testid="plan-price-retry-count">
-        Retries: {tries}
-      </p>
+      {priceFromStore ? null : (
+        <p className="text-sm text-ink-muted" data-testid="plan-price-retry-count">
+          Retries: {tries}
+        </p>
+      )}
     </div>
   );
 }

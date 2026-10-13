@@ -78,14 +78,22 @@ export function PlanPaywall({
 
   return (
     <section className="journal-card space-y-3 rounded-2xl p-4" data-testid="plan-paywall">
+      <div className="space-y-1">
+        <p
+          className="text-4xl font-bold leading-none tracking-tight text-ink"
+          data-testid="plan-paywall-price"
+        >
+          {copy.price}
+        </p>
+        <p className="text-sm font-normal text-ink-muted" data-testid="plan-paywall-trial">
+          {copy.trialNote}
+        </p>
+      </div>
       <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Auto-renewable subscription</p>
       <BrandWordmark size="header" />
-      <h1 className="font-display text-3xl text-teal" data-testid="plan-paywall-title">
+      <h1 className="font-display text-2xl text-teal" data-testid="plan-paywall-title">
         {copy.title}
       </h1>
-      <p className="text-sm text-ink" data-testid="plan-paywall-price">
-        {copy.trial}. Length: {copy.length}.
-      </p>
       {active ? (
         <p className="text-sm text-ink" data-testid="plan-paywall-active">
           Your Tide Mark Plan subscription is active. The offer below stays available.

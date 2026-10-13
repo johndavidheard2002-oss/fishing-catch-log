@@ -126,7 +126,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(cm).toContain('Expected marketing version 2.0');
     expect(cm).not.toContain("agvtool what-marketing-version");
     expect(cm).toContain("TideMarkStorePlugin");
-    expect(cm).toContain("MINIMUM_BUILD=13");
+    expect(cm).toContain("MINIMUM_BUILD=14");
     expect(cm).toContain('agvtool new-version -all "$NEXT_BUILD"');
     const paywall = readFileSync(resolve(process.cwd(), "src/components/Paywall.tsx"), "utf8");
     expect(paywall).toContain("subscribe-disabled");

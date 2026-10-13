@@ -6,6 +6,7 @@ import {
   PLAN_LEGACY_YEARLY_PRODUCT_ID,
   PLAN_OFFER_LINE,
   PLAN_PRODUCT_ID,
+  PLAN_TRIAL_NOTE,
   PLAN_UA_TOKEN,
   fallbackPlanOffer,
   offerIsEntitled,
@@ -18,7 +19,6 @@ import {
   planPaywallText,
   planPriceLabel,
   planStorekitErrorForViewer,
-  planTrialLine,
 } from "./plan-iap";
 
 describe("Plan StoreKit gate", () => {
@@ -89,9 +89,7 @@ describe("Plan StoreKit gate", () => {
     expect(planPriceLabel(null)).toBe("$19.99/year");
     expect(planPriceLabel({ displayPrice: "$19.99" })).toBe("$19.99/year");
     expect(PLAN_OFFER_LINE).toBe("$19.99/year · 1-month free trial");
-    expect(planTrialLine({ displayPrice: "$19.99", introPaymentMode: "freeTrial", introPeriodUnit: "month", introPeriodValue: 1 })).toBe(
-      "1-month free trial, then $19.99/year",
-    );
+    expect(PLAN_TRIAL_NOTE).toBe("Includes a 1-month free trial. Auto-renews yearly; cancel anytime.");
     expect(planOfferFromPlugin({ nativePlanIap: true, productId: "other", entitled: true })).toBeNull();
     const parsed = planOfferFromPlugin({
       nativePlanIap: true,
@@ -134,9 +132,15 @@ describe("Plan StoreKit gate", () => {
     const copy = planPaywallCopy(fallbackPlanOffer());
     expect(copy.title).toBe("Tide Mark Plan");
     expect(copy.length).toBe("1 year");
-    expect(copy.trial).toBe("1-month free trial, then $19.99/year");
     expect(copy.price).toBe("$19.99/year");
+    expect(copy.trialNote).toBe("Includes a 1-month free trial. Auto-renews yearly; cancel anytime.");
+    expect(copy.subscribeLabel).toBe("Subscribe – $19.99/year");
+    expect(copy.subscribeLabel.toLowerCase()).not.toContain("trial");
     expect(copy.restoreLabel).toBe("Restore Purchases");
+    const localized = planPaywallCopy({ displayPrice: "€19,99", periodUnit: "year", periodValue: 1 });
+    expect(localized.price).toBe("€19,99/year");
+    expect(localized.subscribeLabel).toBe("Subscribe – €19,99/year");
+    expect(planPaywallCopy({ ...fallbackPlanOffer(), status: "expired" }).subscribeLabel).toBe("Subscribe – $19.99/year");
     expect(copy.termsUrl).toContain("apple.com/legal");
     expect(copy.autoRenew.toLowerCase()).toContain("renew");
     expect(copy.autoRenew).toContain("$19.99/year");
@@ -148,8 +152,20 @@ describe("Plan StoreKit gate", () => {
     expect(copy.includes.join(" ")).toMatch(/day’s tides/i);
     const text = planPaywallText();
     expect(planPaywallDiscouragesPurchase(text)).toBe(false);
+    expect(text).not.toMatch(/free trial, then/i);
+    expect(text).not.toMatch(/start 1-month free trial/i);
+    expect(text.indexOf(copy.price)).toBeLessThan(text.indexOf(copy.trialNote));
     expect(text.toLowerCase()).not.toMatch(/unless you have|keep using the app free|don['’]t buy/);
     const ui = readFileSync(resolve(process.cwd(), "src/components/PlanPaywall.tsx"), "utf8");
+    expect(ui).toContain('data-testid="plan-paywall-price"');
+    expect(ui).toContain('data-testid="plan-paywall-trial"');
+    expect(ui.indexOf('data-testid="plan-paywall-price"')).toBeLessThan(ui.indexOf('data-testid="plan-paywall-trial"'));
+    expect(ui).toContain("text-4xl font-bold leading-none tracking-tight text-ink");
+    expect(ui).toContain("text-sm font-normal text-ink-muted");
+    expect(ui).toContain("{copy.price}");
+    expect(ui).toContain("{copy.trialNote}");
+    expect(ui).not.toContain("1-month free trial, then");
+    expect(ui).not.toContain("Start 1-month free trial");
     expect(ui).toContain('data-testid="plan-subscribe"');
     expect(ui).toContain('data-testid="plan-restore"');
     expect(ui).toContain('data-testid="plan-terms"');

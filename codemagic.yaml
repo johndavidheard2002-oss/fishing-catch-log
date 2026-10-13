@@ -185,8 +185,9 @@ workflows:
           fi
           NEXT_BUILD=$((LATEST_BUILD_NUMBER + 1))
           # Build 12 is the 2.0 annual-product upload (PR #109, 3739bcd).
-          # Keep the next upload above it when the store query returns an older number.
-          MINIMUM_BUILD=13
+          # 14 is the next upload after the 3.1.2(c) paywall fix.
+          # Keep the next upload at or above it when the store query returns an older number.
+          MINIMUM_BUILD=14
           if [ "$NEXT_BUILD" -lt "$MINIMUM_BUILD" ]; then
             echo "Raising build ${NEXT_BUILD} to ${MINIMUM_BUILD}"
             NEXT_BUILD=$MINIMUM_BUILD
