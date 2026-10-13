@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAngler, renameAngler } from "@/lib/db/anglers";
 import { getEntitlementForAngler } from "@/lib/db/entitlement";
+import { readPlanGate } from "@/lib/db/plan-gate";
 import { clearAuthCookies, jsonWithViewer, requireViewerId, signInRequired, viewerFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -21,7 +22,13 @@ export async function GET(request: NextRequest) {
   }
   const me = await getAngler(viewerId, { includeEmail: true });
   const entitlement = await getEntitlementForAngler(viewerId);
-  return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true, entitlement }, viewerId, undefined, true);
+  const planGate = await readPlanGate(viewerId);
+  return jsonWithViewer(
+    { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate },
+    viewerId,
+    undefined,
+    true,
+  );
 }
 
 export async function PATCH(request: NextRequest) {
@@ -34,9 +41,21 @@ export async function PATCH(request: NextRequest) {
   if (body.name != null) {
     const me = await renameAngler(viewerId, body.name);
     const entitlement = await getEntitlementForAngler(viewerId);
-    return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true, entitlement }, viewerId, undefined, true);
+    const planGate = await readPlanGate(viewerId);
+    return jsonWithViewer(
+      { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate },
+      viewerId,
+      undefined,
+      true,
+    );
   }
   const me = await getAngler(viewerId, { includeEmail: true });
   const entitlement = await getEntitlementForAngler(viewerId);
-  return jsonWithViewer({ me, profiles: me ? [me] : [], signedIn: true, entitlement }, viewerId, undefined, true);
+  const planGate = await readPlanGate(viewerId);
+  return jsonWithViewer(
+    { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate },
+    viewerId,
+    undefined,
+    true,
+  );
 }

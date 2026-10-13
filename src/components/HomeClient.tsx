@@ -138,7 +138,7 @@ export function HomeClient() {
           </p>
           <p className="text-sm text-ink" data-testid="home-subscription">
             {JOURNAL_FREE_FOR_RELEASE
-              ? "Your journal is free. Catches, photos, and spots stay on this account."
+              ? "Catches, photos, and spots stay on this account."
               : locked
                 ? `Free month ended. Subscribe for ${YEARLY_PRICE_LABEL} to unlock the journal. Your data is safe.`
                 : me.entitlement?.subscriptionStatus === "active"
@@ -154,7 +154,7 @@ export function HomeClient() {
       {JOURNAL_FREE_FOR_RELEASE ? (
         <section className="journal-card space-y-2 rounded-2xl p-4" data-testid="home-subscribe">
           <p className="font-display text-xl text-teal">Your journal</p>
-          <p className="text-sm text-ink">Log, Calendar, and Spots stay open.</p>
+          <p className="text-sm text-ink">Log, Calendar, and Spots are on this account.</p>
         </section>
       ) : locked ? (
         <div data-testid="home-subscribe">

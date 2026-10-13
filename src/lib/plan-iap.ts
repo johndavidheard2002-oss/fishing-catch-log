@@ -1,3 +1,4 @@
+import { PLAN_REQUIRED_NOTE } from "./plan-gate";
 import {
   APP_STORE_PLAN_MONTHLY_PRODUCT_ID,
   APP_STORE_PLAN_PRICE,
@@ -208,6 +209,8 @@ export function planPriceLabel(offer?: Partial<PlanOffer> | null): string {
 export const PLAN_TRIAL_NOTE =
   "Try Tide Mark Plan free for 1 month. Cancel anytime before the trial ends and you won't be charged. After the trial, it renews at $19.99/year until canceled.";
 
+export { PLAN_REQUIRED_NOTE };
+
 export function planSubscribeLabel(offer: PlanOffer): string {
   return `Subscribe – ${planPriceLabel(offer)}`;
 }
@@ -218,6 +221,7 @@ export function planPaywallCopy(offer?: Partial<PlanOffer> | null) {
     length: PLAN_PERIOD_LABEL,
     price: planPriceLabel(offer),
     trialNote: PLAN_TRIAL_NOTE,
+    requiredNote: PLAN_REQUIRED_NOTE,
     includes: PLAN_INCLUDES,
     autoRenew: PLAN_AUTORENEW_TERMS,
     termsUrl: PLAN_TERMS_URL,
@@ -249,7 +253,7 @@ export function planStorekitErrorForViewer(message: string, insideIosApp: boolea
 
 export function planPaywallText(): string {
   const copy = planPaywallCopy(fallbackPlanOffer());
-  return [copy.title, copy.price, copy.trialNote, copy.length, ...copy.includes, copy.autoRenew, copy.subscribeLabel].join(
+  return [copy.title, copy.price, copy.trialNote, copy.requiredNote, copy.length, ...copy.includes, copy.autoRenew, copy.subscribeLabel].join(
     "\n",
   );
 }

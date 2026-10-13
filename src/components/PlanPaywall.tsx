@@ -88,6 +88,9 @@ export function PlanPaywall({
         <p className="text-sm font-normal text-ink-muted" data-testid="plan-paywall-trial">
           {copy.trialNote}
         </p>
+        <p className="text-sm font-normal text-ink-muted" data-testid="plan-paywall-required">
+          {copy.requiredNote}
+        </p>
       </div>
       <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Auto-renewable subscription</p>
       <BrandWordmark size="header" />

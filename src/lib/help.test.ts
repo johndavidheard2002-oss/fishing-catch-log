@@ -85,9 +85,10 @@ describe("HELP_SECTIONS", () => {
     expect(journal.some((step) => step.includes("email") && step.includes("password"))).toBe(true);
     expect(journal.some((step) => step.includes("Continue") && step.includes("Turn location on"))).toBe(true);
     expect(journal.some((step) => step.includes("Log out"))).toBe(true);
-    expect(journal.some((step) => step.includes("Log, Calendar, and Spots stay free"))).toBe(true);
+    expect(journal.some((step) => step.includes("Log, Calendar, and Spots are on this account"))).toBe(true);
+    expect(journal.join(" ").toLowerCase()).not.toContain("stay free");
     const billing = HELP_SECTIONS.find((section) => section.title === "Tide Mark Plan")?.steps ?? [];
-    expect(billing.some((step) => step.includes("stay free") && step.includes("website keeps Plan included"))).toBe(
+    expect(billing.some((step) => step.includes("website") && step.includes("1.0") && step.includes("without this subscription"))).toBe(
       true,
     );
     expect(billing.some((step) => step.includes("1-month free trial") && step.includes("$19.99/year"))).toBe(true);
