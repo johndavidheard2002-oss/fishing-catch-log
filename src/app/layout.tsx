@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 import { APP_DISPLAY_NAME, APP_TAGLINE } from "@/lib/brand";
-import { userAgentHasPlanIap } from "@/lib/plan-iap";
+import { userAgentHasPlanPurchaseShell } from "@/lib/plan-iap";
 import {
   PWA_APPLE_TOUCH_ICON,
   PWA_ICON_192,
@@ -71,7 +71,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const headerList = await headers();
-  const nativeShell = userAgentHasPlanIap(headerList.get("user-agent") ?? "");
+  const nativeShell = userAgentHasPlanPurchaseShell(headerList.get("user-agent") ?? "");
   return (
     <html
       lang="en"

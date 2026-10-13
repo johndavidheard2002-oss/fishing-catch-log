@@ -23,8 +23,9 @@ export function serverPlanSubscribed(
 export type PlanAppAccess = "open" | "locked";
 
 /**
- * Tide Mark 2.0 only. The website, Android, and Tide Mark 1.0 pass native: false
- * and stay open. StoreKit is the source of truth, including a current free trial.
+ * iOS build 14+ with TideMarkStore purchase only. The website, Android,
+ * Tide Mark 1.0, and older TestFlight builds pass native: false and stay open.
+ * StoreKit is the source of truth, including a current free trial.
  * A stored server flag does not hide the subscribe card when StoreKit says the
  * term has ended.
  */

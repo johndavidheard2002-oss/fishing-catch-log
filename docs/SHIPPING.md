@@ -74,6 +74,7 @@ Paste these in the host’s environment UI:
 | `WORLDTIDES_API_KEY` | Optional | WorldTides key |
 | `UPLOADS_DIR` | **Yes on Render/Railway** | `/var/data/uploads` (must sit on the disk mount) |
 | `SESSION_SECRET` | **Yes on a shared host** | Long random string. Signs the httpOnly login cookie. If unset, the app falls back to `TURSO_AUTH_TOKEN` (local/dev only). |
+| `COMP_ACCOUNT_EMAILS` | Optional | Comma-separated accounts that keep full logging on every iOS build. Unset uses `johndavidheard2002@gmail.com` and `jd@southtexascharters.com`. Do not add the App Review demo account. |
 
 Leave **unset** (the host provides or the app defaults):
 

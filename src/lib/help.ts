@@ -90,8 +90,8 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: "Tide Mark Plan",
     steps: [
-      "On the Tide Mark website and Tide Mark 1.0, the log stays available without this subscription.",
-      "On Tide Mark 2.0, catches you already logged stay visible, read only.",
+      "On the website and Tide Mark 1.0, and on iOS builds before 14, the log stays available without this subscription.",
+      "On iOS build 14 and later, catches you already logged stay visible, read only.",
       "Without a current trial or subscription, each tab shows a Tide Mark Plan card.",
       `Tide Mark Plan is a 1-month free trial, then ${PLAN_PRICE_LABEL}.`,
       "Subscribe and Restore use the App Store on iPhone or iPad.",

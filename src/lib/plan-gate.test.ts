@@ -78,6 +78,7 @@ describe("Tide Mark Plan app gate", () => {
     expect(gate).toContain('href="/subscribe"');
     expect(gate).toContain("visibilitychange");
     expect(gate).toContain("refreshPlanEntitlement");
+    expect(gate).toContain("planComped");
     expect(gate).not.toContain("Plan a day");
     expect(gate).not.toContain("Subscribe on the Home screen to log catches.");
     expect(gate).not.toContain("PlanSubscribeScreen");

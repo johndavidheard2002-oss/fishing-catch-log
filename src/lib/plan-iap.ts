@@ -7,6 +7,8 @@ import {
   APP_STORE_PLAN_TRIAL,
   APP_STORE_PLAN_YEARLY_PRODUCT_ID,
   APPLE_STANDARD_EULA_URL,
+  NATIVE_PLAN_BUILD_UA_TOKEN,
+  NATIVE_PLAN_IAP_MIN_BUILD,
   NATIVE_PLAN_IAP_UA_TOKEN,
 } from "./native-app";
 
@@ -19,6 +21,8 @@ export const PLAN_OFFER_LINE = `${PLAN_PRICE_LABEL} · ${APP_STORE_PLAN_TRIAL}`;
 export const PLAN_TITLE = "Tide Mark Plan";
 export const PLAN_PERIOD_LABEL = "1 year";
 export const PLAN_UA_TOKEN = NATIVE_PLAN_IAP_UA_TOKEN;
+export const PLAN_BUILD_UA_TOKEN = NATIVE_PLAN_BUILD_UA_TOKEN;
+export const PLAN_IAP_MIN_BUILD = NATIVE_PLAN_IAP_MIN_BUILD;
 export const PLAN_TERMS_URL = APPLE_STANDARD_EULA_URL;
 
 const ACCEPTED_PLAN_PRODUCT_IDS = [
@@ -77,16 +81,46 @@ export function userAgentHasPlanIap(userAgent: string): boolean {
   return userAgent.includes(PLAN_UA_TOKEN);
 }
 
+/** TideMarkPlanIAP/2 means marketing version 2.0 or later. */
+export function reportedPlanIapVersion(userAgent: string): number | null {
+  const match = userAgent.match(/TideMarkPlanIAP\/(\d+)/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isInteger(value) ? value : null;
+}
+
+/** TideMarkBuild/14 is the CFBundleVersion the shell reports. */
+export function reportedPlanBuild(userAgent: string): number | null {
+  const match = userAgent.match(/TideMarkBuild\/(\d+)/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isInteger(value) ? value : null;
+}
+
 /**
- * Show Tide Mark Plan for the 2.0 shell only.
- *
- * The user-agent token and the TideMarkStore header are enough on their own.
- * Build 9 sets WKAppBoundDomains without limitsNavigationsToAppBoundDomains,
- * so WebKit does not inject the Capacitor bridge and isNativePlatform() is
- * false even inside that app. The token is still appended on the web view.
- *
- * Generic native iOS is not enough: Tide Mark 1.0 is native and must stay
- * paywall-free. The website stub of TideMarkStore is not enough either.
+ * The native shell reports both version 2.0+ and build >= 14.
+ * Older TestFlight builds send TideMarkPlanIAP/2 without TideMarkBuild/14.
+ */
+export function userAgentHasPlanPurchaseShell(userAgent: string): boolean {
+  const version = reportedPlanIapVersion(userAgent);
+  const build = reportedPlanBuild(userAgent);
+  return version != null && version >= 2 && build != null && build >= PLAN_IAP_MIN_BUILD;
+}
+
+/** Native TideMarkStore purchase. The website stub does not count. */
+export function planPurchaseAvailable(args: {
+  nativeIos: boolean;
+  pluginAvailable?: boolean;
+  pluginHeader?: boolean;
+}): boolean {
+  if (args.pluginHeader === true) return true;
+  return args.nativeIos && args.pluginAvailable === true;
+}
+
+/**
+ * Gate only a shell that can buy the annual plan: version 2.0+, build >= 14,
+ * and TideMarkStore purchase. The website, Tide Mark 1.0, and older
+ * TestFlight builds stay open.
  */
 export function planIapBuildAvailable(args: {
   nativeIos: boolean;
@@ -94,9 +128,8 @@ export function planIapBuildAvailable(args: {
   pluginAvailable?: boolean;
   pluginHeader?: boolean;
 }): boolean {
-  if (userAgentHasPlanIap(args.userAgent)) return true;
-  if (args.pluginHeader === true) return true;
-  return args.nativeIos && args.pluginAvailable === true;
+  if (!userAgentHasPlanPurchaseShell(args.userAgent)) return false;
+  return planPurchaseAvailable(args);
 }
 
 export function isPlanStatus(value: unknown): value is PlanStatus {

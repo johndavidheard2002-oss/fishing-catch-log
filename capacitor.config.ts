@@ -26,11 +26,13 @@ const config: CapacitorConfig = {
     allowNavigation: ["fishing-catch-log-ivl7.onrender.com"],
   },
   ios: {
-    // 2.0-only marker. The 1.0 App Store binary does not append this, so the
-    // live site can keep Plan free for that build and for the website.
-    // This is WKWebViewConfiguration, so it is present even when the bridge
-    // user script is not injected.
-    appendUserAgent: "TideMarkPlanIAP/2",
+    // Build 14+ marker. TideMarkPlanIAP/2 is the 2.0 shell. TideMarkBuild/14
+    // is the first binary with a working TideMarkStore purchase. The App
+    // Store 1.0 app and older TestFlight builds do not append the build
+    // token, so the live site keeps logging free for them. This is
+    // WKWebViewConfiguration, so it is present even when the bridge user
+    // script is not injected.
+    appendUserAgent: "TideMarkPlanIAP/2 TideMarkBuild/14",
     // Required for the StoreKit bridge. Info.plist sets WKAppBoundDomains;
     // leaving this false makes WebKit skip user scripts, so TideMarkStore
     // never reaches JavaScript. Build 9 shipped with the default false.

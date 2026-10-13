@@ -13,12 +13,14 @@ import { readPlanGate } from "./plan-gate";
 describe("plan gate records", () => {
   const previousPath = process.env.DATABASE_PATH;
   const previousForce = process.env.TIDEMARK_FORCE_ENTITLEMENT;
+  const previousComp = process.env.COMP_ACCOUNT_EMAILS;
   const tmpDirs: string[] = [];
 
   afterEach(() => {
     resetDbForTests();
     restore("DATABASE_PATH", previousPath);
     restore("TIDEMARK_FORCE_ENTITLEMENT", previousForce);
+    restore("COMP_ACCOUNT_EMAILS", previousComp);
     for (const dir of tmpDirs) fs.rmSync(dir, { recursive: true, force: true });
     tmpDirs.length = 0;
   });
@@ -74,21 +76,37 @@ describe("plan gate records", () => {
     expect(open.hasCatches).toBe(true);
   });
 
-  it("blocks Tide Mark 2.0 writes until the plan is current and leaves the web open", async () => {
+  it("blocks Tide Mark build 14 writes until the plan is current and leaves older shells open", async () => {
     freshJournal();
+    delete process.env.COMP_ACCOUNT_EMAILS;
     const angler = await createAngler("Sam");
     const native = new NextRequest("http://localhost/api/catches", {
       method: "POST",
-      headers: { "user-agent": "Mozilla/5.0 TideMarkPlanIAP/2" },
+      headers: { "user-agent": "Mozilla/5.0 TideMarkPlanIAP/2 TideMarkBuild/14" },
     });
     const blocked = await nativePlanWriteResponse(native, angler.id);
     expect(blocked?.status).toBe(403);
     expect(await blocked?.json()).toMatchObject({ error: PLAN_WRITE_BLOCKED, locked: true });
+    const older = new NextRequest("http://localhost/api/catches", {
+      method: "POST",
+      headers: { "user-agent": "Mozilla/5.0 TideMarkPlanIAP/2" },
+    });
+    expect(await nativePlanWriteResponse(older, angler.id)).toBeNull();
+    const legacy = new NextRequest("http://localhost/api/catches", {
+      method: "POST",
+      headers: { "user-agent": "Mozilla/5.0 TideMark/1.0" },
+    });
+    expect(await nativePlanWriteResponse(legacy, angler.id)).toBeNull();
     const web = new NextRequest("http://localhost/api/catches", {
       method: "POST",
       headers: { "user-agent": "Mozilla/5.0" },
     });
     expect(await nativePlanWriteResponse(web, angler.id)).toBeNull();
+    getSqlite().prepare("UPDATE anglers SET email = ? WHERE id = ?").run("johndavidheard2002@gmail.com", angler.id);
+    expect(await nativePlanWriteResponse(native, angler.id)).toBeNull();
+    getSqlite().prepare("UPDATE anglers SET email = ? WHERE id = ?").run("app-review-demo@example.com", angler.id);
+    expect((await nativePlanWriteResponse(native, angler.id))?.status).toBe(403);
+    getSqlite().prepare("UPDATE anglers SET email = ? WHERE id = ?").run(null, angler.id);
     await activateFromStorekit(
       angler.id,
       {
