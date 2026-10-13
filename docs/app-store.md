@@ -11,7 +11,7 @@ Apple Developer enrollment can stay **Pending**. This repo is ready to wrap the 
 | Bundle ID | `com.tidemark.logbook` |
 | Live WebView URL | https://fishing-catch-log-ivl7.onrender.com |
 | Privacy policy URL | https://fishing-catch-log-ivl7.onrender.com/privacy |
-| Marketing version | **2.0** (`MARKETING_VERSION` in the Xcode project; Info.plist keeps the `$(MARKETING_VERSION)` placeholder). Codemagic reads that build setting and sets the build number to the highest TestFlight or App Store build across all versions + 1. |
+| Marketing version | **2.0** (`MARKETING_VERSION` in the Xcode project; Info.plist keeps the `$(MARKETING_VERSION)` placeholder). Codemagic reads that build setting and sets the build number to the highest TestFlight or App Store build across all versions + 1, and will not upload below **13**. Build 12 is the 2.0 annual-product binary from PR #109. |
 | Pricing | Log, Calendar, and Spots stay **free**. **Tide Mark Plan** is **$19.99/year** after a **1-month free trial** |
 | In-App Purchase | `com.tidemark.logbook.plan.annual` (auto-renewable, new subscription group **Tide Mark Plan**). The previous group is Developer Rejected. Restore also accepts `com.tidemark.logbook.plan.yearly` and `com.tidemark.logbook.plan.monthly`. |
 | 2.0 shell marker | WebView user agent token `TideMarkPlanIAP/2` (`ios.appendUserAgent`). The 1.0 binary does not send it. |
@@ -72,7 +72,7 @@ Confirm `ios/App/App/Info.plist` still has the three usage strings above (they a
 </array>
 ```
 
-`capacitor.config.ts` sets `ios.limitsNavigationsToAppBoundDomains` to true. Without that, WebKit skips the Capacitor bridge on this list, and StoreKit cannot present. `localhost` is the local Capacitor origin. Sign-in and `/api` routes for auth, tides, and weather are the Render host, so they need no extra domain. Apple Terms of Use and the OpenStreetMap credit are not app-bound; Capacitor opens those links outside the WebView. `CFBundleVersion` stays `$(CURRENT_PROJECT_VERSION)`. Codemagic sets the uploaded build to the highest TestFlight or App Store build plus one.
+`capacitor.config.ts` sets `ios.limitsNavigationsToAppBoundDomains` to true. Without that, WebKit skips the Capacitor bridge on this list, and StoreKit cannot present. `localhost` is the local Capacitor origin. Sign-in and `/api` routes for auth, tides, and weather are the Render host, so they need no extra domain. Apple Terms of Use and the OpenStreetMap credit are not app-bound; Capacitor opens those links outside the WebView. `CFBundleVersion` stays `$(CURRENT_PROJECT_VERSION)`. The Xcode project keeps `CURRENT_PROJECT_VERSION = 2`. Codemagic sets the uploaded build to the highest TestFlight or App Store build plus one, and raises it to 13 when that query is still below build 12.
 
 ### Icons and splash (existing art only)
 
@@ -154,7 +154,7 @@ Full App Store Server API receipt verification is not in this pass — the nativ
 
 Stay on a **Codemagic personal (free) account**. Do **not** create a Codemagic Team — that asks for a credit card and removes free minutes. Personal accounts cannot use Team integrations → Developer Portal the way `integrations.app_store_connect: Tide Mark` expects.
 
-Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs via the App Store Connect API (`fetch-signing-files --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create`), checks that the resolved `MARKETING_VERSION` is 2.0, sets the build number to the highest TestFlight or App Store build across all versions + 1, and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
+Repo-root `codemagic.yaml` defines a single workflow, `ios-testflight`. It signs via the App Store Connect API (`fetch-signing-files --certificate-key=@env:CERTIFICATE_PRIVATE_KEY --create`), checks that the resolved `MARKETING_VERSION` is 2.0, sets the build number to the highest TestFlight or App Store build across all versions + 1 (at least 13, above build 12), and uploads an IPA. It does **not** submit to App Store review. No secrets belong in the YAML.
 
 1. In App Store Connect → Users and Access → Integrations → App Store Connect API, create a key with **App Manager** access. Download the `.p8` once. Note the Issuer ID and Key ID.
 2. In Codemagic, add application → connect GitHub → `johndavidheard2002-oss/fishing-catch-log`. Scan `codemagic.yaml` on branch `cursor/fishing-catch-log-app-caca`.

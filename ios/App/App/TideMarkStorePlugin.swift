@@ -1,6 +1,7 @@
 import Capacitor
 import Foundation
 import StoreKit
+import UIKit
 
 /// StoreKit 2 bridge for Tide Mark Plan (`com.tidemark.logbook.plan.annual`).
 /// Restore also reads `com.tidemark.logbook.plan.yearly` and
@@ -18,6 +19,7 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "planOffer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchase", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
     ]
 
     static let planProductId = "com.tidemark.logbook.plan.annual"
@@ -79,6 +81,32 @@ public class TideMarkStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject(error.localizedDescription)
             }
         }
+    }
+
+    /// System rating sheet. Resolves even when iOS chooses not to present it.
+    /// iOS 18+ uses AppStore.requestReview; earlier versions use SKStoreReviewController.
+    @objc func requestReview(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                if let windowScene = self.activeWindowScene() {
+                    if #available(iOS 18.0, *) {
+                        AppStore.requestReview(in: windowScene)
+                    } else {
+                        SKStoreReviewController.requestReview(in: windowScene)
+                    }
+                }
+                call.resolve()
+            }
+        }
+    }
+
+    @MainActor
+    private func activeWindowScene() -> UIWindowScene? {
+        if let scene = bridge?.viewController?.view.window?.windowScene {
+            return scene
+        }
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
     }
 
     @objc func restore(_ call: CAPPluginCall) {
