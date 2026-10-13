@@ -9,7 +9,7 @@ import { personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { PlanDayLabel, PlanDayNotes } from "@/components/CalendarNotes";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
 import {
@@ -860,7 +860,6 @@ export function PlanClient({
           tide, time, and weather to spots that produced. Tap Add on a place to put only that one place
           on the day. Add a note if you want. Tap a match to open that trip.
         </p>
-        <PlanLoggingNote />
         {pendingPlanPrompt(pendingSpot) ? (
           <p data-testid="plan-pending-spot" className="pt-1 text-sm font-semibold text-teal">
             {pendingPlanPrompt(pendingSpot)}

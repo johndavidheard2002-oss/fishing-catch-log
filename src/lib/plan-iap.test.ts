@@ -81,6 +81,18 @@ describe("Plan StoreKit gate", () => {
       },
     });
     expect(lapsed.mode).toBe("paywall");
+    const trial = planAccessFromProbe({
+      nativeBuild: true,
+      now,
+      offer: {
+        ...fallbackPlanOffer(),
+        entitled: true,
+        status: "active",
+        introPaymentMode: "freeTrial",
+        expiresAt: "2026-11-13T12:00:00.000Z",
+      },
+    });
+    expect(trial.mode).toBe("unlocked");
     expect(offerIsEntitled({ ...fallbackPlanOffer(), entitled: true, status: "expired" }, now)).toBe(false);
   });
 

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BaitSpotForm } from "./BaitSpotForm";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { hasSavedPin } from "@/lib/location-map";
@@ -261,9 +261,7 @@ export function BaitSpotDetail({
           friends: buddies,
         })}
       </p>
-      {loggingLocked ? (
-        <PlanLoggingNote />
-      ) : isOwner ? (
+      {loggingLocked ? null : isOwner ? (
         <div className="space-y-3" data-testid="bait-owner-actions">
           <div className="owner-action-row" data-testid="bait-action-row">
             <button

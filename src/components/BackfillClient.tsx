@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import { CatchForm } from "@/components/CatchForm";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import {
   getScanQueueCountServerSnapshot,
   scanQueueCount,
@@ -35,7 +35,6 @@ export function BackfillClient() {
           Pick a photo from your camera roll. Choose a species or save and add it later.
           No camera on Backfill.
         </p>
-        <PlanLoggingNote />
       </div>
       {leftover > 0 ? (
         loggingLocked ? (

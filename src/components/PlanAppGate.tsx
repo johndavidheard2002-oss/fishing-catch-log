@@ -1,10 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useNativePlanIap } from "@/components/useNativePlanIap";
-import { ENTITLEMENT_CHANGED_EVENT, resolvePlanAccess } from "@/lib/native-iap";
-import { PLAN_LOGGING_NOTE, planAppAccess, planGateAllowsPath } from "@/lib/plan-gate";
+import { ENTITLEMENT_CHANGED_EVENT, refreshPlanEntitlement } from "@/lib/native-iap";
+import { PLAN_SUBSCRIBE_CARD_TITLE, planAppAccess, planGateAllowsPath } from "@/lib/plan-gate";
+import { PLAN_OFFER_LINE } from "@/lib/plan-iap";
 
 const PlanLoggingLockedContext = createContext(false);
 
@@ -12,20 +14,29 @@ export function usePlanLoggingLocked(): boolean {
   return useContext(PlanLoggingLockedContext);
 }
 
-/** Short non-link note. It never opens the purchase screen. */
-export function PlanLoggingNote() {
+/** Tide Mark Plan subscription card. Opens the purchase screen. */
+export function PlanSubscribeCard() {
   const locked = usePlanLoggingLocked();
   if (!locked) return null;
   return (
-    <p className="text-sm text-ink-muted" data-testid="plan-logging-note">
-      {PLAN_LOGGING_NOTE}
-    </p>
+    <section className="journal-card space-y-2 rounded-2xl p-4" data-testid="plan-subscribe-card">
+      <p className="font-display text-xl text-teal">{PLAN_SUBSCRIBE_CARD_TITLE}</p>
+      <p className="text-sm text-ink">
+        Subscription required for Tide Mark. {PLAN_OFFER_LINE}.
+      </p>
+      <Link
+        href="/subscribe"
+        className="flex w-full items-center justify-center rounded-2xl bg-copper px-4 py-3 text-center font-semibold text-white"
+        data-testid="plan-subscribe-card-open"
+      >
+        Subscribe
+      </Link>
+    </section>
   );
 }
 
 type ServerGate = {
   signedIn: boolean;
-  subscribed: boolean;
 };
 
 export function PlanAppGate({
@@ -54,16 +65,13 @@ export function PlanAppGate({
     function load() {
       fetch("/api/me", { cache: "no-store" })
         .then((response) => response.json())
-        .then((data: { signedIn?: boolean; planGate?: { subscribed?: boolean } }) => {
+        .then((data: { signedIn?: boolean }) => {
           if (cancelled) return;
-          setServer({
-            signedIn: data.signedIn === true,
-            subscribed: data.planGate?.subscribed === true,
-          });
+          setServer({ signedIn: data.signedIn === true });
         })
         .catch(() => {
           if (cancelled) return;
-          setServer({ signedIn: true, subscribed: false });
+          setServer({ signedIn: true });
         });
     }
     load();
@@ -80,29 +88,43 @@ export function PlanAppGate({
   useEffect(() => {
     if (!shellNative || allowed || !ready || !native) return;
     let cancelled = false;
-    resolvePlanAccess()
-      .then((access) => {
-        if (!cancelled) setStorekitEntitled(access.mode === "unlocked");
-      })
-      .catch(() => {
+    async function refresh() {
+      try {
+        const entitled = await refreshPlanEntitlement();
+        if (!cancelled) setStorekitEntitled(entitled);
+      } catch {
         if (!cancelled) setStorekitEntitled(false);
-      });
+      }
+    }
+    void refresh();
+    function onResume() {
+      if (document.visibilityState === "hidden") return;
+      void refresh();
+    }
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("pageshow", onResume);
+    window.addEventListener("focus", onResume);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("pageshow", onResume);
+      window.removeEventListener("focus", onResume);
     };
   }, [allowed, native, ready, shellNative]);
 
-  const entitled = server?.subscribed === true || storekitEntitled === true;
-  const access =
-    !shellNative || allowed || server?.signedIn === false
-      ? "open"
-      : server === null || (server.signedIn && !entitled && storekitEntitled === null)
-        ? "locked"
-        : planAppAccess({
-            native: true,
-            serverSubscribed: server.subscribed,
-            storekitEntitled: storekitEntitled === true,
-          });
+  const nativeGate = shellNative && !allowed;
+  const signedOut = server?.signedIn === false;
+  const entitled = storekitEntitled === true;
+  const loggingLocked = nativeGate && !signedOut && !entitled;
+  const showCard = nativeGate && !signedOut && storekitEntitled === false;
+  const access = !nativeGate || signedOut || entitled
+    ? "open"
+    : planAppAccess({ native: true, storekitEntitled: false });
 
-  return <PlanLoggingLockedContext.Provider value={access === "locked"}>{children}</PlanLoggingLockedContext.Provider>;
+  return (
+    <PlanLoggingLockedContext.Provider value={loggingLocked || access === "locked"}>
+      {showCard ? <PlanSubscribeCard /> : null}
+      {children}
+    </PlanLoggingLockedContext.Provider>
+  );
 }

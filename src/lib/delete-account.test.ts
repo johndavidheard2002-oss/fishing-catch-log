@@ -285,7 +285,7 @@ describe("in-app account deletion", () => {
     expect(home).toContain('idPrefix="delete-account-more"');
     expect(home).toContain("JOURNAL_FREE_FOR_RELEASE");
     expect(gate).not.toContain("DeleteAccount");
-    expect(gate).not.toContain('href="/subscribe"');
+    expect(gate).toContain('data-testid="plan-subscribe-card"');
     expect(ui).toContain("Delete account");
     expect(ui).toContain("Delete my account");
     expect(ui).toContain('router.replace("/signin")');

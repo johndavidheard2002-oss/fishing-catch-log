@@ -1,7 +1,7 @@
 "use client";
 
 import { CatchCard, CatchGridCard } from "@/components/CatchCard";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { BaitSpotCard, BaitSpotGridCard } from "@/components/BaitSpotCard";
 import { FilterPanel } from "@/components/FilterPanel";
 import { HistoryCalendar } from "@/components/HistoryCalendar";
@@ -260,8 +260,6 @@ export function HistoryClient({
           Filters
         </button>
       </div>
-
-      <PlanLoggingNote />
 
       <div
         className="journal-card grid grid-cols-4 overflow-hidden rounded-2xl p-1"

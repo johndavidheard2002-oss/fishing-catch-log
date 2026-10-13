@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CatchForm } from "@/components/CatchForm";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import {
   isLogPhotoSessionDraft,
   markStaleHoldMigrationDone,
@@ -78,7 +78,6 @@ export function LogClient() {
           Take a photo. Pick a species — tap a name or type one — or save and add it later. A live
           photo uses the location you allowed at sign-in. Pick or name the area, save.
         </p>
-        <PlanLoggingNote />
         <p className="mt-2 text-sm">
           {loggingLocked ? (
             <span className="font-semibold text-ink-muted">Logging bait instead?</span>

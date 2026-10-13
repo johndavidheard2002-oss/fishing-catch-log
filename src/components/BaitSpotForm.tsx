@@ -6,7 +6,7 @@ import { AreaNamePicker } from "./AreaNamePicker";
 import { MapPicker } from "./MapPicker";
 import { useTownMapFocus } from "./useTownMapFocus";
 import { PhotoCapture } from "./PhotoCapture";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { BAIT_CATALOG } from "@/lib/bait";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { DEFAULT_HABITAT, HABITAT_LABELS, isDuckHabitat, isSaltwaterHabitat, type Habitat } from "@/lib/habitat";
@@ -282,7 +282,6 @@ export function BaitSpotForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      <PlanLoggingNote />
       <fieldset
         disabled={loggingLocked}
         className={`m-0 flex min-w-0 flex-col gap-4 border-0 p-0 ${loggingLocked ? "pointer-events-none opacity-60" : ""}`}

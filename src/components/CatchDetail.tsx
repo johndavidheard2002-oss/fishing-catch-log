@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CatchForm } from "@/components/CatchForm";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { SimilarList } from "@/components/SimilarList";
@@ -443,9 +443,7 @@ export function CatchDetail({
         </div>
       </div>
 
-      {loggingLocked ? (
-        <PlanLoggingNote />
-      ) : isOwner ? (
+      {loggingLocked ? null : isOwner ? (
         <div className="space-y-3" data-testid="catch-owner-actions">
           <div className="owner-action-row" data-testid="catch-action-row">
             <button

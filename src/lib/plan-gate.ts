@@ -2,8 +2,11 @@
 export const PLAN_REQUIRED_NOTE =
   "A subscription is required to keep using Tide Mark after the trial.";
 
-/** Non-link note on disabled log and plan controls. Not a route to the paywall. */
-export const PLAN_LOGGING_NOTE = "Subscribe on the Home screen to log catches.";
+/** Shown on every Tide Mark 2.0 tab when StoreKit has no current plan or trial. */
+export const PLAN_SUBSCRIBE_CARD_TITLE = "Tide Mark Plan";
+
+/** API message when a 2.0 write is blocked. The tab card is the way to subscribe. */
+export const PLAN_WRITE_BLOCKED = "Tide Mark Plan is required to log catches.";
 
 /** A stored StoreKit term. The journal's own "trial" clock is not a Plan subscription. */
 export function serverPlanSubscribed(
@@ -21,17 +24,16 @@ export type PlanAppAccess = "open" | "locked";
 
 /**
  * Tide Mark 2.0 only. The website, Android, and Tide Mark 1.0 pass native: false
- * and stay open. StoreKit's 1-month trial counts as entitled.
- * A native account without a current plan can still open the app. Logging and
- * plan edits stay locked for every account, including ones that already have catches.
+ * and stay open. StoreKit is the source of truth, including a current free trial.
+ * A stored server flag does not hide the subscribe card when StoreKit says the
+ * term has ended.
  */
 export function planAppAccess(args: {
   native: boolean;
-  serverSubscribed: boolean;
   storekitEntitled: boolean;
 }): PlanAppAccess {
   if (!args.native) return "open";
-  if (args.serverSubscribed || args.storekitEntitled) return "open";
+  if (args.storekitEntitled) return "open";
   return "locked";
 }
 

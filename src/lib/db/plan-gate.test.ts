@@ -6,7 +6,7 @@ import { createAngler } from "./anglers";
 import { activateFromStorekit } from "./entitlement";
 import { getDb, getSqlite, resetDbForTests } from "./index";
 import { NextRequest } from "next/server";
-import { PLAN_LOGGING_NOTE } from "../plan-gate";
+import { PLAN_WRITE_BLOCKED } from "../plan-gate";
 import { nativePlanWriteResponse } from "../plan-write-guard";
 import { readPlanGate } from "./plan-gate";
 
@@ -83,7 +83,7 @@ describe("plan gate records", () => {
     });
     const blocked = await nativePlanWriteResponse(native, angler.id);
     expect(blocked?.status).toBe(403);
-    expect(await blocked?.json()).toMatchObject({ error: PLAN_LOGGING_NOTE, locked: true });
+    expect(await blocked?.json()).toMatchObject({ error: PLAN_WRITE_BLOCKED, locked: true });
     const web = new NextRequest("http://localhost/api/catches", {
       method: "POST",
       headers: { "user-agent": "Mozilla/5.0" },

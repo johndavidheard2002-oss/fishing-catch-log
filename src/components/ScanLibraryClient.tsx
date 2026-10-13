@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { PlanLoggingNote, usePlanLoggingLocked } from "@/components/PlanAppGate";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import exifr from "exifr";
 import { compressImage, photoSrc } from "@/lib/photo";
@@ -237,7 +237,6 @@ export function ScanLibraryClient() {
           from the picture when it is there. We cannot scan the whole phone in the background.
           Nothing is added until you confirm.
         </p>
-        <PlanLoggingNote />
       </div>
 
       <button

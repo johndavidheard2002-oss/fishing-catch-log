@@ -92,7 +92,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     steps: [
       "On the Tide Mark website and Tide Mark 1.0, the log stays available without this subscription.",
       "On Tide Mark 2.0, catches you already logged stay visible, read only.",
-      "Subscribe from the Home screen to log a catch or edit a plan.",
+      "Without a current trial or subscription, each tab shows a Tide Mark Plan card.",
       `Tide Mark Plan is a 1-month free trial, then ${PLAN_PRICE_LABEL}.`,
       "Subscribe and Restore use the App Store on iPhone or iPad.",
       "Plan shows the matching tide for each logged catch on that day (same height and incoming or outgoing), notes on the plan, and that day’s tides.",

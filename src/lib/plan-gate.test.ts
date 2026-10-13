@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
-  PLAN_LOGGING_NOTE,
   PLAN_REQUIRED_NOTE,
+  PLAN_SUBSCRIBE_CARD_TITLE,
+  PLAN_WRITE_BLOCKED,
   planAppAccess,
   planGateAllowsPath,
   serverPlanSubscribed,
@@ -14,42 +15,32 @@ describe("Tide Mark Plan app gate", () => {
     expect(
       planAppAccess({
         native: false,
-        serverSubscribed: false,
         storekitEntitled: false,
       }),
     ).toBe("open");
   });
 
-  it("locks logging on 2.0 until StoreKit or the server says the plan is current", () => {
+  it("locks logging on 2.0 until StoreKit says the plan or trial is current", () => {
     expect(
       planAppAccess({
         native: true,
-        serverSubscribed: false,
         storekitEntitled: false,
       }),
     ).toBe("locked");
     expect(
       planAppAccess({
         native: true,
-        serverSubscribed: false,
         storekitEntitled: true,
-      }),
-    ).toBe("open");
-    expect(
-      planAppAccess({
-        native: true,
-        serverSubscribed: true,
-        storekitEntitled: false,
       }),
     ).toBe("open");
   });
 
   it("locks every native account the same way, including ones that already logged catches", () => {
-    expect(PLAN_LOGGING_NOTE).toBe("Subscribe on the Home screen to log catches.");
+    expect(PLAN_SUBSCRIBE_CARD_TITLE).toBe("Tide Mark Plan");
+    expect(PLAN_WRITE_BLOCKED).toBe("Tide Mark Plan is required to log catches.");
     expect(
       planAppAccess({
         native: true,
-        serverSubscribed: false,
         storekitEntitled: false,
       }),
     ).toBe("locked");
@@ -82,37 +73,36 @@ describe("Tide Mark Plan app gate", () => {
     expect(planGateAllowsPath("/calendar")).toBe(false);
     expect(planGateAllowsPath("/spots")).toBe(false);
     const gate = readFileSync(resolve(process.cwd(), "src/components/PlanAppGate.tsx"), "utf8");
-    expect(gate).toContain("PLAN_LOGGING_NOTE");
-    expect(gate).toContain('data-testid="plan-logging-note"');
+    expect(gate).toContain("PLAN_SUBSCRIBE_CARD_TITLE");
+    expect(gate).toContain('data-testid="plan-subscribe-card"');
+    expect(gate).toContain('href="/subscribe"');
+    expect(gate).toContain("visibilitychange");
+    expect(gate).toContain("refreshPlanEntitlement");
+    expect(gate).not.toContain("Plan a day");
+    expect(gate).not.toContain("Subscribe on the Home screen to log catches.");
     expect(gate).not.toContain("PlanSubscribeScreen");
-    expect(gate).not.toContain('href="/subscribe"');
     expect(gate).not.toContain("grandfather");
     expect(gate).not.toContain("router.replace");
     const history = readFileSync(resolve(process.cwd(), "src/components/HistoryClient.tsx"), "utf8");
     expect(history).toContain("usePlanLoggingLocked");
-    expect(history).toContain("PlanLoggingNote");
-    expect(history).not.toContain('href="/subscribe"');
+    expect(history).not.toContain("PlanLoggingNote");
     const detail = readFileSync(resolve(process.cwd(), "src/components/CatchDetail.tsx"), "utf8");
-    expect(detail).toContain("PlanLoggingNote");
     expect(detail).toContain("if (editing && isOwner)");
-    expect(detail).not.toContain('href="/subscribe"');
+    expect(detail).not.toContain("PlanLoggingNote");
     const log = readFileSync(resolve(process.cwd(), "src/components/LogClient.tsx"), "utf8");
-    expect(log).toContain("PlanLoggingNote");
-    expect(log).not.toContain('href="/subscribe"');
-    const backfill = readFileSync(resolve(process.cwd(), "src/components/BackfillClient.tsx"), "utf8");
-    expect(backfill).toContain("PlanLoggingNote");
-    expect(backfill).not.toContain('href="/subscribe"');
+    expect(log).toContain("usePlanLoggingLocked");
+    expect(log).not.toContain("PlanLoggingNote");
     const plan = readFileSync(resolve(process.cwd(), "src/components/PlanClient.tsx"), "utf8");
-    expect(plan).toContain("PlanLoggingNote");
     expect(plan).not.toContain("find-fish-folder");
     expect(plan).not.toContain('href="/subscribe"');
+    const home = readFileSync(resolve(process.cwd(), "src/components/HomeClient.tsx"), "utf8");
+    expect(home).toContain('data-testid="home-tide-mark-plan"');
     const shell = readFileSync(resolve(process.cwd(), "src/components/AppShell.tsx"), "utf8");
     expect(shell).toContain("PlanAppGate");
     expect(shell).toContain("HelpButton");
     expect(shell).toContain("planGated ? null : <FirstRunSetup");
     const help = readFileSync(resolve(process.cwd(), "src/components/HelpGuide.tsx"), "utf8");
     expect(help).toContain('data-testid="help-open"');
-    const home = readFileSync(resolve(process.cwd(), "src/components/HomeClient.tsx"), "utf8");
     expect(home).not.toContain("Your journal is free");
     expect(home.toLowerCase()).not.toContain("journal is free");
     const auth = readFileSync(resolve(process.cwd(), "src/components/AuthForm.tsx"), "utf8");
