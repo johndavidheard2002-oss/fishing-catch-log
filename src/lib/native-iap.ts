@@ -6,7 +6,7 @@ import {
   planAccessFromProbe,
   planIapBuildAvailable,
   planOfferFromPlugin,
-  userAgentHasPlanIap,
+  userAgentHasPlanPurchaseShell,
   type PlanAccess,
   type PlanOffer,
 } from "./plan-iap";
@@ -206,7 +206,7 @@ export function planIapDiagnostics(
   const probe = tideMarkStoreProbe(cap);
   return {
     nativeIos: isNativeIosApp(cap),
-    userAgentMatch: userAgentHasPlanIap(ua),
+    userAgentMatch: userAgentHasPlanPurchaseShell(ua),
     pluginAvailable: probe.available,
     pluginHeader: probe.header,
     iosBridge: iosWebkitBridgePresent(),

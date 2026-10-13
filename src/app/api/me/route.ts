@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAngler, renameAngler } from "@/lib/db/anglers";
 import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { readPlanGate } from "@/lib/db/plan-gate";
+import { isCompAccountEmail } from "@/lib/plan-comp";
 import { clearAuthCookies, jsonWithViewer, requireViewerId, signInRequired, viewerFromRequest } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
         signedIn: false,
         claimable: false,
         entitlement: null,
+        planComped: false,
       }),
     );
   }
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
   const entitlement = await getEntitlementForAngler(viewerId);
   const planGate = await readPlanGate(viewerId);
   return jsonWithViewer(
-    { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate },
+    { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate, planComped: isCompAccountEmail(me?.email) },
     viewerId,
     undefined,
     true,
@@ -39,11 +41,12 @@ export async function PATCH(request: NextRequest) {
     return jsonWithViewer({ error: "Sign out before switching journals." }, viewerId, { status: 403 }, true);
   }
   if (body.name != null) {
-    const me = await renameAngler(viewerId, body.name);
+    await renameAngler(viewerId, body.name);
+    const me = await getAngler(viewerId, { includeEmail: true });
     const entitlement = await getEntitlementForAngler(viewerId);
     const planGate = await readPlanGate(viewerId);
     return jsonWithViewer(
-      { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate },
+      { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate, planComped: isCompAccountEmail(me?.email) },
       viewerId,
       undefined,
       true,
@@ -53,7 +56,7 @@ export async function PATCH(request: NextRequest) {
   const entitlement = await getEntitlementForAngler(viewerId);
   const planGate = await readPlanGate(viewerId);
   return jsonWithViewer(
-    { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate },
+    { me, profiles: me ? [me] : [], signedIn: true, entitlement, planGate, planComped: isCompAccountEmail(me?.email) },
     viewerId,
     undefined,
     true,

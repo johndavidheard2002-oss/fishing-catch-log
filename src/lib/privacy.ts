@@ -58,7 +58,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: "subscriptions",
     title: "Tide Mark Plan",
     paragraphs: [
-      `The Tide Mark website and Tide Mark 1.0 do not require ${PLAN_TITLE}. On Tide Mark 2.0, logging a new catch or editing a plan requires it. Catches already logged stay visible, read only. Each tab shows a Tide Mark Plan card that opens the subscription. The Home account card keeps its Tide Mark Plan button. We do not delete your catches, photos, spots, or notes when a subscription ends.`,
+      `The Tide Mark website, Tide Mark 1.0, and iOS builds before 14 do not require ${PLAN_TITLE}. On iOS build 14 and later, when the app can open the App Store purchase, logging a new catch or editing a plan requires it. Catches already logged stay visible, read only. Each tab shows a Tide Mark Plan card that opens the subscription. The Home account card keeps its Tide Mark Plan button. We do not delete your catches, photos, spots, or notes when a subscription ends.`,
       `${PLAN_TITLE} is an auto-renewable subscription in the Tide Mark 2.0 iPhone app: a 1-month free trial, then ${PLAN_PRICE_LABEL}, billed by Apple. A subscription is required to keep using Tide Mark after the trial. Manage or cancel in your App Store account settings.`,
     ],
   },

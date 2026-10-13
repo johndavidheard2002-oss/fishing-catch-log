@@ -37,6 +37,7 @@ export function PlanSubscribeCard() {
 
 type ServerGate = {
   signedIn: boolean;
+  comped: boolean;
 };
 
 export function PlanAppGate({
@@ -65,13 +66,13 @@ export function PlanAppGate({
     function load() {
       fetch("/api/me", { cache: "no-store" })
         .then((response) => response.json())
-        .then((data: { signedIn?: boolean }) => {
+        .then((data: { signedIn?: boolean; planComped?: boolean }) => {
           if (cancelled) return;
-          setServer({ signedIn: data.signedIn === true });
+          setServer({ signedIn: data.signedIn === true, comped: data.planComped === true });
         })
         .catch(() => {
           if (cancelled) return;
-          setServer({ signedIn: true });
+          setServer({ signedIn: true, comped: false });
         });
     }
     load();
@@ -114,9 +115,10 @@ export function PlanAppGate({
 
   const nativeGate = shellNative && !allowed;
   const signedOut = server?.signedIn === false;
+  const comped = server?.comped === true;
   const entitled = storekitEntitled === true;
-  const loggingLocked = nativeGate && !signedOut && !entitled;
-  const showCard = nativeGate && !signedOut && storekitEntitled === false;
+  const loggingLocked = nativeGate && !signedOut && !comped && !entitled;
+  const showCard = nativeGate && server != null && !signedOut && !comped && storekitEntitled === false;
   const access = !nativeGate || signedOut || entitled
     ? "open"
     : planAppAccess({ native: true, storekitEntitled: false });

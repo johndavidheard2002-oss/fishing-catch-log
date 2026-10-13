@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  PLAN_BUILD_UA_TOKEN,
+  PLAN_IAP_MIN_BUILD,
   PLAN_LEGACY_MONTHLY_PRODUCT_ID,
   PLAN_LEGACY_YEARLY_PRODUCT_ID,
   PLAN_OFFER_LINE,
@@ -9,6 +11,8 @@ import {
   PLAN_TRIAL_NOTE,
   PLAN_UA_TOKEN,
   fallbackPlanOffer,
+  reportedPlanBuild,
+  userAgentHasPlanPurchaseShell,
   offerIsEntitled,
   planAccessFromProbe,
   planIapBuildAvailable,
@@ -22,26 +26,30 @@ import {
 } from "./plan-iap";
 
 describe("Plan StoreKit gate", () => {
-  it("sells Plan only in the 2.0 iOS shell", () => {
+  it("gates Plan only on build 14+ version 2.0 with TideMarkStore purchase", () => {
+    const capable = `Mozilla/5.0 ${PLAN_UA_TOKEN} ${PLAN_BUILD_UA_TOKEN}`;
+    const older = `Mozilla/5.0 ${PLAN_UA_TOKEN}`;
+    expect(PLAN_IAP_MIN_BUILD).toBe(14);
+    expect(reportedPlanBuild(capable)).toBe(14);
+    expect(userAgentHasPlanPurchaseShell(capable)).toBe(true);
+    expect(userAgentHasPlanPurchaseShell(older)).toBe(false);
+    expect(userAgentHasPlanPurchaseShell("Mozilla/5.0 TideMarkPlanIAP/2 TideMarkBuild/13")).toBe(false);
+    expect(userAgentHasPlanPurchaseShell("Mozilla/5.0 TideMarkBuild/14")).toBe(false);
     expect(planIapBuildAvailable({ nativeIos: false, userAgent: "Mozilla/5.0" })).toBe(false);
     expect(planIapBuildAvailable({ nativeIos: false, userAgent: "Mozilla/5.0", pluginAvailable: true })).toBe(false);
     expect(planIapBuildAvailable({ nativeIos: true, userAgent: "TideMark/1.0" })).toBe(false);
-    expect(planIapBuildAvailable({ nativeIos: false, userAgent: `Mozilla ${PLAN_UA_TOKEN}` })).toBe(true);
-    expect(planIapBuildAvailable({ nativeIos: true, userAgent: `Mozilla ${PLAN_UA_TOKEN}` })).toBe(true);
+    expect(planIapBuildAvailable({ nativeIos: true, userAgent: older, pluginHeader: true })).toBe(false);
+    expect(planIapBuildAvailable({ nativeIos: false, userAgent: capable })).toBe(false);
+    expect(planIapBuildAvailable({ nativeIos: false, userAgent: capable, pluginAvailable: true })).toBe(false);
+    expect(planIapBuildAvailable({ nativeIos: true, userAgent: capable, pluginAvailable: true })).toBe(true);
+    expect(planIapBuildAvailable({ nativeIos: false, userAgent: capable, pluginHeader: true })).toBe(true);
     expect(
       planIapBuildAvailable({
         nativeIos: true,
         userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
         pluginAvailable: true,
       }),
-    ).toBe(true);
-    expect(
-      planIapBuildAvailable({
-        nativeIos: false,
-        userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-        pluginHeader: true,
-      }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("keeps the website and 1.0 on the free Plan", () => {

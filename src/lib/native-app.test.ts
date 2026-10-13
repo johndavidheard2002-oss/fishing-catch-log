@@ -15,6 +15,8 @@ import {
   IOS_APP_BOUND_DOMAINS,
   IOS_EXTERNAL_LINK_HOSTS,
   IOS_WEBVIEW_HOST,
+  NATIVE_PLAN_BUILD_UA_TOKEN,
+  NATIVE_PLAN_IAP_MIN_BUILD,
   NATIVE_PLAN_IAP_UA_TOKEN,
   IOS_USAGE_DESCRIPTIONS,
   NATIVE_ICON_SOURCE,
@@ -35,6 +37,8 @@ describe("App Store / Capacitor wrap", () => {
     expect(APP_STORE_PLAN_MONTHLY_PRODUCT_ID).toBe("com.tidemark.logbook.plan.monthly");
     expect(APP_STORE_PLAN_SUBSCRIPTION_GROUP).toBe("Tide Mark Plan");
     expect(NATIVE_PLAN_IAP_UA_TOKEN).toBe("TideMarkPlanIAP/2");
+    expect(NATIVE_PLAN_IAP_MIN_BUILD).toBe(14);
+    expect(NATIVE_PLAN_BUILD_UA_TOKEN).toBe("TideMarkBuild/14");
 
     const cap = readFileSync(resolve(process.cwd(), "capacitor.config.ts"), "utf8");
     expect(cap).toContain(`appId: "${APP_STORE_BUNDLE_ID}"`);
@@ -43,7 +47,7 @@ describe("App Store / Capacitor wrap", () => {
     expect(cap).toContain(`url: "${APP_STORE_LIVE_URL}"`);
     expect(cap).toContain(NATIVE_ICON_SOURCE);
     expect(cap).toContain('contentInset: "never"');
-    expect(cap).toContain(`appendUserAgent: "${NATIVE_PLAN_IAP_UA_TOKEN}"`);
+    expect(cap).toContain(`appendUserAgent: "${NATIVE_PLAN_IAP_UA_TOKEN} ${NATIVE_PLAN_BUILD_UA_TOKEN}"`);
     expect(cap).toContain("limitsNavigationsToAppBoundDomains: true");
     expect(cap).toContain(`allowNavigation: ["${IOS_WEBVIEW_HOST}"]`);
 

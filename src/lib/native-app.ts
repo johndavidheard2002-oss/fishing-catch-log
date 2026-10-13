@@ -68,6 +68,12 @@ export const APP_STORE_PLAN_TRIAL = "1-month free trial";
  * the other 2.0 signal. The 1.0 binary has neither. The website has neither.
  */
 export const NATIVE_PLAN_IAP_UA_TOKEN = "TideMarkPlanIAP/2";
+/**
+ * First binary whose TideMarkStore purchase actually works. Older TestFlight
+ * builds can send TideMarkPlanIAP/2 and still have no working purchase.
+ */
+export const NATIVE_PLAN_IAP_MIN_BUILD = 14;
+export const NATIVE_PLAN_BUILD_UA_TOKEN = `TideMarkBuild/${NATIVE_PLAN_IAP_MIN_BUILD}`;
 
 /** Apple standard Licensed Application EULA. Fine for guideline 3.1.2. */
 export const APPLE_STANDARD_EULA_URL =

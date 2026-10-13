@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { PLAN_LEGACY_MONTHLY_PRODUCT_ID, PLAN_PRODUCT_ID, PLAN_UA_TOKEN } from "./plan-iap";
+import { PLAN_BUILD_UA_TOKEN, PLAN_LEGACY_MONTHLY_PRODUCT_ID, PLAN_PRODUCT_ID, PLAN_UA_TOKEN } from "./plan-iap";
 import {
   formatPlanIapDiagnostics,
   isNativeIosApp,
@@ -17,6 +17,8 @@ import {
 
 const ios = { isNativePlatform: () => true, getPlatform: () => "ios" };
 const ipadDesktopUa = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)";
+const capableUa = `Mozilla/5.0 ${PLAN_UA_TOKEN} ${PLAN_BUILD_UA_TOKEN}`;
+const olderUa = `Mozilla/5.0 ${PLAN_UA_TOKEN}`;
 
 describe("Capacitor StoreKit gate", () => {
   afterEach(() => {
@@ -30,27 +32,38 @@ describe("Capacitor StoreKit gate", () => {
     expect(isNativeIosApp({ isNativePlatform: () => true, getPlatform: () => "android" })).toBe(false);
     expect(storekitPurchaseAvailable(ios)).toBe(true);
     expect(planStorekitAvailable(ios, "TideMark/1.0")).toBe(false);
-    expect(planStorekitAvailable(ios, `Mozilla ${PLAN_UA_TOKEN}`)).toBe(true);
-    expect(planStorekitAvailable({ ...ios, isPluginAvailable: () => false, PluginHeaders: [] }, ipadDesktopUa)).toBe(
+    expect(planStorekitAvailable(ios, olderUa)).toBe(false);
+    expect(planStorekitAvailable({ ...ios, PluginHeaders: [{ name: "TideMarkStore" }] }, olderUa)).toBe(false);
+    expect(planStorekitAvailable({ ...ios, isPluginAvailable: () => false, PluginHeaders: [] }, capableUa)).toBe(
       false,
     );
     expect(
-      planStorekitAvailable({ ...ios, isPluginAvailable: (name) => name === "TideMarkStore" }, ipadDesktopUa),
+      planStorekitAvailable({ ...ios, isPluginAvailable: (name) => name === "TideMarkStore" }, capableUa),
     ).toBe(true);
     expect(
-      planStorekitAvailable({ ...ios, PluginHeaders: [{ name: "TideMarkStore" }] }, ipadDesktopUa),
+      planStorekitAvailable({ ...ios, PluginHeaders: [{ name: "TideMarkStore" }] }, capableUa),
     ).toBe(true);
+    expect(planStorekitAvailable({ ...ios, isPluginAvailable: () => false, PluginHeaders: [] }, ipadDesktopUa)).toBe(
+      false,
+    );
     const website = {
       isNativePlatform: () => false,
       getPlatform: () => "web",
       isPluginAvailable: () => true,
     };
     expect(planStorekitAvailable(website, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)")).toBe(false);
-    expect(planStorekitAvailable(website, `Mozilla ${PLAN_UA_TOKEN}`)).toBe(true);
+    expect(planStorekitAvailable(website, capableUa)).toBe(false);
+    expect(planStorekitAvailable(website, olderUa)).toBe(false);
     expect(
       planStorekitAvailable(
         { ...website, PluginHeaders: [{ name: "TideMarkStore" }] },
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+      ),
+    ).toBe(false);
+    expect(
+      planStorekitAvailable(
+        { ...website, PluginHeaders: [{ name: "TideMarkStore" }] },
+        capableUa,
       ),
     ).toBe(true);
     expect(formatPlanIapDiagnostics(planIapDiagnostics(ios, ipadDesktopUa))).toBe(
@@ -66,18 +79,48 @@ describe("Capacitor StoreKit gate", () => {
         planIapDiagnostics({ ...ios, PluginHeaders: [{ name: "TideMarkStore" }] }, ipadDesktopUa),
       ),
     ).toBe("native=ios ua=no plugin=yes bridge=no");
-    expect(formatPlanIapDiagnostics(planIapDiagnostics(website, `Mozilla ${PLAN_UA_TOKEN}`))).toBe(
+    expect(formatPlanIapDiagnostics(planIapDiagnostics(website, olderUa))).toBe(
+      "native=no ua=no plugin=no bridge=no",
+    );
+    expect(formatPlanIapDiagnostics(planIapDiagnostics(website, capableUa))).toBe(
       "native=no ua=yes plugin=no bridge=no",
     );
   });
 
-  it("opens Plan on iPad when the user agent dropped the token but TideMarkStore is registered", async () => {
+  it("keeps Plan free on iPad when the shell does not report build 14", async () => {
     setNativeRuntimeForTests({
       ...ios,
       isPluginAvailable: (name) => name === "TideMarkStore",
       PluginHeaders: [{ name: "TideMarkStore" }],
     });
     setUserAgentForTests(ipadDesktopUa);
+    setTideMarkStoreForTests({
+      getProduct: async () => ({ productId: PLAN_PRODUCT_ID, displayPrice: "$19.99", displayName: "Tide Mark Plan" }),
+      planOffer: async () => ({
+        nativePlanIap: true,
+        productId: PLAN_PRODUCT_ID,
+        displayPrice: "$19.99",
+        entitled: false,
+        status: "none",
+      }),
+      purchase: async () => {
+        throw new Error("purchase should not run");
+      },
+      restore: async () => {
+        throw new Error("restore should not run");
+      },
+    });
+    const access = await resolvePlanAccess();
+    expect(access.mode).toBe("free");
+  });
+
+  it("opens the paywall when build 14 reports TideMarkStore purchase", async () => {
+    setNativeRuntimeForTests({
+      ...ios,
+      isPluginAvailable: (name) => name === "TideMarkStore",
+      PluginHeaders: [{ name: "TideMarkStore" }],
+    });
+    setUserAgentForTests(capableUa);
     setTideMarkStoreForTests({
       getProduct: async () => ({ productId: PLAN_PRODUCT_ID, displayPrice: "$19.99", displayName: "Tide Mark Plan" }),
       planOffer: async () => ({
@@ -161,11 +204,17 @@ describe("Capacitor StoreKit gate", () => {
     await expect(purchasePlan()).rejects.toThrow(/Tide Mark 2\.0/);
     expect(planStorekitAvailable()).toBe(false);
 
-    setUserAgentForTests(`Mozilla ${PLAN_UA_TOKEN}`);
-    expect(planStorekitAvailable()).toBe(true);
+    setUserAgentForTests(olderUa);
+    expect(planStorekitAvailable()).toBe(false);
+    setUserAgentForTests(capableUa);
+    expect(planStorekitAvailable()).toBe(false);
 
-    setNativeRuntimeForTests(ios);
-    setUserAgentForTests(`Mozilla ${PLAN_UA_TOKEN}`);
+    setNativeRuntimeForTests({
+      ...ios,
+      isPluginAvailable: (name) => name === "TideMarkStore",
+      PluginHeaders: [{ name: "TideMarkStore" }],
+    });
+    setUserAgentForTests(capableUa);
     setTideMarkStoreForTests({
       getProduct: async () => ({
         productId: PLAN_PRODUCT_ID,
