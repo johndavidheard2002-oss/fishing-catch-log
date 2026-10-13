@@ -151,7 +151,7 @@ describe("Plan StoreKit gate", () => {
     expect(copy.autoRenew).toContain("$19.99/year");
     expect(copy.autoRenew).toMatch(/each year/);
     expect(copy.autoRenew).toMatch(/24 hours/);
-    expect(copy.keepLine).toBe("Subscribe to keep the app.");
+    expect(copy.keepLine).toBe("Subscribe to continue using Tide Mark, with full access to every feature.");
     const text = planPaywallText();
     expect(planPaywallDiscouragesPurchase(text)).toBe(false);
     expect(text).not.toMatch(/free trial, then/i);
