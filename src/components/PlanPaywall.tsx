@@ -84,6 +84,9 @@ export function PlanPaywall({
         >
           {copy.price}
         </p>
+        <p className="text-sm font-normal text-ink" data-testid="plan-paywall-keep">
+          {copy.keepLine}
+        </p>
         <p className="text-sm font-normal text-ink-muted" data-testid="plan-paywall-trial">
           {copy.trialNote}
         </p>
@@ -119,9 +122,6 @@ export function PlanPaywall({
           Your Plan subscription has ended.
         </p>
       ) : null}
-      <p className="text-sm text-ink" data-testid="plan-paywall-keep">
-        {copy.keepLine}
-      </p>
       <p className="text-xs text-ink-muted" data-testid="plan-paywall-autorenew">
         {copy.autoRenew}
       </p>

@@ -168,13 +168,15 @@ describe("Plan StoreKit gate", () => {
     expect(planPaywallDiscouragesPurchase(text)).toBe(false);
     expect(text).not.toMatch(/free trial, then/i);
     expect(text).not.toMatch(/start 1-month free trial/i);
-    expect(text.indexOf(copy.price)).toBeLessThan(text.indexOf(copy.trialNote));
+    expect(text.indexOf(copy.price)).toBeLessThan(text.indexOf(copy.keepLine));
+    expect(text.indexOf(copy.keepLine)).toBeLessThan(text.indexOf(copy.trialNote));
     expect(text.indexOf(copy.trialNote)).toBeLessThan(text.indexOf(copy.requiredNote));
     expect(text.toLowerCase()).not.toMatch(/unless you have|keep using the app free|don['’]t buy/);
     const ui = readFileSync(resolve(process.cwd(), "src/components/PlanPaywall.tsx"), "utf8");
     expect(ui).toContain('data-testid="plan-paywall-price"');
     expect(ui).toContain('data-testid="plan-paywall-trial"');
-    expect(ui.indexOf('data-testid="plan-paywall-price"')).toBeLessThan(ui.indexOf('data-testid="plan-paywall-trial"'));
+    expect(ui.indexOf('data-testid="plan-paywall-price"')).toBeLessThan(ui.indexOf('data-testid="plan-paywall-keep"'));
+    expect(ui.indexOf('data-testid="plan-paywall-keep"')).toBeLessThan(ui.indexOf('data-testid="plan-paywall-trial"'));
     expect(ui).toContain("text-4xl font-bold leading-none tracking-tight text-ink");
     expect(ui).toContain("text-sm font-normal text-ink-muted");
     expect(ui).toContain("{copy.price}");

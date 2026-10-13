@@ -249,7 +249,7 @@ export function planStorekitErrorForViewer(message: string, insideIosApp: boolea
 
 export function planPaywallText(): string {
   const copy = planPaywallCopy(fallbackPlanOffer());
-  return [copy.title, copy.price, copy.trialNote, copy.requiredNote, copy.length, copy.keepLine, copy.autoRenew, copy.subscribeLabel].join(
+  return [copy.title, copy.price, copy.keepLine, copy.trialNote, copy.requiredNote, copy.length, copy.autoRenew, copy.subscribeLabel].join(
     "\n",
   );
 }

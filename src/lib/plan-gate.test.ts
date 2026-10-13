@@ -117,11 +117,13 @@ describe("Tide Mark Plan app gate", () => {
     const ui = readFileSync(resolve(process.cwd(), "src/components/PlanPaywall.tsx"), "utf8");
     expect(ui).toContain('data-testid="plan-paywall-required"');
     const priceAt = ui.indexOf('data-testid="plan-paywall-price"');
+    const keepAt = ui.indexOf('data-testid="plan-paywall-keep"');
     const trialAt = ui.indexOf('data-testid="plan-paywall-trial"');
     const requiredAt = ui.indexOf('data-testid="plan-paywall-required"');
     const titleAt = ui.indexOf('data-testid="plan-paywall-title"');
     const subscribeAt = ui.indexOf('data-testid="plan-subscribe"');
-    expect(priceAt).toBeLessThan(trialAt);
+    expect(priceAt).toBeLessThan(keepAt);
+    expect(keepAt).toBeLessThan(trialAt);
     expect(trialAt).toBeLessThan(requiredAt);
     expect(requiredAt).toBeLessThan(titleAt);
     expect(titleAt).toBeLessThan(subscribeAt);
