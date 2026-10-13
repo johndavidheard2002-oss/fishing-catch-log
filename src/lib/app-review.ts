@@ -119,11 +119,27 @@ export function resetStoreReviewForTests() {
   reviewInFlight = false;
 }
 
+/** Plan purchase screen. A rating sheet must not open here, including during purchase. */
+export function isPlanSubscribePath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  return pathname === "/subscribe" || pathname.startsWith("/subscribe/");
+}
+
+function currentPathname(): string | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.location.pathname;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * After a successful create, ask iOS for the system rating sheet once per device.
  * Edits, the website, the 1.0 binary, and builds without requestReview do nothing.
  * A missing method is remembered as pending so the first catch can still ask
  * after the binary that implements it is installed.
+ * Never asks on /subscribe, so a queued sync cannot cover the purchase sheet.
  */
 export async function maybeRequestReviewAfterFirstCatchSave(args: {
   viewerId?: string | null;
@@ -132,11 +148,14 @@ export async function maybeRequestReviewAfterFirstCatchSave(args: {
   ownCatchCount?: number | null;
   storage?: ReviewStorage | null;
   nativeIos?: boolean;
+  pathname?: string | null;
   requestReview?: (() => Promise<unknown>) | null;
   fetchImpl?: typeof fetch;
   readLocalCatchCount?: (viewerId: string) => Promise<number | null>;
 } = {}): Promise<void> {
   try {
+    const pathname = args.pathname === undefined ? currentPathname() : args.pathname;
+    if (isPlanSubscribePath(pathname)) return;
     const native = args.nativeIos ?? runningInNativeIos();
     if (!native) return;
     if (reviewInFlight) return;
