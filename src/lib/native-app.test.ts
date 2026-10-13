@@ -95,6 +95,11 @@ describe("App Store / Capacitor wrap", () => {
     expect(plugin).toContain("jsName = \"TideMarkStore\"");
     expect(plugin).toContain("func purchase");
     expect(plugin).toContain("func restore");
+    expect(plugin).toContain("func requestReview");
+    expect(plugin).toContain("DispatchQueue.main.async");
+    expect(plugin).toContain("SKStoreReviewController.requestReview(in: windowScene)");
+    expect(plugin).toContain("AppStore.requestReview(in: windowScene)");
+    expect(plugin).toContain("call.resolve()");
     expect(plugin).toContain("verification.jwsRepresentation");
     expect(plugin).toContain("result.jwsRepresentation");
     expect(plugin).not.toContain("transaction.jwsRepresentation");
@@ -121,6 +126,8 @@ describe("App Store / Capacitor wrap", () => {
     expect(cm).toContain('Expected marketing version 2.0');
     expect(cm).not.toContain("agvtool what-marketing-version");
     expect(cm).toContain("TideMarkStorePlugin");
+    expect(cm).toContain("MINIMUM_BUILD=13");
+    expect(cm).toContain('agvtool new-version -all "$NEXT_BUILD"');
     const paywall = readFileSync(resolve(process.cwd(), "src/components/Paywall.tsx"), "utf8");
     expect(paywall).toContain("subscribe-disabled");
     expect(paywall).toContain("subscribe-yearly");

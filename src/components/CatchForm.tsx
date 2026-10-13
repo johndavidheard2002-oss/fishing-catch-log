@@ -91,6 +91,7 @@ import {
   shouldRestoreHeldLogPhoto,
   shouldShowPhotoAtCatchPrompt,
 } from "@/lib/log-photo-draft";
+import { maybeRequestReviewAfterFirstCatchSave } from "@/lib/app-review";
 import { pathAfterScanCatchSave, removeScanQueueByPhotoPath, scanQueueCount } from "@/lib/scan-queue";
 import { dateFromDatetimeLocal, datetimeLocalFromDate, datetimeLocalValue, formatTimeOnly, isoFromDatetimeLocal, parseExifStamp, PHOTO_EXIF_OPTIONS, seasonFromCaughtAtInput, seasonFromDate, timeOfDayFromCaughtAtInput, timeOfDayFromDate } from "@/lib/time";
 import { TIDES, WEATHER_CONDITIONS } from "@/lib/types";
@@ -841,6 +842,13 @@ export function CatchForm({
     );
   }
 
+  function rememberFirstCatch(savedLocallyOnly = false) {
+    void maybeRequestReviewAfterFirstCatchSave({
+      viewerId: viewerIdRef.current,
+      savedLocallyOnly,
+    }).catch(() => {});
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (savingRef.current) return;
@@ -874,6 +882,7 @@ export function CatchForm({
           photo: photoFile,
           viewerId: viewerIdRef.current,
         });
+        rememberFirstCatch(true);
         await finishQueuedSave(queued.id, draft);
         return;
       }
@@ -904,6 +913,7 @@ export function CatchForm({
         onSaved?.(data.catch);
         if (onSaved) return;
       }
+      if (mode === "create") rememberFirstCatch(false);
       const fromScan = Boolean(importedPhotoPath && pastMode);
       if (fromScan) {
         removeScanQueueByPhotoPath(photoPath ?? importedPhotoPath ?? "");
@@ -924,6 +934,7 @@ export function CatchForm({
           photo: photoFile,
           viewerId: viewerIdRef.current,
         });
+        rememberFirstCatch(true);
         await finishQueuedSave(queued.id, catchPayload(initial?.photoPath ?? importedPhotoPath ?? null));
         return;
       }

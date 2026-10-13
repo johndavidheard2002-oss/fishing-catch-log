@@ -1,3 +1,4 @@
+import { maybeRequestReviewAfterFirstCatchSave } from "./app-review";
 import { JOURNAL_LOCKED, journalUnlocked, type EntitlementSnapshot } from "./entitlement";
 import {
   OFFLINE_PHOTO_HOLD_ID,
@@ -312,6 +313,14 @@ export async function syncQueuedLog(
 
   await removeQueuedLog(id);
   notifyOfflineQueueChanged();
+  try {
+    await maybeRequestReviewAfterFirstCatchSave({
+      viewerId: queued.viewerId,
+      fetchImpl,
+    });
+  } catch {
+    // The catch is already saved. A missing rating method must not fail sync.
+  }
   return { queuedId: id, catchId: saved.catchId };
 }
 
