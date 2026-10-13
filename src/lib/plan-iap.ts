@@ -204,19 +204,12 @@ export function planPriceLabel(offer?: Partial<PlanOffer> | null): string {
   return raw;
 }
 
-export function planTrialLine(offer?: Partial<PlanOffer> | null): string {
-  const price = planPriceLabel(offer);
-  if (offer?.introPaymentMode && offer.introPaymentMode !== "freeTrial") return price;
-  const count = offer?.introPeriodValue ?? 1;
-  const unit = (offer?.introPeriodUnit ?? "month").toLowerCase();
-  if (count === 1) return `1-${unit} free trial, then ${price}`;
-  return `${count}-${unit} free trial, then ${price}`;
-}
+/** Subordinate to the billed amount. Must stay smaller and lighter than the price. */
+export const PLAN_TRIAL_NOTE =
+  "Includes a 1-month free trial. Auto-renews yearly; cancel anytime.";
 
 export function planSubscribeLabel(offer: PlanOffer): string {
-  const price = planPriceLabel(offer);
-  if (offer.status === "expired") return `Subscribe — ${price}`;
-  return "Start 1-month free trial";
+  return `Subscribe – ${planPriceLabel(offer)}`;
 }
 
 export function planPaywallCopy(offer?: Partial<PlanOffer> | null) {
@@ -224,7 +217,7 @@ export function planPaywallCopy(offer?: Partial<PlanOffer> | null) {
     title: PLAN_TITLE,
     length: PLAN_PERIOD_LABEL,
     price: planPriceLabel(offer),
-    trial: planTrialLine(offer),
+    trialNote: PLAN_TRIAL_NOTE,
     includes: PLAN_INCLUDES,
     autoRenew: PLAN_AUTORENEW_TERMS,
     termsUrl: PLAN_TERMS_URL,
@@ -256,7 +249,7 @@ export function planStorekitErrorForViewer(message: string, insideIosApp: boolea
 
 export function planPaywallText(): string {
   const copy = planPaywallCopy(fallbackPlanOffer());
-  return [copy.title, copy.length, copy.trial, copy.price, ...copy.includes, copy.autoRenew, copy.subscribeLabel].join(
+  return [copy.title, copy.price, copy.trialNote, copy.length, ...copy.includes, copy.autoRenew, copy.subscribeLabel].join(
     "\n",
   );
 }
