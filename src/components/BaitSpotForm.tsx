@@ -6,6 +6,7 @@ import { AreaNamePicker } from "./AreaNamePicker";
 import { MapPicker } from "./MapPicker";
 import { useTownMapFocus } from "./useTownMapFocus";
 import { PhotoCapture } from "./PhotoCapture";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { BAIT_CATALOG } from "@/lib/bait";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { DEFAULT_HABITAT, HABITAT_LABELS, isDuckHabitat, isSaltwaterHabitat, type Habitat } from "@/lib/habitat";
@@ -119,6 +120,7 @@ export function BaitSpotForm({
   onSaved?: (spot: BaitSpot) => void;
 }) {
   const router = useRouter();
+  const loggingLocked = usePlanLoggingLocked();
   const [form, setForm] = useState<FormState>(() => (initial ? fromRecord(initial) : emptyForm()));
   const hasDroppedPin =
     numOrNull(form.latitude) != null && numOrNull(form.longitude) != null;
@@ -202,6 +204,7 @@ export function BaitSpotForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loggingLocked) return;
     if (savingRef.current) return;
     if (!form.baitTypes.length) {
       setError("Add at least one bait type.");
@@ -279,6 +282,10 @@ export function BaitSpotForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <fieldset
+        disabled={loggingLocked}
+        className={`m-0 flex min-w-0 flex-col gap-4 border-0 p-0 ${loggingLocked ? "pointer-events-none opacity-60" : ""}`}
+      >
       {savedNotice ? (
         <p
           data-testid="changes-saved"
@@ -454,6 +461,7 @@ export function BaitSpotForm({
       >
         {saving ? "Saving…" : mode === "edit" ? "Save bait" : "Log bait"}
       </button>
+      </fieldset>
     </form>
   );
 }

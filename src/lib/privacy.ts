@@ -19,7 +19,7 @@ export type PrivacySection = {
 };
 
 export const PRIVACY_INTRO =
-  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, how the free journal and optional Plan subscription work, and how to delete your account.";
+  "Tide Mark is a private saltwater logbook. This page explains what we store, who can see it, where it is hosted, how Tide Mark Plan works, and how to delete your account.";
 
 export const PRIVACY_SECTIONS: PrivacySection[] = [
   {
@@ -56,10 +56,10 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
   },
   {
     id: "subscriptions",
-    title: "Free journal and Tide Mark Plan",
+    title: "Tide Mark Plan",
     paragraphs: [
-      "Log, Calendar, Spots, and your account stay free. The website and Tide Mark 1.0 keep Plan included. We do not delete your catches, photos, spots, or notes.",
-      `${PLAN_TITLE} is an optional auto-renewable subscription in the Tide Mark 2.0 iPhone app: a 1-month free trial, then ${PLAN_PRICE_LABEL}, billed by Apple. It shows the matching tide for each logged catch on the plan day (same height and incoming or outgoing), notes on the plan, and that day’s tides. Manage or cancel in your App Store account settings.`,
+      `The Tide Mark website and Tide Mark 1.0 do not require ${PLAN_TITLE}. On Tide Mark 2.0, logging a new catch or editing a plan requires it. Catches already logged stay visible, read only. Each tab shows a Tide Mark Plan card that opens the subscription. The Home account card keeps its Tide Mark Plan button. We do not delete your catches, photos, spots, or notes when a subscription ends.`,
+      `${PLAN_TITLE} is an auto-renewable subscription in the Tide Mark 2.0 iPhone app: a 1-month free trial, then ${PLAN_PRICE_LABEL}, billed by Apple. A subscription is required to keep using Tide Mark after the trial. Manage or cancel in your App Store account settings.`,
     ],
   },
   {
@@ -74,7 +74,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: "deletion",
     title: "How to delete your account",
     paragraphs: [
-      "On Home, the account card under your name has Delete account. The same control is under More, then Account. Enter the password for this journal and type DELETE, then tap Delete my account. That permanently removes the account: the angler record, catches, catch photos, bait spots, notes, named areas, and friend links. It is not a temporary deactivation. Signing out only ends this session and does not erase the log.",
+      "On Home, the account card under your name has Delete account. The same control is under More, then Account, including when a subscription is required. Enter the password for this journal and type DELETE, then tap Delete my account. That permanently removes the account: the angler record, catches, catch photos, bait spots, notes, named areas, and friend links. It is not a temporary deactivation. Signing out only ends this session and does not erase the log.",
       `If you cannot sign in, email ${PRIVACY_CONTACT_EMAIL} from the address on the journal and ask us to delete it. We will confirm when it is gone.`,
     ],
   },

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BaitSpotForm } from "./BaitSpotForm";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { OwnerShareBadge } from "@/components/OwnerShareBadge";
 import { ShareFriendPicker, selectedShareBuddyIds, type ShareFriend } from "@/components/ShareFriendPicker";
 import { hasSavedPin } from "@/lib/location-map";
@@ -45,6 +46,7 @@ export function BaitSpotDetail({
   planDay?: string | null;
 }) {
   const router = useRouter();
+  const loggingLocked = usePlanLoggingLocked();
   const unplan = plannedPhotoUnplanRequest({ fromPlan, planNote, planDay });
   const [record, setRecord] = useState<BaitSpot | null>(null);
   const [editing, setEditing] = useState(false);
@@ -165,7 +167,7 @@ export function BaitSpotDetail({
   const isOwner = Boolean(viewerId && record.anglerId === viewerId);
 
   if (editing && isOwner) {
-    return (
+    if (!loggingLocked) return (
       <div className="space-y-4">
         <button type="button" className="on-wash-chip w-fit text-sm font-semibold text-teal" onClick={() => setEditing(false)}>
           Cancel
@@ -220,7 +222,7 @@ export function BaitSpotDetail({
           {baitTypesLabel(record.baitTypes)} · {formatCaughtAt(record.loggedAt)} ·{" "}
           {habitatLabel(record.habitat)}
         </p>
-        {pendingPlan ? (
+        {pendingPlan && !loggingLocked ? (
           <p className="mt-2 flex flex-wrap gap-1">
             <AddToPlanButton spot={pendingPlan} />
           </p>
@@ -259,7 +261,7 @@ export function BaitSpotDetail({
           friends: buddies,
         })}
       </p>
-      {isOwner ? (
+      {loggingLocked ? null : isOwner ? (
         <div className="space-y-3" data-testid="bait-owner-actions">
           <div className="owner-action-row" data-testid="bait-action-row">
             <button

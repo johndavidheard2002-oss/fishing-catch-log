@@ -1,3 +1,4 @@
+import { PLAN_REQUIRED_NOTE } from "./plan-gate";
 import {
   APP_STORE_PLAN_MONTHLY_PRODUCT_ID,
   APP_STORE_PLAN_PRICE,
@@ -30,11 +31,7 @@ export function isAcceptedPlanProductId(value: string): boolean {
   return (ACCEPTED_PLAN_PRODUCT_IDS as readonly string[]).includes(value);
 }
 
-export const PLAN_INCLUDES = [
-  "Matching tide for each logged catch on the plan day — same height and incoming or outgoing.",
-  "Notes on the plan.",
-  "That day’s tides.",
-] as const;
+export const PLAN_KEEP_LINE = "Subscribe to continue using Tide Mark, with full access to every feature.";
 
 export const PLAN_AUTORENEW_TERMS =
   `Tide Mark Plan is a 1-year subscription at ${PLAN_PRICE_LABEL} after a 1-month free trial. Payment is charged to your Apple ID when you confirm the purchase. It renews automatically each year unless you cancel at least 24 hours before the end of the current period. Your account is charged ${PLAN_PRICE_LABEL} for renewal within 24 hours before the period ends. Manage or cancel anytime in Settings → Apple ID → Subscriptions. Any unused part of a free trial is forfeited if you buy a subscription before the trial ends.`;
@@ -206,7 +203,9 @@ export function planPriceLabel(offer?: Partial<PlanOffer> | null): string {
 
 /** Subordinate to the billed amount. Must stay smaller and lighter than the price. */
 export const PLAN_TRIAL_NOTE =
-  "Includes a 1-month free trial. Auto-renews yearly; cancel anytime.";
+  "Try Tide Mark Plan free for 1 month. Cancel anytime before the trial ends and you won't be charged. After the trial, it renews at $19.99/year until canceled.";
+
+export { PLAN_REQUIRED_NOTE };
 
 export function planSubscribeLabel(offer: PlanOffer): string {
   return `Subscribe – ${planPriceLabel(offer)}`;
@@ -218,7 +217,8 @@ export function planPaywallCopy(offer?: Partial<PlanOffer> | null) {
     length: PLAN_PERIOD_LABEL,
     price: planPriceLabel(offer),
     trialNote: PLAN_TRIAL_NOTE,
-    includes: PLAN_INCLUDES,
+    requiredNote: PLAN_REQUIRED_NOTE,
+    keepLine: PLAN_KEEP_LINE,
     autoRenew: PLAN_AUTORENEW_TERMS,
     termsUrl: PLAN_TERMS_URL,
     subscribeLabel: planSubscribeLabel({ ...fallbackPlanOffer(), ...offer, status: offer?.status ?? "none" }),
@@ -249,7 +249,7 @@ export function planStorekitErrorForViewer(message: string, insideIosApp: boolea
 
 export function planPaywallText(): string {
   const copy = planPaywallCopy(fallbackPlanOffer());
-  return [copy.title, copy.price, copy.trialNote, copy.length, ...copy.includes, copy.autoRenew, copy.subscribeLabel].join(
+  return [copy.title, copy.price, copy.keepLine, copy.trialNote, copy.requiredNote, copy.length, copy.autoRenew, copy.subscribeLabel].join(
     "\n",
   );
 }

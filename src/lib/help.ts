@@ -79,7 +79,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: "Your journal",
     steps: [
       "Sign in or create an account with email and a password to open your journal.",
-      "Log, Calendar, and Spots stay free on this account.",
+      "Log, Calendar, and Spots are on this account.",
       "After you sign in, tap Continue so this phone can pin a live photo. Log still has Turn location on.",
       "After you sign in, Home shows Log out. The next person sees sign-in, not your trips.",
       "On Home, under your name, tap Delete account.",
@@ -90,8 +90,11 @@ export const HELP_SECTIONS: HelpSection[] = [
   {
     title: "Tide Mark Plan",
     steps: [
-      "Log, Calendar, and Spots stay free. The website keeps Plan included.",
-      `On Tide Mark 2.0 for iPhone or iPad, Plan is an App Store subscription: a 1-month free trial, then ${PLAN_PRICE_LABEL}. Subscribe and Restore use the App Store.`,
+      "On the Tide Mark website and Tide Mark 1.0, the log stays available without this subscription.",
+      "On Tide Mark 2.0, catches you already logged stay visible, read only.",
+      "Without a current trial or subscription, each tab shows a Tide Mark Plan card.",
+      `Tide Mark Plan is a 1-month free trial, then ${PLAN_PRICE_LABEL}.`,
+      "Subscribe and Restore use the App Store on iPhone or iPad.",
       "Plan shows the matching tide for each logged catch on that day (same height and incoming or outgoing), notes on the plan, and that day’s tides.",
       "Cancel in Settings → Apple ID → Subscriptions.",
       "Your catches and photos stay saved. Nothing is deleted.",

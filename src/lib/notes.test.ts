@@ -575,10 +575,10 @@ describe("Plan add-to-day UI", () => {
     expect(plan).toContain("onSharePlan");
     expect(plan).toContain("planDay:");
     expect(plan).toContain("viewingFriendPlan");
-    expect(plan).toContain("readOnly={viewingFriendPlan}");
+    expect(plan).toContain("readOnly={viewingFriendPlan || loggingLocked}");
     expect(plan).toContain("includeShared=1");
     expect(plan).toContain("preferOwnPlanNotes");
-    expect(plan).toContain("allowAdd={!viewingFriendPlan}");
+    expect(plan).toContain("allowAdd={!viewingFriendPlan && !loggingLocked}");
     expect(plan).toContain("journalNotesForCalendarLog");
     expect(plan).toContain("journalNotesForPlanWriteups");
     expect(plan).toContain("PlanDayLabel");

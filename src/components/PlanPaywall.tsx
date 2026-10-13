@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { BrandWordmark } from "@/components/BrandWordmark";
 import {
   iosWebkitBridgePresent,
   isNativeIosApp,
@@ -85,15 +84,29 @@ export function PlanPaywall({
         >
           {copy.price}
         </p>
+        <p className="text-sm font-normal text-ink" data-testid="plan-paywall-keep">
+          {copy.keepLine}
+        </p>
         <p className="text-sm font-normal text-ink-muted" data-testid="plan-paywall-trial">
           {copy.trialNote}
         </p>
+        <p className="text-sm font-normal text-ink-muted" data-testid="plan-paywall-required">
+          {copy.requiredNote}
+        </p>
       </div>
-      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Auto-renewable subscription</p>
-      <BrandWordmark size="header" />
       <h1 className="font-display text-2xl text-teal" data-testid="plan-paywall-title">
         {copy.title}
       </h1>
+      <button
+        type="button"
+        disabled={busy != null}
+        className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
+        data-testid="plan-subscribe"
+        onClick={() => void run("purchase")}
+      >
+        {busy === "purchase" ? "Purchasing…" : copy.subscribeLabel}
+      </button>
+      <p className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Auto-renewable subscription</p>
       {active ? (
         <p className="text-sm text-ink" data-testid="plan-paywall-active">
           Your Tide Mark Plan subscription is active. The offer below stays available.
@@ -109,11 +122,6 @@ export function PlanPaywall({
           Your Plan subscription has ended.
         </p>
       ) : null}
-      <ul className="space-y-1 text-sm text-ink" data-testid="plan-paywall-includes">
-        {copy.includes.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
       <p className="text-xs text-ink-muted" data-testid="plan-paywall-autorenew">
         {copy.autoRenew}
       </p>
@@ -128,15 +136,6 @@ export function PlanPaywall({
           {busy === "retry" ? "Retrying…" : "Retry"}
         </button>
       ) : null}
-      <button
-        type="button"
-        disabled={busy != null}
-        className="w-full rounded-2xl bg-copper px-4 py-3 text-lg font-semibold text-white disabled:opacity-60"
-        data-testid="plan-subscribe"
-        onClick={() => void run("purchase")}
-      >
-        {busy === "purchase" ? "Purchasing…" : copy.subscribeLabel}
-      </button>
       <button
         type="button"
         disabled={busy != null}

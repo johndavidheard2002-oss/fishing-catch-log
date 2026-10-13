@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { isCalendarDayKey, setSharedForDay } from "@/lib/db/catches";
 import { requireUnlockedViewer } from "@/lib/journal-access";
+import { nativePlanWriteResponse } from "@/lib/plan-write-guard";
 import { jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -11,6 +12,8 @@ export async function POST(request: NextRequest) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const body = (await request.json()) as { day?: unknown; shared?: unknown };
   const day = typeof body.day === "string" ? body.day : "";
   if (!isCalendarDayKey(day)) {

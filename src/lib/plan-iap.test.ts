@@ -81,6 +81,18 @@ describe("Plan StoreKit gate", () => {
       },
     });
     expect(lapsed.mode).toBe("paywall");
+    const trial = planAccessFromProbe({
+      nativeBuild: true,
+      now,
+      offer: {
+        ...fallbackPlanOffer(),
+        entitled: true,
+        status: "active",
+        introPaymentMode: "freeTrial",
+        expiresAt: "2026-11-13T12:00:00.000Z",
+      },
+    });
+    expect(trial.mode).toBe("unlocked");
     expect(offerIsEntitled({ ...fallbackPlanOffer(), entitled: true, status: "expired" }, now)).toBe(false);
   });
 
@@ -89,7 +101,9 @@ describe("Plan StoreKit gate", () => {
     expect(planPriceLabel(null)).toBe("$19.99/year");
     expect(planPriceLabel({ displayPrice: "$19.99" })).toBe("$19.99/year");
     expect(PLAN_OFFER_LINE).toBe("$19.99/year · 1-month free trial");
-    expect(PLAN_TRIAL_NOTE).toBe("Includes a 1-month free trial. Auto-renews yearly; cancel anytime.");
+    expect(PLAN_TRIAL_NOTE).toBe(
+      "Try Tide Mark Plan free for 1 month. Cancel anytime before the trial ends and you won't be charged. After the trial, it renews at $19.99/year until canceled.",
+    );
     expect(planOfferFromPlugin({ nativePlanIap: true, productId: "other", entitled: true })).toBeNull();
     const parsed = planOfferFromPlugin({
       nativePlanIap: true,
@@ -133,7 +147,10 @@ describe("Plan StoreKit gate", () => {
     expect(copy.title).toBe("Tide Mark Plan");
     expect(copy.length).toBe("1 year");
     expect(copy.price).toBe("$19.99/year");
-    expect(copy.trialNote).toBe("Includes a 1-month free trial. Auto-renews yearly; cancel anytime.");
+    expect(copy.trialNote).toBe(
+      "Try Tide Mark Plan free for 1 month. Cancel anytime before the trial ends and you won't be charged. After the trial, it renews at $19.99/year until canceled.",
+    );
+    expect(copy.requiredNote).toBe("A subscription is required to keep using Tide Mark after the trial.");
     expect(copy.subscribeLabel).toBe("Subscribe – $19.99/year");
     expect(copy.subscribeLabel.toLowerCase()).not.toContain("trial");
     expect(copy.restoreLabel).toBe("Restore Purchases");
@@ -146,24 +163,31 @@ describe("Plan StoreKit gate", () => {
     expect(copy.autoRenew).toContain("$19.99/year");
     expect(copy.autoRenew).toMatch(/each year/);
     expect(copy.autoRenew).toMatch(/24 hours/);
-    expect(copy.includes.join(" ")).toMatch(/same height/i);
-    expect(copy.includes.join(" ")).toMatch(/incoming or outgoing/i);
-    expect(copy.includes.join(" ")).toMatch(/notes on the plan/i);
-    expect(copy.includes.join(" ")).toMatch(/day’s tides/i);
+    expect(copy.keepLine).toBe("Subscribe to continue using Tide Mark, with full access to every feature.");
     const text = planPaywallText();
     expect(planPaywallDiscouragesPurchase(text)).toBe(false);
     expect(text).not.toMatch(/free trial, then/i);
     expect(text).not.toMatch(/start 1-month free trial/i);
-    expect(text.indexOf(copy.price)).toBeLessThan(text.indexOf(copy.trialNote));
+    expect(text.indexOf(copy.price)).toBeLessThan(text.indexOf(copy.keepLine));
+    expect(text.indexOf(copy.keepLine)).toBeLessThan(text.indexOf(copy.trialNote));
+    expect(text.indexOf(copy.trialNote)).toBeLessThan(text.indexOf(copy.requiredNote));
     expect(text.toLowerCase()).not.toMatch(/unless you have|keep using the app free|don['’]t buy/);
     const ui = readFileSync(resolve(process.cwd(), "src/components/PlanPaywall.tsx"), "utf8");
     expect(ui).toContain('data-testid="plan-paywall-price"');
     expect(ui).toContain('data-testid="plan-paywall-trial"');
-    expect(ui.indexOf('data-testid="plan-paywall-price"')).toBeLessThan(ui.indexOf('data-testid="plan-paywall-trial"'));
+    expect(ui.indexOf('data-testid="plan-paywall-price"')).toBeLessThan(ui.indexOf('data-testid="plan-paywall-keep"'));
+    expect(ui.indexOf('data-testid="plan-paywall-keep"')).toBeLessThan(ui.indexOf('data-testid="plan-paywall-trial"'));
     expect(ui).toContain("text-4xl font-bold leading-none tracking-tight text-ink");
     expect(ui).toContain("text-sm font-normal text-ink-muted");
     expect(ui).toContain("{copy.price}");
     expect(ui).toContain("{copy.trialNote}");
+    expect(ui).toContain("{copy.requiredNote}");
+    expect(ui).toContain('data-testid="plan-paywall-required"');
+    expect(ui).toContain('data-testid="plan-paywall-keep"');
+    expect(ui).toContain("{copy.keepLine}");
+    expect(ui).not.toContain("BrandWordmark");
+    expect(ui).not.toContain("Matching tide");
+    expect(ui).not.toContain("Notes on the plan.");
     expect(ui).not.toContain("1-month free trial, then");
     expect(ui).not.toContain("Start 1-month free trial");
     expect(ui).toContain('data-testid="plan-subscribe"');
@@ -176,9 +200,17 @@ describe("Plan StoreKit gate", () => {
     expect(page).toContain("<PlanClient");
     expect(page).not.toContain("PlanSubscribeScreen");
     expect(page).not.toContain("PlanAccess");
+    expect(page).not.toContain("Paywall");
+    expect(page).not.toContain("/subscribe");
+    expect(page).not.toContain("openPaywall");
+    const planClient = readFileSync(resolve(process.cwd(), "src/components/PlanClient.tsx"), "utf8");
+    expect(planClient).not.toContain("/subscribe");
+    expect(planClient).not.toContain("Paywall");
+    expect(planClient).not.toContain("openPaywall");
     const home = readFileSync(resolve(process.cwd(), "src/components/HomeClient.tsx"), "utf8");
-    expect(home).toContain('href="/subscribe"');
+    expect(home.match(/href="\/subscribe"/g)).toEqual(['href="/subscribe"']);
     expect(home).toContain('data-testid="home-tide-mark-plan"');
+    expect(home).not.toContain('data-testid="home-tide-mark-plan-more"');
     expect(home).toContain("PLAN_OFFER_LINE");
     expect(home).toContain("planOfferVisible");
     expect(home).not.toContain("PlanSubscribeScreen");

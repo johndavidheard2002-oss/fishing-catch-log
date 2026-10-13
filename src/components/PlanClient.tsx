@@ -9,6 +9,7 @@ import { personalPhotoSrc } from "@/lib/photo";
 import { baitTypesLabel } from "@/lib/bait";
 import { speciesLabel } from "@/lib/species";
 import { PlanDayLabel, PlanDayNotes } from "@/components/CalendarNotes";
+import { usePlanLoggingLocked } from "@/components/PlanAppGate";
 import { CHANGES_SAVED_LABEL } from "@/lib/feedback";
 import { monthGrid, monthLabel, shiftMonth, todayKey, WEEKDAY_LABELS } from "@/lib/calendar";
 import {
@@ -196,6 +197,9 @@ export function PlanClient({
   initialAddPhoto?: string | null;
 }) {
   const now = new Date();
+  const loggingLocked = usePlanLoggingLocked();
+  const loggingLockedRef = useRef(false);
+  loggingLockedRef.current = loggingLocked;
   const [pendingSpot, setPendingSpot] = useState<PendingPlanSpot | null>(() => {
     const params = new URLSearchParams();
     if (initialAddCatch) params.set(PENDING_PLAN_CATCH_QUERY, initialAddCatch);
@@ -383,6 +387,7 @@ export function PlanClient({
   }, []);
 
   async function onCreateNote(input: CalendarNoteInput) {
+    if (loggingLockedRef.current) return;
     const res = await fetch("/api/calendar-notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -419,6 +424,7 @@ export function PlanClient({
   }
 
   async function onUpdateNote(id: string, input: CalendarNoteInput) {
+    if (loggingLockedRef.current) return;
     const res = await fetch(`/api/calendar-notes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -432,12 +438,14 @@ export function PlanClient({
   }
 
   async function onDeleteNote(id: string) {
+    if (loggingLockedRef.current) return;
     const res = await fetch(`/api/calendar-notes/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error("delete failed");
     setNotes((current) => current.filter((n) => n.id !== id));
   }
 
   async function onRemovePlanSpot(note: CalendarNote) {
+    if (loggingLockedRef.current) return;
     if (viewerId && note.anglerId && note.anglerId !== viewerId) return;
     const target = planSpotRemoveTarget(note);
     if (!target) return;
@@ -461,6 +469,7 @@ export function PlanClient({
   }
 
   async function onDeletePlan() {
+    if (loggingLockedRef.current) return;
     if (!selectedDay || viewingFriendPlan) return;
     if (!confirm("Delete this plan?")) return;
     setDeletingPlan(true);
@@ -555,6 +564,7 @@ export function PlanClient({
   const viewingFriendPlan = Boolean(
     viewerId && selectedNotes.some((note) => note.anglerId && note.anglerId !== viewerId),
   );
+  const planWritesLocked = viewingFriendPlan || loggingLocked;
   const isPlanOwner = Boolean(viewerId && selectedNotes.length && !viewingFriendPlan);
   const shareState = planDayShareState(selectedNotes);
   const planShared = shareState.sharedWithLinked || shareState.sharedWithBuddyIds.length > 0;
@@ -723,6 +733,7 @@ export function PlanClient({
   if (freshPlannedPhotos.length) plannedPhotoCacheRef.current = plannedPhotos;
 
   async function onSharePlan(shared: boolean, buddyIds?: string[]) {
+    if (loggingLockedRef.current) return;
     if (!selectedDay || !isPlanOwner) return;
     setShareBusy(true);
     setShareError(null);
@@ -761,6 +772,7 @@ export function PlanClient({
   }
 
   async function onAddSpot(spot: PlanSpotSource, day = selectedDay) {
+    if (loggingLockedRef.current) return;
     if (!day || viewingFriendPlan) return;
     const dayNotes = notesByDay.get(day) ?? [];
     const input = addPlanSpotToDay(dayNotes, day, spot);
@@ -800,6 +812,7 @@ export function PlanClient({
   }
 
   async function commitPendingSpot(day: string) {
+    if (loggingLockedRef.current) return;
     const spot = pendingSpotRef.current;
     if (!spot?.placeName) {
       pendingDayRef.current = day;
@@ -936,7 +949,7 @@ export function PlanClient({
                   </p>
                 ) : null}
               </div>
-              {selectedNotes.length && !viewingFriendPlan ? (
+              {selectedNotes.length && !planWritesLocked ? (
                 <div className="flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2">
                   {isPlanOwner ? (
                     <button
@@ -966,7 +979,7 @@ export function PlanClient({
                 </div>
               ) : null}
             </div>
-            {isPlanOwner ? (
+            {isPlanOwner && !loggingLocked ? (
               <div data-testid="plan-share-block">
                 <p className="text-xs text-ink-muted" data-testid="owner-share-status">
                   {ownerShareStatusLine({
@@ -1118,7 +1131,7 @@ export function PlanClient({
                         ) : (
                           <div className="flex min-w-0 flex-1 items-center gap-2">{row}</div>
                         )}
-                        {viewingFriendPlan ? null : (
+                        {planWritesLocked ? null : (
                           <button
                             type="button"
                             onClick={() => void onRemovePlanSpot(note)}
@@ -1143,7 +1156,7 @@ export function PlanClient({
               key={`${selectedDay}-label`}
               day={selectedDay}
               notes={journalNotes}
-              readOnly={viewingFriendPlan}
+              readOnly={viewingFriendPlan || loggingLocked}
               onCreate={onCreateNote}
               onUpdate={onUpdateNote}
               onDelete={onDeleteNote}
@@ -1153,7 +1166,7 @@ export function PlanClient({
               day={selectedDay}
               notes={writeupNotes}
               embedded
-              readOnly={viewingFriendPlan}
+              readOnly={viewingFriendPlan || loggingLocked}
               onCreate={onCreateNote}
               onUpdate={onUpdateNote}
               onDelete={onDeleteNote}
@@ -1170,6 +1183,7 @@ export function PlanClient({
             tideDetail={planTides.detail}
             weatherDetail={planTides.weatherDetail}
             onChangePin={(next) => {
+              if (loggingLocked) return;
               setDayTidePins(writePlanDayTidePin(selectedDay, next, localStore()));
             }}
           />
@@ -1192,7 +1206,7 @@ export function PlanClient({
                   key={s.id}
                   suggestion={s}
                   showOwner={includeShared}
-                  allowAdd={!viewingFriendPlan}
+                  allowAdd={!viewingFriendPlan && !loggingLocked}
                   added={dayHasPlanSpot(selectedNotes, s.placeName, {
                     sourceCatchId: s.matches[0]?.catch.id,
                   })}
@@ -1224,7 +1238,7 @@ export function PlanClient({
                       key={s.id}
                       suggestion={s}
                       showOwner={includeShared}
-                      allowAdd={!viewingFriendPlan}
+                      allowAdd={!viewingFriendPlan && !loggingLocked}
                       added={dayHasPlanSpot(selectedNotes, s.placeName, {
                         sourceBaitId: s.matches[0]?.baitSpot.id,
                       })}

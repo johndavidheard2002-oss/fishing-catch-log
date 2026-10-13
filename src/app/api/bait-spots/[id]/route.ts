@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { canViewBaitSpot, deleteBaitSpot, getBaitSpot, updateBaitSpot } from "@/lib/db/bait";
 import { parseBaitSpotInput } from "@/lib/bait";
 import { requireUnlockedViewer } from "@/lib/journal-access";
+import { nativePlanWriteResponse } from "@/lib/plan-write-guard";
 import { jsonWithViewer } from "@/lib/viewer";
 
 export const runtime = "nodejs";
@@ -25,6 +26,8 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const { id } = await ctx.params;
   const existing = await getBaitSpot(id);
   if (!existing || existing.anglerId !== viewerId) {
@@ -55,6 +58,8 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
   const access = await requireUnlockedViewer(request);
   if (!access.ok) return access.response;
   const { viewerId } = access;
+  const blocked = await nativePlanWriteResponse(request, viewerId);
+  if (blocked) return blocked;
   const { id } = await ctx.params;
   const existing = await getBaitSpot(id);
   if (!existing || existing.anglerId !== viewerId) {

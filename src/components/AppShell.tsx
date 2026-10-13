@@ -19,6 +19,7 @@ import {
 } from "@/lib/entitlement";
 import { ENTITLEMENT_CHANGED_EVENT } from "@/lib/native-iap";
 import { OfflineSyncHost } from "@/components/OfflineSyncHost";
+import { PlanAppGate } from "@/components/PlanAppGate";
 import { isBrowserOnline } from "@/lib/offline";
 import { readCachedSession, writeCachedSession } from "@/lib/offline-store";
 
@@ -81,10 +82,17 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  nativeShell = false,
+}: {
+  children: ReactNode;
+  nativeShell?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const onSignIn = isPublicPagePath(pathname);
+  const [planGated, setPlanGated] = useState(false);
   const [entitlement, setEntitlement] = useState<EntitlementSnapshot | null>(null);
   const [anglerId, setAnglerId] = useState("");
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -374,12 +382,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               {JOURNAL_FREE_FOR_RELEASE || onSignIn || pathname === "/" || !entitlement?.noticeWindow ? null : (
                 <TrialNotice anglerId={anglerId} entitlement={entitlement} placement="nag" />
               )}
-              {children}
+              <PlanAppGate nativeShell={nativeShell} onGatedChange={setPlanGated}>
+                {children}
+              </PlanAppGate>
             </>
           )}
         </main>
       </div>
-      {onSignIn ? null : (
+      {onSignIn || planGated ? null : (
       <nav className="bottom-nav fixed right-0 bottom-0 left-0 z-20 mx-auto max-w-lg rounded-t-2xl" data-no-tab-swipe>
         <ul className="grid grid-cols-6 px-0.5 pt-2.5">
           {NAV.map((item) => {
@@ -428,7 +438,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       )}
     </div>
     {onSignIn ? null : <HelpGuide />}
-    {onSignIn ? null : <FirstRunSetup />}
+    {onSignIn || planGated ? null : <FirstRunSetup />}
     {onSignIn ? null : <OfflineSyncHost entitlement={entitlement} />}
     {onSignIn || JOURNAL_FREE_FOR_RELEASE || hideJournal || !paywallOpen ? null : (
       <div

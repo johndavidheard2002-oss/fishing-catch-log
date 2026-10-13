@@ -10,7 +10,7 @@ import { PLAN_TITLE, fallbackPlanOffer, planDiagnosticsRequested, type PlanOffer
  * Purchase screen for Tide Mark 2.0. The website and the 1.0 app never see
  * Subscribe or Restore. A missing StoreKit price still shows the US price.
  */
-export function PlanSubscribeScreen() {
+export function PlanSubscribeScreen({ onUnlocked }: { onUnlocked?: (next: PlanOffer) => void } = {}) {
   const { ready, native, diagnostics } = useNativePlanIap();
   const [offer, setOffer] = useState<PlanOffer>(fallbackPlanOffer());
   const [priceFromStore, setPriceFromStore] = useState<boolean | null>(null);
@@ -77,6 +77,7 @@ export function PlanSubscribeScreen() {
         onUnlocked={(next) => {
           setOffer(next);
           setPriceFromStore(Boolean(next.displayPrice));
+          onUnlocked?.(next);
         }}
       />
     </div>

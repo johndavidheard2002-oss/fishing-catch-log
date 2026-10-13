@@ -274,15 +274,18 @@ describe("in-app account deletion", () => {
     expect(await readCachedSession()).toBeNull();
   });
 
-  it("keeps deletion on Home and off the paywall", () => {
+  it("keeps deletion on Home without a subscription", () => {
     expect(JOURNAL_FREE_FOR_RELEASE).toBe(true);
     expect(DELETE_ACCOUNT_PHRASE).toBe("DELETE");
     const home = fs.readFileSync(resolve(__dirname, "../components/HomeClient.tsx"), "utf8");
+    const gate = fs.readFileSync(resolve(__dirname, "../components/PlanAppGate.tsx"), "utf8");
     const ui = fs.readFileSync(resolve(__dirname, "../components/DeleteAccount.tsx"), "utf8");
     const route = fs.readFileSync(resolve(__dirname, "../app/api/auth/delete/route.ts"), "utf8");
     expect(home).toContain("<DeleteAccount />");
     expect(home).toContain('idPrefix="delete-account-more"');
     expect(home).toContain("JOURNAL_FREE_FOR_RELEASE");
+    expect(gate).not.toContain("DeleteAccount");
+    expect(gate).toContain('data-testid="plan-subscribe-card"');
     expect(ui).toContain("Delete account");
     expect(ui).toContain("Delete my account");
     expect(ui).toContain('router.replace("/signin")');

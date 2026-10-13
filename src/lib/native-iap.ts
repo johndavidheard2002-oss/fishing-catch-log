@@ -277,6 +277,25 @@ export async function resolvePlanAccess(): Promise<PlanAccess> {
   }
 }
 
+/** Re-read StoreKit, including a current trial, and mirror that term on the server. */
+export async function refreshPlanEntitlement(): Promise<boolean> {
+  const access = await resolvePlanAccess();
+  const offer = access.mode === "free" ? null : access.offer;
+  if (offer?.transactionId) {
+    const parsed = parseStorekitClaim({
+      productId: offer.productId,
+      transactionId: offer.transactionId,
+      originalTransactionId: offer.originalTransactionId,
+      expiresAt: offer.expiresAt,
+      source: "restore",
+    });
+    if (parsed.ok) {
+      await activateStorekitOnServer(parsed.claim).catch(() => null);
+    }
+  }
+  return access.mode === "unlocked";
+}
+
 async function persistPlanClaim(claim: StorekitClaim): Promise<EntitlementSnapshot | null> {
   try {
     return await activateStorekitOnServer(claim);

@@ -45,7 +45,7 @@ export const TOUR_SCREENS: TourScreen[] = [
   {
     id: "more",
     title: "Old photos and friends",
-    body: "Backfill adds past catches from photos you already have. The journal stays free. Link a friend under More, then tap Share on that catch.",
+    body: "Backfill adds past catches from photos you already have. Link a friend under More, then tap Share on that catch.",
   },
 ];
 

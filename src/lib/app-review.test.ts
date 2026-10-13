@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   STORE_REVIEW_FLAG,
   countOwnCatches,
+  isPlanSubscribePath,
   maybeRequestReviewAfterFirstCatchSave,
   resetStoreReviewForTests,
   type ReviewStorage,
@@ -226,16 +227,50 @@ describe("first-catch App Store review", () => {
     expect(storage.snapshot()).toEqual({});
   });
 
+  it("does not ask on the Plan purchase screen", async () => {
+    expect(STORE_REVIEW_FLAG).toBe("tidemark-store-review-asked");
+    expect(isPlanSubscribePath("/subscribe")).toBe(true);
+    expect(isPlanSubscribePath("/subscribe/")).toBe(true);
+    expect(isPlanSubscribePath("/")).toBe(false);
+    expect(isPlanSubscribePath("/log")).toBe(false);
+    const storage = memoryStorage();
+    let called = false;
+    await maybeRequestReviewAfterFirstCatchSave({
+      viewerId: "sam",
+      ownCatchCount: 1,
+      storage,
+      nativeIos: true,
+      pathname: "/subscribe",
+      requestReview: async () => {
+        called = true;
+      },
+    });
+    expect(called).toBe(false);
+    expect(storage.snapshot()).toEqual({});
+  });
+
   it("wires the prompt to a successful create and leaves Plan purchase code alone", () => {
     const form = readFileSync(resolve(__dirname, "../components/CatchForm.tsx"), "utf8");
     const sync = readFileSync(resolve(__dirname, "./offline-sync.ts"), "utf8");
     const iap = readFileSync(resolve(__dirname, "./native-iap.ts"), "utf8");
     const paywall = readFileSync(resolve(__dirname, "../components/Paywall.tsx"), "utf8");
+    const planPaywall = readFileSync(resolve(__dirname, "../components/PlanPaywall.tsx"), "utf8");
+    const subscribeScreen = readFileSync(resolve(__dirname, "../components/PlanSubscribeScreen.tsx"), "utf8");
+    const subscribePage = readFileSync(resolve(__dirname, "../app/subscribe/page.tsx"), "utf8");
+    const plugin = readFileSync(resolve(__dirname, "../../ios/App/App/TideMarkStorePlugin.swift"), "utf8");
+    const purchaseBody = plugin.slice(plugin.indexOf("func purchase"), plugin.indexOf("System rating sheet"));
     expect(form).toContain("rememberFirstCatch(true)");
     expect(form).toContain('if (mode === "create") rememberFirstCatch(false)');
     expect(form).not.toContain("alert(");
     expect(sync).toContain("maybeRequestReviewAfterFirstCatchSave");
     expect(iap).not.toContain("requestReview");
+    expect(iap).not.toContain("maybeRequestReviewAfterFirstCatchSave");
     expect(paywall).not.toContain("requestReview");
+    expect(planPaywall).not.toContain("requestReview");
+    expect(planPaywall).not.toContain("maybeRequestReviewAfterFirstCatchSave");
+    expect(subscribeScreen).not.toContain("requestReview");
+    expect(subscribePage).not.toContain("requestReview");
+    expect(purchaseBody).not.toContain("requestReview");
+    expect(plugin).toContain("func requestReview");
   });
 });

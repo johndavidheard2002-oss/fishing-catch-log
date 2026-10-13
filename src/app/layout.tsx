@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 import { AppShell } from "@/components/AppShell";
 import { APP_DISPLAY_NAME, APP_TAGLINE } from "@/lib/brand";
+import { userAgentHasPlanIap } from "@/lib/plan-iap";
 import {
   PWA_APPLE_TOUCH_ICON,
   PWA_ICON_192,
@@ -63,11 +65,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headerList = await headers();
+  const nativeShell = userAgentHasPlanIap(headerList.get("user-agent") ?? "");
   return (
     <html
       lang="en"
@@ -78,7 +82,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href={PWA_APPLE_TOUCH_ICON} />
       </head>
       <body className="min-h-full">
-        <AppShell>{children}</AppShell>
+        <AppShell nativeShell={nativeShell}>{children}</AppShell>
       </body>
     </html>
   );
