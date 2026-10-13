@@ -1,11 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { JournalUnavailable } from "@/components/JournalUnavailable";
-import { Paywall } from "@/components/Paywall";
 import { PlanClient } from "@/components/PlanClient";
-import { getEntitlementForAngler } from "@/lib/db/entitlement";
 import { listCalendarNotes } from "@/lib/db/notes";
-import { journalBlocked } from "@/lib/entitlement";
 import { restorePlanDay } from "@/lib/notes";
 import { todayKey } from "@/lib/calendar";
 import { ANGLER_COOKIE, SESSION_COOKIE, resolveViewerFromCookies } from "@/lib/viewer";
@@ -40,7 +37,6 @@ export default async function PlanPage({
   const initialAddPhoto = firstQuery(params.addPhoto);
   let initialNotes;
   let viewerId = "";
-  let blockedEntitlement: Awaited<ReturnType<typeof getEntitlementForAngler>> = null;
   try {
     const jar = await cookies();
     const viewer = await resolveViewerFromCookies(
@@ -49,19 +45,11 @@ export default async function PlanPage({
     );
     if (!viewer.signedIn || !viewer.id) redirect("/signin");
     viewerId = viewer.id;
-    const entitlement = await getEntitlementForAngler(viewer.id);
-    if (journalBlocked(entitlement)) {
-      blockedEntitlement = entitlement;
-    } else {
-      // List surviving plan notes without a server-TZ `today`. Purge still runs on
-      // client refetch with the user's local today plus a same-day server guard.
-      initialNotes = await listCalendarNotes(viewer.id, { forPlan: true, includeShared: true });
-    }
+    // List surviving plan notes without a server-TZ `today`. Purge still runs on
+    // client refetch with the user's local today plus a same-day server guard.
+    initialNotes = await listCalendarNotes(viewer.id, { forPlan: true, includeShared: true });
   } catch {
     return <JournalUnavailable title="Plan a day" />;
-  }
-  if (blockedEntitlement) {
-    return <Paywall entitlement={blockedEntitlement} />;
   }
   if (!initialNotes) {
     return <JournalUnavailable title="Plan a day" />;

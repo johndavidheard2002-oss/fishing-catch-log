@@ -89,7 +89,9 @@ describe("Plan StoreKit gate", () => {
     expect(planPriceLabel(null)).toBe("$19.99/year");
     expect(planPriceLabel({ displayPrice: "$19.99" })).toBe("$19.99/year");
     expect(PLAN_OFFER_LINE).toBe("$19.99/year · 1-month free trial");
-    expect(PLAN_TRIAL_NOTE).toBe("Includes a 1-month free trial. Auto-renews yearly; cancel anytime.");
+    expect(PLAN_TRIAL_NOTE).toBe(
+      "Try Tide Mark Plan free for 1 month. Cancel anytime before the trial ends and you won't be charged. After the trial, it renews at $19.99/year until canceled.",
+    );
     expect(planOfferFromPlugin({ nativePlanIap: true, productId: "other", entitled: true })).toBeNull();
     const parsed = planOfferFromPlugin({
       nativePlanIap: true,
@@ -133,7 +135,9 @@ describe("Plan StoreKit gate", () => {
     expect(copy.title).toBe("Tide Mark Plan");
     expect(copy.length).toBe("1 year");
     expect(copy.price).toBe("$19.99/year");
-    expect(copy.trialNote).toBe("Includes a 1-month free trial. Auto-renews yearly; cancel anytime.");
+    expect(copy.trialNote).toBe(
+      "Try Tide Mark Plan free for 1 month. Cancel anytime before the trial ends and you won't be charged. After the trial, it renews at $19.99/year until canceled.",
+    );
     expect(copy.subscribeLabel).toBe("Subscribe – $19.99/year");
     expect(copy.subscribeLabel.toLowerCase()).not.toContain("trial");
     expect(copy.restoreLabel).toBe("Restore Purchases");
@@ -176,9 +180,17 @@ describe("Plan StoreKit gate", () => {
     expect(page).toContain("<PlanClient");
     expect(page).not.toContain("PlanSubscribeScreen");
     expect(page).not.toContain("PlanAccess");
+    expect(page).not.toContain("Paywall");
+    expect(page).not.toContain("/subscribe");
+    expect(page).not.toContain("openPaywall");
+    const planClient = readFileSync(resolve(process.cwd(), "src/components/PlanClient.tsx"), "utf8");
+    expect(planClient).not.toContain("/subscribe");
+    expect(planClient).not.toContain("Paywall");
+    expect(planClient).not.toContain("openPaywall");
     const home = readFileSync(resolve(process.cwd(), "src/components/HomeClient.tsx"), "utf8");
-    expect(home).toContain('href="/subscribe"');
+    expect(home.match(/href="\/subscribe"/g)).toEqual(['href="/subscribe"']);
     expect(home).toContain('data-testid="home-tide-mark-plan"');
+    expect(home).not.toContain('data-testid="home-tide-mark-plan-more"');
     expect(home).toContain("PLAN_OFFER_LINE");
     expect(home).toContain("planOfferVisible");
     expect(home).not.toContain("PlanSubscribeScreen");

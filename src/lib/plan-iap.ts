@@ -206,7 +206,7 @@ export function planPriceLabel(offer?: Partial<PlanOffer> | null): string {
 
 /** Subordinate to the billed amount. Must stay smaller and lighter than the price. */
 export const PLAN_TRIAL_NOTE =
-  "Includes a 1-month free trial. Auto-renews yearly; cancel anytime.";
+  "Try Tide Mark Plan free for 1 month. Cancel anytime before the trial ends and you won't be charged. After the trial, it renews at $19.99/year until canceled.";
 
 export function planSubscribeLabel(offer: PlanOffer): string {
   return `Subscribe – ${planPriceLabel(offer)}`;

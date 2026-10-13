@@ -31,14 +31,7 @@ type MeState = {
   entitlement: EntitlementSnapshot | null;
 };
 
-function TideMarkPlanLink({ compact = false }: { compact?: boolean }) {
-  if (compact) {
-    return (
-      <Link href="/subscribe" className="block text-sm font-semibold text-teal underline" data-testid="home-tide-mark-plan-more">
-        {PLAN_TITLE}
-      </Link>
-    );
-  }
+function TideMarkPlanLink() {
   return (
     <Link
       href="/subscribe"
@@ -264,7 +257,6 @@ export function HomeClient() {
         </summary>
         <div className="space-y-3 px-4 pb-2">
           <p className="text-sm font-semibold">Account</p>
-          {planOfferVisible ? <TideMarkPlanLink compact /> : null}
           <a
             href="/api/export"
             className="block text-sm font-semibold text-teal underline"
