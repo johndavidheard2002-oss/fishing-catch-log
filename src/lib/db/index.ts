@@ -73,7 +73,8 @@ CREATE TABLE IF NOT EXISTS anglers (
   created_at TEXT NOT NULL,
   trial_started_at TEXT,
   subscription_status TEXT NOT NULL DEFAULT 'trial',
-  subscription_expires_at TEXT
+  subscription_expires_at TEXT,
+  sessions_valid_after TEXT
 );
 
 CREATE TABLE IF NOT EXISTS buddy_links (
@@ -161,6 +162,16 @@ CREATE TABLE IF NOT EXISTS spot_shares (
 CREATE INDEX IF NOT EXISTS idx_spot_shares_record ON spot_shares(kind, record_id);
 CREATE INDEX IF NOT EXISTS idx_spot_shares_buddy ON spot_shares(buddy_id);
 
+CREATE TABLE IF NOT EXISTS password_resets (
+  id TEXT PRIMARY KEY,
+  angler_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_angler ON password_resets(angler_id);
+
 CREATE TABLE IF NOT EXISTS schema_meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -168,7 +179,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 `;
 
 /** File SQLite uses PRAGMA user_version. LibSQL/Turso stores the same number in schema_meta. */
-export const SCHEMA_VERSION = 17;
+export const SCHEMA_VERSION = 18;
 const SCHEMA_META_KEY = "schema_version";
 
 /**
@@ -500,6 +511,9 @@ function migrate(sqlite: Database.Database) {
   if (!latestAnglerCols.includes("subscription_expires_at")) {
     sqlite.exec(`ALTER TABLE anglers ADD COLUMN subscription_expires_at TEXT`);
   }
+  if (!latestAnglerCols.includes("sessions_valid_after")) {
+    sqlite.exec(`ALTER TABLE anglers ADD COLUMN sessions_valid_after TEXT`);
+  }
   if (version < 13) {
     sqlite.pragma("user_version = 13");
   }
@@ -554,6 +568,10 @@ function migrate(sqlite: Database.Database) {
   }
   if (version < 17) {
     sqlite.pragma("user_version = 17");
+  }
+  if (version < 18) {
+    // password_resets comes from CREATE_SQL; sessions_valid_after is added above.
+    sqlite.pragma("user_version = 18");
   }
 }
 
@@ -661,6 +679,9 @@ export async function migrateLibsql(client: Client) {
   }
   if (!latestAnglerCols.includes("subscription_expires_at")) {
     await execSoft(client, "ALTER TABLE anglers ADD COLUMN subscription_expires_at TEXT");
+  }
+  if (!latestAnglerCols.includes("sessions_valid_after")) {
+    await execSoft(client, "ALTER TABLE anglers ADD COLUMN sessions_valid_after TEXT");
   }
 
   const noteCols = await libsqlColumns(client, "calendar_notes");

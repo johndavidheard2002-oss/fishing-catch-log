@@ -298,6 +298,17 @@ export function AuthForm({
             />
           </label>
         ) : null}
+        {mode === "signin" ? (
+          <p className="text-right text-sm">
+            <Link
+              href={email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : "/forgot-password"}
+              data-testid="signin-forgot-password"
+              className="font-semibold text-teal underline"
+            >
+              Forgot password?
+            </Link>
+          </p>
+        ) : null}
         {error ? <p className="text-sm text-copper">{error}</p> : null}
         <button
           type="submit"

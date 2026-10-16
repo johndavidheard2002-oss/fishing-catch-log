@@ -3,7 +3,16 @@ import { isPersonalPhoto } from "../photo";
 import { deleteUploadedPhotoFile } from "../storage";
 import { ensureDb } from "./index";
 import { allRows, runChange } from "./query";
-import { anglers, baitSpots, buddyLinks, calendarNotes, catches, namedAreas, spotShares } from "./schema";
+import {
+  anglers,
+  baitSpots,
+  buddyLinks,
+  calendarNotes,
+  catches,
+  namedAreas,
+  passwordResets,
+  spotShares,
+} from "./schema";
 
 function personalPhotoPaths(values: Array<string | null | undefined>): string[] {
   const out: string[] = [];
@@ -45,6 +54,7 @@ export async function deleteAnglerAccount(anglerId: string): Promise<boolean> {
   await runChange(db.delete(namedAreas).where(eq(namedAreas.anglerId, anglerId)));
   await runChange(db.delete(baitSpots).where(eq(baitSpots.anglerId, anglerId)));
   await runChange(db.delete(catches).where(eq(catches.anglerId, anglerId)));
+  await runChange(db.delete(passwordResets).where(eq(passwordResets.anglerId, anglerId)));
   const removed = await runChange(db.delete(anglers).where(eq(anglers.id, anglerId)));
   if (removed < 1) return false;
 

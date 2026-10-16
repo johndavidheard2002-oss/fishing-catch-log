@@ -3,6 +3,7 @@
 export function isPublicPagePath(pathname: string): boolean {
   if (pathname === "/signin" || pathname.startsWith("/signin/")) return true;
   if (pathname === "/privacy" || pathname.startsWith("/privacy/")) return true;
+  if (pathname === "/forgot-password" || pathname === "/reset-password") return true;
   // Dev-only render of the real Plan paywall. Production builds omit this.
   if (process.env.NODE_ENV !== "production" && pathname === "/dev/plan-paywall") return true;
   return false;
@@ -15,7 +16,9 @@ export function isPublicPath(pathname: string): boolean {
   if (
     pathname === "/api/auth/login" ||
     pathname === "/api/auth/register" ||
-    pathname === "/api/auth/logout"
+    pathname === "/api/auth/logout" ||
+    pathname === "/api/auth/forgot" ||
+    pathname === "/api/auth/reset"
   ) {
     return true;
   }

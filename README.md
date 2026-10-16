@@ -39,6 +39,9 @@ Copy `.env.example` to `.env.local` in the project root:
 | `TIDEMARK_TRIAL_DAYS` | Optional trial length in days (default 30). Fractions are allowed for QA. | 30-day free month |
 | `TIDEMARK_FORCE_ENTITLEMENT` | Optional QA override: `trial`, `active`, or `expired` for every signed-in journal | Real trial clock |
 | `TIDEMARK_QA_SECRET` | Optional. Enables `POST /api/entitlement/qa` for one signed-in journal | Route returns 404 |
+| `RESEND_API_KEY` | Sends the **Forgot password?** reset email through the [Resend](https://resend.com) HTTP API. | The forgot form still shows its generic message; the server logs that no email was sent. |
+| `RESEND_FROM` | Sender for reset email, e.g. `Tide Mark <no-reply@southtexascharters.com>`. The domain must be verified in Resend. | `Tide Mark <no-reply@southtexascharters.com>` |
+| `APP_BASE_URL` | Optional site origin used in reset links, e.g. `https://fishing-catch-log-ivl7.onrender.com`. | Production uses the Render URL; dev uses the request origin. |
 
 Place names use OpenStreetMap Nominatim (no key). GPS comes from the browser, or from photo EXIF if you upload from the camera roll.
 
