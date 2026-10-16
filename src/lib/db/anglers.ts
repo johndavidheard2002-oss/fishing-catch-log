@@ -131,6 +131,29 @@ export async function getAnglerPasswordHash(id: string): Promise<string | null> 
   return row?.passwordHash ?? null;
 }
 
+/** Server-only auth state for session checks. Never send this to the client. */
+export async function getAnglerSessionState(
+  id: string,
+): Promise<{ claimed: boolean; sessionsValidAfter: string | null } | null> {
+  const db = await ensureDb();
+  const row = await getRow(db.select().from(anglers).where(eq(anglers.id, id)));
+  if (!row) return null;
+  return { claimed: mapAngler(row).claimed, sessionsValidAfter: row.sessionsValidAfter ?? null };
+}
+
+/** Replace the password hash and reject every session issued before now. */
+export async function setAnglerPasswordAndRevokeSessions(
+  id: string,
+  passwordHash: string,
+  revokedAt = new Date().toISOString(),
+): Promise<boolean> {
+  const db = await ensureDb();
+  const changed = await runChange(
+    db.update(anglers).set({ passwordHash, sessionsValidAfter: revokedAt }).where(eq(anglers.id, id)),
+  );
+  return changed > 0;
+}
+
 export async function setAnglerCredentials(
   id: string,
   args: { name: string; email: string; passwordHash: string },
