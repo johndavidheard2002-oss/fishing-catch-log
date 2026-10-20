@@ -32,7 +32,15 @@ describe("Android shell", () => {
     expect(manifest).toContain("android.permission.CAMERA");
     expect(manifest).toContain("android.permission.ACCESS_FINE_LOCATION");
     expect(manifest).toContain("android.permission.ACCESS_COARSE_LOCATION");
-    expect(manifest).toContain("android.permission.READ_MEDIA_IMAGES");
+    for (const media of [
+      "READ_MEDIA_IMAGES",
+      "READ_MEDIA_VIDEO",
+      "READ_MEDIA_VISUAL_USER_SELECTED",
+      "READ_EXTERNAL_STORAGE",
+      "WRITE_EXTERNAL_STORAGE",
+    ]) {
+      expect(manifest).toMatch(new RegExp(`android.permission.${media}" tools:node="remove"`));
+    }
     expect(manifest).toContain("com.android.vending.BILLING");
     expect(plugin).toContain(PLAY_PLAN_PRODUCT_ID);
     expect(plugin).toContain(PLAY_PLAN_BASE_PLAN_ID);
