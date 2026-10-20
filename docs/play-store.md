@@ -49,7 +49,7 @@ Same purpose as iOS. The sentences live in `android/app/src/main/res/values/stri
 | --- | --- |
 | `CAMERA` | Photograph a catch |
 | `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` | Pin the catch on the map |
-| `READ_MEDIA_IMAGES` and `READ_EXTERNAL_STORAGE` (API 32 and below) | Attach a past catch photo |
+| None for photos | Past catch photos come from the system photo picker (WebView file chooser). Broad media/storage permissions are stripped with `tools:node="remove"` (Play Photo and Video Permissions policy). |
 | `com.android.vending.BILLING` | Tide Mark Plan |
 
 Camera and GPS are not required hardware, so a device without them can still install.
@@ -73,7 +73,7 @@ Do these in order. This repo does not do them.
 3. **Subscription.** Monetize → Products → Subscriptions. Product id `tidemark_plan_yearly`. Base plan id `yearly`, billing period 1 year, price $19.99 USD (and any other countries you want). Add an offer id `free-month` on that base plan: free trial, 1 month. Activate the base plan and the offer. The app prefers `free-month` when Play returns it for that account, and otherwise buys the yearly base plan.
 4. **License testers.** Play Console → Settings → License testing. Add the Gmail accounts that will buy in the license-test track so the trial and renewals can be tested without a real charge.
 5. **Service account for verification.** In Google Cloud, enable **Google Play Android Developer API**. Create a service account and a JSON key. In Play Console → Users and permissions, invite that service account email and grant access to this app with permission to view financial data and manage orders and subscriptions. Put the JSON in Render as `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`, or split it into `GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL` and `GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY`. Until that is set, Android purchases are stored unverified.
-6. **Store listing.** Privacy policy `https://fishing-catch-log-ivl7.onrender.com/privacy`. Terms `https://fishing-catch-log-ivl7.onrender.com/terms`. Data safety: account email, photos, precise location, and friend sharing, matching the privacy page. Declare the photo permission (past catch photos) and location (catch pin).
+6. **Store listing.** Privacy policy `https://fishing-catch-log-ivl7.onrender.com/privacy`. Terms `https://fishing-catch-log-ivl7.onrender.com/terms`. Data safety: account email, photos, precise location, and friend sharing, matching the privacy page. No photo permission to declare (system photo picker); declare location (catch pin).
 7. **Codemagic.** On branch `cursor/fishing-catch-log-app-caca` (after this merges), start the `android-release` workflow. Download the AAB from the artifacts. Upload that AAB yourself in Play Console when you are ready. Do not add a Play publishing step to the workflow until you want that.
 
 A local debug AAB and APK only prove the project compiles. They are not the file you upload. Play requires the signed release AAB from the keystore in step 2.
