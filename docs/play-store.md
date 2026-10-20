@@ -7,9 +7,9 @@ The Android app is a Capacitor 7 shell. It loads the same Render site as the iOS
 | Display name | Tide Mark |
 | applicationId | `com.tidemark.logbook` |
 | Marketing version | 2.0 (`versionName`) |
-| versionCode | `1` locally. Codemagic passes `-PVERSION_CODE` from `CM_BUILD_NUMBER`. |
+| versionCode | At least `3` (floor in `app/build.gradle`). Codemagic passes `-PVERSION_CODE` from `PROJECT_BUILD_NUMBER`. |
 | User agent | `TideMarkPlanIAP/2 TideMarkBuild/14` (same marker as iOS, so the Plan gate and write guard apply) |
-| Billing | Play Billing Library **7.1.1** |
+| Billing | Play Billing Library **8.3.0** (compileSdk/targetSdk 36) |
 | Product id | `tidemark_plan_yearly` |
 | Base plan id | `yearly` |
 | Offer id | `free-month` (1 month free, then $19.99/year) |

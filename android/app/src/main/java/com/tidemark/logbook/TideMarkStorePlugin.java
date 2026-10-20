@@ -234,11 +234,14 @@ public class TideMarkStorePlugin extends Plugin {
                 .build()
         );
         QueryProductDetailsParams params = QueryProductDetailsParams.newBuilder().setProductList(products).build();
-        billingClient.queryProductDetailsAsync(params, (billingResult, productDetailsList) -> {
+        // Billing 8+: the listener receives a QueryProductDetailsResult. Products Play
+        // could not fetch are listed in getUnfetchedProductList() instead of being dropped.
+        billingClient.queryProductDetailsAsync(params, (billingResult, result) -> {
             if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                 callback.onProduct(null, messageOr(billingResult, "Google Play product " + PRODUCT_ID + " is not available."));
                 return;
             }
+            List<ProductDetails> productDetailsList = result == null ? null : result.getProductDetailsList();
             if (productDetailsList == null) {
                 callback.onProduct(null, "Google Play product " + PRODUCT_ID + " is not available.");
                 return;

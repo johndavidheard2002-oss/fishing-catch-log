@@ -1,6 +1,18 @@
 apply plugin: 'com.android.application'
 
-def tideMarkVersionCode = (project.findProperty("VERSION_CODE") ?: "1").toString().toInteger()
+// Play versionCode. Codemagic passes -PVERSION_CODE from PROJECT_BUILD_NUMBER
+// (monotonic per Codemagic project). Falls back to the env vars, and never goes
+// below 3: Play already saw versionCode 1 from the first uploads.
+def tideMarkVersionCodeFloor = 3
+def tideMarkVersionCodeRaw = [
+    project.findProperty("VERSION_CODE"),
+    System.getenv("PROJECT_BUILD_NUMBER"),
+    System.getenv("BUILD_NUMBER"),
+].find { it != null && it.toString().trim().isInteger() }
+def tideMarkVersionCode = Math.max(
+    tideMarkVersionCodeRaw != null ? tideMarkVersionCodeRaw.toString().trim().toInteger() : tideMarkVersionCodeFloor,
+    tideMarkVersionCodeFloor
+)
 
 android {
     namespace "com.tidemark.logbook"

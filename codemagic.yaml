@@ -239,7 +239,12 @@ workflows:
       - name: Build signed release AAB and APK
         script: |
           cd android
-          ./gradlew bundleRelease assembleRelease -PVERSION_CODE="${CM_BUILD_NUMBER:-1}"
+          # Codemagic exports PROJECT_BUILD_NUMBER / BUILD_NUMBER (there is no
+          # CM_BUILD_NUMBER, which is why the first AAB came out as versionCode 1).
+          # app/build.gradle also enforces a floor of 3.
+          VERSION_CODE="${PROJECT_BUILD_NUMBER:-${BUILD_NUMBER:-3}}"
+          echo "Android versionCode: $VERSION_CODE"
+          ./gradlew bundleRelease assembleRelease -PVERSION_CODE="$VERSION_CODE"
     artifacts:
       - android/app/build/outputs/**/*.aab
       - android/app/build/outputs/**/*.apk
