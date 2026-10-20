@@ -20,6 +20,7 @@ import {
 } from "@/lib/location";
 import { JOURNAL_FREE_FOR_RELEASE, TRIAL_OFFER_LINE } from "@/lib/entitlement";
 import { AUTH_PRIVACY_LINE, PRIVACY_PATH } from "@/lib/privacy";
+import { shouldShowForgotLink } from "@/lib/forgot-link";
 import { notifyAuthChange } from "@/lib/tour";
 
 export function AuthForm({
@@ -43,6 +44,7 @@ export function AuthForm({
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
   const [phase, setPhase] = useState<"form" | "location">("form");
   const [locationStatus, setLocationStatus] = useState<LiveLocationStatus>("prompt");
   const [privateBrowsing, setPrivateBrowsing] = useState(false);
@@ -74,6 +76,7 @@ export function AuthForm({
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
+        setShowForgot((shown) => shouldShowForgotLink({ alreadyShown: shown, mode, status: res.status }));
         setError(data.error || "Could not sign in.");
         return;
       }
@@ -298,7 +301,7 @@ export function AuthForm({
             />
           </label>
         ) : null}
-        {mode === "signin" ? (
+        {mode === "signin" && showForgot ? (
           <p className="text-right text-sm">
             <Link
               href={email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : "/forgot-password"}
