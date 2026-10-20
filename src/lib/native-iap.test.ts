@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { PLAN_BUILD_UA_TOKEN, PLAN_LEGACY_MONTHLY_PRODUCT_ID, PLAN_PRODUCT_ID, PLAN_UA_TOKEN } from "./plan-iap";
+import { PLAN_BUILD_UA_TOKEN, PLAN_LEGACY_MONTHLY_PRODUCT_ID, PLAN_PRODUCT_ID, PLAN_UA_TOKEN, PLAY_PRODUCT_ID } from "./plan-iap";
 import {
   formatPlanIapDiagnostics,
+  isNativeAndroidApp,
   isNativeIosApp,
   planIapDiagnostics,
+  planPlayBillingAvailable,
   planStorekitAvailable,
   pluginResultToClaim,
   purchasePlan,
@@ -257,5 +259,67 @@ describe("Capacitor StoreKit gate", () => {
     const restored = await restorePlan();
     expect(restored.status).toBe("active");
     expect(restored.transactionId).toBe("txn-ios");
+  });
+
+  it("sells Tide Mark Plan through Google Play on the Android shell", async () => {
+    const android = {
+      isNativePlatform: () => true,
+      getPlatform: () => "android",
+      isPluginAvailable: (name: string) => name === "TideMarkStore",
+      PluginHeaders: [{ name: "TideMarkStore" }],
+    };
+    expect(isNativeAndroidApp(android)).toBe(true);
+    expect(isNativeIosApp(android)).toBe(false);
+    expect(planStorekitAvailable(android, capableUa)).toBe(true);
+    expect(planPlayBillingAvailable(android, capableUa)).toBe(true);
+    expect(planPlayBillingAvailable(android, olderUa)).toBe(false);
+    expect(planPlayBillingAvailable(ios, capableUa)).toBe(false);
+    setNativeRuntimeForTests(android);
+    setUserAgentForTests(capableUa);
+    setTideMarkStoreForTests({
+      getProduct: async () => ({ productId: PLAY_PRODUCT_ID, displayPrice: "$19.99", displayName: "Tide Mark Plan" }),
+      planOffer: async () => ({
+        nativePlanIap: true,
+        productId: PLAY_PRODUCT_ID,
+        displayPrice: "$19.99",
+        entitled: false,
+        status: "none",
+        introPaymentMode: "freeTrial",
+        basePlanId: "yearly",
+        offerId: "free-month",
+      }),
+      purchase: async () => ({
+        nativePlanIap: true,
+        productId: PLAY_PRODUCT_ID,
+        purchaseToken: "token-play",
+        orderId: "GPA.9",
+        transactionId: "GPA.9",
+        entitled: true,
+        status: "active",
+        basePlanId: "yearly",
+        offerId: "free-month",
+      }),
+      restore: async () => ({
+        nativePlanIap: true,
+        productId: PLAY_PRODUCT_ID,
+        purchaseToken: "token-play",
+        orderId: "GPA.9",
+        transactionId: "GPA.9",
+        entitled: true,
+        status: "active",
+        restored: true,
+      }),
+    });
+    const access = await resolvePlanAccess();
+    expect(access.mode).toBe("paywall");
+    const bought = await purchasePlan();
+    expect(bought.productId).toBe(PLAY_PRODUCT_ID);
+    expect(bought.purchaseToken).toBe("token-play");
+    expect(bought.entitled).toBe(true);
+    const restored = await restorePlan();
+    expect(restored.orderId).toBe("GPA.9");
+    expect(formatPlanIapDiagnostics(planIapDiagnostics(android, capableUa))).toBe(
+      "native=android ua=yes plugin=yes bridge=no",
+    );
   });
 });

@@ -10,9 +10,16 @@ import {
   NATIVE_PLAN_BUILD_UA_TOKEN,
   NATIVE_PLAN_IAP_MIN_BUILD,
   NATIVE_PLAN_IAP_UA_TOKEN,
+  PLAY_PLAN_BASE_PLAN_ID,
+  PLAY_PLAN_OFFER_ID,
+  PLAY_PLAN_PRODUCT_ID,
+  PLAY_TERMS_PATH,
 } from "./native-app";
 
 export const PLAN_PRODUCT_ID = APP_STORE_PLAN_PRODUCT_ID;
+export const PLAY_PRODUCT_ID = PLAY_PLAN_PRODUCT_ID;
+export const PLAY_BASE_PLAN_ID = PLAY_PLAN_BASE_PLAN_ID;
+export const PLAY_OFFER_ID = PLAY_PLAN_OFFER_ID;
 export const PLAN_LEGACY_YEARLY_PRODUCT_ID = APP_STORE_PLAN_YEARLY_PRODUCT_ID;
 export const PLAN_LEGACY_MONTHLY_PRODUCT_ID = APP_STORE_PLAN_MONTHLY_PRODUCT_ID;
 export const PLAN_SUBSCRIPTION_GROUP = APP_STORE_PLAN_SUBSCRIPTION_GROUP;
@@ -29,6 +36,7 @@ const ACCEPTED_PLAN_PRODUCT_IDS = [
   PLAN_PRODUCT_ID,
   PLAN_LEGACY_YEARLY_PRODUCT_ID,
   PLAN_LEGACY_MONTHLY_PRODUCT_ID,
+  PLAY_PRODUCT_ID,
 ] as const;
 
 export function isAcceptedPlanProductId(value: string): boolean {
@@ -70,7 +78,13 @@ export type PlanOffer = {
   transactionId: string | null;
   originalTransactionId: string | null;
   restored?: boolean;
+  purchaseToken?: string | null;
+  orderId?: string | null;
+  basePlanId?: string | null;
+  offerId?: string | null;
 };
+
+export type PlanPaywallStore = "appstore" | "play";
 
 export type PlanAccess =
   | { mode: "free" }
@@ -195,6 +209,10 @@ export function planOfferFromPlugin(raw: unknown): PlanOffer | null {
     transactionId: asText(body.transactionId),
     originalTransactionId: asText(body.originalTransactionId),
     restored: typeof body.restored === "boolean" ? body.restored : undefined,
+    purchaseToken: asText(body.purchaseToken),
+    orderId: asText(body.orderId),
+    basePlanId: asText(body.basePlanId),
+    offerId: asText(body.offerId),
   };
 }
 
@@ -244,7 +262,14 @@ export function planSubscribeLabel(offer: PlanOffer): string {
   return `Subscribe – ${planPriceLabel(offer)}`;
 }
 
-export function planPaywallCopy(offer?: Partial<PlanOffer> | null) {
+export function planAutoRenewTerms(store: PlanPaywallStore = "appstore"): string {
+  if (store === "play") {
+    return `Tide Mark Plan is a 1-year subscription at ${PLAN_PRICE_LABEL} after a 1-month free trial. Payment is charged to your Google Play account when you confirm the purchase. It renews automatically each year unless you cancel at least 24 hours before the end of the current period. Your account is charged ${PLAN_PRICE_LABEL} for renewal within 24 hours before the period ends. Manage or cancel anytime in the Google Play Store under Payments & subscriptions. Any unused part of a free trial is forfeited if you buy a subscription before the trial ends.`;
+  }
+  return PLAN_AUTORENEW_TERMS;
+}
+
+export function planPaywallCopy(offer?: Partial<PlanOffer> | null, store: PlanPaywallStore = "appstore") {
   return {
     title: PLAN_TITLE,
     length: PLAN_PERIOD_LABEL,
@@ -252,8 +277,8 @@ export function planPaywallCopy(offer?: Partial<PlanOffer> | null) {
     trialNote: PLAN_TRIAL_NOTE,
     requiredNote: PLAN_REQUIRED_NOTE,
     keepLine: PLAN_KEEP_LINE,
-    autoRenew: PLAN_AUTORENEW_TERMS,
-    termsUrl: PLAN_TERMS_URL,
+    autoRenew: planAutoRenewTerms(store),
+    termsUrl: store === "play" ? PLAY_TERMS_PATH : PLAN_TERMS_URL,
     subscribeLabel: planSubscribeLabel({ ...fallbackPlanOffer(), ...offer, status: offer?.status ?? "none" }),
     restoreLabel: "Restore Purchases",
   };

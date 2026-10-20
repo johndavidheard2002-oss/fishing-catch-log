@@ -59,6 +59,7 @@ export function isJournalLockedPath(pathname: string): boolean {
 /** Path rule used when a paid plan returns. 1.0 does not consult this for navigation. */
 export function subscriptionGatesPath(pathname: string): boolean {
   if (pathname === "/" || pathname === "/privacy" || pathname.startsWith("/privacy/")) return false;
+  if (pathname === "/terms" || pathname.startsWith("/terms/")) return false;
   if (pathname === "/signin" || pathname.startsWith("/signin/")) return false;
   if (pathname.startsWith("/api/")) return false;
   return true;

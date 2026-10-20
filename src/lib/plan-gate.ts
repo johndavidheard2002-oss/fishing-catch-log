@@ -23,11 +23,12 @@ export function serverPlanSubscribed(
 export type PlanAppAccess = "open" | "locked";
 
 /**
- * iOS build 14+ with TideMarkStore purchase only. The website, Android,
- * Tide Mark 1.0, and older TestFlight builds pass native: false and stay open.
- * StoreKit is the source of truth, including a current free trial.
- * A stored server flag does not hide the subscribe card when StoreKit says the
- * term has ended.
+ * Native shell that can buy Tide Mark Plan: iOS build 14+ or the Android app
+ * with the same user-agent marker. The website, Tide Mark 1.0, and older
+ * TestFlight builds pass native: false and stay open.
+ * The store on that shell (StoreKit or Google Play) is the source of truth,
+ * including a current free trial. A stored server flag does not hide the
+ * subscribe card when the store says the term has ended.
  */
 export function planAppAccess(args: {
   native: boolean;
@@ -43,6 +44,7 @@ export function planGateAllowsPath(pathname: string | null | undefined): boolean
   if (!pathname) return false;
   if (pathname === "/signin" || pathname.startsWith("/signin/")) return true;
   if (pathname === "/privacy" || pathname.startsWith("/privacy/")) return true;
+  if (pathname === "/terms" || pathname.startsWith("/terms/")) return true;
   if (pathname === "/subscribe" || pathname.startsWith("/subscribe/")) return true;
   if (pathname === "/dev/plan-paywall") return true;
   return false;

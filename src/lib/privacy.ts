@@ -58,15 +58,15 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     id: "subscriptions",
     title: "Tide Mark Plan",
     paragraphs: [
-      `The Tide Mark website, Tide Mark 1.0, and iOS builds before 14 do not require ${PLAN_TITLE}. On iOS build 14 and later, when the app can open the App Store purchase, logging a new catch or editing a plan requires it. Catches already logged stay visible, read only. Each tab shows a Tide Mark Plan card that opens the subscription. The Home account card keeps its Tide Mark Plan button. We do not delete your catches, photos, spots, or notes when a subscription ends.`,
-      `${PLAN_TITLE} is an auto-renewable subscription in the Tide Mark 2.0 iPhone app: a 1-month free trial, then ${PLAN_PRICE_LABEL}, billed by Apple. A subscription is required to keep using Tide Mark after the trial. Manage or cancel in your App Store account settings.`,
+      `The Tide Mark website, Tide Mark 1.0, and iOS builds before 14 do not require ${PLAN_TITLE}. On iOS build 14 and later, and on the Android app, logging a new catch or editing a plan requires it. Catches already logged stay visible, read only. Each tab shows a Tide Mark Plan card that opens the subscription. The Home account card keeps its Tide Mark Plan button. We do not delete your catches, photos, spots, or notes when a subscription ends.`,
+      `${PLAN_TITLE} is an auto-renewable subscription: a 1-month free trial, then ${PLAN_PRICE_LABEL}. On iPhone it is billed by Apple. On Android it is billed by Google Play. A subscription is required to keep using Tide Mark after the trial. Manage or cancel in your App Store account settings, or in the Google Play Store under Payments & subscriptions.`,
     ],
   },
   {
     id: "hosting",
     title: "Hosting (Render and Turso)",
     paragraphs: [
-      "The Tide Mark website and iOS WebView load from Render at fishing-catch-log-ivl7.onrender.com. Your journal rows (account, catches, pins, friend links, notes) live in a Turso / LibSQL database. Catch photos sit on a persistent disk on that same Render service.",
+      "The Tide Mark website, iOS WebView, and Android WebView load from Render at fishing-catch-log-ivl7.onrender.com. Your journal rows (account, catches, pins, friend links, notes) live in a Turso / LibSQL database. Catch photos sit on a persistent disk on that same Render service.",
       "Weather, forecast, tides, and maps may be fetched from OpenWeather, Open-Meteo, NOAA CO-OPS, WorldTides, Esri, or OpenStreetMap when you log or plan — those services see the coordinates needed for that lookup, not your full history. An optional fish-photo helper may send a picture you already chose to OpenAI; species is still tagged by you.",
     ],
   },

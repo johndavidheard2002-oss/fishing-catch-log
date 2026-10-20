@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin, WebPlugin } from "@capacitor/core";
 import type { EntitlementSnapshot } from "./entitlement";
 import {
   PLAN_PRODUCT_ID,
+  PLAY_PRODUCT_ID,
   fallbackPlanOffer,
   planAccessFromProbe,
   planIapBuildAvailable,
@@ -29,6 +30,7 @@ export type NativeRuntime = {
 
 export type PlanIapDiagnostics = {
   nativeIos: boolean;
+  nativeAndroid: boolean;
   userAgentMatch: boolean;
   pluginAvailable: boolean;
   pluginHeader: boolean;
@@ -60,6 +62,10 @@ export type StorekitPluginResult = {
   introPeriodUnit?: string | null;
   introPeriodValue?: number | null;
   introDisplayPrice?: string | null;
+  purchaseToken?: string | null;
+  orderId?: string | null;
+  basePlanId?: string | null;
+  offerId?: string | null;
 };
 
 export interface TideMarkStorePlugin {
@@ -127,6 +133,14 @@ export function isNativeIosApp(cap: NativeRuntime = runtime()): boolean {
   }
 }
 
+export function isNativeAndroidApp(cap: NativeRuntime = runtime()): boolean {
+  try {
+    return cap.isNativePlatform() && cap.getPlatform() === "android";
+  } catch {
+    return false;
+  }
+}
+
 function pluginHeaderHasTideMarkStore(headers: NativeRuntime["PluginHeaders"]): boolean {
   if (!Array.isArray(headers)) return false;
   return headers.some((entry) => {
@@ -160,20 +174,24 @@ export function iosWebkitBridgePresent(): boolean {
 export function tideMarkStoreProbe(cap: NativeRuntime | null = runtime()): {
   available: boolean;
   header: boolean;
+  androidAvailable: boolean;
 } {
   const sources = [cap, windowCapacitor()].filter((source): source is NativeRuntime => source != null);
   let available = false;
   let header = false;
+  let androidAvailable = false;
   for (const source of sources) {
     if (pluginHeaderHasTideMarkStore(source.PluginHeaders)) header = true;
-    if (!isNativeIosApp(source) || typeof source.isPluginAvailable !== "function") continue;
+    if (typeof source.isPluginAvailable !== "function") continue;
     try {
-      if (source.isPluginAvailable(TIDE_MARK_STORE_PLUGIN) === true) available = true;
+      if (source.isPluginAvailable(TIDE_MARK_STORE_PLUGIN) !== true) continue;
+      if (isNativeIosApp(source)) available = true;
+      if (isNativeAndroidApp(source)) androidAvailable = true;
     } catch {
       // A broken bridge is not a 2.0 plugin.
     }
   }
-  return { available, header };
+  return { available, header, androidAvailable };
 }
 
 /** Native iOS shell, including the live 1.0 build. Not enough to sell Plan. */
@@ -199,6 +217,16 @@ export function planStorekitAvailable(
   });
 }
 
+/** Android shell with TideMarkStore and the 2.0 user-agent marker. */
+export function planPlayBillingAvailable(
+  cap: NativeRuntime = runtime(),
+  ua: string = userAgent(),
+): boolean {
+  if (!isNativeAndroidApp(cap) || !userAgentHasPlanPurchaseShell(ua)) return false;
+  const probe = tideMarkStoreProbe(cap);
+  return probe.header || probe.androidAvailable;
+}
+
 export function planIapDiagnostics(
   cap: NativeRuntime = runtime(),
   ua: string = userAgent(),
@@ -206,8 +234,9 @@ export function planIapDiagnostics(
   const probe = tideMarkStoreProbe(cap);
   return {
     nativeIos: isNativeIosApp(cap),
+    nativeAndroid: isNativeAndroidApp(cap),
     userAgentMatch: userAgentHasPlanPurchaseShell(ua),
-    pluginAvailable: probe.available,
+    pluginAvailable: probe.available || probe.androidAvailable,
     pluginHeader: probe.header,
     iosBridge: iosWebkitBridgePresent(),
   };
@@ -215,7 +244,8 @@ export function planIapDiagnostics(
 
 export function formatPlanIapDiagnostics(flags: PlanIapDiagnostics): string {
   const plugin = flags.pluginAvailable || flags.pluginHeader ? "yes" : "no";
-  return `native=${flags.nativeIos ? "ios" : "no"} ua=${flags.userAgentMatch ? "yes" : "no"} plugin=${plugin} bridge=${flags.iosBridge ? "yes" : "no"}`;
+  const native = flags.nativeIos ? "ios" : flags.nativeAndroid ? "android" : "no";
+  return `native=${native} ua=${flags.userAgentMatch ? "yes" : "no"} plugin=${plugin} bridge=${flags.iosBridge ? "yes" : "no"}`;
 }
 
 export function notifyEntitlementChanged(entitlement?: EntitlementSnapshot | null) {
@@ -257,7 +287,68 @@ function offerFromResult(result: StorekitPluginResult): PlanOffer {
   );
 }
 
+async function playResultToOffer(result: StorekitPluginResult): Promise<PlanOffer> {
+  const offer = planOfferFromPlugin({
+    ...result,
+    nativePlanIap: true,
+    productId: result.productId ?? PLAY_PRODUCT_ID,
+  });
+  if (!offer) throw new Error("Google Play Plan is not available in this app build.");
+  return offer;
+}
+
+async function persistPlayResult(result: StorekitPluginResult, source: "purchase" | "restore") {
+  const purchaseToken = typeof result.purchaseToken === "string" ? result.purchaseToken.trim() : "";
+  if (!purchaseToken) return;
+  try {
+    await activatePlayOnServer({
+      productId: result.productId ?? PLAY_PRODUCT_ID,
+      purchaseToken,
+      orderId: result.orderId ?? result.transactionId ?? null,
+      basePlanId: result.basePlanId ?? null,
+      offerId: result.offerId ?? null,
+      expiresAt: result.expiresAt ?? (typeof result.expiresDate === "string" ? result.expiresDate : null),
+      source,
+    });
+  } catch {
+    // The next resume retries. A failed save does not hide the Play result.
+  }
+}
+
+export async function activatePlayOnServer(body: {
+  productId: string;
+  purchaseToken: string;
+  orderId?: string | null;
+  basePlanId?: string | null;
+  offerId?: string | null;
+  expiresAt?: string | null;
+  source: "purchase" | "restore";
+}): Promise<EntitlementSnapshot> {
+  const response = await fetch("/api/entitlement/play", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify(body),
+  });
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    entitlement?: EntitlementSnapshot;
+  };
+  if (!response.ok || !data.entitlement) {
+    throw new Error(typeof data.error === "string" ? data.error : "Could not save the Google Play subscription.");
+  }
+  notifyEntitlementChanged(data.entitlement);
+  return data.entitlement;
+}
+
 export async function fetchPlanOffer(): Promise<PlanOffer> {
+  if (isNativeAndroidApp()) {
+    if (!planPlayBillingAvailable()) {
+      throw new Error("Google Play Plan is only available in Tide Mark 2.0 on Android.");
+    }
+    const result = await store().planOffer({ productId: PLAY_PRODUCT_ID });
+    return playResultToOffer(result);
+  }
   if (!planStorekitAvailable()) {
     throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iOS.");
   }
@@ -268,6 +359,15 @@ export async function fetchPlanOffer(): Promise<PlanOffer> {
 }
 
 export async function resolvePlanAccess(): Promise<PlanAccess> {
+  if (isNativeAndroidApp()) {
+    if (!planPlayBillingAvailable()) return { mode: "free" };
+    try {
+      const offer = await fetchPlanOffer();
+      return planAccessFromProbe({ nativeBuild: true, offer });
+    } catch {
+      return planAccessFromProbe({ nativeBuild: true, offer: null });
+    }
+  }
   if (!planStorekitAvailable()) return { mode: "free" };
   try {
     const offer = await fetchPlanOffer();
@@ -279,6 +379,25 @@ export async function resolvePlanAccess(): Promise<PlanAccess> {
 
 /** Re-read StoreKit, including a current trial, and mirror that term on the server. */
 export async function refreshPlanEntitlement(): Promise<boolean> {
+  if (isNativeAndroidApp()) {
+    const access = await resolvePlanAccess();
+    const offer = access.mode === "free" ? null : access.offer;
+    if (offer?.purchaseToken) {
+      await persistPlayResult(
+        {
+          productId: offer.productId,
+          purchaseToken: offer.purchaseToken,
+          orderId: offer.orderId,
+          transactionId: offer.transactionId ?? undefined,
+          basePlanId: offer.basePlanId,
+          offerId: offer.offerId,
+          expiresAt: offer.expiresAt,
+        },
+        "restore",
+      );
+    }
+    return access.mode === "unlocked";
+  }
   const access = await resolvePlanAccess();
   const offer = access.mode === "free" ? null : access.offer;
   if (offer?.transactionId) {
@@ -305,6 +424,18 @@ async function persistPlanClaim(claim: StorekitClaim): Promise<EntitlementSnapsh
 }
 
 export async function purchasePlan(): Promise<PlanOffer> {
+  if (isNativeAndroidApp()) {
+    if (!planPlayBillingAvailable()) {
+      throw new Error("Google Play Plan is only available in Tide Mark 2.0 on Android.");
+    }
+    const result = await store().purchase({ productId: PLAY_PRODUCT_ID });
+    const offer = await playResultToOffer(result);
+    await persistPlayResult(result, "purchase");
+    if (!offer.entitled || offer.status === "expired") {
+      throw new Error("The Google Play subscription is not active.");
+    }
+    return offer;
+  }
   if (!planStorekitAvailable()) {
     throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iOS.");
   }
@@ -320,6 +451,22 @@ export async function purchasePlan(): Promise<PlanOffer> {
 }
 
 export async function restorePlan(): Promise<PlanOffer> {
+  if (isNativeAndroidApp()) {
+    if (!planPlayBillingAvailable()) {
+      throw new Error("Google Play Plan is only available in Tide Mark 2.0 on Android.");
+    }
+    const result = await store().restore({ productId: PLAY_PRODUCT_ID });
+    const offer = await playResultToOffer(result);
+    if (offer.purchaseToken) await persistPlayResult(result, "restore");
+    if (!offer.entitled || offer.status === "expired") {
+      throw new Error(
+        offer.status === "expired"
+          ? "That Plan subscription has ended."
+          : "No Google Play subscription to restore for this account.",
+      );
+    }
+    return offer;
+  }
   if (!planStorekitAvailable()) {
     throw new Error("StoreKit Plan is only available in Tide Mark 2.0 on iOS.");
   }
