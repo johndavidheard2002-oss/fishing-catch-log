@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   iosWebkitBridgePresent,
+  isNativeAndroidApp,
   isNativeIosApp,
   planStorekitAvailable,
   purchasePlan,
@@ -16,12 +17,18 @@ import {
   type PlanOffer,
 } from "@/lib/plan-iap";
 
-function pluginErrorMessage(err: unknown): string {
-  const raw = err instanceof Error ? err.message : "App Store purchase failed.";
+function pluginErrorMessage(err: unknown, play: boolean): string {
+  const raw = err instanceof Error ? err.message : play ? "Google Play purchase failed." : "App Store purchase failed.";
   const lower = raw.toLowerCase();
   if (lower.includes("cancel")) return "Purchase cancelled.";
   if (lower.includes("pending")) return "Purchase is pending approval.";
   if (lower.includes("has ended")) return "That Plan subscription has ended.";
+  if (play) {
+    if (lower.includes("no google play subscription") || lower.includes("nothing to restore")) {
+      return "No Google Play subscription to restore for this account.";
+    }
+    return raw;
+  }
   if (lower.includes("no app store subscription") || lower.includes("nothing to restore")) {
     return "No App Store subscription to restore for this Apple ID.";
   }
@@ -46,7 +53,8 @@ export function PlanPaywall({
 }) {
   const [busy, setBusy] = useState<"purchase" | "restore" | "retry" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const copy = planPaywallCopy(offer);
+  const play = isNativeAndroidApp();
+  const copy = planPaywallCopy(offer, play ? "play" : "appstore");
   const ended = offer.status === "expired";
   const active = offer.entitled && offer.status === "active";
 
@@ -69,7 +77,7 @@ export function PlanPaywall({
       const next = kind === "purchase" ? await purchasePlan() : await restorePlan();
       onUnlocked?.(next);
     } catch (err) {
-      setError(planStorekitErrorForViewer(pluginErrorMessage(err), insideTideMarkIosApp()));
+      setError(planStorekitErrorForViewer(pluginErrorMessage(err, play), insideTideMarkIosApp() || play));
     } finally {
       setBusy(null);
     }
@@ -114,7 +122,9 @@ export function PlanPaywall({
       ) : null}
       {!priceFromStore ? (
         <p className="text-sm text-ink" data-testid="plan-price-fallback">
-          The App Store price did not load. The price shown is {copy.price}.
+          {play
+            ? `The Google Play price did not load. The price shown is ${copy.price}.`
+            : `The App Store price did not load. The price shown is ${copy.price}.`}
         </p>
       ) : null}
       {ended ? (
@@ -147,7 +157,7 @@ export function PlanPaywall({
       </button>
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold">
         <a
-          href={PLAN_TERMS_URL}
+          href={play ? copy.termsUrl : PLAN_TERMS_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="text-teal underline"

@@ -29,4 +29,9 @@ The iPhone home-screen / TestFlight icon is the native AppIcon. A
 Render web deploy does **not** update it — run the Codemagic
 `ios-testflight` workflow so the next IPA picks up this asset.
 
+Android adaptive icons and splash screens are generated from the same
+`resources/icon.png` and `resources/splash.png` into `android/app/src/main/res`.
+Background `#040a13`. A Render deploy does not update them either. The
+Codemagic `android-release` workflow packages the committed art.
+
 See [docs/app-store.md](../docs/app-store.md).

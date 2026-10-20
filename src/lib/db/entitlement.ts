@@ -7,6 +7,8 @@ import {
   type EntitlementSnapshot,
   type SubscriptionStatus,
 } from "../entitlement";
+import { verifyPlayPurchase, type PlayVerification } from "../play-billing";
+import { parsePlayClaim, unverifiedPlayEntitlement, type PlayClaim } from "../play-plan";
 import { parseStorekitClaim, resolveStorekitActivation, type StorekitClaim } from "../storekit";
 import { getAngler } from "./anglers";
 import { ensureDb } from "./index";
@@ -117,4 +119,56 @@ export async function activateFromStorekit(
   });
   if (!entitlement) return { error: "Journal was not found." };
   return { entitlement, claim: resolved.claim };
+}
+
+export type PlayActivateResult =
+  | {
+      entitlement: EntitlementSnapshot;
+      claim: PlayClaim;
+      verified: boolean;
+      verification: "google" | "unconfigured";
+    }
+  | { error: string };
+
+/**
+ * Record a Google Play purchase. When the service account env vars are unset,
+ * the device purchase is trusted for its reported expiry, or one year.
+ * When they are set, purchases.subscriptionsv2 must succeed.
+ */
+export async function activateFromPlay(
+  anglerId: string,
+  body: unknown,
+  now = new Date(),
+  verify: typeof verifyPlayPurchase = verifyPlayPurchase,
+): Promise<PlayActivateResult> {
+  const parsed = parsePlayClaim(body);
+  if (!parsed.ok) return { error: parsed.error };
+  let verification: PlayVerification;
+  try {
+    verification = await verify(parsed.claim, { now });
+  } catch {
+    return { error: "Could not reach Google Play to verify this subscription." };
+  }
+  if (!verification.configured) {
+    const resolved = unverifiedPlayEntitlement(parsed.claim, now);
+    const entitlement = await setStoredSubscription(anglerId, {
+      status: resolved.status,
+      subscriptionExpiresAt: resolved.expiresAt,
+    });
+    if (!entitlement) return { error: "Journal was not found." };
+    return { entitlement, claim: parsed.claim, verified: false, verification: "unconfigured" };
+  }
+  if (!verification.ok) return { error: verification.error };
+  const resolved = verification.entitlement;
+  const entitlement = await setStoredSubscription(anglerId, {
+    status: resolved.status,
+    subscriptionExpiresAt: resolved.expiresAt,
+  });
+  if (!entitlement) return { error: "Journal was not found." };
+  return {
+    entitlement,
+    claim: parsed.claim,
+    verified: verification.configured,
+    verification: verification.configured ? "google" : "unconfigured",
+  };
 }

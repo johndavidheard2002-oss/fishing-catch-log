@@ -78,3 +78,21 @@ export const NATIVE_PLAN_BUILD_UA_TOKEN = `TideMarkBuild/${NATIVE_PLAN_IAP_MIN_B
 /** Apple standard Licensed Application EULA. Fine for guideline 3.1.2. */
 export const APPLE_STANDARD_EULA_URL =
   "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+
+/**
+ * Google Play subscription for the Android shell. Create these exact ids in
+ * Play Console. The iOS product ids stay on StoreKit and are not sold here.
+ */
+export const PLAY_PLAN_PRODUCT_ID = "tidemark_plan_yearly";
+export const PLAY_PLAN_BASE_PLAN_ID = "yearly";
+export const PLAY_PLAN_OFFER_ID = "free-month";
+export const PLAY_PACKAGE_NAME = APP_STORE_BUNDLE_ID;
+/** In-app terms. Android paywall links here instead of Apple's EULA. */
+export const PLAY_TERMS_PATH = "/terms";
+
+/** Same sentences as the iOS usage descriptions, shown from Android strings.xml. */
+export const ANDROID_PERMISSION_RATIONALES = {
+  camera: IOS_USAGE_DESCRIPTIONS.NSCameraUsageDescription,
+  location: IOS_USAGE_DESCRIPTIONS.NSLocationWhenInUseUsageDescription,
+  photos: IOS_USAGE_DESCRIPTIONS.NSPhotoLibraryUsageDescription,
+} as const;

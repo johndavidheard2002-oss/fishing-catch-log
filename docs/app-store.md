@@ -137,7 +137,8 @@ Purchase and Restore read the verified transaction (including expiration and rev
 | 2.0 marker | `TideMarkPlanIAP/2` |
 | Capacitor plugin | `TideMarkStore` (`planOffer`, `getProduct`, `purchase`, `restore`) |
 | Server | `POST /api/entitlement/storekit` (signed-in cookie) |
-| Web, Android, and 1.0 | No Plan gate. The website and 1.0 do not show the purchase screen. |
+| Web and 1.0 | No Plan gate. The website and 1.0 do not show the purchase screen. |
+| Android | Same Plan gate when the shell sends `TideMarkPlanIAP/2 TideMarkBuild/14`. Purchases use Google Play. See [play-store.md](play-store.md). |
 
 Linux CI can run the TypeScript tests (claim parsing, entitlement activate/restore, Capacitor detection). They do **not** talk to StoreKit. On a Mac, verify the real sheet:
 
@@ -189,3 +190,5 @@ Linux CI covers the queue/sync unit tests (`npm test`). It cannot exercise Airpl
 - Teal / bait / share UI changes
 - Compiling or running StoreKit on Linux — use a Mac for the real purchase sheet
 - Submitting the IPA to App Store review (`submit_to_app_store` stays false)
+
+Android (Google Play Billing, signed AAB, Play Console setup) is in [play-store.md](play-store.md). The iOS StoreKit path is unchanged.

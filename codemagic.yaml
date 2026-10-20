@@ -211,3 +211,35 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
+
+  # Signed release bundle for Google Play. Does not upload to Play Console.
+  # Create a Codemagic Android code signing identity named tidemark_upload
+  # (upload keystore). The reference below pulls CM_KEYSTORE_PATH,
+  # CM_KEYSTORE_PASSWORD, CM_KEY_ALIAS, and CM_KEY_PASSWORD at build time.
+  # Do not commit the keystore. Play App Signing stays on in Play Console;
+  # this keystore is only the upload key.
+  android-release:
+    name: Tide Mark Android release
+    max_build_duration: 120
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - tidemark_upload
+      vars:
+        PACKAGE_NAME: com.tidemark.logbook
+      node: lts
+      java: 21
+    scripts:
+      - name: Install npm dependencies
+        script: |
+          npm ci
+      - name: Sync Capacitor Android
+        script: |
+          npx cap sync android
+      - name: Build signed release AAB and APK
+        script: |
+          cd android
+          ./gradlew bundleRelease assembleRelease -PVERSION_CODE="${CM_BUILD_NUMBER:-1}"
+    artifacts:
+      - android/app/build/outputs/**/*.aab
+      - android/app/build/outputs/**/*.apk

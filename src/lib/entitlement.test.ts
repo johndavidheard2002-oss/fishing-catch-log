@@ -173,6 +173,7 @@ describe("locked journal paths", () => {
   it("still knows which paths a later paid plan would gate", () => {
     expect(subscriptionGatesPath("/")).toBe(false);
     expect(subscriptionGatesPath("/privacy")).toBe(false);
+    expect(subscriptionGatesPath("/terms")).toBe(false);
     expect(subscriptionGatesPath("/signin")).toBe(false);
     expect(subscriptionGatesPath("/log")).toBe(true);
     expect(subscriptionGatesPath("/log/scan")).toBe(true);

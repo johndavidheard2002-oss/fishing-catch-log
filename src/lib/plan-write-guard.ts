@@ -7,7 +7,8 @@ import { userAgentHasPlanPurchaseShell } from "./plan-iap";
 
 /**
  * Blocks journal writes only from a native shell that reports version 2.0+
- * and build >= 14 (the first build with a working TideMarkStore purchase).
+ * and build >= 14 (the first iOS build with a working TideMarkStore purchase).
+ * The Android shell sends the same marker and is gated the same way.
  * The website, Tide Mark 1.0, and older TestFlight builds stay open.
  * Comp accounts stay open on every build.
  */

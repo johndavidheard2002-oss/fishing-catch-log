@@ -45,6 +45,12 @@ const config: CapacitorConfig = {
     scheme: "Tide Mark",
     backgroundColor: "#140c09",
   },
+  android: {
+    // Same 2.0 marker as iOS. The live site then gates logging the same way.
+    // Purchases on this shell go through Google Play Billing, not StoreKit.
+    appendUserAgent: "TideMarkPlanIAP/2 TideMarkBuild/14",
+    backgroundColor: "#140c09",
+  },
 };
 
 export default config;

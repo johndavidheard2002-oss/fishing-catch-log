@@ -5,6 +5,7 @@ describe("auth gate", () => {
   it("lets signed-out visitors reach sign-in, privacy, and auth APIs only", () => {
     expect(isPublicPath("/signin")).toBe(true);
     expect(isPublicPath("/privacy")).toBe(true);
+    expect(isPublicPath("/terms")).toBe(true);
     expect(isPublicPath("/api/auth/login")).toBe(true);
     expect(isPublicPath("/api/auth/register")).toBe(true);
     expect(isPublicPath("/api/auth/delete")).toBe(false);
@@ -32,6 +33,7 @@ describe("auth gate", () => {
     });
     expect(authGate({ pathname: "/signin", hasSession: false })).toEqual({ action: "next" });
     expect(authGate({ pathname: "/privacy", hasSession: false })).toEqual({ action: "next" });
+    expect(authGate({ pathname: "/terms", hasSession: false })).toEqual({ action: "next" });
     expect(authGate({ pathname: "/api/auth/login", hasSession: false })).toEqual({
       action: "next",
     });

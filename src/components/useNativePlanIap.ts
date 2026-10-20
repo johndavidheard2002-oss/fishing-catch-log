@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatPlanIapDiagnostics, planIapDiagnostics, planStorekitAvailable } from "@/lib/native-iap";
+import {
+  formatPlanIapDiagnostics,
+  planIapDiagnostics,
+  planPlayBillingAvailable,
+  planStorekitAvailable,
+} from "@/lib/native-iap";
 
 /** True when this WebView is Tide Mark 2.0. The website and 1.0 stay false. */
 export function useNativePlanIap(): { ready: boolean; native: boolean; diagnostics: string } {
@@ -10,7 +15,7 @@ export function useNativePlanIap(): { ready: boolean; native: boolean; diagnosti
   useEffect(() => {
     function read() {
       const flags = planIapDiagnostics();
-      const native = planStorekitAvailable();
+      const native = planStorekitAvailable() || planPlayBillingAvailable();
       setState((prev) => ({
         ready: true,
         native: prev.native || native,
