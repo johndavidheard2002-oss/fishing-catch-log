@@ -8,6 +8,10 @@ describe("auth gate", () => {
     expect(isPublicPath("/api/auth/login")).toBe(true);
     expect(isPublicPath("/api/auth/register")).toBe(true);
     expect(isPublicPath("/api/auth/delete")).toBe(false);
+    expect(isPublicPath("/forgot-password")).toBe(true);
+    expect(isPublicPath("/reset-password")).toBe(true);
+    expect(isPublicPath("/api/auth/forgot")).toBe(true);
+    expect(isPublicPath("/api/auth/reset")).toBe(true);
     expect(isPublicPath("/api/me")).toBe(true);
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/calendar")).toBe(false);

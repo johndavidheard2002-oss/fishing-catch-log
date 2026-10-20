@@ -10,7 +10,7 @@ export const AUTH_PRIVACY_LINE =
 
 export const PRIVACY_PATH = "/privacy";
 export const PRIVACY_CONTACT_EMAIL = "johndavidheard2002@gmail.com";
-export const PRIVACY_UPDATED = "October 7, 2026";
+export const PRIVACY_UPDATED = "October 16, 2026";
 
 export type PrivacySection = {
   id: string;
@@ -27,7 +27,7 @@ export const PRIVACY_SECTIONS: PrivacySection[] = [
     title: "Account email",
     paragraphs: [
       "You create a journal with your name, email address, and a password. Email is how you sign back in. We store the email on your angler record and keep the password as a one-way hash — we cannot read the password itself.",
-      "We use the email only to run your account (sign-in). Tide Mark does not sell email lists or send marketing mail. You can delete the account from Home.",
+      "We use the email only to run your account: sign-in, and a password reset link when you ask for one (sent from our Gmail account through Google's mail service). Tide Mark does not sell email lists or send marketing mail. You can delete the account from Home.",
     ],
   },
   {

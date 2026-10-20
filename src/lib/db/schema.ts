@@ -52,6 +52,18 @@ export const anglers = sqliteTable("anglers", {
   trialStartedAt: text("trial_started_at"),
   subscriptionStatus: text("subscription_status").notNull().default("trial"),
   subscriptionExpiresAt: text("subscription_expires_at"),
+  /** Session cookies issued before this ISO time are rejected (set on password reset). */
+  sessionsValidAfter: text("sessions_valid_after"),
+});
+
+/** Single-use password reset links. Only the SHA-256 of the emailed token is stored. */
+export const passwordResets = sqliteTable("password_resets", {
+  id: text("id").primaryKey(),
+  anglerId: text("angler_id").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  usedAt: text("used_at"),
+  createdAt: text("created_at").notNull(),
 });
 
 export const buddyLinks = sqliteTable("buddy_links", {

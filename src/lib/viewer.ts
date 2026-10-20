@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSession, signSession } from "./auth";
+import { signSession } from "./auth";
+import { readSessionDetail, sessionStillValid } from "./session-token";
 import {
   ANGLER_COOKIE,
   SESSION_COOKIE,
@@ -8,7 +9,7 @@ import {
   clearAuthCookies,
   expireStaleAuthCookies,
 } from "./auth-cookies";
-import { getAngler } from "./db/anglers";
+import { getAnglerSessionState } from "./db/anglers";
 
 export { ANGLER_COOKIE, SESSION_COOKIE, VIEWER_COOKIE, clearAuthCookies, expireStaleAuthCookies };
 
@@ -25,10 +26,12 @@ export async function resolveViewerFromCookies(
   sessionCookie?: string | null,
 ): Promise<{ id: string; signedIn: boolean }> {
   void anonCookie;
-  const sessionId = readSession(sessionCookie);
-  if (sessionId) {
-    const angler = await getAngler(sessionId);
-    if (angler?.claimed) return { id: sessionId, signedIn: true };
+  const session = readSessionDetail(sessionCookie);
+  if (session) {
+    const state = await getAnglerSessionState(session.anglerId);
+    if (state?.claimed && sessionStillValid(session.issuedAtSec, state.sessionsValidAfter)) {
+      return { id: session.anglerId, signedIn: true };
+    }
   }
   return { id: "", signedIn: false };
 }

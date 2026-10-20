@@ -75,6 +75,10 @@ Paste these in the host’s environment UI:
 | `UPLOADS_DIR` | **Yes on Render/Railway** | `/var/data/uploads` (must sit on the disk mount) |
 | `SESSION_SECRET` | **Yes on a shared host** | Long random string. Signs the httpOnly login cookie. If unset, the app falls back to `TURSO_AUTH_TOKEN` (local/dev only). |
 | `COMP_ACCOUNT_EMAILS` | Optional | Comma-separated accounts that keep full logging on every iOS build. Unset uses `johndavidheard2002@gmail.com` and `jd@southtexascharters.com`. Do not add the App Review demo account. |
+| `GMAIL_USER` | **Yes for Forgot password** | `fisharansaspass@gmail.com`. Sends reset email over Gmail SMTP (`smtp.gmail.com:465`). |
+| `GMAIL_APP_PASSWORD` | **Yes for Forgot password** | 16-character Google app password for `GMAIL_USER`. Missing: the form still answers generically and the server logs that nothing was sent. |
+| `MAIL_FROM` | Optional | Default `Tide Mark <GMAIL_USER>`. |
+| `APP_BASE_URL` | Optional | Origin for reset links. Production defaults to the Render URL. |
 
 Leave **unset** (the host provides or the app defaults):
 
